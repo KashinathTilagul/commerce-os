@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   TrendingUp, TrendingDown, ShoppingBag, Users, Package, Cpu,
-  ShieldCheck, AlertTriangle, ArrowUpRight, Sparkles, Clock,
+  ShieldCheck, AlertTriangle, ArrowUpRight, Sparkles, Clock, Bell, GitBranch, Inbox, Wallet,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, SectionTitle, HouseBadge, ColorDot, StatusPill } from '../shared'
@@ -35,6 +35,19 @@ interface DashboardData {
     brandCompliance: number
     activeCampaigns: number
     openRestorations: number
+    // Workforce
+    activeAgents: number
+    totalAgents: number
+    openIssues: number
+    blockedIssues: number
+    pendingApprovals: number
+    unreadApprovals: number
+    totalAgentSpend: number
+    totalAgentBudget: number
+    // Reality layer
+    cashPosition: number
+    monthlyBurn: number
+    runwayMonths: number
   }
   salesByHouse: Record<string, number>
   salesByColor: Record<string, number>
@@ -44,6 +57,7 @@ interface DashboardData {
   lowStock: any[]
   houses: string[]
   colors: string[]
+  recentEvents: any[]
 }
 
 export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => void }) {
@@ -60,15 +74,21 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
   return (
     <div>
       <PageHeader
-        eyebrow="Command Center"
+        eyebrow="Board Room · Reality Layer"
         title="All-Time Operations"
-        description="EKVAAR is a permanent Indian cultural fashion house. Built against disposability. Designed once. Worn forever. This is the operating system that holds the House together."
+        description="EKVAAR is a permanent Indian cultural fashion house. Built against disposability. Designed once. Worn forever. This is the operating system that holds the House together — powered by a digital C-suite of 12 autonomous agents."
         actions={
           <>
             <Badge variant="outline" className="gap-1.5">
               <span className="h-1.5 w-1.5 bg-arav rounded-full animate-pulse-soft" />
-              All systems nominal
+              {k?.activeAgents || 0} agents active
             </Badge>
+            {k && k.unreadApprovals > 0 && (
+              <Button variant="outline" size="sm" className="gap-1.5 border-agni/40 text-agni" onClick={() => onNavigate('inbox' as any)}>
+                <Bell className="h-3.5 w-3.5" />
+                {k.unreadApprovals} pending
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />
               Founder Brief
@@ -121,6 +141,106 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
           <KpiCard label="AI Health" value={k ? `${k.aiHealth}%` : '—'} accent="#D4859B" icon={<Cpu className="h-4 w-4" />} />
           <KpiCard label="Brand Compliance" value={k ? `${k.brandCompliance}%` : '—'} accent="#C8302A" icon={<ShieldCheck className="h-4 w-4" />} />
         </div>
+
+        {/* Reality Layer — Cash Position, Runway, Workforce */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="bg-noar text-rui border-0">
+            <CardContent className="p-5">
+              <div className="text-[10px] tracking-[0.25em] uppercase text-rui/50 mb-2 flex items-center gap-1.5">
+                <Wallet className="h-3 w-3" /> Cash Position
+              </div>
+              <div className="font-display text-3xl tracking-tight">
+                {k ? formatINR(k.cashPosition) : '—'}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <div className="text-rui/50 text-[10px] tracking-wider uppercase">Monthly Burn</div>
+                  <div className="font-mono mt-0.5">{k ? formatINR(k.monthlyBurn) : '—'}</div>
+                </div>
+                <div>
+                  <div className="text-rui/50 text-[10px] tracking-wider uppercase">Runway</div>
+                  <div className="font-mono mt-0.5">{k ? `${k.runwayMonths} months` : '—'}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:border-foreground/40 transition-colors" onClick={() => onNavigate('inbox' as any)}>
+            <CardContent className="p-5">
+              <div className="text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-2 flex items-center gap-1.5">
+                <Inbox className="h-3 w-3" /> Founder Inbox
+              </div>
+              <div className="font-display text-3xl tracking-tight">
+                {k ? String(k.pendingApprovals) : '—'}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">pending decisions</div>
+              <div className="mt-3 flex items-center gap-2">
+                {k && k.unreadApprovals > 0 && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] tracking-wider uppercase rounded-sm bg-agni/10 text-agni">
+                    <Bell className="h-2.5 w-2.5" /> {k.unreadApprovals} unread
+                  </span>
+                )}
+                <span className="text-[10px] text-muted-foreground">requires founder attention</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:border-foreground/40 transition-colors" onClick={() => onNavigate('agents' as any)}>
+            <CardContent className="p-5">
+              <div className="text-[10px] tracking-[0.25em] uppercase text-muted-foreground mb-2 flex items-center gap-1.5">
+                <Cpu className="h-3 w-3" /> Digital Workforce
+              </div>
+              <div className="font-display text-3xl tracking-tight">
+                {k ? `${k.activeAgents}/${k.totalAgents}` : '—'}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">agents active</div>
+              <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <div className="text-muted-foreground text-[10px] tracking-wider uppercase">Token Spend</div>
+                  <div className="font-mono mt-0.5">{k ? formatINR(k.totalAgentSpend) : '—'}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-[10px] tracking-wider uppercase">Open Issues</div>
+                  <div className="font-mono mt-0.5">{k ? String(k.openIssues) : '—'}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent system events */}
+        {data?.recentEvents && data.recentEvents.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+                  <GitBranch className="h-4 w-4" /> Recent System Events
+                </CardTitle>
+                <CardDescription className="text-xs">Live from the Heartbeat Engine</CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => onNavigate('terminal' as any)}>
+                Open Terminal <ArrowUpRight className="h-3 w-3 ml-1" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-1.5">
+              {data.recentEvents.slice(0, 5).map((e: any) => {
+                const sevColor = e.severity === 'CRITICAL' || e.severity === 'ERROR' ? '#C8302A' : e.severity === 'WARN' ? '#D4859B' : '#1F3A5F'
+                return (
+                  <div key={e.id} className="flex items-center gap-3 py-1.5 border-b border-border/40 last:border-0 text-xs">
+                    <span className="text-muted-foreground font-mono text-[10px] w-16 flex-shrink-0">
+                      {new Date(e.timestamp).toLocaleTimeString('en-US', { hour12: false })}
+                    </span>
+                    <span className="font-mono text-[10px] flex-shrink-0 w-32 truncate" style={{ color: sevColor }}>
+                      [{e.type}]
+                    </span>
+                    <span className="text-muted-foreground flex-shrink-0">{e.actorName}:</span>
+                    <span className="flex-1 truncate">{e.summary}</span>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Sales trend + House breakdown */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

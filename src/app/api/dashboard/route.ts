@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
 export async function GET() {
-  const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks] = await Promise.all([
+  const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks, agents, issues, approvals, events] = await Promise.all([
     db.product.findMany(),
     db.order.findMany(),
     db.customer.findMany(),
@@ -11,6 +11,10 @@ export async function GET() {
     db.aISystem.findMany(),
     db.restoration.findMany(),
     db.brandCheck.findMany(),
+    db.agent.findMany(),
+    db.issue.findMany(),
+    db.approval.findMany(),
+    db.event.findMany({ orderBy: { timestamp: 'desc' }, take: 10 }),
   ])
 
   const revenue = transactions
@@ -122,6 +126,19 @@ export async function GET() {
       brandCompliance,
       activeCampaigns: campaigns.filter((c) => c.status === 'LIVE').length,
       openRestorations: restorations.filter((r) => r.status === 'REQUESTED' || r.status === 'IN_REPAIR').length,
+      // Workforce / Decision Compression metrics
+      activeAgents: agents.filter((a) => a.status === 'ACTIVE' || a.status === 'RUNNING').length,
+      totalAgents: agents.length,
+      openIssues: issues.filter((i) => i.status === 'BACKLOG' || i.status === 'IN_PROGRESS' || i.status === 'IN_REVIEW').length,
+      blockedIssues: issues.filter((i) => i.status === 'BLOCKED').length,
+      pendingApprovals: approvals.filter((a) => a.status === 'PENDING').length,
+      unreadApprovals: approvals.filter((a) => a.status === 'PENDING' && !a.isRead).length,
+      totalAgentSpend: agents.reduce((s, a) => s + a.tokenSpend, 0),
+      totalAgentBudget: agents.reduce((s, a) => s + a.tokenBudget, 0),
+      // Reality layer — cash & runway
+      cashPosition: revenue - expenses,
+      monthlyBurn: Math.round(expenses / 4), // ~4 months of data
+      runwayMonths: revenue - expenses > 0 ? Math.round((revenue - expenses) / (expenses / 4)) : 0,
     },
     salesByHouse,
     salesByColor,
@@ -131,5 +148,6 @@ export async function GET() {
     lowStock,
     houses: ['Solids', 'Layers', 'Street', 'Luxe', 'Origins'],
     colors: ['Noor Black', 'Rui White', 'Agni Red', 'Neel Blue', 'Arav Green', 'Gulabi Pink'],
+    recentEvents: events,
   })
 }

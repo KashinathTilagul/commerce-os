@@ -272,7 +272,7 @@ function AppComponentWrapper({
   Component: React.ComponentType<any>
   appId: string
 }) {
-  // Only Command Center currently accepts onNavigate
+  // Components that accept onNavigate
   const props: any = {}
   if (appId === 'command') {
     props.onNavigate = (id: any) => {

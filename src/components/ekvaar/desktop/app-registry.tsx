@@ -1,11 +1,15 @@
 'use client'
 
 import {
-  LayoutDashboard, Boxes, ShoppingBag, Wallet, Package,
-  Users, Megaphone, ShieldCheck, Cpu,
+  LayoutDashboard, Inbox, Users, GitBranch, Terminal as TerminalIcon,
+  Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
 } from 'lucide-react'
 import type { AppId } from '@/lib/window-store'
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
+import { FounderInbox } from '@/components/ekvaar/modules/founder-inbox'
+import { DigitalEmployeesHub } from '@/components/ekvaar/modules/digital-employees-hub'
+import { IssuesModule } from '@/components/ekvaar/modules/issues'
+import { TerminalModule } from '@/components/ekvaar/modules/terminal'
 import { HouseOfOriginals } from '@/components/ekvaar/modules/house-of-originals'
 import { SalesOrders } from '@/components/ekvaar/modules/sales-orders'
 import { FinanceModule } from '@/components/ekvaar/modules/finance'
@@ -27,20 +31,78 @@ export interface AppDef {
 }
 
 export const APPS: AppDef[] = [
+  // Core OS apps (left of dock divider)
   {
     id: 'command',
-    name: 'Command Center',
-    shortName: 'Command',
+    name: 'Board Room',
+    shortName: 'Board',
     icon: LayoutDashboard,
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #2F4F3A 50%, #C8302A 100%)',
     glyphColor: '#F5F1EA',
     component: CommandCenter,
     menuItems: [
-      { label: 'File', items: ['New Brief…', 'Export Dashboard', 'Close Window'] },
+      { label: 'File', items: ['New Brief…', 'Export Reality Report', 'Close Window'] },
       { label: 'View', items: ['Refresh KPIs', 'Compact Mode', 'Fullscreen'] },
       { label: 'Window', items: ['Minimize', 'Zoom', 'Bring All to Front'] },
     ],
   },
+  {
+    id: 'inbox',
+    name: 'Founder Inbox',
+    shortName: 'Inbox',
+    icon: Inbox,
+    gradient: 'linear-gradient(135deg, #C8302A 0%, #8B1E1A 100%)',
+    glyphColor: '#F5F1EA',
+    component: FounderInbox,
+    menuItems: [
+      { label: 'File', items: ['New Approval…', 'Export Inbox', 'Close Window'] },
+      { label: 'Inbox', items: ['Mine', 'Unread', 'Recent', 'Blocked'] },
+      { label: 'Action', items: ['Approve', 'Reject', 'Request Revision'] },
+    ],
+  },
+  {
+    id: 'agents',
+    name: 'Digital Employees',
+    shortName: 'Agents',
+    icon: Users,
+    gradient: 'linear-gradient(135deg, #1F3A5F 0%, #0A0A0A 100%)',
+    glyphColor: '#F5F1EA',
+    component: DigitalEmployeesHub,
+    menuItems: [
+      { label: 'File', items: ['Onboard Agent…', 'View Logs', 'Close Window'] },
+      { label: 'Agents', items: ['CEO', 'CMO', 'CTO', 'CFO', 'COO', 'CCO', 'CSM', 'Growth', 'Research', 'HR', 'Legal'] },
+      { label: 'View', items: ['By Department', 'By Status', 'By Budget'] },
+    ],
+  },
+  {
+    id: 'issues',
+    name: 'Issues',
+    shortName: 'Issues',
+    icon: GitBranch,
+    gradient: 'linear-gradient(135deg, #2F4F3A 0%, #1F3A5F 100%)',
+    glyphColor: '#F5F1EA',
+    component: IssuesModule,
+    menuItems: [
+      { label: 'File', items: ['New Issue…', 'Export Board', 'Close Window'] },
+      { label: 'Issue', items: ['Assign', 'Change Status', 'Add Dependency'] },
+      { label: 'View', items: ['Board', 'List', 'Dependencies'] },
+    ],
+  },
+  {
+    id: 'terminal',
+    name: 'Terminal',
+    shortName: 'Terminal',
+    icon: TerminalIcon,
+    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1F3A5F 100%)',
+    glyphColor: '#D4859B',
+    component: TerminalModule,
+    menuItems: [
+      { label: 'File', items: ['Clear Log', 'Export Stream', 'Close Window'] },
+      { label: 'Stream', items: ['All Events', 'Info', 'Warnings', 'Critical'] },
+      { label: 'View', items: ['Terminal', 'CPU Monitor', 'Agent Logs'] },
+    ],
+  },
+  // Business apps (right of dock divider)
   {
     id: 'house',
     name: 'House of Originals',
@@ -158,3 +220,8 @@ export const APPS: AppDef[] = [
 export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
   APPS.map((a) => [a.id, a]),
 ) as Record<AppId, AppDef>
+
+// IDs that belong to the "core OS" group (left of dock divider)
+export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal']
+export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai']
+

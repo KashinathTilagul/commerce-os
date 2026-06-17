@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useWindowStore, type AppId } from '@/lib/window-store'
-import { APPS } from './app-registry'
+import { APPS, CORE_APP_IDS, BUSINESS_APP_IDS } from './app-registry'
 import { AppIcon } from './app-icon'
 
 export function Dock() {
@@ -69,7 +69,7 @@ export function Dock() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.4, type: 'spring', stiffness: 260, damping: 24 }}
       >
-        {APPS.map((app) => {
+        {APPS.filter(a => CORE_APP_IDS.includes(a.id)).map((app) => {
           const isOpen = windows.some((w) => w.id === app.id)
           const isActive = activeId === app.id
           return (
@@ -90,7 +90,31 @@ export function Dock() {
           )
         })}
 
-        {/* Divider */}
+        {/* Divider between OS apps and business apps */}
+        <div className="w-px h-12 bg-white/15 mx-1 self-center" />
+
+        {APPS.filter(a => BUSINESS_APP_IDS.includes(a.id)).map((app) => {
+          const isOpen = windows.some((w) => w.id === app.id)
+          const isActive = activeId === app.id
+          return (
+            <DockItem
+              key={app.id}
+              app={app}
+              isOpen={isOpen}
+              isActive={isActive}
+              hovered={hovered}
+              setHovered={setHovered}
+              mouseX={mouseX}
+              center={centers[app.id]}
+              setRef={(el) => {
+                itemRefs.current[app.id] = el
+              }}
+              onClick={() => handleClick(app.id)}
+            />
+          )
+        })}
+
+        {/* Divider before Brand Book */}
         <div className="w-px h-12 bg-white/15 mx-1 self-center" />
 
         {/* Brand Book */}
