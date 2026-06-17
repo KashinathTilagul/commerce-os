@@ -18,17 +18,29 @@ export function WindowFrame({ win }: { win: WindowState }) {
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
   const resizeRef = useRef<{ startX: number; startY: number; origW: number; origH: number; dir: string } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [viewport, setViewport] = useState<{ w: number; h: number } | null>(null)
 
-  // Maximized bounds
-  const maxBounds = {
-    x: 0,
-    y: TOP_BAR_H,
-    width: typeof window !== 'undefined' ? window.innerWidth : 1280,
-    height: typeof window !== 'undefined' ? window.innerHeight - TOP_BAR_H - 90 : 720,
-  }
+  useEffect(() => {
+    const measure = () => setViewport({ w: window.innerWidth, h: window.innerHeight })
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  // Maximized bounds — only compute on client to avoid SSR mismatch
+  const maxBounds = viewport
+    ? {
+        x: 0,
+        y: TOP_BAR_H,
+        width: viewport.w,
+        height: viewport.h - TOP_BAR_H - 90,
+      }
+    : { x: 0, y: TOP_BAR_H, width: 1280, height: 720 }
 
   const bounds = win.isMaximized
-    ? { x: maxBounds.x, y: maxBounds.y, width: maxBounds.width, height: maxBounds.height }
+    ? viewport
+      ? { x: maxBounds.x, y: maxBounds.y, width: maxBounds.width, height: maxBounds.height }
+      : { x: 0, y: TOP_BAR_H, width: 1280, height: 720 }
     : { x: win.position.x, y: win.position.y, width: win.size.width, height: win.size.height }
 
   // Drag handlers
