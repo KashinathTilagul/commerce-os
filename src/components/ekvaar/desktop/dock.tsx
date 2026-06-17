@@ -124,6 +124,7 @@ export function Dock() {
             name: 'Brand Book',
             shortName: 'Book',
             icon: null,
+            iconVariant: 'brand-book',
             gradient: 'linear-gradient(135deg, #F5F1EA 0%, #C8B89F 100%)',
             glyphColor: '#0A0A0A',
             component: null as any,
@@ -214,30 +215,10 @@ function DockItem({
         className="relative origin-bottom"
         style={{ width: baseSize, height: baseSize }}
       >
-        {app.icon ? (
-          <AppIcon
-            gradient={app.gradient}
-            glyphColor={app.glyphColor}
-            Icon={app.icon}
-            size={baseSize}
-          />
-        ) : (
-          <div
-            className="w-full h-full rounded-[22%] flex items-center justify-center overflow-hidden"
-            style={{
-              background: app.gradient,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
-            }}
-          >
-            <svg viewBox="0 0 24 24" className="w-1/2 h-1/2" fill="none" stroke={app.glyphColor} strokeWidth="1.75">
-              {isTrash ? (
-                <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" strokeLinecap="round" strokeLinejoin="round" />
-              ) : (
-                <path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14l-4-2-4 2-4-2-4 2zM8 8h8M8 12h8" strokeLinecap="round" strokeLinejoin="round" />
-              )}
-            </svg>
-          </div>
-        )}
+        <AppIcon
+          variant={app.iconVariant || 'generic'}
+          size={baseSize}
+        />
       </motion.button>
 
       {/* Active indicator dot */}

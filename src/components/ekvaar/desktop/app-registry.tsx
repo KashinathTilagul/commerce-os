@@ -23,8 +23,9 @@ export interface AppDef {
   id: AppId
   name: string
   shortName: string
-  icon: any
-  gradient: string // CSS gradient for icon background
+  icon: any // lucide icon for title bar / fallback
+  iconVariant: string // macOS app-icon variant key
+  gradient: string // CSS gradient for title bar fallback
   glyphColor: string
   component: React.ComponentType<any>
   menuItems: { label: string; items: string[] }[]
@@ -37,6 +38,7 @@ export const APPS: AppDef[] = [
     name: 'Board Room',
     shortName: 'Board',
     icon: LayoutDashboard,
+    iconVariant: 'board-room',
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #2F4F3A 50%, #C8302A 100%)',
     glyphColor: '#F5F1EA',
     component: CommandCenter,
@@ -51,6 +53,7 @@ export const APPS: AppDef[] = [
     name: 'Founder Inbox',
     shortName: 'Inbox',
     icon: Inbox,
+    iconVariant: 'inbox',
     gradient: 'linear-gradient(135deg, #C8302A 0%, #8B1E1A 100%)',
     glyphColor: '#F5F1EA',
     component: FounderInbox,
@@ -65,6 +68,7 @@ export const APPS: AppDef[] = [
     name: 'Digital Employees',
     shortName: 'Agents',
     icon: Users,
+    iconVariant: 'agents',
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #0A0A0A 100%)',
     glyphColor: '#F5F1EA',
     component: DigitalEmployeesHub,
@@ -79,6 +83,7 @@ export const APPS: AppDef[] = [
     name: 'Issues',
     shortName: 'Issues',
     icon: GitBranch,
+    iconVariant: 'issues',
     gradient: 'linear-gradient(135deg, #2F4F3A 0%, #1F3A5F 100%)',
     glyphColor: '#F5F1EA',
     component: IssuesModule,
@@ -93,6 +98,7 @@ export const APPS: AppDef[] = [
     name: 'Terminal',
     shortName: 'Terminal',
     icon: TerminalIcon,
+    iconVariant: 'terminal',
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1F3A5F 100%)',
     glyphColor: '#D4859B',
     component: TerminalModule,
@@ -108,6 +114,7 @@ export const APPS: AppDef[] = [
     name: 'House of Originals',
     shortName: 'House',
     icon: Boxes,
+    iconVariant: 'house',
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #0A0A0A 100%)',
     glyphColor: '#F5F1EA',
     component: HouseOfOriginals,
@@ -122,6 +129,7 @@ export const APPS: AppDef[] = [
     name: 'Sales & Orders',
     shortName: 'Sales',
     icon: ShoppingBag,
+    iconVariant: 'sales',
     gradient: 'linear-gradient(135deg, #C8302A 0%, #8B1E1A 100%)',
     glyphColor: '#F5F1EA',
     component: SalesOrders,
@@ -136,6 +144,7 @@ export const APPS: AppDef[] = [
     name: 'Finance',
     shortName: 'Finance',
     icon: Wallet,
+    iconVariant: 'finance',
     gradient: 'linear-gradient(135deg, #2F4F3A 0%, #1A2F22 100%)',
     glyphColor: '#F5F1EA',
     component: FinanceModule,
@@ -150,6 +159,7 @@ export const APPS: AppDef[] = [
     name: 'Inventory & Ops',
     shortName: 'Inventory',
     icon: Package,
+    iconVariant: 'inventory',
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #2F4F3A 100%)',
     glyphColor: '#F5F1EA',
     component: InventoryOps,
@@ -164,6 +174,7 @@ export const APPS: AppDef[] = [
     name: 'Originals',
     shortName: 'Originals',
     icon: Users,
+    iconVariant: 'community',
     gradient: 'linear-gradient(135deg, #D4859B 0%, #8B5468 100%)',
     glyphColor: '#F5F1EA',
     component: CommunityModule,
@@ -178,6 +189,7 @@ export const APPS: AppDef[] = [
     name: 'Campaigns',
     shortName: 'Campaigns',
     icon: Megaphone,
+    iconVariant: 'campaigns',
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #C8302A 100%)',
     glyphColor: '#F5F1EA',
     component: CampaignsModule,
@@ -192,6 +204,7 @@ export const APPS: AppDef[] = [
     name: 'Brand Guardian',
     shortName: 'Guardian',
     icon: ShieldCheck,
+    iconVariant: 'guardian',
     gradient: 'linear-gradient(135deg, #8B7355 0%, #5A4A3A 100%)',
     glyphColor: '#F5F1EA',
     component: BrandGuardian,
@@ -206,6 +219,7 @@ export const APPS: AppDef[] = [
     name: 'AI Infrastructure',
     shortName: 'AI Infra',
     icon: Cpu,
+    iconVariant: 'ai',
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #D4859B 100%)',
     glyphColor: '#F5F1EA',
     component: AIInfrastructure,
