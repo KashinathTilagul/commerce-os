@@ -8,10 +8,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 export function MenuBar() {
   const { activeId, windows, open } = useWindowStore()
-  const [now, setNow] = useState(new Date())
+  const [now, setNow] = useState<Date | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
 
   useEffect(() => {
+    // Set time only on client to avoid SSR hydration mismatch
+    setNow(new Date())
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
@@ -23,8 +25,13 @@ export function MenuBar() {
     setOpenMenu(openMenu === label ? null : label)
   }
 
-  const dateStr = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  // Use stable placeholders until mounted on client
+  const dateStr = now
+    ? now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    : '—'
+  const timeStr = now
+    ? now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    : '—:—'
 
   return (
     <div
