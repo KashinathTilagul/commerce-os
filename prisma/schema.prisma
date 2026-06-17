@@ -1,0 +1,173 @@
+// EKVAAR OS — Prisma Schema
+// India's First All-Time Fashion House — Operating System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ CATALOG ============
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  sku         String   @unique
+  house       String   // Solids | Layers | Street | Luxe | Origins
+  color       String   // Noor Black | Rui White | Agni Red | Neel Blue | Arav Green | Gulabi Pink
+  category    String   // tee | hoodie | jacket | pants | accessory | object ...
+  price       Float
+  cost        Float
+  stock       Int      @default(0)
+  reorderAt   Int      @default(20)
+  status      String   @default("ACTIVE") // ACTIVE | DRAFT | ARCHIVED | RESTOCKING
+  material    String
+  description String
+  imageHue    Int      @default(0) // for placeholder rendering
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems  OrderItem[]
+}
+
+// ============ SALES ============
+
+model Order {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique
+  customerName  String
+  customerEmail String
+  customerCity  String
+  channel       String   // D2C | RETAIL | WHOLESALE | POPUP
+  itemsCount    Int
+  total         Float
+  status        String   @default("NEW") // NEW | PROCESSING | SHIPPED | DELIVERED | RETURNED | CANCELLED
+  paymentStatus String   @default("PAID") // PAID | PENDING | REFUNDED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+// ============ CUSTOMERS / ORIGINALS ============
+
+model Customer {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  phone       String
+  city        String
+  tier        String   @default("ORIGINAL") // ORIGINAL | HOUSE | ARCHIVE | FOUNDER_CIRCLE
+  totalOrders Int      @default(0)
+  totalSpent  Float    @default(0)
+  joinedAt    DateTime @default(now())
+  lastActive  DateTime @default(now())
+  restorationCount Int @default(0)
+}
+
+// ============ FINANCE ============
+
+model Transaction {
+  id          String   @id @default(cuid())
+  type        String   // INCOME | EXPENSE
+  category    String   // PRODUCT_SALES | WHOLESALE | MATERIALS | LABOR | LOGISTICS | MARKETING | OPS | AI_INFRA | RESTORATION | R&D
+  amount      Float
+  description String
+  reference   String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+// ============ CAMPAIGNS / CONTENT ============
+
+model Campaign {
+  id          String   @id @default(cuid())
+  title       String
+  pillar      String   // philosophy | product | culture | process | founder | community
+  status      String   @default("DRAFT") // DRAFT | LIVE | SCHEDULED | ARCHIVED
+  channel     String   // INSTAGRAM | JOURNAL | EMAIL | HOUSE_ACCESS | ALL
+  startDate   DateTime
+  endDate     DateTime?
+  budget      Float    @default(0)
+  spend       Float    @default(0)
+  impressions Int      @default(0)
+  engagement  Float    @default(0) // percent
+  createdAt   DateTime @default(now())
+}
+
+model FounderNote {
+  id         String   @id @default(cuid())
+  title      String
+  excerpt    String
+  body       String
+  status     String   @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  publishedAt DateTime?
+  createdAt  DateTime @default(now())
+}
+
+// ============ COMMUNITY ============
+
+model Restoration {
+  id           String   @id @default(cuid())
+  customerName String
+  productSku   String
+  productName  String
+  reason       String   // WEAR | REPAIR | RESHAPE | RECOLOR
+  status       String   @default("REQUESTED") // REQUESTED | IN_REPAIR | COMPLETED | DECLINED
+  requestedAt  DateTime @default(now())
+  completedAt  DateTime?
+}
+
+// ============ OPERATIONS ============
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  material  String   // heavyweight cotton | fleece | drape fabric | thread | dye | packaging
+  city      String
+  leadTime  Int      // days
+  rating    Float    @default(5)
+  status    String   @default("ACTIVE") // ACTIVE | PAUSED | BLACKLIST
+  lastOrder DateTime @default(now())
+}
+
+// ============ AI INFRASTRUCTURE ============
+
+model AISystem {
+  id              String   @id @default(cuid())
+  name            String   // Brand Guardian | Content | Creative | Commerce | Founder | Product Intelligence | Operations
+  status          String   @default("ACTIVE") // ACTIVE | IDLE | TRAINING | ALERT
+  health          Float    @default(100) // 0-100
+  tasksToday      Int      @default(0)
+  tasksTotal      Int      @default(0)
+  accuracy        Float    @default(100) // percent
+  lastRun         DateTime @default(now())
+  description     String
+  pillar          String   // brand | content | creative | commerce | founder | product | operations
+}
+
+// ============ BRAND GUARDIAN CHECKS ============
+
+model BrandCheck {
+  id          String   @id @default(cuid())
+  module      String   // PRODUCT | CONTENT | CAMPAIGN | PACKAGING | DIGITAL
+  asset       String
+  status      String   @default("PASS") // PASS | WARN | FAIL
+  violations  Int      @default(0)
+  notes       String
+  checkedAt   DateTime @default(now())
+}
