@@ -4,6 +4,10 @@ import { create } from 'zustand'
 
 export type AppId =
   | 'command'
+  | 'inbox'
+  | 'agents'
+  | 'issues'
+  | 'terminal'
   | 'house'
   | 'sales'
   | 'finance'
@@ -43,6 +47,10 @@ interface WindowStore {
 
 const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
   command: { width: 1180, height: 760 },
+  inbox: { width: 1100, height: 720 },
+  agents: { width: 1180, height: 780 },
+  issues: { width: 1280, height: 760 },
+  terminal: { width: 1100, height: 720 },
   house: { width: 1200, height: 780 },
   sales: { width: 1180, height: 720 },
   finance: { width: 1180, height: 760 },

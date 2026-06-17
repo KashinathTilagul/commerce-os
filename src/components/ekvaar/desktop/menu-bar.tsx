@@ -13,8 +13,9 @@ export function MenuBar() {
 
   useEffect(() => {
     // Set time only on client to avoid SSR hydration mismatch
-    setNow(new Date())
-    const t = setInterval(() => setNow(new Date()), 1000)
+    const tick = () => setNow(new Date())
+    tick()
+    const t = setInterval(tick, 1000)
     return () => clearInterval(t)
   }, [])
 

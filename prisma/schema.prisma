@@ -171,3 +171,105 @@ model BrandCheck {
   notes       String
   checkedAt   DateTime @default(now())
 }
+
+// ============ DIGITAL WORKFORCE (AGENTS) ============
+
+model Agent {
+  id              String   @id @default(cuid())
+  code            String   @unique // FOUNDER | CEO | CMO | CTO | CFO | COO | CCO | CSM | GROWTH | RESEARCH | HR | LEGAL
+  name            String   // Display name
+  role            String   // Chief Executive Officer, etc.
+  status          String   @default("IDLE") // ACTIVE | IDLE | RUNNING | PAUSED | ERROR
+  department      String   // EXECUTIVE | MARKETING | TECHNOLOGY | FINANCE | OPERATIONS | CREATIVE | CUSTOMER | GROWTH | RESEARCH | HR | LEGAL
+  primeDirective  String   // The agent's core mission
+  description     String
+  skills          String   // comma-separated skill codes
+  currentTask     String?
+  tokenSpend      Float    @default(0) // INR equivalent
+  tokenBudget     Float    @default(50000)
+  tasksToday      Int      @default(0)
+  tasksTotal      Int      @default(0)
+  successRate     Float    @default(100) // percent
+  lastHeartbeat   DateTime @default(now())
+  avatarColor     String   // hex color for avatar
+  isHuman         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  issuesAssigned  Issue[]   @relation("IssueAssignee")
+  issuesCreated   Issue[]   @relation("IssueCreator")
+  comments        IssueComment[]
+  approvals       Approval[]   @relation("ApprovalRequester")
+  events          Event[]
+}
+
+// ============ ISSUES (WORK OBJECTS) ============
+
+model Issue {
+  id            String   @id @default(cuid())
+  code          String   @unique // PAP-39
+  title         String
+  description   String
+  status        String   @default("BACKLOG") // BACKLOG | IN_PROGRESS | IN_REVIEW | DONE | BLOCKED
+  priority      String   @default("MEDIUM") // P0 | P1 | P2 | P3
+  type          String   @default("TASK") // TASK | BUG | FEATURE | CAMPAIGN | APPROVAL | RESEARCH
+  assigneeId    String?
+  createdById   String?
+  department    String?
+  blocksIds     String?  // comma-separated issue codes this blocks
+  blockedByIds  String?  // comma-separated issue codes blocking this
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  assignee  Agent?          @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  createdBy Agent?          @relation("IssueCreator", fields: [createdById], references: [id])
+  comments  IssueComment[]
+}
+
+model IssueComment {
+  id        String   @id @default(cuid())
+  issueId   String
+  authorId  String?
+  authorName String
+  body      String
+  kind      String   @default("COMMENT") // COMMENT | HEARTBEAT | SYSTEM | APPROVAL_REQUEST
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author Agent? @relation(fields: [authorId], references: [id])
+}
+
+// ============ EVENT BUS (APPEND-ONLY LEDGER) ============
+
+model Event {
+  id         String   @id @default(cuid())
+  type       String   // ISSUE_CREATED | ISSUE_ASSIGNED | AGENT_HEARTBEAT | BUDGET_WARNING | APPROVAL_REQUESTED | CAMPAIGN_LAUNCHED | ...
+  actorId    String?
+  actorName  String
+  summary    String
+  payload    String   // JSON string
+  severity   String   @default("INFO") // INFO | WARN | ERROR | CRITICAL
+  timestamp  DateTime @default(now())
+
+  actor Agent? @relation(fields: [actorId], references: [id])
+}
+
+// ============ GOVERNANCE & APPROVALS ============
+
+model Approval {
+  id            String   @id @default(cuid())
+  code          String   @unique // APR-12
+  type          String   // BUDGET | STRATEGIC | HIRING | CAMPAIGN | VENDOR
+  title         String
+  description   String
+  amount        Float    @default(0)
+  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED | REVISION_REQUESTED
+  requesterId   String
+  issueCode     String?
+  inbox         String   @default("MINE") // MINE | RECENT | UNREAD | BLOCKED
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  resolvedAt    DateTime?
+
+  requester Agent @relation("ApprovalRequester", fields: [requesterId], references: [id])
+}
+

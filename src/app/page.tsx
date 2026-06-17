@@ -54,7 +54,7 @@ export default function Home() {
 
       {/* Welcome overlay when no windows */}
       {bootDone && windows.length === 0 && (
-        <WelcomeOverlay onLaunch={() => open('command', 'Command Center')} />
+        <WelcomeOverlay onLaunch={() => open('command', 'Board Room')} />
       )}
     </div>
   )
@@ -122,7 +122,7 @@ function WelcomeOverlay({ onLaunch }: { onLaunch: () => void }) {
           India ka Original · All-Time Fashion House
         </div>
         <p className="text-sm leading-relaxed mb-6" style={{ color: 'rgba(245,241,234,0.7)' }}>
-          The dock below holds nine apps that run the House. Click any to open a window. Drag title bars to move. Use the traffic lights to close, minimize, or zoom.
+          The dock below holds 13 apps — 5 core OS apps (Board Room, Founder Inbox, Digital Employees, Issues, Terminal) and 8 business apps. Click any to open a window. The digital C-suite of 12 agents works autonomously; the Inbox surfaces only what needs your attention.
         </p>
         <button
           onClick={onLaunch}
@@ -132,7 +132,7 @@ function WelcomeOverlay({ onLaunch }: { onLaunch: () => void }) {
             color: '#0A0A0A',
           }}
         >
-          Open Command Center
+          Open Board Room
         </button>
       </div>
     </div>
