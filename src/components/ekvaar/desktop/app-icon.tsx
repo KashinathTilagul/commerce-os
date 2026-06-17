@@ -305,10 +305,11 @@ function PhotosIcon({ size }: { size: number }) {
           {Array.from({ length: 8 }).map((_, i) => {
             const a1 = (i * 45 - 22.5) * Math.PI / 180
             const a2 = (i * 45 + 22.5) * Math.PI / 180
-            const x1 = cx + r * Math.cos(a1)
-            const y1 = cy + r * Math.sin(a1)
-            const x2 = cx + r * Math.cos(a2)
-            const y2 = cy + r * Math.sin(a2)
+            // Round to 4 decimals — prevents SSR/client hydration mismatch
+            const x1 = (cx + r * Math.cos(a1)).toFixed(4)
+            const y1 = (cy + r * Math.sin(a1)).toFixed(4)
+            const x2 = (cx + r * Math.cos(a2)).toFixed(4)
+            const y2 = (cy + r * Math.sin(a2)).toFixed(4)
             return (
               <path
                 key={i}
@@ -382,10 +383,12 @@ function SafariIcon({ size }: { size: number }) {
             const isMajor = i % 5 === 0
             const r1 = isMajor ? 8.6 : 9.1
             const r2 = 9.6
-            const x1 = 12 + r1 * Math.cos(a)
-            const y1 = 12 + r1 * Math.sin(a)
-            const x2 = 12 + r2 * Math.cos(a)
-            const y2 = 12 + r2 * Math.sin(a)
+            // Round to 4 decimals — prevents SSR/client hydration mismatch
+            // (JS number-to-string precision differs between server and client)
+            const x1 = (12 + r1 * Math.cos(a)).toFixed(4)
+            const y1 = (12 + r1 * Math.sin(a)).toFixed(4)
+            const x2 = (12 + r2 * Math.cos(a)).toFixed(4)
+            const y2 = (12 + r2 * Math.sin(a)).toFixed(4)
             return (
               <line
                 key={i}

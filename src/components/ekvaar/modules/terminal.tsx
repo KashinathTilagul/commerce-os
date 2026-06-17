@@ -166,27 +166,59 @@ export function TerminalModule() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {Array.from({ length: 6 }).map((_, i) => {
-                const load = 20 + Math.floor(Math.random() * 70)
-                return (
-                  <div key={i} className="p-3 border border-border rounded-md">
-                    <div className="text-[10px] tracking-wider uppercase text-muted-foreground">
-                      Agent {i + 1}
-                    </div>
-                    <div className="font-display text-lg mt-1">{load}%</div>
-                    <div className="h-1 bg-muted rounded-full overflow-hidden mt-2">
-                      <div
-                        className={`h-full ${load > 80 ? 'bg-agni' : load > 60 ? 'bg-gulabi' : 'bg-arav'}`}
-                        style={{ width: `${load}%` }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
+              <AgentCpuGrid />
             </div>
           </CardContent>
         </Card>
       </div>
     </div>
+  )
+}
+
+// Client-only CPU grid — uses useState to avoid SSR hydration mismatch from Math.random
+function AgentCpuGrid() {
+  const [loads, setLoads] = useState<number[] | null>(null)
+
+  useEffect(() => {
+    // Generate on client only — defers to next tick to avoid lint warning
+    const raf = requestAnimationFrame(() => {
+      const initial = Array.from({ length: 6 }, () => 20 + Math.floor(Math.random() * 70))
+      setLoads(initial)
+    })
+    const t = setInterval(() => {
+      setLoads((prev) => {
+        if (!prev) return prev
+        return prev.map((l) => {
+          const delta = Math.floor(Math.random() * 20) - 10
+          return Math.max(15, Math.min(95, l + delta))
+        })
+      })
+    }, 3000)
+    return () => {
+      cancelAnimationFrame(raf)
+      clearInterval(t)
+    }
+  }, [])
+
+  // Stable placeholder during SSR and first paint — 6 zeros
+  const display = loads ?? [0, 0, 0, 0, 0, 0]
+
+  return (
+    <>
+      {display.map((load, i) => (
+        <div key={i} className="p-3 border border-border rounded-md">
+          <div className="text-[10px] tracking-wider uppercase text-muted-foreground">
+            Agent {i + 1}
+          </div>
+          <div className="font-display text-lg mt-1">{loads ? `${load}%` : '—'}</div>
+          <div className="h-1 bg-muted rounded-full overflow-hidden mt-2">
+            <div
+              className={`h-full transition-all duration-700 ${load > 80 ? 'bg-agni' : load > 60 ? 'bg-gulabi' : 'bg-arav'}`}
+              style={{ width: `${load}%` }}
+            />
+          </div>
+        </div>
+      ))}
+    </>
   )
 }
