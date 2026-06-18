@@ -2,6 +2,8 @@
 
 import {
   LayoutDashboard, Inbox, Users, GitBranch, Terminal as TerminalIcon,
+  Activity, Settings as SettingsIcon, FolderOpen, Globe,
+  Calculator as CalcIcon, StickyNote, Calendar as CalIcon, Music,
   Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
 } from 'lucide-react'
 import type { AppId } from '@/lib/window-store'
@@ -10,6 +12,14 @@ import { FounderInbox } from '@/components/ekvaar/modules/founder-inbox'
 import { DigitalEmployeesHub } from '@/components/ekvaar/modules/digital-employees-hub'
 import { IssuesModule } from '@/components/ekvaar/modules/issues'
 import { TerminalModule } from '@/components/ekvaar/modules/terminal'
+import { ActivityMonitor } from '@/components/ekvaar/modules/activity-monitor'
+import { Settings } from '@/components/ekvaar/modules/settings'
+import { Files } from '@/components/ekvaar/modules/files'
+import { Browser } from '@/components/ekvaar/modules/browser'
+import { Calculator } from '@/components/ekvaar/modules/calculator'
+import { Notes } from '@/components/ekvaar/modules/notes'
+import { CalendarApp } from '@/components/ekvaar/modules/calendar'
+import { MusicPlayer } from '@/components/ekvaar/modules/music'
 import { HouseOfOriginals } from '@/components/ekvaar/modules/house-of-originals'
 import { SalesOrders } from '@/components/ekvaar/modules/sales-orders'
 import { FinanceModule } from '@/components/ekvaar/modules/finance'
@@ -106,6 +116,126 @@ export const APPS: AppDef[] = [
       { label: 'File', items: ['Clear Log', 'Export Stream', 'Close Window'] },
       { label: 'Stream', items: ['All Events', 'Info', 'Warnings', 'Critical'] },
       { label: 'View', items: ['Terminal', 'CPU Monitor', 'Agent Logs'] },
+    ],
+  },
+  {
+    id: 'activity',
+    name: 'Activity Monitor',
+    shortName: 'Activity',
+    icon: Activity,
+    iconVariant: 'activity',
+    gradient: 'linear-gradient(135deg, #2A2A2A 0%, #0A0A0A 100%)',
+    glyphColor: '#34C759',
+    component: ActivityMonitor,
+    menuItems: [
+      { label: 'File', items: ['Refresh', 'Export Report', 'Close Window'] },
+      { label: 'View', items: ['CPU', 'Memory', 'Disk', 'Network'] },
+      { label: 'Window', items: ['Minimize', 'Zoom'] },
+    ],
+  },
+  {
+    id: 'settings',
+    name: 'Settings',
+    shortName: 'Settings',
+    icon: SettingsIcon,
+    iconVariant: 'settings',
+    gradient: 'linear-gradient(135deg, #8E8E93 0%, #48484A 100%)',
+    glyphColor: '#F5F1EA',
+    component: Settings,
+    menuItems: [
+      { label: 'File', items: ['Reset Defaults', 'Export Config', 'Close Window'] },
+      { label: 'View', items: ['Appearance', 'Intelligence', 'Notifications', 'Governance'] },
+      { label: 'Window', items: ['Minimize', 'Zoom'] },
+    ],
+  },
+  {
+    id: 'files',
+    name: 'Files',
+    shortName: 'Files',
+    icon: FolderOpen,
+    iconVariant: 'files',
+    gradient: 'linear-gradient(135deg, #4FB0F5 0%, #1573D6 100%)',
+    glyphColor: '#F5F1EA',
+    component: Files,
+    menuItems: [
+      { label: 'File', items: ['New Folder', 'Upload', 'Close Window'] },
+      { label: 'View', items: ['Icons', 'List', 'Columns'] },
+      { label: 'Go', items: ['Recents', 'Documents', 'Agent Logs', 'Event Ledger'] },
+    ],
+  },
+  {
+    id: 'browser',
+    name: 'Browser',
+    shortName: 'Browser',
+    icon: Globe,
+    iconVariant: 'browser',
+    gradient: 'linear-gradient(135deg, #2A9FF5 0%, #1573D6 100%)',
+    glyphColor: '#F5F1EA',
+    component: Browser,
+    menuItems: [
+      { label: 'File', items: ['New Tab', 'New Window', 'Close Window'] },
+      { label: 'History', items: ['Back', 'Forward', 'Home'] },
+      { label: 'Bookmarks', items: ['EKVAAR Journal', 'Shopify Admin', 'Stripe', 'Brand Book'] },
+    ],
+  },
+  // Utilities
+  {
+    id: 'calculator',
+    name: 'Calculator',
+    shortName: 'Calc',
+    icon: CalcIcon,
+    iconVariant: 'calculator',
+    gradient: 'linear-gradient(135deg, #3A3A3C 0%, #1C1C1E 100%)',
+    glyphColor: '#FF9500',
+    component: Calculator,
+    menuItems: [
+      { label: 'View', items: ['Basic', 'Scientific', 'Programmer'] },
+      { label: 'Edit', items: ['Copy', 'Paste', 'Clear'] },
+    ],
+  },
+  {
+    id: 'notes',
+    name: 'Notes',
+    shortName: 'Notes',
+    icon: StickyNote,
+    iconVariant: 'notes',
+    gradient: 'linear-gradient(135deg, #FFCC00 0%, #F5A623 100%)',
+    glyphColor: '#F5F1EA',
+    component: Notes,
+    menuItems: [
+      { label: 'File', items: ['New Note', 'Delete', 'Close Window'] },
+      { label: 'Format', items: ['Bold', 'Italic', 'Monospace'] },
+      { label: 'View', items: ['List', 'Editor'] },
+    ],
+  },
+  {
+    id: 'calendar',
+    name: 'Calendar',
+    shortName: 'Calendar',
+    icon: CalIcon,
+    iconVariant: 'calendar',
+    gradient: 'linear-gradient(135deg, #FFFFFF 0%, #FF3B30 100%)',
+    glyphColor: '#F5F1EA',
+    component: CalendarApp,
+    menuItems: [
+      { label: 'File', items: ['New Event', 'Close Window'] },
+      { label: 'View', items: ['Day', 'Week', 'Month', 'Year'] },
+      { label: 'Go', items: ['Today', 'Next Month', 'Prev Month'] },
+    ],
+  },
+  {
+    id: 'music',
+    name: 'Music',
+    shortName: 'Music',
+    icon: Music,
+    iconVariant: 'music',
+    gradient: 'linear-gradient(135deg, #FA2D48 0%, #E00028 100%)',
+    glyphColor: '#F5F1EA',
+    component: MusicPlayer,
+    menuItems: [
+      { label: 'File', items: ['New Playlist', 'Import', 'Close Window'] },
+      { label: 'Controls', items: ['Play', 'Pause', 'Next', 'Previous', 'Shuffle', 'Repeat'] },
+      { label: 'View', items: ['Library', 'Now Playing'] },
     ],
   },
   // Business apps (right of dock divider)
@@ -236,6 +366,7 @@ export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
 ) as Record<AppId, AppDef>
 
 // IDs that belong to the "core OS" group (left of dock divider)
-export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal']
+export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'activity', 'settings', 'files', 'browser']
+export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar', 'music']
 export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai']
 

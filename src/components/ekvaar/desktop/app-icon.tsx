@@ -52,6 +52,14 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'agents':        return <ContactsIcon size={size} />
     case 'issues':        return <RemindersIcon size={size} />
     case 'terminal':      return <TerminalIcon size={size} />
+    case 'activity':      return <ActivityMonitorIcon size={size} />
+    case 'settings':      return <SettingsIcon size={size} />
+    case 'files':         return <FinderIcon size={size} />
+    case 'browser':       return <SafariIcon size={size} />
+    case 'calculator':    return <CalculatorIcon size={size} />
+    case 'notes':         return <NotesIcon size={size} />
+    case 'calendar':      return <CalendarIcon size={size} />
+    case 'music':         return <MusicIcon size={size} />
     case 'house':         return <BoxesIcon size={size} />
     case 'sales':         return <AppStoreIcon size={size} />
     case 'finance':       return <WalletIcon size={size} />
@@ -59,7 +67,7 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'community':     return <PhotosIcon size={size} />
     case 'campaigns':     return <NewsIcon size={size} />
     case 'guardian':      return <ShieldIcon size={size} />
-    case 'ai':            return <SafariIcon size={size} />
+    case 'ai':            return <CpuIcon size={size} />
     case 'brand-book':    return <BooksIcon size={size} />
     default:              return <GenericIcon size={size} />
   }
@@ -427,6 +435,198 @@ function BooksIcon({ size }: { size: number }) {
           <rect x="8" y="9" width="7" height="0.8" rx="0.4" fill="#C9C9CE" />
           <rect x="8" y="11" width="7" height="0.8" rx="0.4" fill="#C9C9CE" />
           <rect x="8" y="13" width="5" height="0.8" rx="0.4" fill="#C9C9CE" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// ============ NEW OS APP ICONS ============
+
+// Activity Monitor — dark with CPU graph (like macOS Activity Monitor)
+function ActivityMonitorIcon({ size }: { size: number }) {
+  const s = size * 0.72
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #2A2A2A 0%, #0A0A0A 100%)" />
+      <Highlight opacity={0.15} stop={35} />
+      <Glyph size={size}>
+        <svg width={s} height={s * 0.7} viewBox="0 0 24 17" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}>
+          {/* CPU graph bars — green */}
+          <rect x="2" y="10" width="2.5" height="6" rx="0.5" fill="#34C759" opacity="0.9" />
+          <rect x="5.5" y="7" width="2.5" height="9" rx="0.5" fill="#34C759" opacity="0.95" />
+          <rect x="9" y="4" width="2.5" height="12" rx="0.5" fill="#34C759" />
+          <rect x="12.5" y="6" width="2.5" height="10" rx="0.5" fill="#34C759" opacity="0.95" />
+          <rect x="16" y="3" width="2.5" height="13" rx="0.5" fill="#34C759" />
+          <rect x="19.5" y="8" width="2.5" height="8" rx="0.5" fill="#34C759" opacity="0.9" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Settings — gear sliders on gray (same as board-room but with sliders)
+function SettingsIcon({ size }: { size: number }) {
+  const s = size * 0.58
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #8E8E93 0%, #48484A 100%)" />
+      <Highlight opacity={0.22} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))' }}>
+          {/* Three horizontal sliders with knobs */}
+          <line x1="3" y1="7" x2="21" y2="7" stroke="#F5F5F7" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="9" cy="7" r="2.5" fill="#F5F5F7" />
+          <line x1="3" y1="12" x2="21" y2="12" stroke="#F5F5F7" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="15" cy="12" r="2.5" fill="#F5F5F7" />
+          <line x1="3" y1="17" x2="21" y2="17" stroke="#F5F5F7" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="11" cy="17" r="2.5" fill="#F5F5F7" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Files / Finder — blue folder with face (macOS Finder style)
+function FinderIcon({ size }: { size: number }) {
+  const s = size * 0.62
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #4FB0F5 0%, #1573D6 100%)" />
+      <Highlight opacity={0.28} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
+          {/* Folder body */}
+          <path d="M3 6a1 1 0 011-1h5l2 2h9a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V6z" fill="#FFFFFF" />
+          {/* Face — two eyes + smile (Finder style) */}
+          <circle cx="9.5" cy="11" r="0.8" fill="#1573D6" />
+          <circle cx="14.5" cy="11" r="0.8" fill="#1573D6" />
+          <path d="M9 14c1 1.2 2 1.8 3 1.8s2-0.6 3-1.8" stroke="#1573D6" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Calculator — dark with orange equals (macOS Calculator)
+function CalculatorIcon({ size }: { size: number }) {
+  const s = size * 0.58
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #3A3A3C 0%, #1C1C1E 100%)" />
+      <Highlight opacity={0.18} stop={40} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
+          {/* Display */}
+          <rect x="4" y="3" width="16" height="4" rx="1" fill="#1C1C1E" stroke="#48484A" strokeWidth="0.3" />
+          {/* Buttons grid */}
+          <circle cx="7" cy="11" r="1.6" fill="#48484A" />
+          <circle cx="12" cy="11" r="1.6" fill="#48484A" />
+          <circle cx="17" cy="11" r="1.6" fill="#48484A" />
+          <circle cx="7" cy="15.5" r="1.6" fill="#48484A" />
+          <circle cx="12" cy="15.5" r="1.6" fill="#48484A" />
+          <circle cx="17" cy="15.5" r="1.6" fill="#48484A" />
+          <circle cx="7" cy="20" r="1.6" fill="#48484A" />
+          {/* Equals button — orange */}
+          <rect x="14.5" y="18.5" width="5" height="3" rx="1.5" fill="#FF9500" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Notes — yellow top bar with lines (macOS Notes)
+function NotesIcon({ size }: { size: number }) {
+  const s = size * 0.72
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #FFFFFF 0%, #F0F0F2 100%)" />
+      <Highlight opacity={0.40} stop={35} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))' }}>
+          {/* Yellow top bar */}
+          <rect x="2" y="2" width="20" height="5" fill="#FFCC00" />
+          {/* Body */}
+          <rect x="2" y="7" width="20" height="15" fill="#FFF9E0" />
+          {/* Lines */}
+          <rect x="5" y="10" width="14" height="0.8" rx="0.4" fill="#D4B740" />
+          <rect x="5" y="12.5" width="14" height="0.8" rx="0.4" fill="#D4B740" />
+          <rect x="5" y="15" width="14" height="0.8" rx="0.4" fill="#D4B740" />
+          <rect x="5" y="17.5" width="10" height="0.8" rx="0.4" fill="#D4B740" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Calendar — white with red header + date number (macOS Calendar)
+function CalendarIcon({ size }: { size: number }) {
+  const s = size * 0.72
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #FFFFFF 0%, #F0F0F2 100%)" />
+      <Highlight opacity={0.40} stop={35} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))' }}>
+          {/* Red top header */}
+          <rect x="2" y="2" width="20" height="5" fill="#FF3B30" />
+          <text x="12" y="5.8" textAnchor="middle" fontSize="2.8" fontWeight="700" fill="#FFFFFF" fontFamily="-apple-system, sans-serif">JULY</text>
+          {/* Big date number */}
+          <text x="12" y="17" textAnchor="middle" fontSize="9" fontWeight="300" fill="#1C1C1E" fontFamily="-apple-system, sans-serif">18</text>
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Music — red/pink gradient with white music note (macOS Music)
+function MusicIcon({ size }: { size: number }) {
+  const s = size * 0.58
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #FA2D48 0%, #E00028 100%)" />
+      <Highlight opacity={0.25} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
+          {/* Music note */}
+          <path d="M9 17V5l10-2v12" stroke="#FFFFFF" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <ellipse cx="7" cy="17" rx="2.5" ry="2" fill="#FFFFFF" />
+          <ellipse cx="17" cy="15" rx="2.5" ry="2" fill="#FFFFFF" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Cpu (for AI Infrastructure) — dark with chip
+function CpuIcon({ size }: { size: number }) {
+  const s = size * 0.58
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #4A6B8F 0%, #1F3A5F 100%)" />
+      <Highlight opacity={0.22} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
+          {/* Chip body */}
+          <rect x="6" y="6" width="12" height="12" rx="2" fill="#F5F1EA" />
+          {/* Inner square */}
+          <rect x="9" y="9" width="6" height="6" rx="0.5" fill="#1F3A5F" />
+          {/* Pins — top */}
+          <rect x="9" y="3" width="1" height="3" fill="#F5F1EA" />
+          <rect x="12" y="3" width="1" height="3" fill="#F5F1EA" />
+          <rect x="15" y="3" width="1" height="3" fill="#F5F1EA" />
+          {/* Pins — bottom */}
+          <rect x="9" y="18" width="1" height="3" fill="#F5F1EA" />
+          <rect x="12" y="18" width="1" height="3" fill="#F5F1EA" />
+          <rect x="15" y="18" width="1" height="3" fill="#F5F1EA" />
+          {/* Pins — left */}
+          <rect x="3" y="9" width="3" height="1" fill="#F5F1EA" />
+          <rect x="3" y="12" width="3" height="1" fill="#F5F1EA" />
+          <rect x="3" y="15" width="3" height="1" fill="#F5F1EA" />
+          {/* Pins — right */}
+          <rect x="18" y="9" width="3" height="1" fill="#F5F1EA" />
+          <rect x="18" y="12" width="3" height="1" fill="#F5F1EA" />
+          <rect x="18" y="15" width="3" height="1" fill="#F5F1EA" />
         </svg>
       </Glyph>
     </>
