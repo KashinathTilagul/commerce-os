@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Cpu, Activity, Brain, Send, Zap, Clock, TrendingUp, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill } from '../shared'
@@ -11,9 +11,85 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
+import { toast } from '@/components/ekvaar/desktop/toast'
+
+interface ChatMessage {
+  id: string
+  from: 'agent' | 'founder'
+  text: string
+  ts: number
+}
+
+// Pre-canned responses per agent code
+const AGENT_RESPONSES: Record<string, string[]> = {
+  CEO: [
+    'Acknowledged. I\'ll decompose this into actionable issues and assign them.',
+    'Understood. Allocating capital and coordinating with the C-suite now.',
+    'I\'ll resolve this cross-department conflict and report back within the hour.',
+  ],
+  CMO: [
+    'Analyzing Shopify data now. ROAS projection incoming.',
+    'On it. Drafting campaign brief with brand voice enforcement.',
+    'Conversion drop identified — proposing A/B test on checkout step 2.',
+  ],
+  CTO: [
+    'Deploying hotfix now. Monitoring for 24 hours.',
+    'Integration complete. API health check passing.',
+    'Investigating the webhook retry logic. Will report root cause shortly.',
+  ],
+  CFO: [
+    'Auditing expenses now. Burn rate projection in progress.',
+    'Budget reallocation drafted. Awaiting founder approval.',
+    'Flagged inefficient spend in Marketing. Recommending reallocation.',
+  ],
+  COO: [
+    'Checking inventory levels across all 5 houses.',
+    'Supplier audit scheduled. Lead time slip detected.',
+    'Restock order drafted. Awaiting budget approval.',
+  ],
+  CCO: [
+    'Generating visual assets within the six-color palette.',
+    'Brand scan complete. 0 violations found.',
+    'Creative direction locked. Submitting for review.',
+  ],
+  CSM: [
+    'Reviewing customer satisfaction scores now.',
+    'Identified 3 churn risks. Proposing retention play.',
+    'Support ticket resolved. CSAT up 4 points.',
+  ],
+  GROWTH: [
+    'Experiment launched. Measuring conversion lift.',
+    'Funnel analysis complete. Bottleneck at step 3.',
+    'New channel identified. Projecting 12% lift.',
+  ],
+  RESEARCH: [
+    'Compiling competitive intel report now.',
+    'Market scan complete. 3 trends identified.',
+    'Deep dive on Indian streetwear Q3 in progress.',
+  ],
+  HR: [
+    'Monitoring inter-agent communication. Alignment nominal.',
+    'Onboarding docs for new agent drafted.',
+    'Policy update ready for review.',
+  ],
+  LEGAL: [
+    'Reviewing content for liability. No flags.',
+    'Vendor agreement reviewed. Approved.',
+    'Compliance audit complete. All clear.',
+  ],
+  FOUNDER: [
+    'Acknowledged.',
+    'Make it so.',
+    'Approved. Proceed.',
+  ],
+}
 
 export function DigitalEmployeesHub() {
   const [selected, setSelected] = useState<any | null>(null)
+  const [chatInput, setChatInput] = useState('')
+  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({})
+  const [agentTyping, setAgentTyping] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
 
   const { data: agents = [] } = useQuery<any[]>({
     queryKey: ['agents'],
@@ -28,6 +104,11 @@ export function DigitalEmployeesHub() {
   const totalBudget = agents.reduce((s, a) => s + a.tokenBudget, 0)
   const avgUtilization = totalBudget > 0 ? Math.round((totalSpend / totalBudget) * 100) : 0
   const humanCount = agents.filter((a) => a.isHuman).length
+
+  // Scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, agentTyping, selected])
 
   // Group by department
   const departments: Record<string, any[]> = {}
@@ -247,25 +328,100 @@ export function DigitalEmployeesHub() {
                   </div>
                 )}
 
-                {/* Direct chat interface preview */}
+                {/* Direct chat interface */}
                 <div>
                   <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Direct Chat</div>
-                  <div className="border border-border rounded-md p-3 space-y-2 max-h-40 overflow-y-auto">
-                    <div className="flex items-start gap-2">
-                      <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] text-white" style={{ background: selected.avatarColor }}>
-                        {selected.name?.[0]}
+                  <div className="border border-border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                    {/* Initial agent message */}
+                    {(messages[selected.code] || []).length === 0 && (
+                      <div className="flex items-start gap-2">
+                        <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] text-white flex-shrink-0" style={{ background: selected.avatarColor }}>
+                          {selected.name?.[0]}
+                        </div>
+                        <div className="text-xs bg-muted/50 p-2 rounded-md">
+                          Heartbeat complete. Analyzed today's data. Ready for next assignment.
+                        </div>
                       </div>
-                      <div className="text-xs bg-muted/50 p-2 rounded-md">
-                        Heartbeat complete. Analyzed today's data. Ready for next assignment.
+                    )}
+                    {/* Conversation */}
+                    {(messages[selected.code] || []).map((m) => (
+                      <div key={m.id} className={`flex items-start gap-2 ${m.from === 'founder' ? 'flex-row-reverse' : ''}`}>
+                        <div
+                          className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] text-white flex-shrink-0"
+                          style={{ background: m.from === 'founder' ? '#0A0A0A' : selected.avatarColor }}
+                        >
+                          {m.from === 'founder' ? 'F' : selected.name?.[0]}
+                        </div>
+                        <div
+                          className={`text-xs p-2 rounded-md max-w-[80%] ${
+                            m.from === 'founder' ? 'bg-foreground text-background' : 'bg-muted/50'
+                          }`}
+                        >
+                          {m.text}
+                        </div>
                       </div>
-                    </div>
+                    ))}
+                    {agentTyping && (
+                      <div className="flex items-start gap-2">
+                        <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] text-white flex-shrink-0" style={{ background: selected.avatarColor }}>
+                          {selected.name?.[0]}
+                        </div>
+                        <div className="text-xs bg-muted/50 p-2 rounded-md flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 bg-muted-foreground/60 rounded-full animate-pulse" />
+                          <span className="h-1.5 w-1.5 bg-muted-foreground/60 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
+                          <span className="h-1.5 w-1.5 bg-muted-foreground/60 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
                   </div>
                   <div className="mt-2 flex gap-2">
                     <input
                       className="flex-1 px-3 py-1.5 text-xs border border-border rounded-md bg-background"
                       placeholder={`Message ${selected.name}…`}
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && chatInput.trim() && !agentTyping) {
+                          const text = chatInput.trim()
+                          setChatInput('')
+                          // Add founder message
+                          const founderMsg: ChatMessage = { id: `f-${Date.now()}`, from: 'founder', text, ts: Date.now() }
+                          setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), founderMsg] }))
+                          // Simulate agent response
+                          setAgentTyping(true)
+                          setTimeout(() => {
+                            const responses = AGENT_RESPONSES[selected.code] || AGENT_RESPONSES.CEO
+                            const reply = responses[Math.floor(Math.random() * responses.length)]
+                            const agentMsg: ChatMessage = { id: `a-${Date.now()}`, from: 'agent', text: reply, ts: Date.now() }
+                            setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), agentMsg] }))
+                            setAgentTyping(false)
+                            toast.info(`${selected.name} responded`, reply.slice(0, 60) + (reply.length > 60 ? '…' : ''))
+                          }, 1200 + Math.random() * 1500)
+                        }
+                      }}
                     />
-                    <Button size="sm" className="gap-1.5 h-8">
+                    <Button
+                      size="sm"
+                      className="gap-1.5 h-8"
+                      disabled={!chatInput.trim() || agentTyping}
+                      onClick={() => {
+                        if (!chatInput.trim() || agentTyping) return
+                        const text = chatInput.trim()
+                        setChatInput('')
+                        const founderMsg: ChatMessage = { id: `f-${Date.now()}`, from: 'founder', text, ts: Date.now() }
+                        setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), founderMsg] }))
+                        setAgentTyping(true)
+                        setTimeout(() => {
+                          const responses = AGENT_RESPONSES[selected.code] || AGENT_RESPONSES.CEO
+                          const reply = responses[Math.floor(Math.random() * responses.length)]
+                          const agentMsg: ChatMessage = { id: `a-${Date.now()}`, from: 'agent', text: reply, ts: Date.now() }
+                          setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), agentMsg] }))
+                          setAgentTyping(false)
+                          toast.info(`${selected.name} responded`, reply.slice(0, 60) + (reply.length > 60 ? '…' : ''))
+                        }, 1200 + Math.random() * 1500)
+                      }}
+                    >
                       <Send className="h-3 w-3" /> Send
                     </Button>
                   </div>

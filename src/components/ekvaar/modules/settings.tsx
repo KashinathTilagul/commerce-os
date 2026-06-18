@@ -10,16 +10,45 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { useThemeStore } from '@/lib/theme-store'
+import { toast } from '@/components/ekvaar/desktop/toast'
 
 export function Settings() {
-  const [theme, setTheme] = useState('dark')
-  const [autoTheme, setAutoTheme] = useState(false)
+  const { mode, accent, setMode, setAccent } = useThemeStore()
   const [notifications, setNotifications] = useState(true)
   const [agentHeartbeats, setAgentHeartbeats] = useState(true)
   const [approvalAlerts, setApprovalAlerts] = useState(true)
   const [budgetAlerts, setBudgetAlerts] = useState(true)
   const [maxTokens, setMaxTokens] = useState([80])
   const [intelligence, setIntelligence] = useState('claude-sonnet')
+  const [autoApprove, setAutoApprove] = useState('5000')
+  const [escalation, setEscalation] = useState('standard')
+
+  const handleThemeChange = (newMode: 'dark' | 'light' | 'auto') => {
+    setMode(newMode)
+    toast.success('Theme applied', `${newMode.charAt(0).toUpperCase() + newMode.slice(1)} mode active`)
+  }
+
+  const handleAccentChange = (color: string) => {
+    setAccent(color)
+    toast.success('Accent color updated')
+  }
+
+  const handleApply = () => {
+    toast.success('Settings saved', 'All preferences applied system-wide')
+  }
+
+  const handleReset = () => {
+    setMode('dark')
+    setAccent('#C8302A')
+    setNotifications(true)
+    setAgentHeartbeats(true)
+    setApprovalAlerts(true)
+    setBudgetAlerts(true)
+    setMaxTokens([80])
+    setIntelligence('claude-sonnet')
+    toast.info('Reset to defaults')
+  }
 
   return (
     <div>
@@ -40,15 +69,24 @@ export function Settings() {
           <CardContent className="space-y-4">
             <Row label="Theme" desc="Choose system visual mode">
               <div className="flex gap-2">
-                <ThemeButton active={theme === 'light' && !autoTheme} onClick={() => { setTheme('light'); setAutoTheme(false) }} icon={Sun} label="Light" />
-                <ThemeButton active={theme === 'dark' && !autoTheme} onClick={() => { setTheme('dark'); setAutoTheme(false) }} icon={Moon} label="Dark" />
-                <ThemeButton active={autoTheme} onClick={() => setAutoTheme(true)} icon={Monitor} label="Auto" />
+                <ThemeButton active={mode === 'light'} onClick={() => handleThemeChange('light')} icon={Sun} label="Light" />
+                <ThemeButton active={mode === 'dark'} onClick={() => handleThemeChange('dark')} icon={Moon} label="Dark" />
+                <ThemeButton active={mode === 'auto'} onClick={() => handleThemeChange('auto')} icon={Monitor} label="Auto" />
               </div>
             </Row>
             <Row label="Accent color" desc="System highlight color">
               <div className="flex gap-2">
                 {['#C8302A', '#1F3A5F', '#2F4F3A', '#D4859B', '#FF9500', '#8B7355'].map((c) => (
-                  <button key={c} className="h-6 w-6 rounded-full border-2 border-white/20" style={{ background: c }} />
+                  <button
+                    key={c}
+                    onClick={() => handleAccentChange(c)}
+                    className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
+                    style={{
+                      background: c,
+                      borderColor: accent === c ? '#FFFFFF' : 'rgba(255,255,255,0.2)',
+                      boxShadow: accent === c ? `0 0 0 2px ${c}` : 'none',
+                    }}
+                  />
                 ))}
               </div>
             </Row>
@@ -119,13 +157,17 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Row label="Auto-approve threshold" desc="Max spend agents can execute without approval">
-              <Input defaultValue="₹5,000" className="w-32 font-mono text-xs" />
+              <Input
+                value={`₹${autoApprove}`}
+                onChange={(e) => setAutoApprove(e.target.value.replace(/[^\d]/g, ''))}
+                className="w-32 font-mono text-xs"
+              />
             </Row>
             <Row label="Board approval required" desc="Strategic actions needing founder sign-off">
               <Badge variant="outline">Hiring · Campaigns · Budget reallocation</Badge>
             </Row>
             <Row label="Escalation policy" desc="When to surface to founder inbox">
-              <Select defaultValue="standard">
+              <Select value={escalation} onValueChange={setEscalation}>
                 <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="minimal">Minimal (critical only)</SelectItem>
@@ -169,8 +211,8 @@ export function Settings() {
         </Card>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline">Reset to defaults</Button>
-          <Button>Apply changes</Button>
+          <Button variant="outline" onClick={handleReset}>Reset to defaults</Button>
+          <Button onClick={handleApply}>Apply changes</Button>
         </div>
       </div>
     </div>

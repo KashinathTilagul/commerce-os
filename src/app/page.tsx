@@ -2,18 +2,28 @@
 
 import { useEffect } from 'react'
 import { useWindowStore } from '@/lib/window-store'
+import { useThemeStore } from '@/lib/theme-store'
 import { BootScreen, DesktopWallpaper } from '@/components/ekvaar/desktop/boot-and-wallpaper'
 import { MenuBar } from '@/components/ekvaar/desktop/menu-bar'
 import { Dock } from '@/components/ekvaar/desktop/dock'
 import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
+import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 
 export default function Home() {
   const { windows, bootDone, open } = useWindowStore()
+  const { mode, accent } = useThemeStore()
 
-  // Dark mode is permanently on for the desktop aesthetic
+  // Apply theme + accent globally
   useEffect(() => {
-    document.documentElement.classList.add('dark')
-  }, [])
+    const root = document.documentElement
+    if (mode === 'light') {
+      root.classList.remove('dark')
+    } else {
+      root.classList.add('dark')
+    }
+    // Apply accent color as CSS variable
+    root.style.setProperty('--accent-color', accent)
+  }, [mode, accent])
 
   // Keyboard: Esc to deselect, Cmd+W to close active (best-effort)
   useEffect(() => {
@@ -51,6 +61,9 @@ export default function Home() {
 
       {/* Boot screen overlay */}
       <BootScreen />
+
+      {/* Toast notifications */}
+      <ToastContainer />
 
       {/* Welcome overlay when no windows */}
       {bootDone && windows.length === 0 && (
