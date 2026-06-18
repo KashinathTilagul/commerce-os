@@ -8,6 +8,14 @@ export type AppId =
   | 'agents'
   | 'issues'
   | 'terminal'
+  | 'activity'
+  | 'settings'
+  | 'files'
+  | 'browser'
+  | 'calculator'
+  | 'notes'
+  | 'calendar'
+  | 'music'
   | 'house'
   | 'sales'
   | 'finance'
@@ -51,6 +59,14 @@ const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
   agents: { width: 1180, height: 780 },
   issues: { width: 1280, height: 760 },
   terminal: { width: 1100, height: 720 },
+  activity: { width: 1100, height: 720 },
+  settings: { width: 1000, height: 680 },
+  files: { width: 1000, height: 680 },
+  browser: { width: 1200, height: 760 },
+  calculator: { width: 360, height: 540 },
+  notes: { width: 900, height: 640 },
+  calendar: { width: 1000, height: 700 },
+  music: { width: 1000, height: 680 },
   house: { width: 1200, height: 780 },
   sales: { width: 1180, height: 720 },
   finance: { width: 1180, height: 760 },
