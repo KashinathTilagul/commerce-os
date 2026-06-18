@@ -47,6 +47,7 @@ function Squircle({ size, children }: { size: number; children: React.ReactNode 
 
 function IconVariant({ variant, size }: { variant: string; size: number }) {
   switch (variant) {
+    case 'launchpad':     return <LaunchpadIcon size={size} />
     case 'board-room':    return <SystemSettingsIcon size={size} />
     case 'inbox':         return <MailIcon size={size} />
     case 'agents':        return <ContactsIcon size={size} />
@@ -442,6 +443,41 @@ function BooksIcon({ size }: { size: number }) {
 }
 
 // ============ NEW OS APP ICONS ============
+
+// Launchpad — gray gradient with grid of colorful squares (macOS Launchpad)
+function LaunchpadIcon({ size }: { size: number }) {
+  const s = size * 0.62
+  const colors = ['#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#5AC8FA', '#007AFF', '#AF52DE', '#FF2D55', '#34C759']
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #8E8E93 0%, #48484A 100%)" />
+      <Highlight opacity={0.22} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
+          {/* 3x3 grid of rounded squares */}
+          {[0, 1, 2].map((row) =>
+            [0, 1, 2].map((col) => {
+              const idx = row * 3 + col
+              const x = 4 + col * 6
+              const y = 4 + row * 6
+              return (
+                <rect
+                  key={`${row}-${col}`}
+                  x={x}
+                  y={y}
+                  width="4"
+                  height="4"
+                  rx="1"
+                  fill={colors[idx]}
+                />
+              )
+            })
+          )}
+        </svg>
+      </Glyph>
+    </>
+  )
+}
 
 // Activity Monitor — dark with CPU graph (like macOS Activity Monitor)
 function ActivityMonitorIcon({ size }: { size: number }) {
