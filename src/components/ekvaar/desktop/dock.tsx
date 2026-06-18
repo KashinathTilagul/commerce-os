@@ -2,12 +2,19 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import { LayoutGrid } from 'lucide-react'
 import { useWindowStore, type AppId } from '@/lib/window-store'
 import { APPS, CORE_APP_IDS, UTILITY_APP_IDS, BUSINESS_APP_IDS } from './app-registry'
 import { AppIcon } from './app-icon'
+import { useAppVisibilityStore } from '@/lib/app-visibility-store'
 
-export function Dock() {
+interface DockProps {
+  onLaunchpad?: () => void
+}
+
+export function Dock({ onLaunchpad }: DockProps = {}) {
   const { open, windows, activeId, focus } = useWindowStore()
+  const { hiddenApps, customNames } = useAppVisibilityStore()
   const [hovered, setHovered] = useState<AppId | null>(null)
   const [mouseX, setMouseX] = useState<number | null>(null)
   const [centers, setCenters] = useState<Record<string, number>>({})
@@ -69,13 +76,40 @@ export function Dock() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.4, type: 'spring', stiffness: 260, damping: 24 }}
       >
-        {APPS.filter(a => CORE_APP_IDS.includes(a.id)).map((app) => {
+        {/* Launchpad button */}
+        <DockItem
+          app={{
+            id: 'launchpad' as AppId,
+            name: 'Launchpad',
+            shortName: 'Apps',
+            icon: LayoutGrid,
+            iconVariant: 'launchpad',
+            gradient: 'linear-gradient(135deg, #6E6E76 0%, #3A3A3E 100%)',
+            glyphColor: '#F5F1EA',
+            component: null as any,
+            menuItems: [],
+          }}
+          isOpen={false}
+          isActive={false}
+          hovered={hovered}
+          setHovered={setHovered}
+          mouseX={mouseX}
+          center={centers['launchpad'] || 0}
+          setRef={(el) => { itemRefs.current['launchpad'] = el }}
+          onClick={() => onLaunchpad?.()}
+        />
+
+        {/* Divider between Launchpad and Core OS */}
+        <div className="w-px h-12 bg-white/15 mx-1 self-center" />
+
+        {APPS.filter(a => CORE_APP_IDS.includes(a.id) && !hiddenApps.includes(a.id)).map((app) => {
           const isOpen = windows.some((w) => w.id === app.id)
           const isActive = activeId === app.id
+          const displayApp = { ...app, name: customNames[app.id] || app.name }
           return (
             <DockItem
               key={app.id}
-              app={app}
+              app={displayApp}
               isOpen={isOpen}
               isActive={isActive}
               hovered={hovered}
@@ -91,15 +125,18 @@ export function Dock() {
         })}
 
         {/* Divider between Core OS and Utilities */}
-        <div className="w-px h-12 bg-white/15 mx-1 self-center" />
+        {UTILITY_APP_IDS.some(id => !hiddenApps.includes(id)) && (
+          <div className="w-px h-12 bg-white/15 mx-1 self-center" />
+        )}
 
-        {APPS.filter(a => UTILITY_APP_IDS.includes(a.id)).map((app) => {
+        {APPS.filter(a => UTILITY_APP_IDS.includes(a.id) && !hiddenApps.includes(a.id)).map((app) => {
           const isOpen = windows.some((w) => w.id === app.id)
           const isActive = activeId === app.id
+          const displayApp = { ...app, name: customNames[app.id] || app.name }
           return (
             <DockItem
               key={app.id}
-              app={app}
+              app={displayApp}
               isOpen={isOpen}
               isActive={isActive}
               hovered={hovered}
@@ -115,15 +152,18 @@ export function Dock() {
         })}
 
         {/* Divider between Utilities and Business apps */}
-        <div className="w-px h-12 bg-white/15 mx-1 self-center" />
+        {BUSINESS_APP_IDS.some(id => !hiddenApps.includes(id)) && (
+          <div className="w-px h-12 bg-white/15 mx-1 self-center" />
+        )}
 
-        {APPS.filter(a => BUSINESS_APP_IDS.includes(a.id)).map((app) => {
+        {APPS.filter(a => BUSINESS_APP_IDS.includes(a.id) && !hiddenApps.includes(a.id)).map((app) => {
           const isOpen = windows.some((w) => w.id === app.id)
           const isActive = activeId === app.id
+          const displayApp = { ...app, name: customNames[app.id] || app.name }
           return (
             <DockItem
               key={app.id}
-              app={app}
+              app={displayApp}
               isOpen={isOpen}
               isActive={isActive}
               hovered={hovered}
