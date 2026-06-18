@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Edit3, Trash2, RotateCcw, Check, Eye, EyeOff } from 'lucide-react'
+import { Search, X, Edit3, RotateCcw, Eye, EyeOff } from 'lucide-react'
 import { APPS } from './app-registry'
 import { AppIcon } from './app-icon'
 import { useWindowStore } from '@/lib/window-store'
@@ -36,23 +36,29 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
     }
   }, [open])
 
+  // Launchpad ALWAYS shows all apps — it's the full app directory.
+  // Hidden apps appear greyed out (in both edit and non-edit mode) but are still launchable.
   const visibleApps = useMemo(() => {
     return APPS.filter((a) => {
-      if (hiddenApps.includes(a.id) && !editMode) return false
       const name = customNames[a.id] || a.name
       if (search && !name.toLowerCase().includes(search.toLowerCase())) return false
       return true
     })
-  }, [hiddenApps, editMode, search, customNames])
+  }, [search, customNames])
 
   const hiddenCount = hiddenApps.length
 
   const handleAppClick = (appId: any, appName: string) => {
     if (editMode) {
-      // Toggle visibility in edit mode
+      // Toggle visibility — hidden apps stay in launcher but disappear from dock
       toggleApp(appId)
-      const isHidden = hiddenApps.includes(appId)
-      toast.info(isHidden ? 'App shown' : 'App hidden', `${customNames[appId] || appName} ${isHidden ? 'restored to' : 'removed from'} dock & launchpad`)
+      const willHide = !hiddenApps.includes(appId)
+      const displayName = customNames[appId] || appName
+      if (willHide) {
+        toast.info('Hidden from dock', `${displayName} stays in launcher but removed from dock`)
+      } else {
+        toast.success('Shown in dock', `${displayName} restored to dock`)
+      }
     } else {
       openWindow(appId, customNames[appId] || appName)
       onClose()
@@ -156,8 +162,8 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
                 <div className="mx-auto max-w-2xl px-4 py-2 mb-2 text-center">
                   <div className="text-xs text-white/70">
                     {hiddenCount > 0
-                      ? `${hiddenCount} app${hiddenCount === 1 ? '' : 's'} hidden · Click an app to toggle · Hidden apps stay accessible here in edit mode`
-                      : 'Click any app to hide it from the dock and launchpad · Renames persist locally'}
+                      ? `${hiddenCount} app${hiddenCount === 1 ? '' : 's'} hidden from dock · Click an app to toggle visibility · All apps remain launchable here`
+                      : 'Click any app to toggle dock visibility · Click the pencil to rename · All apps always remain in the launcher'}
                   </div>
                 </div>
               </motion.div>
@@ -199,20 +205,22 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
                       {/* Edit mode badges */}
                       {editMode && (
                         <>
-                          {/* Remove / restore indicator */}
+                          {/* Show/Hide toggle indicator (eye icon) */}
                           <div
-                            className={`absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center transition-all ${
+                            className={`absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center transition-all border-2 border-white/20 ${
                               isHidden
-                                ? 'bg-arav text-white'
-                                : 'bg-agni text-white opacity-0 group-hover:opacity-100'
+                                ? 'bg-white/20 text-white/70'
+                                : 'bg-arav text-white opacity-0 group-hover:opacity-100'
                             }`}
+                            title={isHidden ? 'Click to show in dock' : 'Click to hide from dock'}
                           >
-                            {isHidden ? <Check className="h-3.5 w-3.5" /> : <Trash2 className="h-3 w-3" />}
+                            {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                           </div>
 
                           {/* Rename indicator */}
                           <div
-                            className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-neel text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-neel text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-2 border-white/20"
+                            title="Click to rename"
                             onClick={(e) => {
                               e.stopPropagation()
                               setRenamingId(app.id)
@@ -222,10 +230,12 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
                             <Edit3 className="h-3 w-3" />
                           </div>
 
-                          {/* Hidden eye indicator */}
+                          {/* Hidden overlay — strikethrough eye in center */}
                           {isHidden && (
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <EyeOff className="h-6 w-6 text-white/60" />
+                              <div className="bg-black/40 rounded-full p-1.5">
+                                <EyeOff className="h-5 w-5 text-white/80" />
+                              </div>
                             </div>
                           )}
                         </>
@@ -284,35 +294,6 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
                 )}
               </div>
             )}
-
-            {/* Hidden apps section in edit mode */}
-            {editMode && hiddenCount > 0 && (
-              <div className="max-w-5xl mx-auto mt-12 pt-8 border-t border-white/10">
-                <div className="text-[10px] tracking-[0.2em] uppercase text-white/40 mb-4 text-center">
-                  Hidden Apps · Click to restore
-                </div>
-                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-x-4 gap-y-6">
-                  {APPS.filter((a) => hiddenApps.includes(a.id)).map((app) => (
-                    <motion.div
-                      key={app.id}
-                      layout
-                      className="flex flex-col items-center gap-2 group cursor-pointer opacity-60 hover:opacity-100 transition-opacity"
-                      onClick={() => handleAppClick(app.id, app.name)}
-                    >
-                      <div className="relative">
-                        <AppIcon variant={app.iconVariant} size={56} />
-                        <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-arav text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Check className="h-3 w-3" />
-                        </div>
-                      </div>
-                      <div className="text-[10px] text-white/70 text-center truncate max-w-[90px]">
-                        {customNames[app.id] || app.name}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            )}
           </motion.div>
 
           {/* Footer hint */}
@@ -323,7 +304,7 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
               transition={{ delay: 0.3 }}
               className="text-center pb-6 text-[10px] text-white/40"
             >
-              Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">F4</kbd> or <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">⌘L</kbd> to toggle · Click <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">Edit</kbd> to manage apps · <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">Esc</kbd> to close
+              Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">F4</kbd> or <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">⌘L</kbd> to toggle · Click <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">Edit</kbd> to manage dock visibility · <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">Esc</kbd> to close
             </motion.div>
           )}
         </motion.div>
