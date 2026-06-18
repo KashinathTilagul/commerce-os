@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, GitBranch, MessageSquare, Clock, ArrowRight, AlertTriangle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -10,7 +10,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { timeAgo } from '@/lib/ekvaar'
+import { toast } from '@/components/ekvaar/desktop/toast'
 
 const STATUS_META: Record<string, { color: string; bg: string; label: string }> = {
   BACKLOG: { color: 'text-muted-foreground', bg: 'bg-muted', label: 'Backlog' },
@@ -39,6 +41,9 @@ const TYPE_META: Record<string, string> = {
 export function IssuesModule() {
   const [view, setView] = useState<'BOARD' | 'LIST'>('BOARD')
   const [selected, setSelected] = useState<any | null>(null)
+  const [commentText, setCommentText] = useState('')
+  const [posting, setPosting] = useState(false)
+  const queryClient = useQueryClient()
 
   const { data: issues = [] } = useQuery<any[]>({
     queryKey: ['issues'],
@@ -47,6 +52,50 @@ export function IssuesModule() {
       return r.json()
     },
   })
+
+  const handleStatusChange = async (issue: any, newStatus: string) => {
+    try {
+      const r = await fetch(`/api/issues/${issue.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      if (!r.ok) throw new Error('Failed')
+      toast.success('Status updated', `${issue.code} → ${newStatus.replace(/_/g, ' ')}`)
+      queryClient.invalidateQueries({ queryKey: ['issues'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      // Update selected locally
+      if (selected?.id === issue.id) {
+        setSelected({ ...issue, status: newStatus })
+      }
+    } catch {
+      toast.error('Update failed', 'Could not change issue status')
+    }
+  }
+
+  const handleAddComment = async () => {
+    if (!selected || !commentText.trim()) return
+    setPosting(true)
+    try {
+      const r = await fetch(`/api/issues/${selected.id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: commentText, authorName: 'Founder' }),
+      })
+      if (!r.ok) throw new Error('Failed')
+      toast.success('Comment posted', `On ${selected.code}`)
+      setCommentText('')
+      queryClient.invalidateQueries({ queryKey: ['issues'] })
+      // Refresh selected with new comments
+      const refreshed = await fetch('/api/issues').then((r) => r.json())
+      const updated = refreshed.find((i: any) => i.id === selected.id)
+      if (updated) setSelected(updated)
+    } catch {
+      toast.error('Post failed', 'Could not add comment')
+    } finally {
+      setPosting(false)
+    }
+  }
 
   const byStatus: Record<string, any[]> = {
     BACKLOG: [],
@@ -66,7 +115,7 @@ export function IssuesModule() {
         title="PAP Tracker"
         description="Everything in EKVAAR OS is tracked as an Issue. Issues have statuses, assignees, priorities, dependencies (Issue A blocks Issue B), and rich comment threads where agents and humans discuss the task. Each agent heartbeat appends output as a comment."
         actions={
-          <Button size="sm" className="gap-1.5">
+          <Button size="sm" className="gap-1.5" onClick={() => toast.info('New Issue', 'Issue creation form would open here')}>
             <Plus className="h-3.5 w-3.5" /> New Issue
           </Button>
         }
@@ -242,7 +291,21 @@ export function IssuesModule() {
                   <span className="font-mono text-xs text-muted-foreground">{selected.code}</span>
                   <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] tracking-wider uppercase rounded-sm ${PRIORITY_META[selected.priority]}`}>{selected.priority}</span>
                   <span className="text-[10px] text-muted-foreground">{TYPE_META[selected.type] || selected.type}</span>
-                  <StatusPill status={selected.status} />
+                  <Select
+                    value={selected.status}
+                    onValueChange={(v) => handleStatusChange(selected, v)}
+                  >
+                    <SelectTrigger className="h-6 w-36 text-[10px] px-2">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="BACKLOG">Backlog</SelectItem>
+                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                      <SelectItem value="IN_REVIEW">In Review</SelectItem>
+                      <SelectItem value="BLOCKED">Blocked</SelectItem>
+                      <SelectItem value="DONE">Done</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <DialogTitle className="font-display text-2xl tracking-tight">{selected.title}</DialogTitle>
                 <DialogDescription>
@@ -343,8 +406,13 @@ export function IssuesModule() {
                     <input
                       className="flex-1 px-3 py-1.5 text-xs border border-border rounded-md bg-background"
                       placeholder="Add a comment…"
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && !posting) handleAddComment() }}
                     />
-                    <Button size="sm" className="h-8">Post</Button>
+                    <Button size="sm" className="h-8" disabled={posting || !commentText.trim()} onClick={handleAddComment}>
+                      {posting ? 'Posting…' : 'Post'}
+                    </Button>
                   </div>
                 </div>
               </div>

@@ -28,6 +28,76 @@ export function MusicPlayer() {
 
   const current = TRACKS[currentIdx]
 
+  // Web Audio API — generates ambient tones matching each track
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const oscRef = useRef<OscillatorNode | null>(null)
+  const gainRef = useRef<GainNode | null>(null)
+  const lfoRef = useRef<OscillatorNode | null>(null)
+
+  // Frequency per track (mapped from color)
+  const TRACK_FREQS = [220, 261.63, 293.66, 329.63, 392, 440, 174.61, 233.08]
+
+  const startAudio = () => {
+    if (typeof window === 'undefined') return
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+    }
+    const ctx = audioCtxRef.current
+    if (ctx.state === 'suspended') ctx.resume()
+
+    // Stop existing
+    stopAudio()
+
+    // Main oscillator
+    const osc = ctx.createOscillator()
+    osc.type = 'sine'
+    osc.frequency.value = TRACK_FREQS[currentIdx]
+
+    // Gain (volume)
+    const gain = ctx.createGain()
+    gain.gain.value = 0
+    gain.gain.linearRampToValueAtTime((volume[0] / 100) * 0.15, ctx.currentTime + 0.3)
+
+    // LFO for subtle vibrato
+    const lfo = ctx.createOscillator()
+    lfo.frequency.value = 0.5
+    const lfoGain = ctx.createGain()
+    lfoGain.gain.value = 3
+    lfo.connect(lfoGain)
+    lfoGain.connect(osc.frequency)
+
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.start()
+    lfo.start()
+
+    oscRef.current = osc
+    gainRef.current = gain
+    lfoRef.current = lfo
+  }
+
+  const stopAudio = () => {
+    if (gainRef.current && audioCtxRef.current) {
+      gainRef.current.gain.linearRampToValueAtTime(0, audioCtxRef.current.currentTime + 0.2)
+    }
+    setTimeout(() => {
+      try {
+        oscRef.current?.stop()
+        lfoRef.current?.stop()
+      } catch {}
+      oscRef.current = null
+      lfoRef.current = null
+    }, 250)
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopAudio()
+      audioCtxRef.current?.close()
+    }
+  }, [])
+
   // Progress timer
   useEffect(() => {
     if (!playing) return
@@ -56,10 +126,34 @@ export function MusicPlayer() {
     return () => clearInterval(t)
   }, [playing])
 
-  const togglePlay = () => setPlaying(!playing)
-  const next = () => { setCurrentIdx((i) => (i + 1) % TRACKS.length); setProgress(0) }
-  const prev = () => { setCurrentIdx((i) => (i - 1 + TRACKS.length) % TRACKS.length); setProgress(0) }
-  const selectTrack = (i: number) => { setCurrentIdx(i); setProgress(0); setPlaying(true) }
+  const togglePlay = () => {
+    if (playing) {
+      stopAudio()
+      setPlaying(false)
+    } else {
+      startAudio()
+      setPlaying(true)
+    }
+  }
+  const next = () => {
+    stopAudio()
+    setCurrentIdx((i) => (i + 1) % TRACKS.length)
+    setProgress(0)
+    if (playing) setTimeout(() => startAudio(), 100)
+  }
+  const prev = () => {
+    stopAudio()
+    setCurrentIdx((i) => (i - 1 + TRACKS.length) % TRACKS.length)
+    setProgress(0)
+    if (playing) setTimeout(() => startAudio(), 100)
+  }
+  const selectTrack = (i: number) => {
+    stopAudio()
+    setCurrentIdx(i)
+    setProgress(0)
+    setPlaying(true)
+    setTimeout(() => startAudio(), 100)
+  }
   const toggleLike = (i: number) => {
     setLiked((prev) => {
       const next = new Set(prev)

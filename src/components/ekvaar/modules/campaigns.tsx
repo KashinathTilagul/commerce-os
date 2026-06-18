@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { formatINR, formatINRFull, EKVAAR_PILLARS, timeAgo } from '@/lib/ekvaar'
+import { toast } from '@/components/ekvaar/desktop/toast'
 
 const PILLAR_META: Record<string, { color: string; description: string }> = {
   philosophy: { color: 'bg-noor dark:bg-rui', description: 'Why we exist. Permanence over speed.' },
@@ -49,7 +50,7 @@ export function CampaignsModule() {
         title="Story-Led · Six Pillars"
         description="Content pillars: philosophy, product, culture, process, founder, community. Brand voice: restrained, intelligent, confident, calm, permanence-first. Avoid trend memes, hype language, overexplaining, cringe marketing."
         actions={
-          <Button size="sm" className="gap-1.5">
+          <Button size="sm" className="gap-1.5" onClick={() => toast.info('New Campaign', 'Campaign brief form would open here')}>
             <Plus className="h-3.5 w-3.5" /> New Campaign
           </Button>
         }

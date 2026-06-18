@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Inbox, CheckCircle2, XCircle, RotateCcw, Clock, AlertTriangle, Sparkles, ArrowUpRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
+import { toast } from '@/components/ekvaar/desktop/toast'
 
 const TYPE_META: Record<string, { color: string; icon: any }> = {
   BUDGET: { color: '#C8302A', icon: AlertTriangle },
@@ -23,6 +24,8 @@ const TYPE_META: Record<string, { color: string; icon: any }> = {
 export function FounderInbox() {
   const [tab, setTab] = useState('MINE')
   const [selected, setSelected] = useState<any | null>(null)
+  const [acting, setActing] = useState(false)
+  const queryClient = useQueryClient()
 
   const { data: approvals = [] } = useQuery<any[]>({
     queryKey: ['approvals', tab],
@@ -39,6 +42,33 @@ export function FounderInbox() {
       return r.json()
     },
   })
+
+  const handleAction = async (action: 'approve' | 'reject' | 'revision') => {
+    if (!selected) return
+    setActing(true)
+    try {
+      const r = await fetch(`/api/approvals/${selected.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      if (!r.ok) throw new Error('Failed')
+      const updated = await r.json()
+      toast.success(
+        action === 'approve' ? 'Approved' : action === 'reject' ? 'Rejected' : 'Revision requested',
+        `${selected.code} · ${selected.title}`
+      )
+      // Invalidate queries to refresh
+      queryClient.invalidateQueries({ queryKey: ['approvals'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      setSelected(null)
+    } catch {
+      toast.error('Action failed', 'Could not update approval. Please try again.')
+    } finally {
+      setActing(false)
+    }
+  }
 
   const pending = allApprovals.filter((a) => a.status === 'PENDING')
   const unread = allApprovals.filter((a) => !a.isRead && a.status === 'PENDING')
@@ -213,13 +243,27 @@ export function FounderInbox() {
 
               {selected.status === 'PENDING' && (
                 <DialogFooter className="gap-2">
-                  <Button variant="outline" className="gap-1.5">
+                  <Button
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={acting}
+                    onClick={() => handleAction('revision')}
+                  >
                     <RotateCcw className="h-3.5 w-3.5" /> Request Revision
                   </Button>
-                  <Button variant="outline" className="gap-1.5 text-agni hover:text-agni">
+                  <Button
+                    variant="outline"
+                    className="gap-1.5 text-agni hover:text-agni border-agni/40"
+                    disabled={acting}
+                    onClick={() => handleAction('reject')}
+                  >
                     <XCircle className="h-3.5 w-3.5" /> Reject
                   </Button>
-                  <Button className="gap-1.5 bg-arav hover:bg-arav">
+                  <Button
+                    className="gap-1.5 bg-arav hover:bg-arav"
+                    disabled={acting}
+                    onClick={() => handleAction('approve')}
+                  >
                     <CheckCircle2 className="h-3.5 w-3.5" /> Approve
                   </Button>
                 </DialogFooter>

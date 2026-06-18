@@ -1,15 +1,20 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
-import { ShieldCheck, Palette, FileText, Package, Globe, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { ShieldCheck, Palette, FileText, Package, Globe, AlertTriangle, CheckCircle2, XCircle, ScanLine } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill, ColorDot } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Progress } from '@/components/ui/progress'
+import { Button } from '@/components/ui/button'
 import { EKVAAR_COLORS, EKVAAR_PRINCIPLES, timeAgo } from '@/lib/ekvaar'
+import { toast } from '@/components/ekvaar/desktop/toast'
 
 export function BrandGuardian() {
+  const [scanning, setScanning] = useState(false)
+  const queryClient = useQueryClient()
   const { data: checks = [] } = useQuery<any[]>({
     queryKey: ['brand-checks'],
     queryFn: async () => {
@@ -17,6 +22,26 @@ export function BrandGuardian() {
       return r.json()
     },
   })
+
+  const runScan = async () => {
+    setScanning(true)
+    try {
+      const r = await fetch('/api/brand-checks/run', { method: 'POST' })
+      if (!r.ok) throw new Error('Failed')
+      const result = await r.json()
+      const severity = result.status === 'PASS' ? 'success' : result.status === 'WARN' ? 'warning' : 'error'
+      toast[severity](
+        `Brand scan complete: ${result.status}`,
+        `${result.asset} · ${result.violations} violation${result.violations === 1 ? '' : 's'}`
+      )
+      queryClient.invalidateQueries({ queryKey: ['brand-checks'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    } catch {
+      toast.error('Scan failed', 'Could not run brand scan')
+    } finally {
+      setScanning(false)
+    }
+  }
 
   const pass = checks.filter((c) => c.status === 'PASS').length
   const warn = checks.filter((c) => c.status === 'WARN').length
@@ -37,10 +62,16 @@ export function BrandGuardian() {
         title="Brand Book Compliance"
         description="The EKVAAR palette is permanent. All products integrate into the six-color system. Cross-collection compatibility is mandatory. This module enforces the brand book — flagging palette violations, voice drift, and forbidden aesthetics."
         actions={
-          <div className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-md">
-            <ShieldCheck className="h-3.5 w-3.5 text-arav" />
-            <span className="text-xs">Last scan: {checks.length > 0 ? timeAgo(checks[0].checkedAt) : '—'}</span>
-          </div>
+          <>
+            <div className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-md">
+              <ShieldCheck className="h-3.5 w-3.5 text-arav" />
+              <span className="text-xs">Last scan: {checks.length > 0 ? timeAgo(checks[0].checkedAt) : '—'}</span>
+            </div>
+            <Button size="sm" className="gap-1.5" disabled={scanning} onClick={runScan}>
+              <ScanLine className={`h-3.5 w-3.5 ${scanning ? 'animate-spin' : ''}`} />
+              {scanning ? 'Scanning…' : 'Run Scan'}
+            </Button>
+          </>
         }
       />
 
