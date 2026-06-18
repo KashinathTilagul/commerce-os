@@ -282,7 +282,7 @@ export function Dock({ onLaunchpad }: DockProps = {}) {
               <div className="px-3 py-1.5 rounded-md text-[11px] text-white/80 border border-white/15"
                 style={{ background: 'rgba(28,28,30,0.9)', backdropFilter: 'blur(20px)' }}
               >
-                Edit Mode · Drag to reorder · Click <X className="inline h-3 w-3" /> to remove · Right-click for more
+                Dock Edit · Drag to reorder · Click <X className="inline h-3 w-3" /> to remove from dock · Right-click for more options
               </div>
               <button
                 onClick={handleReset}
