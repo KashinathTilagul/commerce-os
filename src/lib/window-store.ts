@@ -12,6 +12,7 @@ export type AppId =
   | 'settings'
   | 'files'
   | 'browser'
+  | 'integrations'
   | 'calculator'
   | 'notes'
   | 'calendar'
@@ -63,6 +64,7 @@ const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
   settings: { width: 1000, height: 680 },
   files: { width: 1000, height: 680 },
   browser: { width: 1200, height: 760 },
+  integrations: { width: 920, height: 620 },
   calculator: { width: 360, height: 540 },
   notes: { width: 900, height: 640 },
   calendar: { width: 1000, height: 700 },

@@ -273,3 +273,40 @@ model Approval {
   requester Agent @relation("ApprovalRequester", fields: [requesterId], references: [id])
 }
 
+
+// ============ COMPOSIO INTEGRATIONS ============
+
+model Integration {
+  id              String   @id @default(cuid())
+  toolkitSlug     String   @unique // shopify, stripe, github, gmail, slack, etc.
+  name            String
+  description     String
+  category        String   // ecommerce, comms, analytics, productivity, social
+  logoUrl         String?
+  isConnected     Boolean  @default(false)
+  connectedAccountId String?
+  connectedAt     DateTime?
+  agentPermissions String  @default("") // comma-separated agent codes that can use this
+  toolsCount      Int      @default(0)
+  executionsCount Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  executions ToolExecution[]
+}
+
+model ToolExecution {
+  id            String   @id @default(cuid())
+  integrationId String
+  agentCode     String   // which agent executed
+  agentName     String
+  toolName      String   // e.g. "shopify_get_orders", "stripe_create_refund"
+  toolSlug      String
+  input         String   // JSON string of input params
+  output        String?  // JSON string of result
+  status        String   @default("PENDING") // PENDING | SUCCESS | ERROR | TIMEOUT
+  errorMessage  String?
+  duration      Int      @default(0) // milliseconds
+  createdAt     DateTime @default(now())
+
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+}
