@@ -188,7 +188,21 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const openPanel = useCallback(() => {
     setExpanded(true)
-    const greetings = ["Hello Founder. Krishna here.", "Yes Sir. I'm listening.", "At your service, Founder.", "Krishna online. All systems operational."]
+    // Time-based greeting in IST
+    const now = new Date()
+    const istHour = parseInt(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
+    let timeGreeting = 'Hello'
+    if (istHour < 12) timeGreeting = 'Good morning'
+    else if (istHour < 17) timeGreeting = 'Good afternoon'
+    else if (istHour < 21) timeGreeting = 'Good evening'
+    else timeGreeting = 'Good night'
+
+    const greetings = [
+      `${timeGreeting}, Founder. Krishna here. How can I help?`,
+      `${timeGreeting}, Sir. I'm listening.`,
+      `${timeGreeting}, Founder. At your service.`,
+      `${timeGreeting}. Krishna online. All systems operational.`,
+    ]
     const g = greetings[Math.floor(Math.random() * greetings.length)]
     setMessages(m => [...m, { role: 'jarvis', text: g, ts: Date.now() }])
     setTimeout(() => speak(g), 100)
