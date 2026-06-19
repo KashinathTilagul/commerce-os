@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Loader2, Volume2, VolumeX } from 'lucide-react'
+import { X, Loader2, Volume2, VolumeX, Mic } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
 import { APPS } from './app-registry'
 import { toast } from './toast'
@@ -32,230 +32,106 @@ function preprocessForSpeech(text: string): string {
   return r.replace(/\s+/g, ' ').trim()
 }
 
-// Global state sharing between orb and panel
 let globalState: JarvisState = 'idle'
 const listeners: ((s: JarvisState) => void)[] = []
 function setGlobal(s: JarvisState) { globalState = s; listeners.forEach(f => f(s)) }
 
-// ===== LARGE WALLPAPER ORB — multi-layered, glassmorphism, heartbeat =====
-export function JarvisWallpaperOrb({ onClick }: { onClick: () => void }) {
+// ===== SMALL WALLPAPER ORB — corner, shrinks when windows open =====
+export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; hidden: boolean }) {
   const [state, setState] = useState<JarvisState>('idle')
   const [mounted, setMounted] = useState(false)
+
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMounted(true))
     const fn = (s: JarvisState) => setState(s)
     listeners.push(fn)
-    return () => { const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1) }
+    return () => { cancelAnimationFrame(raf); const i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1) }
   }, [])
-
-  const colors = {
-    idle: { core: '#5856D6', ring: '#7B79E8', glow: 'rgba(88,86,214,0.25)', outer: 'rgba(88,86,214,0.08)' },
-    listening: { core: '#FF3B30', ring: '#FF6B6B', glow: 'rgba(255,59,48,0.35)', outer: 'rgba(255,59,48,0.12)' },
-    thinking: { core: '#0A84FF', ring: '#409CFF', glow: 'rgba(10,132,255,0.35)', outer: 'rgba(10,132,255,0.12)' },
-    talking: { core: '#34C759', ring: '#5EE37B', glow: 'rgba(52,199,89,0.35)', outer: 'rgba(52,199,89,0.12)' },
-  }
-  const c = colors[state]
 
   if (!mounted) return null
 
+  const colors = {
+    idle: { core: '#5856D6', glow: 'rgba(88,86,214,0.25)' },
+    listening: { core: '#FF3B30', glow: 'rgba(255,59,48,0.35)' },
+    thinking: { core: '#0A84FF', glow: 'rgba(10,132,255,0.35)' },
+    talking: { core: '#34C759', glow: 'rgba(52,199,89,0.35)' },
+  }
+  const c = colors[state]
+  const size = hidden ? 40 : 80
+
   return (
-    <div className="fixed inset-0 z-[8500] flex items-center justify-center pointer-events-none">
+    <motion.div
+      className="fixed z-[8500] pointer-events-none"
+      style={{ bottom: hidden ? '80px' : '40px', right: '24px' }}
+      animate={{ opacity: hidden ? 0.4 : 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       <motion.button
         onClick={onClick}
         className="relative pointer-events-auto cursor-pointer"
-        style={{ width: 200, height: 200 }}
-        initial={{ opacity: 0, scale: 0.5 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 1.5, duration: 1, type: 'spring' }}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        style={{ width: size, height: size }}
+        animate={{ scale: hidden ? 0.5 : 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        whileHover={{ scale: hidden ? 0.6 : 1.1 }}
+        whileTap={{ scale: 0.9 }}
       >
-        {/* Outer ambient halo — always present */}
+        {/* Ambient glow */}
         <motion.div
           className="absolute inset-0 rounded-full"
-          animate={{
-            scale: state === 'idle' ? [1, 1.15, 1] : [1, 1.3, 1],
-            opacity: state === 'idle' ? [0.15, 0.3, 0.15] : [0.3, 0.6, 0.3],
-          }}
-          transition={{
-            duration: state === 'idle' ? 5 : state === 'talking' ? 0.8 : 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-          style={{ background: `radial-gradient(circle, ${c.outer} 0%, transparent 70%)` }}
+          animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+          transition={{ duration: state === 'talking' ? 0.9 : state === 'idle' ? 4 : 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)` }}
         />
-
-        {/* Outer ring — glassmorphism, faint */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            inset: '5%',
-            border: '1px solid rgba(255,255,255,0.06)',
-            background: 'rgba(255,255,255,0.02)',
-            backdropFilter: 'blur(10px)',
-          }}
-        />
-
-        {/* Mid ring — glassmorphism with color tint */}
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            inset: '15%',
-            border: `1px solid ${c.ring}40`,
-            background: `${c.core}08`,
-            backdropFilter: 'blur(20px) saturate(180%)',
-          }}
-          animate={{
-            boxShadow: [
-              `0 0 30px ${c.glow}, inset 0 0 30px ${c.glow}`,
-              `0 0 60px ${c.glow}, inset 0 0 50px ${c.glow}`,
-              `0 0 30px ${c.glow}, inset 0 0 30px ${c.glow}`,
-            ],
-          }}
-          transition={{
-            duration: state === 'idle' ? 5 : state === 'talking' ? 0.7 : 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-
-        {/* Tick marks around mid ring (like the reference) */}
-        {Array.from({ length: 24 }).map((_, i) => {
-          const angle = (i * 15) * Math.PI / 180
-          const x = 50 + 42 * Math.cos(angle)
-          const y = 50 + 42 * Math.sin(angle)
-          return (
-            <div
-              key={i}
-              className="absolute w-px bg-white/10"
-              style={{
-                left: `${x}%`, top: `${y}%`,
-                height: i % 6 === 0 ? '8px' : '4px',
-                transform: `translate(-50%, -50%) rotate(${i * 15}deg)`,
-                transformOrigin: 'center',
-              }}
-            />
-          )
-        })}
-
-        {/* Inner energy ring — rotating conic gradient */}
-        <motion.div
-          className="absolute rounded-full overflow-hidden"
-          style={{ inset: '25%' }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: state === 'idle' ? 30 : 6, repeat: Infinity, ease: 'linear' }}
-        >
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `conic-gradient(from 0deg, transparent 0%, ${c.core}50 25%, transparent 50%, ${c.ring}50 75%, transparent 100%)`,
-            }}
-          />
-        </motion.div>
 
         {/* Sonar rings when listening */}
         {state === 'listening' && [0, 0.7, 1.4].map(d => (
-          <motion.div
-            key={d}
-            className="absolute rounded-full border-2"
-            style={{ inset: '20%', borderColor: c.core }}
-            animate={{ scale: [1, 2.2], opacity: [0.6, 0] }}
-            transition={{ duration: 2, repeat: Infinity, delay: d, ease: 'easeOut' }}
-          />
+          <motion.div key={d} className="absolute inset-0 rounded-full border-2" style={{ borderColor: c.core }} animate={{ scale: [1, 2], opacity: [0.5, 0] }} transition={{ duration: 1.5, repeat: Infinity, delay: d }} />
         ))}
 
-        {/* Heartbeat pulse when talking — like a human heart */}
+        {/* Heartbeat when talking */}
         {state === 'talking' && (
-          <motion.div
-            className="absolute rounded-full"
-            style={{
-              inset: '20%',
-              background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)`,
-            }}
-            animate={{
-              scale: [1, 1.25, 1, 1.15, 1],
-              opacity: [0.4, 0.7, 0.4, 0.6, 0.4],
-            }}
-            transition={{
-              duration: 0.9,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              times: [0, 0.15, 0.35, 0.55, 1],
-            }}
-          />
+          <motion.div className="absolute inset-0 rounded-full" style={{ background: c.glow }} animate={{ scale: [1, 1.25, 1, 1.15, 1], opacity: [0.3, 0.6, 0.3, 0.5, 0.3] }} transition={{ duration: 0.9, repeat: Infinity, times: [0, 0.15, 0.35, 0.55, 1] }} />
         )}
 
-        {/* Thinking spinner ring */}
-        {state === 'thinking' && (
-          <motion.div
-            className="absolute rounded-full border-2 border-t-transparent"
-            style={{ inset: '18%', borderColor: c.core, borderTopColor: 'transparent' }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-          />
-        )}
+        {/* Thinking spinner */}
+        {state === 'thinking' && <motion.div className="absolute inset-0 rounded-full border-2 border-t-transparent" style={{ borderColor: c.core }} animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity }} />}
 
-        {/* Core — the heart of Krishna */}
+        {/* Core orb — glassmorphism */}
         <motion.div
           className="absolute rounded-full flex items-center justify-center overflow-hidden"
           style={{
-            inset: '32%',
-            background: `linear-gradient(135deg, ${c.core} 0%, ${c.core}CC 50%, ${c.core}80 100%)`,
-            boxShadow: `inset 0 2px 4px rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.3), 0 4px 20px ${c.glow}`,
+            inset: '20%',
+            background: `linear-gradient(135deg, ${c.core} 0%, ${c.core}CC 100%)`,
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 12px ${c.glow}`,
+            backdropFilter: 'blur(10px)',
           }}
-          animate={{
-            scale: state === 'idle'
-              ? [1, 1.04, 1]  // gentle breathing
-              : state === 'talking'
-              ? [1, 1.12, 1, 1.08, 1]  // heartbeat: lub-dub
-              : 1,
-          }}
-          transition={{
-            duration: state === 'idle' ? 4 : state === 'talking' ? 0.9 : 1,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            times: state === 'talking' ? [0, 0.15, 0.35, 0.55, 1] : undefined,
-          }}
+          animate={{ scale: state === 'idle' ? [1, 1.04, 1] : state === 'talking' ? [1, 1.12, 1, 1.08, 1] : 1 }}
+          transition={{ duration: state === 'idle' ? 4 : state === 'talking' ? 0.9 : 1, repeat: Infinity, times: state === 'talking' ? [0, 0.15, 0.35, 0.55, 1] : undefined }}
         >
-          {/* Inner light */}
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            animate={{ opacity: [0.3, 0.6, 0.3] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ background: `radial-gradient(circle at 35% 30%, rgba(255,255,255,0.4), transparent 60%)` }}
-          />
-          {/* K letter */}
-          <span className="relative font-display text-white/95" style={{ fontSize: 36, fontWeight: 300 }}>
-            K
-          </span>
+          <motion.div className="absolute inset-0 opacity-30" animate={{ rotate: 360 }} transition={{ duration: state === 'idle' ? 15 : 4, repeat: Infinity }} style={{ background: `conic-gradient(from 0deg, transparent, ${c.core}, transparent 60%, ${c.core}80, transparent)` }} />
+          <span className="relative font-display text-white/95" style={{ fontSize: size * 0.22 }}>K</span>
         </motion.div>
-
-        {/* Status label below orb */}
-        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap">
-          <span className="text-[10px] tracking-[0.2em] uppercase" style={{ color: c.core, opacity: 0.7 }}>
-            {state === 'idle' ? 'Krishna' : state === 'listening' ? 'Listening' : state === 'thinking' ? 'Processing' : 'Speaking'}
-          </span>
-        </div>
       </motion.button>
-    </div>
+    </motion.div>
   )
 }
 
 // ===== MAIN JARVIS CONTROLLER =====
-export function Jarvis({ trigger }: { trigger?: number }) {
+export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenWindows?: boolean }) {
   const { open: openWindow, activeId, windows } = useWindowStore()
   const [expanded, setExpanded] = useState(false)
   const [messages, setMessages] = useState<JarvisMessage[]>([])
   const [transcript, setTranscript] = useState('')
   const [muted, setMuted] = useState(false)
   const [pttActive, setPttActive] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const recognitionRef = useRef<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const bestVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
-  const isProcessingRef = useRef(false)
   const spaceHeldRef = useRef(false)
   const finalTranscriptRef = useRef('')
+  const interimTranscriptRef = useRef('')
 
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
 
@@ -266,10 +142,7 @@ export function Jarvis({ trigger }: { trigger?: number }) {
       const vs = window.speechSynthesis.getVoices()
       if (vs.length) {
         const preferred = ['Google UK English Male', 'Microsoft Guy', 'Microsoft David', 'Daniel', 'Oliver', 'Arthur', 'Microsoft Ravi', 'Google US English']
-        for (const name of preferred) {
-          const m = vs.find(v => v.name.includes(name) && v.lang.startsWith('en'))
-          if (m) { bestVoiceRef.current = m; return }
-        }
+        for (const name of preferred) { const m = vs.find(v => v.name.includes(name) && v.lang.startsWith('en')); if (m) { bestVoiceRef.current = m; return } }
         bestVoiceRef.current = vs.find(v => v.lang.startsWith('en')) || vs[0]
       }
     }
@@ -280,7 +153,7 @@ export function Jarvis({ trigger }: { trigger?: number }) {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  // Trigger from dock orb / external click
+  // Trigger
   useEffect(() => {
     if (trigger && trigger > 0) {
       if (expanded) { closePanel() } else { openPanel() }
@@ -295,7 +168,7 @@ export function Jarvis({ trigger }: { trigger?: number }) {
         if (expanded) { closePanel() } else { openPanel() }
         return
       }
-      if (e.code === 'Space' && !e.metaKey && !e.ctrlKey && !e.shiftKey && expanded && !isProcessingRef.current) {
+      if (e.code === 'Space' && !e.metaKey && !e.ctrlKey && !e.shiftKey && expanded) {
         const target = e.target as HTMLElement
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return
         e.preventDefault()
@@ -310,15 +183,12 @@ export function Jarvis({ trigger }: { trigger?: number }) {
     }
     window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('keyup', onKeyUp, true)
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, true)
-      window.removeEventListener('keyup', onKeyUp, true)
-    }
+    return () => { window.removeEventListener('keydown', onKeyDown, true); window.removeEventListener('keyup', onKeyUp, true) }
   }, [expanded])
 
   const openPanel = useCallback(() => {
     setExpanded(true)
-    const greetings = ["Hello Founder. Krishna here. How can I help?", "Yes Sir. I'm listening.", "At your service, Founder.", "Krishna online. All systems operational."]
+    const greetings = ["Hello Founder. Krishna here.", "Yes Sir. I'm listening.", "At your service, Founder.", "Krishna online. All systems operational."]
     const g = greetings[Math.floor(Math.random() * greetings.length)]
     setMessages(m => [...m, { role: 'jarvis', text: g, ts: Date.now() }])
     setTimeout(() => speak(g), 100)
@@ -331,7 +201,6 @@ export function Jarvis({ trigger }: { trigger?: number }) {
     setGlobal('idle')
   }, [])
 
-  // Push to talk
   const startPTT = useCallback(() => {
     if (typeof window === 'undefined') return
     if ('speechSynthesis' in window) window.speechSynthesis.cancel()
@@ -341,6 +210,7 @@ export function Jarvis({ trigger }: { trigger?: number }) {
     const recognition = new SR()
     recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-US'
     finalTranscriptRef.current = ''
+    interimTranscriptRef.current = ''
     recognition.onresult = (event: any) => {
       let final = '', interim = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -348,6 +218,7 @@ export function Jarvis({ trigger }: { trigger?: number }) {
         if (event.results[i].isFinal) final += t; else interim += t
       }
       finalTranscriptRef.current = final
+      interimTranscriptRef.current = interim
       setTranscript(final + interim)
     }
     recognition.onerror = (e: any) => { if (e.error !== 'no-speech' && e.error !== 'aborted') console.error('STT:', e.error) }
@@ -357,10 +228,14 @@ export function Jarvis({ trigger }: { trigger?: number }) {
   }, [])
 
   const stopPTT = useCallback(() => {
-    stopRecognition(); setPttActive(false); setGlobal('idle')
-    const text = finalTranscriptRef.current.trim()
+    stopRecognition(); setPttActive(false)
+    // Use final transcript, or fall back to interim if final wasn't captured yet
+    const text = (finalTranscriptRef.current.trim() || interimTranscriptRef.current.trim())
     setTranscript('')
-    if (text) sendToJarvis(text)
+    setGlobal('idle')
+    if (text) {
+      sendToJarvis(text)
+    }
   }, [])
 
   const stopRecognition = useCallback(() => {
@@ -368,10 +243,11 @@ export function Jarvis({ trigger }: { trigger?: number }) {
   }, [])
 
   const sendToJarvis = useCallback(async (text: string) => {
-    if (!text.trim() || isProcessingRef.current) return
-    isProcessingRef.current = true
+    if (!text.trim()) return
+    setIsProcessing(true)
     setMessages(prev => [...prev, { role: 'user', text, ts: Date.now() }])
-    setTranscript(''); setGlobal('thinking')
+    setTranscript('')
+    setGlobal('thinking')
     try {
       const r = await fetch('/api/jarvis/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -391,7 +267,7 @@ export function Jarvis({ trigger }: { trigger?: number }) {
       setMessages(prev => [...prev, { role: 'jarvis', text: fb, ts: Date.now() }])
       if (!muted) await speak(fb); else setGlobal('idle')
     } finally {
-      isProcessingRef.current = false
+      setIsProcessing(false)
       setGlobal('idle')
     }
   }, [activeWindowName, windows, muted, openWindow])
@@ -430,16 +306,17 @@ export function Jarvis({ trigger }: { trigger?: number }) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 30, scale: 0.9 }}
           transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-          className="fixed z-[9900] w-[400px] rounded-2xl overflow-hidden"
+          className="fixed z-[9900] w-[380px] rounded-2xl overflow-hidden"
           style={{
-            bottom: '100px', right: '24px',
-            background: 'rgba(8, 8, 10, 0.85)',
+            bottom: '90px', right: '20px',
+            background: 'rgba(8, 8, 10, 0.88)',
             backdropFilter: 'blur(40px) saturate(180%)',
             WebkitBackdropFilter: 'blur(40px) saturate(180%)',
             border: '1px solid rgba(255,255,255,0.08)',
             boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
           }}
         >
+          {/* Header */}
           <div className="flex items-center gap-2 px-4 pt-3 pb-2">
             <div className="w-2 h-2 rounded-full" style={{
               background: globalState === 'idle' ? '#5856D6' : globalState === 'listening' ? '#FF3B30' : globalState === 'thinking' ? '#0A84FF' : '#34C759',
@@ -459,7 +336,8 @@ export function Jarvis({ trigger }: { trigger?: number }) {
             </div>
           </div>
 
-          <div className="max-h-48 min-h-[60px] overflow-y-auto px-4 py-2 space-y-2">
+          {/* Messages */}
+          <div className="max-h-52 min-h-[60px] overflow-y-auto px-4 py-2 space-y-2">
             {messages.length === 0 && <div className="text-center py-3 text-[10px] text-white/30">Hold SPACE to talk, or type below.</div>}
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -474,6 +352,7 @@ export function Jarvis({ trigger }: { trigger?: number }) {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* PTT indicator */}
           {pttActive && (
             <div className="px-4 py-1.5 bg-red-500/10 flex items-center justify-center gap-2">
               <motion.div animate={{ scale: [1, 1.3, 1] }} transition={{ duration: 0.8, repeat: Infinity }} className="w-2 h-2 rounded-full bg-red-500" />
@@ -481,15 +360,24 @@ export function Jarvis({ trigger }: { trigger?: number }) {
             </div>
           )}
 
+          {/* Input — ALWAYS enabled, even during processing */}
           <div className="px-3 pb-3 pt-2 flex items-center gap-2 border-t border-white/5">
+            <button
+              onClick={() => {
+                if (pttActive) { stopPTT() } else { startPTT() }
+              }}
+              className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center transition-all ${pttActive ? 'bg-red-500/80 text-white' : 'bg-white/10 text-white/50 hover:bg-white/15'}`}
+            >
+              <Mic className="h-3.5 w-3.5" />
+            </button>
             <textarea
               className="flex-1 bg-white/5 border border-white/8 rounded-lg px-2.5 py-1.5 text-[11px] text-white/80 placeholder:text-white/25 outline-none resize-none"
-              placeholder="Type or hold SPACE to talk..."
+              placeholder={isProcessing ? 'Krishna is responding...' : 'Type or hold SPACE to talk...'}
               rows={1}
               onKeyDown={handleKeyDown}
-              disabled={isProcessingRef.current}
+              disabled={false}
             />
-            {globalState === 'thinking' && <Loader2 className="h-3.5 w-3.5 text-white/40 animate-spin flex-shrink-0" />}
+            {isProcessing && <Loader2 className="h-3.5 w-3.5 text-white/40 animate-spin flex-shrink-0" />}
           </div>
         </motion.div>
       )}
