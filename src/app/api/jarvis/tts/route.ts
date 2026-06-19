@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 // POST /api/jarvis/tts — Generate speech audio from text
+// Uses 'jam' voice (English gentleman) for better English quality
 export async function POST(req: NextRequest) {
   try {
-    const { text, voice } = await req.json()
+    const { text } = await req.json()
 
     if (!text || !text.trim()) {
       return NextResponse.json({ error: 'Text required' }, { status: 400 })
@@ -17,8 +18,8 @@ export async function POST(req: NextRequest) {
 
     const response = await zai.audio.tts.create({
       input: truncated,
-      voice: voice || 'xiaochen', //沉稳专业 — calm professional voice
-      speed: 1.0,
+      voice: 'jam', // English gentleman voice — better for English
+      speed: 1.05, // Slightly faster for lower latency feel
       response_format: 'wav',
       stream: false,
     })
