@@ -9,6 +9,7 @@ import { Dock } from '@/components/ekvaar/desktop/dock'
 import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
 import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
+import { Jarvis } from '@/components/ekvaar/desktop/jarvis'
 
 export default function Home() {
   const { windows, bootDone, open } = useWindowStore()
@@ -78,6 +79,9 @@ export default function Home() {
 
       {/* Launchpad */}
       <Launchpad open={launchpadOpen} onClose={() => setLaunchpadOpen(false)} />
+
+      {/* Krishna (JARVIS) — voice assistant with orb */}
+      <Jarvis />
     </div>
   )
 }
