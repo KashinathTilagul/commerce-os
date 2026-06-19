@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Edit3, RotateCcw, Eye, EyeOff } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { APPS } from './app-registry'
 import { AppIcon } from './app-icon'
 import { useWindowStore } from '@/lib/window-store'
 import { useAppVisibilityStore } from '@/lib/app-visibility-store'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { toast } from './toast'
 
 interface LaunchpadProps {
   open: boolean
@@ -18,27 +17,19 @@ interface LaunchpadProps {
 
 export function Launchpad({ open, onClose }: LaunchpadProps) {
   const { open: openWindow } = useWindowStore()
-  const { hiddenApps, customNames, toggleApp, renameApp, resetAll } = useAppVisibilityStore()
+  const { customNames } = useAppVisibilityStore()
   const [search, setSearch] = useState('')
-  const [editMode, setEditMode] = useState(false)
-  const [renamingId, setRenamingId] = useState<string | null>(null)
-  const [renameValue, setRenameValue] = useState('')
 
-  // Reset state when launchpad closes
   useEffect(() => {
     if (!open) {
-      const raf = requestAnimationFrame(() => {
-        setSearch('')
-        setEditMode(false)
-        setRenamingId(null)
-      })
+      const raf = requestAnimationFrame(() => setSearch(''))
       return () => cancelAnimationFrame(raf)
     }
   }, [open])
 
-  // Launchpad ALWAYS shows all apps — it's the full app directory.
-  // Hidden apps appear greyed out (in both edit and non-edit mode) but are still launchable.
-  const visibleApps = useMemo(() => {
+  // Launchpad ALWAYS shows ALL apps — no hiding, no editing.
+  // It's purely a launcher. Hiding/removing apps is done ONLY in the dock.
+  const allApps = useMemo(() => {
     return APPS.filter((a) => {
       const name = customNames[a.id] || a.name
       if (search && !name.toLowerCase().includes(search.toLowerCase())) return false
@@ -46,37 +37,9 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
     })
   }, [search, customNames])
 
-  const hiddenCount = hiddenApps.length
-
   const handleAppClick = (appId: any, appName: string) => {
-    if (editMode) {
-      // Toggle visibility — hidden apps stay in launcher but disappear from dock
-      toggleApp(appId)
-      const willHide = !hiddenApps.includes(appId)
-      const displayName = customNames[appId] || appName
-      if (willHide) {
-        toast.info('Hidden from dock', `${displayName} stays in launcher but removed from dock`)
-      } else {
-        toast.success('Shown in dock', `${displayName} restored to dock`)
-      }
-    } else {
-      openWindow(appId, customNames[appId] || appName)
-      onClose()
-    }
-  }
-
-  const handleRename = (appId: string) => {
-    if (renameValue.trim()) {
-      renameApp(appId, renameValue.trim())
-      toast.success('App renamed', `${renameValue.trim()}`)
-    }
-    setRenamingId(null)
-    setRenameValue('')
-  }
-
-  const handleReset = () => {
-    resetAll()
-    toast.info('Reset complete', 'All apps restored to defaults')
+    openWindow(appId, customNames[appId] || appName)
+    onClose()
   }
 
   return (
@@ -95,7 +58,7 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
           }}
           onClick={onClose}
         >
-          {/* Top bar */}
+          {/* Search bar only — no Edit button, no edit mode */}
           <motion.div
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -103,7 +66,6 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
             className="flex items-center justify-center gap-3 pt-8 pb-4"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Search */}
             <div className="relative w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/50" />
               <Input
@@ -114,31 +76,6 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
                 autoFocus
               />
             </div>
-
-            {/* Edit toggle */}
-            <Button
-              variant={editMode ? 'default' : 'outline'}
-              size="sm"
-              className={`gap-1.5 h-9 ${editMode ? 'bg-white text-black' : 'bg-white/10 border-white/20 text-white hover:bg-white/20'}`}
-              onClick={() => setEditMode(!editMode)}
-            >
-              <Edit3 className="h-3.5 w-3.5" />
-              {editMode ? 'Done' : 'Edit'}
-            </Button>
-
-            {editMode && hiddenCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-9 bg-white/10 border-white/20 text-white hover:bg-white/20"
-                onClick={handleReset}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Reset ({hiddenCount} hidden)
-              </Button>
-            )}
-
-            {/* Close */}
             <Button
               variant="ghost"
               size="icon"
@@ -149,28 +86,7 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
             </Button>
           </motion.div>
 
-          {/* Edit mode banner */}
-          <AnimatePresence>
-            {editMode && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="mx-auto max-w-2xl px-4 py-2 mb-2 text-center">
-                  <div className="text-xs text-white/70">
-                    {hiddenCount > 0
-                      ? `${hiddenCount} app${hiddenCount === 1 ? '' : 's'} hidden from dock · Click an app to toggle visibility · All apps remain launchable here`
-                      : 'Click any app to toggle dock visibility · Click the pencil to rename · All apps always remain in the launcher'}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* App grid */}
+          {/* App grid — all apps always visible, no edit mode, no hiding */}
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -179,10 +95,8 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="max-w-5xl mx-auto grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-7 gap-x-4 gap-y-8">
-              {visibleApps.map((app, i) => {
+              {allApps.map((app, i) => {
                 const displayName = customNames[app.id] || app.name
-                const isHidden = hiddenApps.includes(app.id)
-                const isRenaming = renamingId === app.id
                 return (
                   <motion.div
                     key={app.id}
@@ -191,96 +105,22 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.08 + i * 0.015 }}
                     className="flex flex-col items-center gap-2 group cursor-pointer"
-                    onClick={() => !isRenaming && handleAppClick(app.id, app.name)}
+                    onClick={() => handleAppClick(app.id, app.name)}
                   >
-                    <div className="relative">
-                      <div
-                        className={`transition-all ${isHidden ? 'opacity-30 grayscale' : ''} ${
-                          editMode ? 'group-hover:scale-95' : 'group-hover:scale-105 group-hover:-translate-y-1'
-                        }`}
-                      >
-                        <AppIcon variant={app.iconVariant} size={72} />
-                      </div>
-
-                      {/* Edit mode badges */}
-                      {editMode && (
-                        <>
-                          {/* Show/Hide toggle indicator (eye icon) */}
-                          <div
-                            className={`absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center transition-all border-2 border-white/20 ${
-                              isHidden
-                                ? 'bg-white/20 text-white/70'
-                                : 'bg-arav text-white opacity-0 group-hover:opacity-100'
-                            }`}
-                            title={isHidden ? 'Click to show in dock' : 'Click to hide from dock'}
-                          >
-                            {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                          </div>
-
-                          {/* Rename indicator */}
-                          <div
-                            className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-neel text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-2 border-white/20"
-                            title="Click to rename"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setRenamingId(app.id)
-                              setRenameValue(displayName)
-                            }}
-                          >
-                            <Edit3 className="h-3 w-3" />
-                          </div>
-
-                          {/* Hidden overlay — strikethrough eye in center */}
-                          {isHidden && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <div className="bg-black/40 rounded-full p-1.5">
-                                <EyeOff className="h-5 w-5 text-white/80" />
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
+                    <div className="transition-all group-hover:scale-105 group-hover:-translate-y-1">
+                      <AppIcon variant={app.iconVariant} size={72} />
                     </div>
-
-                    {/* Label / rename input */}
-                    {isRenaming ? (
-                      <input
-                        className="text-xs text-white bg-white/20 border border-white/40 rounded px-1.5 py-0.5 text-center w-full max-w-[100px] outline-none"
-                        value={renameValue}
-                        autoFocus
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleRename(app.id)
-                          if (e.key === 'Escape') { setRenamingId(null); setRenameValue('') }
-                        }}
-                        onBlur={() => handleRename(app.id)}
-                      />
-                    ) : (
-                      <div
-                        className={`text-xs text-center leading-tight max-w-[100px] truncate ${
-                          editMode && isHidden ? 'text-white/40 line-through' : 'text-white/90'
-                        }`}
-                        onDoubleClick={(e) => {
-                          if (editMode) {
-                            e.stopPropagation()
-                            setRenamingId(app.id)
-                            setRenameValue(displayName)
-                          }
-                        }}
-                      >
-                        {displayName}
-                      </div>
-                    )}
+                    <div className="text-xs text-center leading-tight max-w-[100px] truncate text-white/90">
+                      {displayName}
+                    </div>
                   </motion.div>
                 )
               })}
             </div>
 
-            {/* Empty state */}
-            {visibleApps.length === 0 && (
+            {allApps.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 text-white/60">
-                <EyeOff className="h-10 w-10 mb-3 opacity-40" />
+                <Search className="h-10 w-10 mb-3 opacity-40" />
                 <div className="text-sm">No apps match your search.</div>
                 {search && (
                   <Button
@@ -297,16 +137,14 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
           </motion.div>
 
           {/* Footer hint */}
-          {!editMode && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              className="text-center pb-6 text-[10px] text-white/40"
-            >
-              Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">F4</kbd> or <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">⌘L</kbd> to toggle · Click <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">Edit</kbd> to manage dock visibility · <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">Esc</kbd> to close
-            </motion.div>
-          )}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-center pb-6 text-[10px] text-white/40"
+          >
+            Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">F4</kbd> or <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">⌘L</kbd> to toggle · <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/60">Esc</kbd> to close
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
