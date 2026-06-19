@@ -8,10 +8,12 @@ import { APPS, CORE_APP_IDS, UTILITY_APP_IDS, BUSINESS_APP_IDS } from './app-reg
 import { AppIcon } from './app-icon'
 import { useAppVisibilityStore } from '@/lib/app-visibility-store'
 import { DockContextMenu } from './dock-context-menu'
+import { JarvisDockOrb } from './jarvis'
 import { toast } from './toast'
 
 interface DockProps {
   onLaunchpad?: () => void
+  onJarvisClick?: () => void
 }
 
 // All dockable app IDs in default order (Launchpad + all apps + Brand Book)
@@ -23,7 +25,7 @@ const DEFAULT_DOCK_ORDER: string[] = [
   'brand-book',
 ]
 
-export function Dock({ onLaunchpad }: DockProps = {}) {
+export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   const { open, windows, activeId, focus } = useWindowStore()
   const {
     hiddenApps, customNames, dockOrder,
@@ -333,10 +335,19 @@ export function Dock({ onLaunchpad }: DockProps = {}) {
             const canMoveLeft = !isSpecial && realIdx > 0
             const canMoveRight = !isSpecial && realIdx >= 0 && realIdx < realAppsForContext.length - 1
 
+            // Insert Krishna orb in center of dock — at the Core→Utility boundary
+            const prevApp = idx > 0 ? visibleOrder[idx - 1] : null
+            const isCoreToUtilityDivider = showDivider && prevApp && CORE_APP_IDS.includes(prevApp as any) && UTILITY_APP_IDS.includes(appId as any)
+
             return (
               <div key={appId} className="flex items-end">
                 {showDivider && (
-                  <div className="w-px h-12 bg-white/15 mx-1 self-center" />
+                  <>
+                    {isCoreToUtilityDivider && (
+                      <JarvisDockOrb onClick={() => onJarvisClick?.()} />
+                    )}
+                    <div className="w-px h-12 bg-white/15 mx-1 self-center" />
+                  </>
                 )}
                 <DockItem
                   app={{ ...app, name: displayName }}

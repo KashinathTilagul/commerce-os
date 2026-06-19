@@ -15,6 +15,7 @@ export default function Home() {
   const { windows, bootDone, open } = useWindowStore()
   const { mode, accent } = useThemeStore()
   const [launchpadOpen, setLaunchpadOpen] = useState(false)
+  const [jarvisTrigger, setJarvisTrigger] = useState(0)
 
   // Apply theme + accent globally
   useEffect(() => {
@@ -69,7 +70,7 @@ export default function Home() {
       </div>
 
       {/* Dock */}
-      <Dock onLaunchpad={() => setLaunchpadOpen(true)} />
+      <Dock onLaunchpad={() => setLaunchpadOpen(true)} onJarvisClick={() => setJarvisTrigger(t => t + 1)} />
 
       {/* Boot screen overlay */}
       <BootScreen />
@@ -80,8 +81,8 @@ export default function Home() {
       {/* Launchpad */}
       <Launchpad open={launchpadOpen} onClose={() => setLaunchpadOpen(false)} />
 
-      {/* Krishna (JARVIS) — voice assistant with orb */}
-      <Jarvis />
+      {/* Krishna (JARVIS) — voice assistant panel */}
+      <Jarvis trigger={jarvisTrigger} />
     </div>
   )
 }
