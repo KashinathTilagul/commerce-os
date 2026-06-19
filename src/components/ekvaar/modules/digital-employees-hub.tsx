@@ -1,15 +1,18 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useRef, useEffect } from 'react'
-import { Cpu, Activity, Brain, Send, Zap, Clock, TrendingUp, Sparkles } from 'lucide-react'
+import { Cpu, Activity, Brain, Send, Zap, Clock, TrendingUp, Sparkles, Edit3, Save, X, Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
 
@@ -89,14 +92,20 @@ export function DigitalEmployeesHub() {
   const [chatInput, setChatInput] = useState('')
   const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({})
   const [agentTyping, setAgentTyping] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [editData, setEditData] = useState<any>(null)
+  const [saving, setSaving] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const queryClient = useQueryClient()
 
   const { data: agents = [] } = useQuery<any[]>({
     queryKey: ['agents'],
     queryFn: async () => {
       const r = await fetch('/api/agents')
+      if (!r.ok) throw new Error('Failed')
       return r.json()
     },
+    refetchInterval: 5000,
   })
 
   const activeCount = agents.filter((a) => a.status === 'ACTIVE' || a.status === 'RUNNING').length
@@ -115,6 +124,49 @@ export function DigitalEmployeesHub() {
   for (const a of agents) {
     if (!departments[a.department]) departments[a.department] = []
     departments[a.department].push(a)
+  }
+
+  // Edit handlers
+  const handleStartEdit = () => {
+    setEditData({
+      name: selected.name,
+      role: selected.role,
+      primeDirective: selected.primeDirective,
+      description: selected.description,
+      skills: selected.skills,
+      status: selected.status,
+      avatarColor: selected.avatarColor,
+    })
+    setEditMode(true)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!selected || !editData) return
+    setSaving(true)
+    try {
+      const r = await fetch(`/api/agents/${selected.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editData),
+      })
+      if (!r.ok) throw new Error('Failed')
+      const updated = await r.json()
+      toast.success('Agent updated', `${updated.name} profile saved`)
+      queryClient.invalidateQueries({ queryKey: ['agents'] })
+      queryClient.invalidateQueries({ queryKey: ['events'] })
+      setSelected(updated)
+      setEditMode(false)
+      setEditData(null)
+    } catch {
+      toast.error('Save failed', 'Could not update agent')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditMode(false)
+    setEditData(null)
   }
 
   return (
@@ -247,46 +299,125 @@ export function DigitalEmployeesHub() {
       </div>
 
       {/* Agent profile dialog */}
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setEditMode(false); setEditData(null) } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           {selected && (
             <>
               <DialogHeader>
                 <div className="flex items-center gap-3 mb-2">
                   <div
                     className="h-14 w-14 rounded-full flex items-center justify-center text-lg font-display tracking-tight text-white"
-                    style={{ background: selected.avatarColor }}
+                    style={{ background: editMode ? editData?.avatarColor : selected.avatarColor }}
                   >
-                    {selected.name}
+                    {editMode ? editData?.name?.[0] : selected.name?.[0]}
                   </div>
-                  <div>
-                    <DialogTitle className="font-display text-2xl tracking-tight">{selected.role}</DialogTitle>
-                    <DialogDescription className="font-mono text-xs">{selected.code} · {selected.name}</DialogDescription>
+                  <div className="flex-1">
+                    {editMode ? (
+                      <Input
+                        className="font-display text-xl h-8"
+                        value={editData?.name || ''}
+                        onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                        placeholder="Agent name"
+                      />
+                    ) : (
+                      <DialogTitle className="font-display text-2xl tracking-tight">{selected.name}</DialogTitle>
+                    )}
+                    <DialogDescription className="font-mono text-xs">
+                      {selected.code} · {editMode ? (
+                        <Input className="inline-flex h-6 w-48 text-xs font-mono" value={editData?.role || ''} onChange={(e) => setEditData({ ...editData, role: e.target.value })} />
+                      ) : selected.role}
+                    </DialogDescription>
                   </div>
-                  <div className="ml-auto"><StatusPill status={selected.status} /></div>
+                  <div className="ml-auto flex items-center gap-2">
+                    {editMode ? (
+                      <Select value={editData?.status} onValueChange={(v) => setEditData({ ...editData, status: v })}>
+                        <SelectTrigger className="h-6 w-28 text-[10px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ACTIVE">Active</SelectItem>
+                          <SelectItem value="RUNNING">Running</SelectItem>
+                          <SelectItem value="IDLE">Idle</SelectItem>
+                          <SelectItem value="PAUSED">Paused</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <StatusPill status={selected.status} />
+                    )}
+                  </div>
                 </div>
               </DialogHeader>
 
+              {/* Edit / Save / Cancel buttons */}
+              <div className="flex justify-end gap-2 -mt-2 mb-2">
+                {editMode ? (
+                  <>
+                    <Button variant="outline" size="sm" className="gap-1.5 h-7" onClick={handleCancelEdit} disabled={saving}>
+                      <X className="h-3 w-3" /> Cancel
+                    </Button>
+                    <Button size="sm" className="gap-1.5 h-7 bg-arav hover:bg-arav" onClick={handleSaveEdit} disabled={saving}>
+                      {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="outline" size="sm" className="gap-1.5 h-7" onClick={handleStartEdit}>
+                    <Edit3 className="h-3 w-3" /> Edit Soul & Skills
+                  </Button>
+                )}
+              </div>
+
               <div className="space-y-4">
+                {/* Prime Directive / Soul */}
                 <div>
-                  <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Prime Directive</div>
-                  <p className="text-sm leading-relaxed italic">"{selected.primeDirective}"</p>
+                  <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" /> Prime Directive (Soul)
+                  </div>
+                  {editMode ? (
+                    <Textarea
+                      className="text-sm leading-relaxed"
+                      rows={4}
+                      value={editData?.primeDirective || ''}
+                      onChange={(e) => setEditData({ ...editData, primeDirective: e.target.value })}
+                      placeholder="The agent's core mission and soul..."
+                    />
+                  ) : (
+                    <p className="text-sm leading-relaxed italic bg-muted/30 p-3 rounded-md">"{selected.primeDirective}"</p>
+                  )}
                 </div>
 
+                {/* Description */}
                 <div>
                   <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Description</div>
-                  <p className="text-sm leading-relaxed">{selected.description}</p>
+                  {editMode ? (
+                    <Textarea
+                      className="text-sm leading-relaxed"
+                      rows={3}
+                      value={editData?.description || ''}
+                      onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                      placeholder="Agent responsibilities and bio..."
+                    />
+                  ) : (
+                    <p className="text-sm leading-relaxed">{selected.description}</p>
+                  )}
                 </div>
 
+                {/* Skills */}
                 <div>
                   <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Skills</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selected.skills.split(',').map((s: string) => (
-                      <span key={s} className="inline-flex items-center px-2 py-0.5 text-[10px] tracking-wider uppercase rounded-sm bg-muted text-foreground">
-                        {s.replace(/_/g, ' ')}
-                      </span>
-                    ))}
-                  </div>
+                  {editMode ? (
+                    <Input
+                      className="text-sm"
+                      value={editData?.skills || ''}
+                      onChange={(e) => setEditData({ ...editData, skills: e.target.value })}
+                      placeholder="Comma-separated skills..."
+                    />
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selected.skills.split(',').map((s: string) => (
+                        <span key={s} className="inline-flex items-center px-2 py-0.5 text-[10px] tracking-wider uppercase rounded-sm bg-muted text-foreground">
+                          {s.replace(/_/g, ' ').trim()}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {selected.currentTask && (
