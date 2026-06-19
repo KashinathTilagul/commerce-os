@@ -57,6 +57,7 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'settings':      return <SettingsIcon size={size} />
     case 'files':         return <FinderIcon size={size} />
     case 'browser':       return <SafariIcon size={size} />
+    case 'integrations':  return <IntegrationsIcon size={size} />
     case 'calculator':    return <CalculatorIcon size={size} />
     case 'notes':         return <NotesIcon size={size} />
     case 'calendar':      return <CalendarIcon size={size} />
@@ -545,6 +546,25 @@ function FinderIcon({ size }: { size: number }) {
 }
 
 // Calculator — dark with orange equals (macOS Calculator)
+// Integrations — purple gradient with plug icon
+function IntegrationsIcon({ size }: { size: number }) {
+  const s = size * 0.55
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #5856D6 0%, #3634A3 100%)" />
+      <Highlight opacity={0.25} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
+          <rect x="7" y="2" width="3" height="6" rx="1.5" fill="#FFFFFF" />
+          <rect x="14" y="2" width="3" height="6" rx="1.5" fill="#FFFFFF" />
+          <path d="M6 8h12v4a6 6 0 01-12 0V8z" fill="#FFFFFF" />
+          <path d="M12 18v3" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
 function CalculatorIcon({ size }: { size: number }) {
   const s = size * 0.58
   return (
