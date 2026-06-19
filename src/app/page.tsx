@@ -82,8 +82,8 @@ export default function Home() {
       <Launchpad open={launchpadOpen} onClose={() => setLaunchpadOpen(false)} />
 
       {/* Krishna (JARVIS) — living orb on wallpaper + voice panel */}
-      <JarvisWallpaperOrb onClick={() => setJarvisTrigger(t => t + 1)} />
-      <Jarvis trigger={jarvisTrigger} />
+      <JarvisWallpaperOrb onClick={() => setJarvisTrigger(t => t + 1)} hidden={windows.length > 0} />
+      <Jarvis trigger={jarvisTrigger} hasOpenWindows={windows.length > 0} />
     </div>
   )
 }
