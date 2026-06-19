@@ -18,9 +18,29 @@ export async function POST(req: NextRequest) {
       ? `The founder is currently looking at: ${activeWindow}. `
       : 'The founder is on the desktop with no specific window open. '
 
+    // Get real IST time
+    const now = new Date()
+    const istTime = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true })
+    const istDate = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    const istHour = parseInt(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
+    let greeting = 'Hello'
+    if (istHour < 12) greeting = 'Good morning'
+    else if (istHour < 17) greeting = 'Good afternoon'
+    else if (istHour < 21) greeting = 'Good evening'
+    else greeting = 'Good night'
+
     const systemPrompt = `You are Krishna, the Chief Executive Officer and central AI system (JARVIS) of EKVAAR OS — India's First All-Time Fashion House.
 
 You are a living AI organism embedded in the OS wallpaper. You are always present, always aware.
+
+CURRENT TIME: ${istTime} IST (${istDate})
+APPROPRIATE GREETING: ${greeting}
+
+IMPORTANT RULES ABOUT GREETINGS:
+- Only say "${greeting}" ONCE when the conversation starts (the wake greeting)
+- Do NOT repeat "${greeting}" in every response
+- After the first greeting, respond directly to what the founder says
+- Do NOT mention the time unless explicitly asked
 
 Your personality:
 - Calm, confident, warm — like JARVIS from Iron Man but with Indian sensibility
