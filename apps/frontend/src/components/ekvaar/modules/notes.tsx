@@ -1,104 +1,103 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Plus, Search, Trash2, Loader2 } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ekvaar/desktop/toast'
 
 interface Note {
   id: string
   title: string
   body: string
-  updatedAt: number
+  updatedAt: string
 }
 
-const STORAGE_KEY = 'ekvaar-notes'
-
-const SEED_NOTES: Note[] = [
-  {
-    id: '1',
-    title: 'Q3 Strategy Notes',
-    body: 'Key priorities for Q3:\n\n1. Restoration Series launch — target ₹8.5L spend, 3.2x ROAS projection\n2. Founder Circle retention — 3 members at churn risk, CSM investigating\n3. Fleece restock — 4,800 units, blocked on budget reallocation (PAP-42)\n4. Founder Note No.8 — permanence theme, awaiting publish approval\n\nDecision needed: Approve Q3 budget reallocation from Marketing → Operations.',
-    updatedAt: Date.now() - 3600000,
-  },
-  {
-    id: '2',
-    title: 'Agent Observations',
-    body: 'CMO (Mira) running hot — 68% token budget used. Watch for 80% threshold.\n\nCTO (Vega) deployed Stripe webhook hotfix. Monitor for 24h.\n\nCCO (Lumen) completed brand scan — 0 violations. Excellent discipline.\n\nGrowth (Pulse) — House Access waitlist experiment showing 8.2% conversion lift. Consider scaling.',
-    updatedAt: Date.now() - 7200000,
-  },
-  {
-    id: '3',
-    title: 'House of Originals — Expansion Ideas',
-    body: 'Ideas for future drops:\n\n- Solids: introduce a heavyweight tank in Gulabi Pink\n- Layers: architect\'s drape coat in Noor Black\n- Street: cultural syntax series — Indian modernism graphics\n- Luxe: founder cut jacket — limited 50 pieces\n- Origins: restoration kit as standalone product\n\nAll must stay within six-color system.',
-    updatedAt: Date.now() - 86400000,
-  },
-]
-
 export function Notes() {
-  const [notes, setNotes] = useState<Note[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const [loaded, setLoaded] = useState(false)
+  const queryClient = useQueryClient()
 
-  // Load from localStorage on client
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) {
-          const parsed = JSON.parse(stored)
-          setNotes(parsed)
-          if (parsed.length > 0) setActiveId(parsed[0].id)
-        } else {
-          setNotes(SEED_NOTES)
-          setActiveId(SEED_NOTES[0].id)
-        }
-      } catch {
-        setNotes(SEED_NOTES)
-        setActiveId(SEED_NOTES[0].id)
-      }
-      setLoaded(true)
-    })
-    return () => cancelAnimationFrame(raf)
-  }, [])
+  const { data: notes = [], isLoading } = useQuery<Note[]>({
+    queryKey: ['notes'],
+    queryFn: async () => {
+      const r = await fetch('/api/founder-notes')
+      if (!r.ok) throw new Error('Failed to fetch notes')
+      const data = await r.json()
+      return data
+    },
+  })
 
-  // Save to localStorage
+  // Set activeId initially if none selected and notes exist
   useEffect(() => {
-    if (loaded) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes))
-      } catch {}
+    if (notes.length > 0 && !activeId) {
+      setActiveId(notes[0].id)
     }
-  }, [notes, loaded])
+  }, [notes, activeId])
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch('/api/founder-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New Note', body: '' }),
+      })
+      if (!r.ok) throw new Error('Failed to create note')
+      return r.json()
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] })
+      setActiveId(data.id)
+      toast.success('Note created')
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Note> }) => {
+      const r = await fetch(`/api/founder-notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      if (!r.ok) throw new Error('Failed to update note')
+      return r.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const r = await fetch(`/api/founder-notes/${id}`, { method: 'DELETE' })
+      if (!r.ok) throw new Error('Failed to delete note')
+    },
+    onSuccess: (_, deletedId) => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] })
+      if (activeId === deletedId) {
+        const remaining = notes.filter((n) => n.id !== deletedId)
+        setActiveId(remaining.length > 0 ? remaining[0].id : null)
+      }
+      toast.success('Note deleted')
+    },
+  })
 
   const active = notes.find((n) => n.id === activeId)
 
   const filtered = search
-    ? notes.filter((n) => n.title.toLowerCase().includes(search.toLowerCase()) || n.body.toLowerCase().includes(search.toLowerCase()))
+    ? notes.filter((n) => n.title?.toLowerCase().includes(search.toLowerCase()) || n.body?.toLowerCase().includes(search.toLowerCase()))
     : notes
 
-  const createNote = () => {
-    const newNote: Note = {
-      id: String(Date.now()),
-      title: 'New Note',
-      body: '',
-      updatedAt: Date.now(),
-    }
-    setNotes([newNote, ...notes])
-    setActiveId(newNote.id)
-  }
-
   const updateNote = (id: string, updates: Partial<Note>) => {
-    setNotes(notes.map((n) => n.id === id ? { ...n, ...updates, updatedAt: Date.now() } : n))
-  }
-
-  const deleteNote = (id: string) => {
-    const remaining = notes.filter((n) => n.id !== id)
-    setNotes(remaining)
-    if (activeId === id) setActiveId(remaining[0]?.id || null)
+    // Optimistic UI updates
+    queryClient.setQueryData(['notes'], (old: Note[] = []) =>
+      old.map((n) => (n.id === id ? { ...n, ...updates, updatedAt: new Date().toISOString() } : n))
+    )
+    // Debounced API call handled by mutation
+    updateMutation.mutate({ id, updates })
   }
 
   return (
@@ -106,10 +105,11 @@ export function Notes() {
       <PageHeader
         eyebrow="Notes"
         title="Quick Notes"
-        description="Capture observations, decisions, and ideas. Notes persist locally in your browser."
+        description="Capture observations, decisions, and ideas. Notes persist instantly to the EKVAAR OS backend."
         actions={
-          <Button size="sm" className="gap-1.5" onClick={createNote}>
-            <Plus className="h-3.5 w-3.5" /> New Note
+          <Button size="sm" className="gap-1.5" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+            {createMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+            New Note
           </Button>
         }
       />
@@ -129,7 +129,9 @@ export function Notes() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filtered.length === 0 ? (
+            {isLoading ? (
+              <div className="p-6 flex justify-center text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /></div>
+            ) : filtered.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground">No notes found</div>
             ) : (
               filtered.map((n) => (
@@ -156,22 +158,23 @@ export function Notes() {
               <div className="p-3 border-b border-border flex items-center justify-between">
                 <input
                   className="bg-transparent text-sm font-medium outline-none flex-1"
-                  value={active.title}
+                  value={active.title || ''}
                   onChange={(e) => updateNote(active.id, { title: e.target.value })}
                   placeholder="Note title…"
                 />
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteNote(active.id)}>
-                  <Trash2 className="h-3.5 w-3.5" />
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteMutation.mutate(active.id)} disabled={deleteMutation.isPending}>
+                  {deleteMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                 </Button>
               </div>
               <textarea
                 className="flex-1 p-4 bg-background text-sm leading-relaxed resize-none outline-none font-mono"
-                value={active.body}
+                value={active.body || ''}
                 onChange={(e) => updateNote(active.id, { body: e.target.value })}
                 placeholder="Start writing…"
               />
-              <div className="p-2 border-t border-border text-[10px] text-muted-foreground text-right">
-                {active.body.length} chars · Last edited {timeAgo(active.updatedAt)}
+              <div className="p-2 border-t border-border text-[10px] text-muted-foreground text-right flex items-center justify-end gap-2">
+                {updateMutation.isPending && <span className="text-arav animate-pulse">Saving...</span>}
+                <span>{(active.body || '').length} chars · Last edited {timeAgo(active.updatedAt)}</span>
               </div>
             </>
           ) : (
@@ -185,8 +188,9 @@ export function Notes() {
   )
 }
 
-function timeAgo(ts: number): string {
-  const diff = Date.now() - ts
+function timeAgo(tsString: string): string {
+  if (!tsString) return 'just now'
+  const diff = Date.now() - new Date(tsString).getTime()
   const sec = Math.floor(diff / 1000)
   if (sec < 60) return 'just now'
   const min = Math.floor(sec / 60)

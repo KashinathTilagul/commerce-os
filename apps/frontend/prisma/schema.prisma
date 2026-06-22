@@ -311,3 +311,23 @@ model ToolExecution {
 
   integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 }
+
+// ============ SETTINGS ============
+
+model SystemSetting {
+  id        String   @id @default("global") // Single row singleton
+  theme     String   @default("dark")       // dark | light | auto
+  accent    String   @default("#C8302A")
+  
+  notifications    Boolean @default(true)
+  agentHeartbeats  Boolean @default(true)
+  approvalAlerts   Boolean @default(true)
+  budgetAlerts     Boolean @default(true)
+  
+  maxTokens        Int     @default(80)     // percent
+  intelligence     String  @default("claude-sonnet")
+  autoApproveLimit Float   @default(5000)
+  escalationPolicy String  @default("standard")
+  
+  updatedAt DateTime @updatedAt
+}

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Moon, Sun, Monitor, Cpu, Shield, Bell, Globe, Palette, Zap } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Moon, Sun, Monitor, Cpu, Shield, Bell, Globe, Palette, Zap, Loader2 } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -12,43 +12,86 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useThemeStore } from '@/lib/theme-store'
 import { toast } from '@/components/ekvaar/desktop/toast'
+import { useEffect } from 'react'
 
 export function Settings() {
   const { mode, accent, setMode, setAccent } = useThemeStore()
-  const [notifications, setNotifications] = useState(true)
-  const [agentHeartbeats, setAgentHeartbeats] = useState(true)
-  const [approvalAlerts, setApprovalAlerts] = useState(true)
-  const [budgetAlerts, setBudgetAlerts] = useState(true)
-  const [maxTokens, setMaxTokens] = useState([80])
-  const [intelligence, setIntelligence] = useState('claude-sonnet')
-  const [autoApprove, setAutoApprove] = useState('5000')
-  const [escalation, setEscalation] = useState('standard')
+  const queryClient = useQueryClient()
 
-  const handleThemeChange = (newMode: 'dark' | 'light' | 'auto') => {
-    setMode(newMode)
-    toast.success('Theme applied', `${newMode.charAt(0).toUpperCase() + newMode.slice(1)} mode active`)
-  }
+  const { data: settings, isLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const r = await fetch('/api/settings')
+      if (!r.ok) throw new Error('Failed to fetch settings')
+      return r.json()
+    },
+  })
 
-  const handleAccentChange = (color: string) => {
-    setAccent(color)
-    toast.success('Accent color updated')
+  // Sync server theme settings to local zustand store initially
+  useEffect(() => {
+    if (settings && !isLoading) {
+      if (settings.theme !== mode) setMode(settings.theme)
+      if (settings.accent !== accent) setAccent(settings.accent)
+    }
+  }, [settings, isLoading, mode, accent, setMode, setAccent])
+
+  const mutation = useMutation({
+    mutationFn: async (updates: any) => {
+      const r = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      if (!r.ok) throw new Error('Failed to save settings')
+      return r.json()
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['settings'], data)
+    },
+  })
+
+  const handleChange = (key: string, value: any) => {
+    // Optimistic UI for theme immediately
+    if (key === 'theme') {
+      setMode(value)
+      toast.success('Theme applied', `${value.charAt(0).toUpperCase() + value.slice(1)} mode active`)
+    }
+    if (key === 'accent') {
+      setAccent(value)
+      toast.success('Accent color updated')
+    }
+    
+    // Save to backend
+    mutation.mutate({ [key]: value })
   }
 
   const handleApply = () => {
-    toast.success('Settings saved', 'All preferences applied system-wide')
+    toast.success('Settings saved', 'All preferences are synced to the OS backend')
   }
 
   const handleReset = () => {
+    mutation.mutate({
+      theme: 'dark',
+      accent: '#C8302A',
+      notifications: true,
+      agentHeartbeats: true,
+      approvalAlerts: true,
+      budgetAlerts: true,
+      maxTokens: 80,
+      intelligence: 'claude-sonnet',
+      autoApproveLimit: 5000,
+      escalationPolicy: 'standard'
+    })
     setMode('dark')
     setAccent('#C8302A')
-    setNotifications(true)
-    setAgentHeartbeats(true)
-    setApprovalAlerts(true)
-    setBudgetAlerts(true)
-    setMaxTokens([80])
-    setIntelligence('claude-sonnet')
     toast.info('Reset to defaults')
   }
+
+  if (isLoading) {
+    return <div className="p-8 flex items-center justify-center text-muted-foreground gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading settings...</div>
+  }
+
+  const s = settings || {}
 
   return (
     <div>
@@ -69,9 +112,9 @@ export function Settings() {
           <CardContent className="space-y-4">
             <Row label="Theme" desc="Choose system visual mode">
               <div className="flex gap-2">
-                <ThemeButton active={mode === 'light'} onClick={() => handleThemeChange('light')} icon={Sun} label="Light" />
-                <ThemeButton active={mode === 'dark'} onClick={() => handleThemeChange('dark')} icon={Moon} label="Dark" />
-                <ThemeButton active={mode === 'auto'} onClick={() => handleThemeChange('auto')} icon={Monitor} label="Auto" />
+                <ThemeButton active={mode === 'light'} onClick={() => handleChange('theme', 'light')} icon={Sun} label="Light" />
+                <ThemeButton active={mode === 'dark'} onClick={() => handleChange('theme', 'dark')} icon={Moon} label="Dark" />
+                <ThemeButton active={mode === 'auto'} onClick={() => handleChange('theme', 'auto')} icon={Monitor} label="Auto" />
               </div>
             </Row>
             <Row label="Accent color" desc="System highlight color">
@@ -79,7 +122,7 @@ export function Settings() {
                 {['#C8302A', '#1F3A5F', '#2F4F3A', '#D4859B', '#FF9500', '#8B7355'].map((c) => (
                   <button
                     key={c}
-                    onClick={() => handleAccentChange(c)}
+                    onClick={() => handleChange('accent', c)}
                     className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
                     style={{
                       background: c,
@@ -102,7 +145,7 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Row label="Primary model" desc="Routing target for all LLM calls">
-              <Select value={intelligence} onValueChange={setIntelligence}>
+              <Select value={s.intelligence || 'claude-sonnet'} onValueChange={(v) => handleChange('intelligence', v)}>
                 <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="claude-sonnet">Claude Sonnet 4.5</SelectItem>
@@ -118,8 +161,8 @@ export function Settings() {
             </Row>
             <Row label="Max token budget %" desc="Auto-pause agents at this threshold">
               <div className="w-56">
-                <Slider value={maxTokens} onValueChange={setMaxTokens} max={100} step={5} />
-                <div className="text-right text-xs font-mono mt-1">{maxTokens[0]}%</div>
+                <Slider value={[s.maxTokens ?? 80]} onValueChange={(v) => handleChange('maxTokens', v[0])} max={100} step={5} />
+                <div className="text-right text-xs font-mono mt-1">{s.maxTokens ?? 80}%</div>
               </div>
             </Row>
           </CardContent>
@@ -134,16 +177,16 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Row label="All notifications" desc="Master toggle for system alerts">
-              <Switch checked={notifications} onCheckedChange={setNotifications} />
+              <Switch checked={s.notifications ?? true} onCheckedChange={(v) => handleChange('notifications', v)} />
             </Row>
             <Row label="Agent heartbeats" desc="Notify when agents wake or complete tasks">
-              <Switch checked={agentHeartbeats} onCheckedChange={setAgentHeartbeats} />
+              <Switch checked={s.agentHeartbeats ?? true} onCheckedChange={(v) => handleChange('agentHeartbeats', v)} />
             </Row>
             <Row label="Approval requests" desc="Surface inbox items needing founder action">
-              <Switch checked={approvalAlerts} onCheckedChange={setApprovalAlerts} />
+              <Switch checked={s.approvalAlerts ?? true} onCheckedChange={(v) => handleChange('approvalAlerts', v)} />
             </Row>
             <Row label="Budget alerts" desc="Warn at 80% token spend">
-              <Switch checked={budgetAlerts} onCheckedChange={setBudgetAlerts} />
+              <Switch checked={s.budgetAlerts ?? true} onCheckedChange={(v) => handleChange('budgetAlerts', v)} />
             </Row>
           </CardContent>
         </Card>
@@ -158,8 +201,8 @@ export function Settings() {
           <CardContent className="space-y-4">
             <Row label="Auto-approve threshold" desc="Max spend agents can execute without approval">
               <Input
-                value={`₹${autoApprove}`}
-                onChange={(e) => setAutoApprove(e.target.value.replace(/[^\d]/g, ''))}
+                value={`₹${s.autoApproveLimit ?? 5000}`}
+                onChange={(e) => handleChange('autoApproveLimit', Number(e.target.value.replace(/[^\d]/g, '')))}
                 className="w-32 font-mono text-xs"
               />
             </Row>
@@ -167,7 +210,7 @@ export function Settings() {
               <Badge variant="outline">Hiring · Campaigns · Budget reallocation</Badge>
             </Row>
             <Row label="Escalation policy" desc="When to surface to founder inbox">
-              <Select value={escalation} onValueChange={setEscalation}>
+              <Select value={s.escalationPolicy || 'standard'} onValueChange={(v) => handleChange('escalationPolicy', v)}>
                 <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="minimal">Minimal (critical only)</SelectItem>

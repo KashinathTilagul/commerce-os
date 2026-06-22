@@ -43,6 +43,9 @@ export function IssuesModule() {
   const [selected, setSelected] = useState<any | null>(null)
   const [commentText, setCommentText] = useState('')
   const [posting, setPosting] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newIssue, setNewIssue] = useState({ title: '', description: '', priority: 'P2', type: 'TASK' })
+  const [creating, setCreating] = useState(false)
   const queryClient = useQueryClient()
 
   const { data: issues = [] } = useQuery<any[]>({
@@ -97,6 +100,29 @@ export function IssuesModule() {
     }
   }
 
+  const handleCreateIssue = async () => {
+    if (!newIssue.title.trim()) return
+    setCreating(true)
+    try {
+      const r = await fetch('/api/issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newIssue),
+      })
+      if (!r.ok) throw new Error('Failed')
+      const created = await r.json()
+      toast.success('Issue created', `${created.code} added to backlog`)
+      queryClient.invalidateQueries({ queryKey: ['issues'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      setCreateOpen(false)
+      setNewIssue({ title: '', description: '', priority: 'P2', type: 'TASK' })
+    } catch {
+      toast.error('Create failed', 'Could not create issue')
+    } finally {
+      setCreating(false)
+    }
+  }
+
   const byStatus: Record<string, any[]> = {
     BACKLOG: [],
     IN_PROGRESS: [],
@@ -115,7 +141,7 @@ export function IssuesModule() {
         title="PAP Tracker"
         description="Everything in EKVAAR OS is tracked as an Issue. Issues have statuses, assignees, priorities, dependencies (Issue A blocks Issue B), and rich comment threads where agents and humans discuss the task. Each agent heartbeat appends output as a comment."
         actions={
-          <Button size="sm" className="gap-1.5" onClick={() => toast.info('New Issue', 'Issue creation form would open here')}>
+          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> New Issue
           </Button>
         }
@@ -418,6 +444,68 @@ export function IssuesModule() {
               </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Issue Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-display tracking-tight text-xl">New Issue</DialogTitle>
+            <DialogDescription>Create a new task or work object for the C-suite.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-[10px] tracking-wider uppercase text-muted-foreground mb-1 block">Title</label>
+              <input
+                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder="What needs to be done?"
+                value={newIssue.title}
+                onChange={(e) => setNewIssue({ ...newIssue, title: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] tracking-wider uppercase text-muted-foreground mb-1 block">Description</label>
+              <textarea
+                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background min-h-[100px] resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                placeholder="Details, context, or requirements..."
+                value={newIssue.description}
+                onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] tracking-wider uppercase text-muted-foreground mb-1 block">Type</label>
+                <Select value={newIssue.type} onValueChange={(v) => setNewIssue({ ...newIssue, type: v })}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TASK">Task</SelectItem>
+                    <SelectItem value="BUG">Bug</SelectItem>
+                    <SelectItem value="FEATURE">Feature</SelectItem>
+                    <SelectItem value="CAMPAIGN">Campaign</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-[10px] tracking-wider uppercase text-muted-foreground mb-1 block">Priority</label>
+                <Select value={newIssue.priority} onValueChange={(v) => setNewIssue({ ...newIssue, priority: v })}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="P0">P0 (Critical)</SelectItem>
+                    <SelectItem value="P1">P1 (High)</SelectItem>
+                    <SelectItem value="P2">P2 (Medium)</SelectItem>
+                    <SelectItem value="P3">P3 (Low)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</Button>
+            <Button size="sm" onClick={handleCreateIssue} disabled={!newIssue.title.trim() || creating}>
+              {creating ? 'Creating…' : 'Create Issue'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
