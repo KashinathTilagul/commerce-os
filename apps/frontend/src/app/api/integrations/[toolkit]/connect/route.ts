@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { eventBus } from '@/lib/event-bus'
+import { initiateConnection } from '@/lib/composio-service'
 
 // POST /api/integrations/[toolkit]/connect — connect or disconnect an integration
 export async function POST(
@@ -27,11 +29,27 @@ export async function POST(
         connectedAccountId: null,
       },
     })
+    eventBus.emit('integration_updated', { toolkit, action: 'disconnected' })
     return NextResponse.json({ success: true, integration: updated, action: 'disconnected' })
   }
 
-  // Connect — in production this would redirect to Composio OAuth flow
-  // For demo, we simulate a successful connection
+  // Connect — attempt real Composio connection
+  const connection = await initiateConnection(toolkit, 'ekvaar_founder')
+  
+  if (connection.redirectUrl) {
+    // We have a real Composio API key and an OAuth flow is needed
+    return NextResponse.json({ 
+      success: true, 
+      action: 'redirect',
+      redirectUrl: connection.redirectUrl 
+    })
+  }
+
+  if (connection.error) {
+    return NextResponse.json({ error: connection.error }, { status: 500 })
+  }
+
+  // Demo mode fallback — simulate a successful connection immediately
   const updated = await db.integration.update({
     where: { id: integration.id },
     data: {
@@ -46,12 +64,13 @@ export async function POST(
     data: {
       type: 'INTEGRATION_CONNECTED',
       actorName: 'Founder',
-      summary: `Connected ${integration.name} to EKVAAR OS`,
+      summary: `Connected ${integration.name} to EKVAAR OS (Demo Mode)`,
       payload: JSON.stringify({ toolkit, connectedAccountId: updated.connectedAccountId }),
       severity: 'INFO',
     },
   })
 
+  eventBus.emit('integration_updated', { toolkit, action: 'connected' })
   return NextResponse.json({ success: true, integration: updated, action: 'connected' })
 }
 

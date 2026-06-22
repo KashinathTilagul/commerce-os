@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { executeTool, AGENT_TOOLKIT_ACCESS } from '@/lib/composio-service'
+import { eventBus } from '@/lib/event-bus'
 
 // POST /api/integrations/execute — execute a tool via Composio
 export async function POST(req: NextRequest) {
@@ -82,6 +83,13 @@ export async function POST(req: NextRequest) {
       }),
       severity: result.success ? 'INFO' : 'WARN',
     },
+  })
+
+  eventBus.emit('tool_executed', {
+    toolkit: toolkitSlug,
+    tool: toolSlug,
+    agent: agentName || agentCode,
+    success: result.success
   })
 
   return NextResponse.json({

@@ -24,12 +24,17 @@ const CATEGORY_META: Record<string, { label: string; color: string; icon: string
   crm: { label: 'CRM', color: '#FF9500', icon: '🎯' },
 }
 
+import { useRealtime } from '@/hooks/use-realtime'
+
 export function Integrations() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<any | null>(null)
   const [connecting, setConnecting] = useState<string | null>(null)
   const [executing, setExecuting] = useState<string | null>(null)
   const queryClient = useQueryClient()
+  
+  // Connect to SSE for realtime updates
+  useRealtime()
 
   const { data, isLoading } = useQuery({
     queryKey: ['integrations'],
@@ -38,7 +43,8 @@ export function Integrations() {
       if (!r.ok) throw new Error('Failed')
       return r.json()
     },
-    refetchInterval: 10000,
+    // Fallback to polling if SSE is disabled
+    refetchInterval: process.env.NEXT_PUBLIC_REALTIME === 'true' ? false : 10000,
   })
 
   const handleConnect = async (toolkit: string, name: string, action: 'connect' | 'disconnect') => {
@@ -51,6 +57,12 @@ export function Integrations() {
       })
       if (!r.ok) throw new Error('Failed')
       const result = await r.json()
+
+      if (result.action === 'redirect') {
+        window.location.href = result.redirectUrl
+        return
+      }
+
       toast.success(
         action === 'connect' ? 'Connected' : 'Disconnected',
         `${name} ${action === 'connect' ? 'is now available to agents' : 'has been removed'}`

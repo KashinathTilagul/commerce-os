@@ -156,6 +156,26 @@ export function getToolsForToolkit(toolkitSlug: string) {
 }
 
 /**
+ * Initiate a connection for a specific toolkit (returns an OAuth redirect URL or null for demo mode)
+ */
+export async function initiateConnection(toolkitSlug: string, entityId?: string): Promise<{ redirectUrl: string | null; error?: string }> {
+  const composio = await getComposio()
+  
+  if (!composio) {
+    // Demo mode — no real connection needed
+    return { redirectUrl: null }
+  }
+
+  try {
+    const entity = await composio.getEntity(entityId || 'default')
+    const connection = await entity.initiateConnection(toolkitSlug)
+    return { redirectUrl: connection.redirectUrl }
+  } catch (error: any) {
+    return { redirectUrl: null, error: error.message }
+  }
+}
+
+/**
  * Execute a tool via Composio (or simulate in demo mode)
  */
 export async function executeTool(params: {
