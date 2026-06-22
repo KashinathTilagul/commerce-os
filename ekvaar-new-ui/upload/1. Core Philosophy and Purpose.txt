@@ -1,0 +1,75 @@
+1. Core Philosophy and Purpose
+The primary goal of EKVAAR OS is Decision Compression. It aims to collapse the time between an idea and its execution by eliminating organizational friction.
+
+In a traditional company, executing a new marketing campaign requires meetings, budget approvals, hiring contractors, and manual coordination. In EKVAAR OS, the founder issues a command, and the digital C-suite (CEO, CMO, CTO, etc.) instantly collaborates to formulate a plan, seek board approval, allocate budget, and execute the work—often in minutes.
+
+2. System Architecture
+EKVAAR OS operates on a Unified Python Backend. It is built on a modular architecture composed of several critical engines:
+
+The Heartbeat Engine
+Unlike standard LLM wrappers that only respond when prompted, EKVAAR OS agents have a "heartbeat." They wake up autonomously based on:
+
+Routines: Scheduled cron jobs (e.g., daily metrics review).
+Event Triggers: Waking up when a dependent task finishes or a metric drops.
+Mentions/Assignments: Being tagged in an Issue comment by another agent or human.
+When an agent wakes up, it checks out an Issue, loads relevant context and Skills (markdown procedures), executes its task, logs its activity, and goes back to sleep.
+
+The Event Bus (Event Ledger)
+Every action in the OS—from an issue changing status, to a budget reaching 80% usage, to an agent completing a run—is published to the Event Bus. This creates a unified, append-only ledger that drives automation and provides a perfect audit trail.
+
+The Governance & Approval Engine
+Agents operate within strict bounds. The OS features a multi-tiered approval lifecycle (pending → approved, rejected, or revision_requested).
+
+Budgets: Agents have specific inference spend ceilings. At 80%, a warning is triggered. At 100%, the agent is automatically paused until the board intervenes.
+Strategic Actions: Hiring new agents, launching expensive campaigns, or altering core metrics requires explicit board (human) approval.
+
+3. The Digital Workforce (Agents)
+The OS comes pre-populated with a specialized C-suite of digital employees, each possessing specific Skills, a Playbook, and a Soul (core system prompt):
+
+CEO: Allocates capital, orchestrates other agents, and resolves cross-department conflicts.
+CMO (Marketing Manager): Analyzes Shopify data, spins up ad campaigns, and manages brand voice.
+CTO (Technology Manager): Manages integrations, reviews code, and monitors system health.
+CFO (Finance Manager): Audits expenses, tracks burn rate, and enforces department budgets.
+COO (Operations Manager): Manages inventory, supply chain, and fulfillment pipelines.
+These agents communicate with each other autonomously. The CEO can assign an issue to the CMO, wait for the result, and then assign the output to the CTO for deployment.
+
+4. UI/UX: The Interface of the Future
+The frontend is built with a modern, glassmorphic, window-based window manager design. It feels like a MAC OS running inside the browser.
+
+Key UX Paradigms:
+MAC OS
+
+The interface eschews traditional web pages for draggable, resizable windows.
+A unified taskbar/dock at the bottom provides quick access to core apps.
+Micro-animations provide tactile feedback for opening, closing, and snapping windows.
+The Founder Inbox (Central Command)
+
+The human founder rarely digs into specific agent logs. Instead, they operate out of the Inbox.
+The Inbox intelligently surfaces only what requires human attention: explicit approval requests, budget breaches, or escalations.
+It features distinct tabs: Mine, Recent, Unread, and Blocked.
+Digital Employees Hub
+
+A directory where the founder can view the status of every agent.
+Clicking an agent opens their profile, showing their current active task, their lifetime token spend, and their direct chat interface.
+The Board Room (Reality Layer)
+
+A real-time dashboard displaying the actual "Reality" of the business.
+Integrates directly with Shopify to show live Revenue, Orders, and Inventory.
+Displays the Cash Position and current Runway.
+Terminal / CPU Monitor
+
+For total transparency, the OS provides a live Terminal and CPU context window.
+The founder can watch the actual LLM generation streams and system events in real-time as agents "think" and communicate.
+
+5. The Work Object: "Issues"
+Everything in EKVAAR OS is tracked as an Issue (e.g., PAP-39).
+
+Issues have statuses (backlog, in_progress, in_review, done), assignees, and priorities.
+They support dependency graphs (Issue A blocks Issue B).
+Every issue contains a rich comment thread where agents and humans discuss the task. When an agent executes a heartbeat run, its output is appended to the issue as a comment.5. The Work Object: "Issues"
+Everything in EKVAAR OS is tracked as an Issue (e.g., PAP-39).
+
+Issues have statuses (backlog, in_progress, in_review, done), assignees, and priorities.
+They support dependency graphs (Issue A blocks Issue B).
+Every issue contains a rich comment thread where agents and humans discuss the task. When an agent executes a heartbeat run, its output is appended to the issue as a comment.
+
