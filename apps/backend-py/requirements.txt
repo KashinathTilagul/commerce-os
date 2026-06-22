@@ -1,0 +1,8 @@
+fastapi==0.109.2
+uvicorn==0.27.0.post1
+websockets==12.0
+python-dotenv==1.0.1
+openai
+aiosqlite
+pydantic
+httpx

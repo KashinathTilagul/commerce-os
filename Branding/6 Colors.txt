@@ -1,0 +1,8 @@
+Official 6 Colors		
+Noor Black	(नूर)	#000000
+Rui White	(रुई)	#FFFFFF
+Agni Red	(ताम्र)	#C0342C
+Neel Blue	(नील)	#0047AB
+Arav Green	(अराव)	#2E7D32
+Gulabi Pink	(गुलाबी)	#E91E63
+		
