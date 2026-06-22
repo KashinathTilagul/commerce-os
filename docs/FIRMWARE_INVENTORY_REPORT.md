@@ -1,0 +1,121 @@
+# FIRMWARE INVENTORY REPORT (LEVEL 1)
+
+These nodes will be hard-persisted to IndexedDB during every clean boot and will survive a Factory Reset.
+
+## Core V1 Skeleton (Static Contexts)
+- `k-india-original`
+- `k-house-originals`
+- `k-all-time`
+- `k-slow-fashion`
+- `k-all-time-fashion`
+- `k-five-houses`
+- `k-six-colors`
+- `h-solids`
+- `h-layers`
+- `h-streetwear`
+- `h-luxe`
+- `h-origins`
+- `c-noor`
+- `c-rui`
+- `c-agni`
+- `c-neel`
+- `c-arav`
+- `c-gulabi`
+- `std-naming`
+- `std-material`
+- `hist-prog`
+- `hist-ms`
+- `hist-p0`
+- `hist-p1`
+- `hist-p2`
+- `hist-p3`
+- `hist-p4`
+- `hist-p5`
+- `DEC-ARCH-001`
+- `DEC-01`
+- `DEC-02`
+- `DEC-03`
+- `DEC-04`
+- `m-phase-6`
+- `m-phase-10`
+- `i-krishna-runtime`
+- `i-data-ingestion`
+- `p-architecture-lock`
+- `t-factory-reset`
+- `conv-founder-decisions`
+- `conv-arch-decisions`
+- `conv-weekly-review`
+
+## Brand Bible & Protocols (Extracted from Knowledge Corpus)
+- `ECO_IQR` - Institutional Quality Reference (Ecosystem Protocol)
+- `ECO_BRAND_VOICE` - Restrained Brand Voice (Brand Principle)
+- `ECO_COLOR_SYS` - Strict 6-Color System (Design Rule)
+- `ECO_ANTI_FAST_FASHION` - Anti-Fast-Fashion Mandate (Core Philosophy)
+- `ECO_MODERNISM` - Indian Cultural Modernism (Aesthetic Core)
+- `OP_SUPPLY_CHAIN` - Supply Chain Operations (Logistics)
+- `OP_MARKETING_STRAT` - Marketing Strategy (Strategy)
+- `OP_PRODUCT_DEV` - Product Development (Strategy)
+- `BRAND_ESSENCE` - The EKVAAR Essence (Identity)
+- `BRAND_TYPOGRAPHY` - Typography Protocol (Design Rule)
+- `LORE_ORIGIN` - Origin Story (Lore)
+- `AI_SYNERGY` - Human-AI Synergy (Core Philosophy)
+- `SUPPLY_PROCUREMENT` - Fabric Procurement (Logistics)
+- `MKTG_INSTAGRAM` - Instagram Aesthetic (Channel Strategy)
+- `MKTG_DISCORD` - Discord Community (Channel Strategy)
+- `PROD_OVERSIZE` - Oversized Silhouette (Design Rule)
+- `PROD_MINIMALISM` - Graphic Minimalism (Design Rule)
+- `FIN_PRICING` - Premium Pricing Strategy (Strategy)
+- `FIN_SCARCITY` - Controlled Scarcity (Strategy)
+- `OP_RETURNS` - Zero-Friction Returns (Policy)
+- `TECH_ORCHESTRATOR` - The Meta-Orchestrator (System)
+- `HR_CULTURE` - Agentic Culture (Culture)
+- `PROD_SUSTAINABILITY` - Zero-Waste Initiative (Initiative)
+- `TECH_NODE_ARCH` - Node Architecture (System)
+- `TECH_REACT` - Frontend Framework (System)
+- `SUPPLY_WAREHOUSE` - Central Warehouse (Logistics)
+- `SUPPLY_SHIPPING` - Carbon-Neutral Shipping (Logistics)
+- `MKTG_INFLUENCER` - Micro-Influencer Strategy (Strategy)
+- `MKTG_SEO` - SEO & Discoverability (Strategy)
+- `FIN_CRYPTO` - Crypto Payments (Infrastructure)
+- `FIN_PROFIT_SHARING` - Community Profit Sharing (Initiative)
+- `DESIGN_GLASSMORPHISM` - Glassmorphic UI (Aesthetic Core)
+- `DESIGN_DARKMODE` - Dark Mode First (Design Rule)
+- `OP_CUSTOMER_SUPPORT` - AI-First Support (Policy)
+- `OP_QUALITY_CHECK` - 3-Tier Quality Check (Process)
+- `LORE_HERMES` - The Hermes Protocol (Lore)
+- `PROD_FABRIC_TECH` - Smart Fabrics (R&D)
+- `TECH_MEMORY_ENGINE` - Persistent Memory Engine (System)
+- `TECH_TASK_QUEUE` - In-Memory Task Queue (System)
+- `MKTG_NEWSLETTER` - The Dispatch (Channel Strategy)
+- `MKTG_POPUP` - Ephemeral Pop-Ups (Strategy)
+- `SUPPLY_PACKAGING` - Sensory Packaging (Logistics)
+- `DESIGN_MOTION` - Fluid Motion Design (Design Rule)
+- `FIN_BOOTSTRAPPED` - Bootstrapped Ethos (Lore)
+- `OP_ONBOARDING` - Agent Onboarding (Process)
+- `PRODUCT_ARCHIVE` - The Vault (System)
+- `TECH_VIRTUAL_OFFICE` - Pixel Office Matrix (System)
+- `CULTURE_TRANSPARENCY` - Radical Transparency (Culture)
+- `DESIGN_AURA` - The EKVAAR Aura (Aesthetic Core)
+- `SUPPLY_LOCALIZATION` - Hyper-Local Sourcing (Initiative)
+- `LORE_HOUSE` - House of Originals (Lore)
+- `OP_CATEGORIES` - Categories (Taxonomy)
+- `BRAND_VALUES` - Values of the Company (Values)
+- `MKTG_STRATEGIES` - Marketing Strategies (Strategy)
+
+## Agent Baseline Memory (Extracted from Memory Configurations)
+- `mem-Chief-of-Staff` - Base constraints and domain rules
+- `mem-Creative-Director` - Base constraints and domain rules
+- `mem-AI-CPO` - Base constraints and domain rules
+- `mem-AI-CMO` - Base constraints and domain rules
+- `mem-Executive-Research` - Base constraints and domain rules
+- `mem-AI-CEO` - Base constraints and domain rules
+- `mem-Fashion-Research` - Base constraints and domain rules
+- `mem-Inventory-Intelligence` - Base constraints and domain rules
+- `mem-Founder` - Base constraints and domain rules
+- `mem-Shopify-Revenue` - Base constraints and domain rules
+- `mem-Logistics-Director` - Base constraints and domain rules
+- `mem-Investor-Intel` - Base constraints and domain rules
+- `mem-AI-CHRO` - Base constraints and domain rules
+
+### Summary
+**Total Firmware Nodes:** 115
