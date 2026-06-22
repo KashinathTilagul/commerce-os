@@ -1,0 +1,313 @@
+// EKVAAR OS — Prisma Schema
+// India's First All-Time Fashion House — Operating System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============ CATALOG ============
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  sku         String   @unique
+  house       String   // Solids | Layers | Street | Luxe | Origins
+  color       String   // Noor Black | Rui White | Agni Red | Neel Blue | Arav Green | Gulabi Pink
+  category    String   // tee | hoodie | jacket | pants | accessory | object ...
+  price       Float
+  cost        Float
+  stock       Int      @default(0)
+  reorderAt   Int      @default(20)
+  status      String   @default("ACTIVE") // ACTIVE | DRAFT | ARCHIVED | RESTOCKING
+  material    String
+  description String
+  imageHue    Int      @default(0) // for placeholder rendering
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems  OrderItem[]
+}
+
+// ============ SALES ============
+
+model Order {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique
+  customerName  String
+  customerEmail String
+  customerCity  String
+  channel       String   // D2C | RETAIL | WHOLESALE | POPUP
+  itemsCount    Int
+  total         Float
+  status        String   @default("NEW") // NEW | PROCESSING | SHIPPED | DELIVERED | RETURNED | CANCELLED
+  paymentStatus String   @default("PAID") // PAID | PENDING | REFUNDED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+// ============ CUSTOMERS / ORIGINALS ============
+
+model Customer {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  phone       String
+  city        String
+  tier        String   @default("ORIGINAL") // ORIGINAL | HOUSE | ARCHIVE | FOUNDER_CIRCLE
+  totalOrders Int      @default(0)
+  totalSpent  Float    @default(0)
+  joinedAt    DateTime @default(now())
+  lastActive  DateTime @default(now())
+  restorationCount Int @default(0)
+}
+
+// ============ FINANCE ============
+
+model Transaction {
+  id          String   @id @default(cuid())
+  type        String   // INCOME | EXPENSE
+  category    String   // PRODUCT_SALES | WHOLESALE | MATERIALS | LABOR | LOGISTICS | MARKETING | OPS | AI_INFRA | RESTORATION | R&D
+  amount      Float
+  description String
+  reference   String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+// ============ CAMPAIGNS / CONTENT ============
+
+model Campaign {
+  id          String   @id @default(cuid())
+  title       String
+  pillar      String   // philosophy | product | culture | process | founder | community
+  status      String   @default("DRAFT") // DRAFT | LIVE | SCHEDULED | ARCHIVED
+  channel     String   // INSTAGRAM | JOURNAL | EMAIL | HOUSE_ACCESS | ALL
+  startDate   DateTime
+  endDate     DateTime?
+  budget      Float    @default(0)
+  spend       Float    @default(0)
+  impressions Int      @default(0)
+  engagement  Float    @default(0) // percent
+  createdAt   DateTime @default(now())
+}
+
+model FounderNote {
+  id         String   @id @default(cuid())
+  title      String
+  excerpt    String
+  body       String
+  status     String   @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  publishedAt DateTime?
+  createdAt  DateTime @default(now())
+}
+
+// ============ COMMUNITY ============
+
+model Restoration {
+  id           String   @id @default(cuid())
+  customerName String
+  productSku   String
+  productName  String
+  reason       String   // WEAR | REPAIR | RESHAPE | RECOLOR
+  status       String   @default("REQUESTED") // REQUESTED | IN_REPAIR | COMPLETED | DECLINED
+  requestedAt  DateTime @default(now())
+  completedAt  DateTime?
+}
+
+// ============ OPERATIONS ============
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  material  String   // heavyweight cotton | fleece | drape fabric | thread | dye | packaging
+  city      String
+  leadTime  Int      // days
+  rating    Float    @default(5)
+  status    String   @default("ACTIVE") // ACTIVE | PAUSED | BLACKLIST
+  lastOrder DateTime @default(now())
+}
+
+// ============ AI INFRASTRUCTURE ============
+
+model AISystem {
+  id              String   @id @default(cuid())
+  name            String   // Brand Guardian | Content | Creative | Commerce | Founder | Product Intelligence | Operations
+  status          String   @default("ACTIVE") // ACTIVE | IDLE | TRAINING | ALERT
+  health          Float    @default(100) // 0-100
+  tasksToday      Int      @default(0)
+  tasksTotal      Int      @default(0)
+  accuracy        Float    @default(100) // percent
+  lastRun         DateTime @default(now())
+  description     String
+  pillar          String   // brand | content | creative | commerce | founder | product | operations
+}
+
+// ============ BRAND GUARDIAN CHECKS ============
+
+model BrandCheck {
+  id          String   @id @default(cuid())
+  module      String   // PRODUCT | CONTENT | CAMPAIGN | PACKAGING | DIGITAL
+  asset       String
+  status      String   @default("PASS") // PASS | WARN | FAIL
+  violations  Int      @default(0)
+  notes       String
+  checkedAt   DateTime @default(now())
+}
+
+// ============ DIGITAL WORKFORCE (AGENTS) ============
+
+model Agent {
+  id              String   @id @default(cuid())
+  code            String   @unique // FOUNDER | CEO | CMO | CTO | CFO | COO | CCO | CSM | GROWTH | RESEARCH | HR | LEGAL
+  name            String   // Display name
+  role            String   // Chief Executive Officer, etc.
+  status          String   @default("IDLE") // ACTIVE | IDLE | RUNNING | PAUSED | ERROR
+  department      String   // EXECUTIVE | MARKETING | TECHNOLOGY | FINANCE | OPERATIONS | CREATIVE | CUSTOMER | GROWTH | RESEARCH | HR | LEGAL
+  primeDirective  String   // The agent's core mission
+  description     String
+  skills          String   // comma-separated skill codes
+  currentTask     String?
+  tokenSpend      Float    @default(0) // INR equivalent
+  tokenBudget     Float    @default(50000)
+  tasksToday      Int      @default(0)
+  tasksTotal      Int      @default(0)
+  successRate     Float    @default(100) // percent
+  lastHeartbeat   DateTime @default(now())
+  avatarColor     String   // hex color for avatar
+  isHuman         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  issuesAssigned  Issue[]   @relation("IssueAssignee")
+  issuesCreated   Issue[]   @relation("IssueCreator")
+  comments        IssueComment[]
+  approvals       Approval[]   @relation("ApprovalRequester")
+  events          Event[]
+}
+
+// ============ ISSUES (WORK OBJECTS) ============
+
+model Issue {
+  id            String   @id @default(cuid())
+  code          String   @unique // PAP-39
+  title         String
+  description   String
+  status        String   @default("BACKLOG") // BACKLOG | IN_PROGRESS | IN_REVIEW | DONE | BLOCKED
+  priority      String   @default("MEDIUM") // P0 | P1 | P2 | P3
+  type          String   @default("TASK") // TASK | BUG | FEATURE | CAMPAIGN | APPROVAL | RESEARCH
+  assigneeId    String?
+  createdById   String?
+  department    String?
+  blocksIds     String?  // comma-separated issue codes this blocks
+  blockedByIds  String?  // comma-separated issue codes blocking this
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  assignee  Agent?          @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  createdBy Agent?          @relation("IssueCreator", fields: [createdById], references: [id])
+  comments  IssueComment[]
+}
+
+model IssueComment {
+  id        String   @id @default(cuid())
+  issueId   String
+  authorId  String?
+  authorName String
+  body      String
+  kind      String   @default("COMMENT") // COMMENT | HEARTBEAT | SYSTEM | APPROVAL_REQUEST
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author Agent? @relation(fields: [authorId], references: [id])
+}
+
+// ============ EVENT BUS (APPEND-ONLY LEDGER) ============
+
+model Event {
+  id         String   @id @default(cuid())
+  type       String   // ISSUE_CREATED | ISSUE_ASSIGNED | AGENT_HEARTBEAT | BUDGET_WARNING | APPROVAL_REQUESTED | CAMPAIGN_LAUNCHED | ...
+  actorId    String?
+  actorName  String
+  summary    String
+  payload    String   // JSON string
+  severity   String   @default("INFO") // INFO | WARN | ERROR | CRITICAL
+  timestamp  DateTime @default(now())
+
+  actor Agent? @relation(fields: [actorId], references: [id])
+}
+
+// ============ GOVERNANCE & APPROVALS ============
+
+model Approval {
+  id            String   @id @default(cuid())
+  code          String   @unique // APR-12
+  type          String   // BUDGET | STRATEGIC | HIRING | CAMPAIGN | VENDOR
+  title         String
+  description   String
+  amount        Float    @default(0)
+  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED | REVISION_REQUESTED
+  requesterId   String
+  issueCode     String?
+  inbox         String   @default("MINE") // MINE | RECENT | UNREAD | BLOCKED
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  resolvedAt    DateTime?
+
+  requester Agent @relation("ApprovalRequester", fields: [requesterId], references: [id])
+}
+
+
+// ============ COMPOSIO INTEGRATIONS ============
+
+model Integration {
+  id              String   @id @default(cuid())
+  toolkitSlug     String   @unique // shopify, stripe, github, gmail, slack, etc.
+  name            String
+  description     String
+  category        String   // ecommerce, comms, analytics, productivity, social
+  logoUrl         String?
+  isConnected     Boolean  @default(false)
+  connectedAccountId String?
+  connectedAt     DateTime?
+  agentPermissions String  @default("") // comma-separated agent codes that can use this
+  toolsCount      Int      @default(0)
+  executionsCount Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  executions ToolExecution[]
+}
+
+model ToolExecution {
+  id            String   @id @default(cuid())
+  integrationId String
+  agentCode     String   // which agent executed
+  agentName     String
+  toolName      String   // e.g. "shopify_get_orders", "stripe_create_refund"
+  toolSlug      String
+  input         String   // JSON string of input params
+  output        String?  // JSON string of result
+  status        String   @default("PENDING") // PENDING | SUCCESS | ERROR | TIMEOUT
+  errorMessage  String?
+  duration      Int      @default(0) // milliseconds
+  createdAt     DateTime @default(now())
+
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+}
