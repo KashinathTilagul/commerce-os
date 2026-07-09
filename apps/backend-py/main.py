@@ -35,6 +35,7 @@ from routes.issues_routes import router as issues_router
 from routes.runs_routes import router as runs_router
 from routes.approvals_routes import router as approvals_router
 from routes.routines_routes import router as routines_router
+from routes.telemetry_routes import router as telemetry_router
 
 
 @asynccontextmanager
@@ -110,6 +111,7 @@ app.include_router(issues_router, prefix="/api")
 app.include_router(runs_router, prefix="/api")
 app.include_router(approvals_router, prefix="/api")
 app.include_router(routines_router, prefix="/api")
+app.include_router(telemetry_router, prefix="/api")
 
 
 # ─── Root health check ──────────────────────────────────────────────────────
@@ -206,6 +208,24 @@ async def websocket_agent(websocket: WebSocket):
         print(f"WebSocket Error: {e}")
     finally:
         print("Client disconnected.")
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Schedule telemetry and risk assessment on startup."""
+    from core.telemetry.telemetry_ingestion import telemetry
+    from core.telemetry.risk_engine import risk_engine
+    from core.telemetry.signal_detection import signal_engine
+    
+    async def run_telemetry_cycle():
+        await telemetry.ingest_from_live_metrics()
+        await telemetry.ingest_agent_metrics()
+        await signal_engine.run_full_detection_cycle()
+        await risk_engine.assess_risks()
+    
+    from core.automation.scheduler import scheduler
+    scheduler.schedule_job("telemetry_cycle", 300, run_telemetry_cycle)
+    print("[EKVAAR OS] Telemetry and Risk assessment scheduled every 5 minutes.")
 
 
 if __name__ == "__main__":

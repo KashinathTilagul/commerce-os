@@ -24,6 +24,7 @@ export type AppId =
   | 'campaigns'
   | 'guardian'
   | 'ai'
+  | 'risk'
 
 export interface WindowState {
   id: AppId
@@ -62,7 +63,6 @@ const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
   activity: { width: 1100, height: 720 },
   settings: { width: 1000, height: 680 },
   files: { width: 1000, height: 680 },
-  browser: { width: 1200, height: 760 },
   integrations: { width: 920, height: 620 },
   calculator: { width: 360, height: 540 },
   notes: { width: 900, height: 640 },
@@ -76,6 +76,7 @@ const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
   campaigns: { width: 1180, height: 760 },
   guardian: { width: 1180, height: 760 },
   ai: { width: 1180, height: 760 },
+  risk: { width: 1180, height: 760 },
 }
 
 function offsetFor(idx: number): { x: number; y: number } {

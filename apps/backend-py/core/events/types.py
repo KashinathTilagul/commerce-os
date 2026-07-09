@@ -65,3 +65,14 @@ class EventType:
     # ── Governance Events ─────────────────────────────────────────────
     DECISION_LOCKED = "decision.locked"
     METRIC_THRESHOLD_CROSSED = "metric.threshold_crossed"
+    
+    # ── Telemetry Events ──────────────────────────────────────────────
+    TELEMETRY_INGESTED = "telemetry.ingested"
+    SIGNAL_DETECTED = "telemetry.signal_detected"
+    RISK_IDENTIFIED = "telemetry.risk_identified"
+    RISK_ESCALATED = "telemetry.risk_escalated"
+    RISK_RESOLVED = "telemetry.risk_resolved"
+    
+    # ── Escalation Events ─────────────────────────────────────────────
+    ESCALATION = "system.escalation"
+    ESCALATION_REQUIRED = "escalation.required"

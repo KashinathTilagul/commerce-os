@@ -1510,6 +1510,66 @@ CREATE TABLE IF NOT EXISTS notifications (
     created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
     updated_at        TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ===================================================================
+-- PHASE 3: TELEMETRY & RISK ENGINE TABLES
+-- ===================================================================
+
+-- Telemetry Metrics: Current state of metrics
+CREATE TABLE IF NOT EXISTS telemetry_metrics (
+    id                TEXT PRIMARY KEY,
+    metric_name       TEXT NOT NULL,
+    metric_type       TEXT,
+    value             REAL,
+    source            TEXT,
+    tags              TEXT,
+    metadata          TEXT,
+    ingested_at       TEXT
+);
+
+-- Telemetry Metric History: Time-series data
+CREATE TABLE IF NOT EXISTS telemetry_metric_history (
+    id                TEXT PRIMARY KEY,
+    metric_name       TEXT NOT NULL,
+    metric_type       TEXT,
+    value             REAL,
+    source            TEXT,
+    tags              TEXT,
+    metadata          TEXT,
+    ingested_at       TEXT
+);
+
+-- Telemetry Signals: Detected anomalies and threshold breaches
+CREATE TABLE IF NOT EXISTS telemetry_signals (
+    id                TEXT PRIMARY KEY,
+    signal_type       TEXT,
+    metric_name       TEXT,
+    current_value     REAL,
+    baseline_value    REAL,
+    deviation         REAL,
+    severity          TEXT,
+    message           TEXT,
+    detected_at       TEXT,
+    status            TEXT DEFAULT 'NEW',
+    acknowledged_at   TEXT
+);
+
+-- Telemetry Risks: Risk assessments
+CREATE TABLE IF NOT EXISTS telemetry_risks (
+    id                TEXT PRIMARY KEY,
+    risk_level        TEXT,
+    category          TEXT,
+    metric            TEXT,
+    score             REAL,
+    message           TEXT,
+    current_value     REAL,
+    signal_id         TEXT,
+    detected_at       TEXT,
+    status            TEXT DEFAULT 'ACTIVE',
+    resolved_at       TEXT,
+    resolved_by       TEXT,
+    resolution        TEXT
+);
 """
 
 

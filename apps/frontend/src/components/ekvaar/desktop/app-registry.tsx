@@ -5,6 +5,7 @@ import {
   Activity, Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon, Music,
   Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
+  AlertTriangle,
 } from 'lucide-react'
 import type { AppId } from '@/lib/window-store'
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
@@ -28,6 +29,7 @@ import { CommunityModule } from '@/components/ekvaar/modules/community'
 import { CampaignsModule } from '@/components/ekvaar/modules/campaigns'
 import { BrandGuardian } from '@/components/ekvaar/modules/brand-guardian'
 import { AIInfrastructure } from '@/components/ekvaar/modules/ai-infrastructure'
+import { RiskCenter } from '@/components/ekvaar/modules/risk-center'
 
 export interface AppDef {
   id: AppId
@@ -359,6 +361,21 @@ export const APPS: AppDef[] = [
       { label: 'View', items: ['Health', 'Tasks', 'Logs'] },
     ],
   },
+  {
+    id: 'risk',
+    name: 'Risk Center',
+    shortName: 'Risk',
+    icon: AlertTriangle,
+    iconVariant: 'risk',
+    gradient: 'linear-gradient(135deg, #C8302A 0%, #D97706 100%)',
+    glyphColor: '#F5F1EA',
+    component: RiskCenter,
+    menuItems: [
+      { label: 'File', items: ['Run Assessment', 'Export Report', 'Close Window'] },
+      { label: 'Risk', items: ['Critical', 'High', 'Medium', 'Low'] },
+      { label: 'View', items: ['Active Risks', 'Signals', 'By Category'] },
+    ],
+  },
 ]
 
 export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
@@ -368,5 +385,5 @@ export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
 // IDs that belong to the "core OS" group (left of dock divider)
 export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'activity', 'settings', 'files', 'integrations']
 export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar', 'music']
-export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai']
+export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai', 'risk']
 
