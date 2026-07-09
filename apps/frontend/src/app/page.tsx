@@ -10,11 +10,13 @@ import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
 import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
 import { Jarvis, JarvisWallpaperOrb } from '@/components/ekvaar/desktop/jarvis'
+import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
 
 export default function Home() {
   const { windows, bootDone, open } = useWindowStore()
   const { mode, accent } = useThemeStore()
   const [launchpadOpen, setLaunchpadOpen] = useState(false)
+  const [spotlightOpen, setSpotlightOpen] = useState(false)
   const [jarvisTrigger, setJarvisTrigger] = useState(0)
 
   // Apply theme + accent globally
@@ -37,26 +39,35 @@ export default function Home() {
         const active = useWindowStore.getState().activeId
         if (active) useWindowStore.getState().close(active)
       }
+      // Cmd+K or Ctrl+K → Spotlight
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setSpotlightOpen((v) => !v)
+      }
       // F4 or Cmd+L toggles Launchpad
       if (e.key === 'F4' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l')) {
         e.preventDefault()
         setLaunchpadOpen((v) => !v)
       }
-      // Esc closes launchpad
-      if (e.key === 'Escape' && launchpadOpen) {
-        setLaunchpadOpen(false)
+      // Esc closes launchpad or spotlight
+      if (e.key === 'Escape') {
+        if (spotlightOpen) setSpotlightOpen(false)
+        else if (launchpadOpen) setLaunchpadOpen(false)
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [launchpadOpen])
+  }, [launchpadOpen, spotlightOpen])
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <DesktopWallpaper />
 
       {/* Menu bar */}
-      <MenuBar />
+      <MenuBar
+        onSpotlight={() => setSpotlightOpen(true)}
+        onKrishna={() => setJarvisTrigger(t => t + 1)}
+      />
 
       {/* Windows layer */}
       <div className="absolute inset-0 top-7 bottom-0 pointer-events-none">
@@ -80,6 +91,9 @@ export default function Home() {
 
       {/* Launchpad */}
       <Launchpad open={launchpadOpen} onClose={() => setLaunchpadOpen(false)} />
+
+      {/* Spotlight search */}
+      <Spotlight open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
 
       {/* Krishna (JARVIS) — living orb on wallpaper + voice panel */}
       <JarvisWallpaperOrb onClick={() => setJarvisTrigger(t => t + 1)} hidden={windows.length > 0} />

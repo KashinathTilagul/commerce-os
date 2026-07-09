@@ -15,8 +15,6 @@ export function BootScreen() {
           clearInterval(t)
           setTimeout(() => {
             setBootDone(true)
-            // Auto-open Command Center
-            setTimeout(() => open('command', 'Board Room'), 250)
           }, 350)
           return 100
         }
