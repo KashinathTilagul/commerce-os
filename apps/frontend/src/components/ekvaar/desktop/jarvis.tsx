@@ -130,8 +130,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const [micSupported, setMicSupported] = useState(true)
 
   const recognitionRef = useRef<any>(null)
-  const permanentErrorRef = useRef(false)          // set on not-allowed; blocks onend restart
+  const listeningRef = useRef(false)               // ref mirror of listening state
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sendRef = useRef<(text: string) => void>(() => {})   // always-fresh sendToKrishna ref
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const bestVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -212,107 +213,112 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setTranscript('')
   }, [])
 
-  // ── STT — click-to-toggle with silence auto-send ───────────────────────
+  // ── STT helpers ────────────────────────────────────────────────────────
   const stopListening = useCallback(() => {
+    listeningRef.current = false
     if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
     if (recognitionRef.current) {
       const rec = recognitionRef.current
-      recognitionRef.current = null   // null FIRST so onend doesn't restart
-      try { rec.stop() } catch {}
+      recognitionRef.current = null
+      try { rec.abort() } catch {}
     }
   }, [])
 
-  const startListening = useCallback(() => {
+  // One recognition "session" — continuous: false + manual restart in onend
+  const spawnRec = useCallback((accumulated: { text: string }) => {
     if (typeof window === 'undefined') return
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR) { toast.error('Mic not supported', 'Use Chrome or Edge for voice'); return }
-
-    // Cancel any ongoing speech
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
-
-    stopListening()
-    permanentErrorRef.current = false
+    if (!SR || !listeningRef.current) return
 
     const rec = new SR()
-    rec.continuous = true
+    rec.continuous = false      // single-utterance — most reliable in Chrome
     rec.interimResults = true
-    rec.lang = 'en-IN'          // Indian English — better accent recognition
+    rec.lang = 'en-IN'
     rec.maxAlternatives = 1
-
-    let finalText = ''
-
-    const resetSilenceTimer = (currentFinal: string) => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      // Auto-send after 2s of silence if we have text
-      silenceTimerRef.current = setTimeout(() => {
-        const text = currentFinal.trim()
-        if (text) {
-          setListening(false)
-          stopListening()
-          setGlobal('idle')
-          setTranscript('')
-          sendToKrishna(text)
-        }
-      }, 2000)
-    }
+    recognitionRef.current = rec
 
     rec.onresult = (event: any) => {
       let interim = ''
-      let newFinal = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      for (let i = 0; i < event.results.length; i++) {
         const t = event.results[i][0].transcript
-        if (event.results[i].isFinal) newFinal += t
+        if (event.results[i].isFinal) accumulated.text += t
         else interim += t
       }
-      if (newFinal) finalText += newFinal
-      setTranscript(finalText + interim)
-      if (finalText || interim) resetSilenceTimer(finalText || interim)
+      setTranscript(accumulated.text + interim)
+
+      // Reset silence timer each time we hear something
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
+      const snapshot = accumulated.text + interim
+      silenceTimerRef.current = setTimeout(() => {
+        if (!snapshot.trim()) return
+        const final = snapshot.trim()
+        stopListening()
+        setListening(false)
+        setGlobal('idle')
+        setTranscript('')
+        sendRef.current(final)
+      }, 2200)
     }
 
     rec.onerror = (e: any) => {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        permanentErrorRef.current = true
-        recognitionRef.current = null    // prevent onend restart
+        listeningRef.current = false
+        recognitionRef.current = null
         toast.error('Microphone blocked', 'Allow mic access in browser settings')
         setListening(false); setGlobal('idle')
-      } else if (e.error === 'no-speech' || e.error === 'aborted') {
-        // transient — onend will handle restart
-      } else {
-        console.warn('STT error:', e.error)
       }
+      // no-speech / aborted / network → let onend restart
     }
 
     rec.onend = () => {
-      // Only restart if this rec is still the active one (not stopped/replaced)
-      // and no permanent error occurred
-      if (recognitionRef.current === rec && !permanentErrorRef.current) {
-        try { rec.start() } catch {}
-      }
+      if (!listeningRef.current || recognitionRef.current !== rec) return
+      recognitionRef.current = null
+      // Brief gap then restart so Chrome doesn't rate-limit
+      setTimeout(() => spawnRec(accumulated), 80)
     }
 
-    recognitionRef.current = rec
+    try { rec.start() } catch {}
+  // spawnRec references itself via setTimeout — intentionally excluded from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopListening])
+
+  const startListening = useCallback(async () => {
+    if (typeof window === 'undefined') return
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SR) { toast.error('Mic not supported', 'Use Chrome or Edge for voice'); return }
+
+    // Explicitly request mic permission first — clears any stale blocked state
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop())   // we only needed the permission grant
+    } catch (err: any) {
+      toast.error('Microphone blocked', 'Allow mic access in browser settings')
+      return
+    }
+
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    stopListening()
+
+    listeningRef.current = true
     setListening(true)
     setTranscript('')
     setGlobal('listening')
-    try { rec.start() } catch (err) {
-      toast.error('Mic error', 'Could not start microphone')
-      setListening(false); setGlobal('idle')
-    }
-  }, [stopListening])
+
+    spawnRec({ text: '' })
+  }, [stopListening, spawnRec])
 
   const toggleListening = useCallback(() => {
-    if (listening) {
-      // Manual stop — send whatever we have
+    if (listeningRef.current) {
+      const text = transcript.trim()
       stopListening()
       setListening(false)
       setGlobal('idle')
-      const text = transcript.trim()
       setTranscript('')
-      if (text) sendToKrishna(text)
+      if (text) sendRef.current(text)
     } else {
       startListening()
     }
-  }, [listening, transcript, startListening, stopListening])
+  }, [transcript, startListening, stopListening])
 
   // ── TTS — sentence-by-sentence for natural pacing ─────────────────────
   const speakText = useCallback(async (text: string) => {
@@ -385,6 +391,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       setGlobal('idle')
     }
   }, [activeWindowName, windows, isProcessing, openWindow, speakText])
+
+  // Keep sendRef pointing at the latest sendToKrishna (avoids stale closure in STT)
+  useEffect(() => { sendRef.current = sendToKrishna }, [sendToKrishna])
 
   const handleTextSend = () => {
     const text = inputText.trim()
