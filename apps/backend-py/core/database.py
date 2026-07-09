@@ -1570,6 +1570,35 @@ CREATE TABLE IF NOT EXISTS telemetry_risks (
     resolved_by       TEXT,
     resolution        TEXT
 );
+
+-- ===================================================================
+-- PHASE 4: WORKFLOW & AUTOMATION TABLES
+-- ===================================================================
+
+-- Workflow Executions: Audit trail of automated workflows
+CREATE TABLE IF NOT EXISTS workflow_executions (
+    id                TEXT PRIMARY KEY,
+    rule_name         TEXT,
+    trigger_type      TEXT,
+    task_id           TEXT,
+    action_type       TEXT,
+    status            TEXT DEFAULT 'PENDING',
+    created_at        TEXT,
+    completed_at      TEXT,
+    error_message     TEXT
+);
+
+-- Workflow Rules: Configuration of automation rules
+CREATE TABLE IF NOT EXISTS workflow_rules (
+    id                TEXT PRIMARY KEY,
+    name              TEXT,
+    trigger           TEXT,
+    conditions        TEXT,
+    actions           TEXT,
+    enabled           BOOLEAN DEFAULT 1,
+    created_at        TEXT,
+    updated_at        TEXT
+);
 """
 
 

@@ -76,3 +76,9 @@ class EventType:
     # ── Escalation Events ─────────────────────────────────────────────
     ESCALATION = "system.escalation"
     ESCALATION_REQUIRED = "escalation.required"
+    
+    # ── Workflow Events (Phase 4) ─────────────────────────────────────
+    WORKFLOW_TRIGGERED = "workflow.triggered"
+    WORKFLOW_COMPLETED = "workflow.completed"
+    WORKFLOW_FAILED = "workflow.failed"
+    STATE_TRANSITION = "state.transition"

@@ -17,7 +17,8 @@ import asyncio
 from core.database import init_db, get_pool
 from core.automation.scheduler import scheduler
 from core.exceptions import EkvaarException
-import core.automation.escalation_engine  # Load escalation listeners
+import core.automation.escalation_engine
+from core.automation.trigger_system import ensure_triggers_registered  # Load escalation listeners
 
 # Import all route modules
 from routes.graph_routes import router as graph_router
@@ -36,6 +37,7 @@ from routes.runs_routes import router as runs_router
 from routes.approvals_routes import router as approvals_router
 from routes.routines_routes import router as routines_router
 from routes.telemetry_routes import router as telemetry_router
+from routes.workflow_routes import router as workflow_router
 
 
 @asynccontextmanager
@@ -44,9 +46,13 @@ async def lifespan(app: FastAPI):
     await init_db()
     pool = get_pool()
     await pool.initialize()
-    print("[EKVAAR OS] SQLite database initialized — all 28 tables ready.")
+    print("[EKVAAR OS] SQLite database initialized — all tables ready.")
     print("[EKVAAR OS] Connection pool initialized with 5 connections.")
     await scheduler.start()
+    
+    ensure_triggers_registered()
+    print("[EKVAAR OS] Workflow trigger system operational.")
+    
     yield
     await scheduler.stop()
     await pool.close_all()
@@ -112,6 +118,7 @@ app.include_router(runs_router, prefix="/api")
 app.include_router(approvals_router, prefix="/api")
 app.include_router(routines_router, prefix="/api")
 app.include_router(telemetry_router, prefix="/api")
+app.include_router(workflow_router, prefix="/api")
 
 
 # ─── Root health check ──────────────────────────────────────────────────────
