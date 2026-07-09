@@ -5,6 +5,7 @@ import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, Sparkles,
 import { useWindowStore } from '@/lib/window-store'
 import { APP_MAP, APPS } from './app-registry'
 import { motion, AnimatePresence } from 'framer-motion'
+import { NotificationsPanel } from './notifications-panel'
 
 interface MenuBarProps {
   onSpotlight?: () => void
@@ -20,6 +21,7 @@ export function MenuBar({ onSpotlight, onKrishna }: MenuBarProps) {
   const [volume, setVolume] = useState(80)
   const [muted, setMuted] = useState(false)
   const [showVolume, setShowVolume] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
 
   useEffect(() => {
     const tick = () => setNow(new Date())
@@ -217,9 +219,16 @@ export function MenuBar({ onSpotlight, onKrishna }: MenuBarProps) {
         </button>
 
         <div className="h-3 w-px bg-white/20 mx-1" />
-        <span className="text-[11px] tabular-nums">{dateStr}</span>
-        <span className="text-[11px] tabular-nums ml-1">{timeStr}</span>
+        <button
+          onClick={() => setShowNotifications(v => !v)}
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/15 transition-colors tabular-nums text-[11px]"
+        >
+          <span>{dateStr}</span>
+          <span className="ml-0.5">{timeStr}</span>
+        </button>
       </div>
+
+      <NotificationsPanel open={showNotifications} onClose={() => setShowNotifications(false)} />
     </div>
   )
 }

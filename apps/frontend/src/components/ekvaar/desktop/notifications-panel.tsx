@@ -1,0 +1,183 @@
+'use client'
+
+import { motion, AnimatePresence } from 'framer-motion'
+import { X, Bell, BellOff, CheckCheck, TrendingUp, ShoppingBag, Users, Zap, AlertCircle, Info } from 'lucide-react'
+import { useState } from 'react'
+
+export interface Notification {
+  id: string
+  type: 'order' | 'metric' | 'alert' | 'system' | 'ai'
+  title: string
+  body: string
+  ts: number
+  read: boolean
+}
+
+// Seed with realistic EKVAAR notifications
+const INITIAL: Notification[] = [
+  { id: '1', type: 'order',  title: 'New Order #4821', body: 'Bandhani Kurta Set — ₹3,490 · Rajkot', ts: Date.now() - 4 * 60000, read: false },
+  { id: '2', type: 'metric', title: 'Revenue milestone', body: 'Today crossed ₹1.2L — up 18% vs last Tuesday', ts: Date.now() - 22 * 60000, read: false },
+  { id: '3', type: 'ai',     title: 'Krishna insight', body: 'Lehenga category CTR dropped 12% — consider refreshing hero images', ts: Date.now() - 55 * 60000, read: false },
+  { id: '4', type: 'order',  title: '3 orders awaiting dispatch', body: 'Oldest order is 6h old · act before SLA breach', ts: Date.now() - 2 * 3600000, read: true },
+  { id: '5', type: 'alert',  title: 'Low inventory', body: 'Chanderi Silk Dupatta — only 2 units left', ts: Date.now() - 4 * 3600000, read: true },
+  { id: '6', type: 'system', title: 'Integrations synced', body: 'Shopify + Razorpay data refreshed successfully', ts: Date.now() - 8 * 3600000, read: true },
+]
+
+function relativeTime(ts: number) {
+  const diff = Date.now() - ts
+  if (diff < 60000) return 'just now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  return `${Math.floor(diff / 86400000)}d ago`
+}
+
+const typeIcon: Record<Notification['type'], React.ReactNode> = {
+  order:  <ShoppingBag className="h-3.5 w-3.5" />,
+  metric: <TrendingUp className="h-3.5 w-3.5" />,
+  alert:  <AlertCircle className="h-3.5 w-3.5" />,
+  system: <Info className="h-3.5 w-3.5" />,
+  ai:     <Zap className="h-3.5 w-3.5" />,
+}
+
+const typeColor: Record<Notification['type'], string> = {
+  order:  '#34C759',
+  metric: '#0A84FF',
+  alert:  '#FF9F0A',
+  system: '#636366',
+  ai:     '#BF5AF2',
+}
+
+interface Props { open: boolean; onClose: () => void }
+
+export function NotificationsPanel({ open, onClose }: Props) {
+  const [items, setItems] = useState<Notification[]>(INITIAL)
+  const [dnd, setDnd] = useState(false)
+
+  const unread = items.filter(n => !n.read).length
+
+  const markAll = () => setItems(prev => prev.map(n => ({ ...n, read: true })))
+  const dismiss = (id: string) => setItems(prev => prev.filter(n => n.id !== id))
+  const markRead = (id: string) => setItems(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[8900]"
+            onClick={onClose}
+          />
+          <motion.div
+            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            className="fixed z-[9000] right-2 rounded-2xl overflow-hidden shadow-2xl"
+            style={{
+              top: '32px',
+              width: 360,
+              background: 'rgba(18,18,20,0.96)',
+              backdropFilter: 'blur(40px) saturate(180%)',
+              border: '1px solid rgba(255,255,255,0.09)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-white/[0.06]">
+              <Bell className="h-3.5 w-3.5 text-white/50" />
+              <span className="text-xs font-semibold text-white/80">Notifications</span>
+              {unread > 0 && (
+                <span className="ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-red-500 text-white leading-none">
+                  {unread}
+                </span>
+              )}
+              <div className="ml-auto flex items-center gap-1">
+                {unread > 0 && (
+                  <button onClick={markAll} className="flex items-center gap-1 text-[10px] text-white/35 hover:text-white/70 transition-colors px-1.5 py-1 rounded">
+                    <CheckCheck className="h-3 w-3" /> Mark all read
+                  </button>
+                )}
+                <button
+                  onClick={() => setDnd(d => !d)}
+                  title={dnd ? 'DND on' : 'DND off'}
+                  className={`p-1 rounded transition-colors ${dnd ? 'text-orange-400' : 'text-white/30 hover:text-white/60'}`}
+                >
+                  <BellOff className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={onClose} className="p-1 rounded text-white/30 hover:text-white/70 transition-colors">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Today's summary */}
+            <div className="px-4 py-2.5 border-b border-white/[0.04] flex gap-4">
+              {[
+                { label: 'Orders', value: '14', color: '#34C759' },
+                { label: 'Revenue', value: '₹1.2L', color: '#0A84FF' },
+                { label: 'Pending', value: '3', color: '#FF9F0A' },
+              ].map(s => (
+                <div key={s.label} className="flex flex-col gap-0.5">
+                  <span className="text-[10px] text-white/30">{s.label}</span>
+                  <span className="text-xs font-semibold" style={{ color: s.color }}>{s.value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Notification list */}
+            <div className="max-h-80 overflow-y-auto py-1">
+              {items.length === 0 && (
+                <div className="py-10 text-center text-[11px] text-white/25">All caught up!</div>
+              )}
+              {items.map(n => (
+                <motion.div
+                  key={n.id}
+                  layout
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  onClick={() => markRead(n.id)}
+                  className="group flex items-start gap-3 px-4 py-3 hover:bg-white/[0.04] transition-colors cursor-pointer border-b border-white/[0.03] last:border-0"
+                >
+                  <div
+                    className="mt-0.5 h-6 w-6 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ background: `${typeColor[n.type]}20`, color: typeColor[n.type] }}
+                  >
+                    {typeIcon[n.type]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className={`text-[12px] font-medium leading-tight ${n.read ? 'text-white/50' : 'text-white/90'}`}>
+                        {n.title}
+                      </span>
+                      {!n.read && (
+                        <div className="h-1.5 w-1.5 rounded-full bg-blue-400 shrink-0 mt-1" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-white/35 leading-relaxed mt-0.5 line-clamp-2">{n.body}</p>
+                    <span className="text-[10px] text-white/20 mt-1 block">{relativeTime(n.ts)}</span>
+                  </div>
+                  <button
+                    onClick={e => { e.stopPropagation(); dismiss(n.id) }}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-white/25 hover:text-white/60 transition-all shrink-0 mt-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* DND notice */}
+            {dnd && (
+              <div className="px-4 py-2 border-t border-white/[0.06] flex items-center gap-2">
+                <BellOff className="h-3 w-3 text-orange-400" />
+                <span className="text-[10px] text-orange-400/80">Do Not Disturb is on</span>
+              </div>
+            )}
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  )
+}
