@@ -130,6 +130,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const [micSupported, setMicSupported] = useState(true)
 
   const recognitionRef = useRef<any>(null)
+  const permanentErrorRef = useRef(false)          // set on not-allowed; blocks onend restart
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const bestVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
@@ -215,8 +216,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const stopListening = useCallback(() => {
     if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
     if (recognitionRef.current) {
-      try { recognitionRef.current.stop() } catch {}
-      recognitionRef.current = null
+      const rec = recognitionRef.current
+      recognitionRef.current = null   // null FIRST so onend doesn't restart
+      try { rec.stop() } catch {}
     }
   }, [])
 
@@ -229,6 +231,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     if ('speechSynthesis' in window) window.speechSynthesis.cancel()
 
     stopListening()
+    permanentErrorRef.current = false
 
     const rec = new SR()
     rec.continuous = true
@@ -267,19 +270,22 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     }
 
     rec.onerror = (e: any) => {
-      if (e.error === 'not-allowed') {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        permanentErrorRef.current = true
+        recognitionRef.current = null    // prevent onend restart
         toast.error('Microphone blocked', 'Allow mic access in browser settings')
         setListening(false); setGlobal('idle')
-      } else if (e.error === 'no-speech') {
-        // silent — just keep listening
-      } else if (e.error !== 'aborted') {
+      } else if (e.error === 'no-speech' || e.error === 'aborted') {
+        // transient — onend will handle restart
+      } else {
         console.warn('STT error:', e.error)
       }
     }
 
     rec.onend = () => {
-      // Auto-restart if still in listening state (handles Chrome's 60s limit)
-      if (recognitionRef.current === rec) {
+      // Only restart if this rec is still the active one (not stopped/replaced)
+      // and no permanent error occurred
+      if (recognitionRef.current === rec && !permanentErrorRef.current) {
         try { rec.start() } catch {}
       }
     }
