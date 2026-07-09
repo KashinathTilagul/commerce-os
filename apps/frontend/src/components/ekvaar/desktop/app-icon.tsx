@@ -56,7 +56,7 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'activity':      return <ActivityMonitorIcon size={size} />
     case 'settings':      return <SettingsIcon size={size} />
     case 'files':         return <FinderIcon size={size} />
-    case 'browser':       return <SafariIcon size={size} />
+    case 'browser':       return <BrowserIcon size={size} />
     case 'integrations':  return <IntegrationsIcon size={size} />
     case 'calculator':    return <CalculatorIcon size={size} />
     case 'notes':         return <NotesIcon size={size} />
@@ -683,6 +683,33 @@ function CpuIcon({ size }: { size: number }) {
           <rect x="18" y="9" width="3" height="1" fill="#F5F1EA" />
           <rect x="18" y="12" width="3" height="1" fill="#F5F1EA" />
           <rect x="18" y="15" width="3" height="1" fill="#F5F1EA" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Browser — blue globe with latitude/longitude lines
+function BrowserIcon({ size }: { size: number }) {
+  const s = size * 0.86
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #3AABF5 0%, #1260D6 100%)" />
+      <Highlight opacity={0.22} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.25))' }}>
+          {/* Globe circle */}
+          <circle cx="12" cy="12" r="9.5" fill="#E8F4FF" stroke="rgba(255,255,255,0.6)" strokeWidth="0.4" />
+          {/* Latitude lines */}
+          <ellipse cx="12" cy="12" rx="9.5" ry="3.8" fill="none" stroke="#1260D6" strokeWidth="0.55" opacity="0.35" />
+          <line x1="2.5" y1="12" x2="21.5" y2="12" stroke="#1260D6" strokeWidth="0.55" opacity="0.35" />
+          <line x1="4" y1="7.5" x2="20" y2="7.5" stroke="#1260D6" strokeWidth="0.45" opacity="0.28" />
+          <line x1="4" y1="16.5" x2="20" y2="16.5" stroke="#1260D6" strokeWidth="0.45" opacity="0.28" />
+          {/* Longitude lines */}
+          <ellipse cx="12" cy="12" rx="4.2" ry="9.5" fill="none" stroke="#1260D6" strokeWidth="0.55" opacity="0.35" />
+          <line x1="12" y1="2.5" x2="12" y2="21.5" stroke="#1260D6" strokeWidth="0.55" opacity="0.35" />
+          {/* Outer ring */}
+          <circle cx="12" cy="12" r="9.5" fill="none" stroke="#1260D6" strokeWidth="0.6" opacity="0.5" />
         </svg>
       </Glyph>
     </>

@@ -30,7 +30,7 @@ export default withAuth(
       : `'self' 'nonce-${nonce}' 'strict-dynamic'`
     response.headers.set(
       "Content-Security-Policy",
-      `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'${isDev ? " ws:" : ""}; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
+      `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:${isDev ? " ws:" : ""}; frame-src https: http:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
     )
 
     response.cookies.set("x-request-nonce", nonce, {
