@@ -28,75 +28,95 @@ export function MusicPlayer() {
 
   const current = TRACKS[currentIdx]
 
-  // Web Audio API — generates ambient tones matching each track
   const audioCtxRef = useRef<AudioContext | null>(null)
-  const oscRef = useRef<OscillatorNode | null>(null)
-  const gainRef = useRef<GainNode | null>(null)
-  const lfoRef = useRef<OscillatorNode | null>(null)
+  // Capture current playing nodes so stopAudio closures don't stomp new ones
+  const activeNodesRef = useRef<{ osc: OscillatorNode; osc2: OscillatorNode; lfo: OscillatorNode; gain: GainNode } | null>(null)
 
-  // Frequency per track (mapped from color)
-  const TRACK_FREQS = [220, 261.63, 293.66, 329.63, 392, 440, 174.61, 233.08]
+  // Root notes per track (A2, C3, D3, E3, G3, A3, F2, A#2)
+  const TRACK_FREQS = [110, 130.81, 146.83, 164.81, 196, 220, 87.31, 116.54]
 
-  const startAudio = () => {
-    if (typeof window === 'undefined') return
+  const getCtx = () => {
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
     }
-    const ctx = audioCtxRef.current
-    if (ctx.state === 'suspended') ctx.resume()
+    if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume()
+    return audioCtxRef.current
+  }
 
-    // Stop existing
-    stopAudio()
+  // Capture nodes locally so the fade-out timer stops the RIGHT nodes
+  const killNodes = (nodes: typeof activeNodesRef.current, ctx: AudioContext) => {
+    if (!nodes) return
+    nodes.gain.gain.cancelScheduledValues(ctx.currentTime)
+    nodes.gain.gain.setValueAtTime(nodes.gain.gain.value, ctx.currentTime)
+    nodes.gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.25)
+    setTimeout(() => {
+      try { nodes.osc.stop(); nodes.osc2.stop(); nodes.lfo.stop() } catch {}
+      nodes.gain.disconnect()
+    }, 280)
+  }
 
-    // Main oscillator
+  const startAudio = (idx: number, vol: number) => {
+    if (typeof window === 'undefined') return
+    const ctx = getCtx()
+
+    // Stop previous nodes without touching activeNodesRef yet
+    const prev = activeNodesRef.current
+    activeNodesRef.current = null
+    if (prev) killNodes(prev, ctx)
+
+    const freq = TRACK_FREQS[idx]
+    const targetGain = (vol / 100) * 0.55   // louder: 0–0.55
+
+    // Master gain
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0, ctx.currentTime)
+    gain.gain.linearRampToValueAtTime(targetGain, ctx.currentTime + 0.4)
+    gain.connect(ctx.destination)
+
+    // Fundamental sine
     const osc = ctx.createOscillator()
     osc.type = 'sine'
-    osc.frequency.value = TRACK_FREQS[currentIdx]
-
-    // Gain (volume)
-    const gain = ctx.createGain()
-    gain.gain.value = 0
-    gain.gain.linearRampToValueAtTime((volume[0] / 100) * 0.15, ctx.currentTime + 0.3)
-
-    // LFO for subtle vibrato
-    const lfo = ctx.createOscillator()
-    lfo.frequency.value = 0.5
-    const lfoGain = ctx.createGain()
-    lfoGain.gain.value = 3
-    lfo.connect(lfoGain)
-    lfoGain.connect(osc.frequency)
-
+    osc.frequency.setValueAtTime(freq, ctx.currentTime)
     osc.connect(gain)
-    gain.connect(ctx.destination)
     osc.start()
+
+    // Perfect fifth overtone (lower gain) — gives warmth
+    const osc2 = ctx.createOscillator()
+    osc2.type = 'sine'
+    osc2.frequency.setValueAtTime(freq * 1.5, ctx.currentTime)
+    const g2 = ctx.createGain()
+    g2.gain.value = 0.3
+    osc2.connect(g2)
+    g2.connect(gain)
+    osc2.start()
+
+    // Slow LFO tremolo on master gain
+    const lfo = ctx.createOscillator()
+    lfo.frequency.value = 0.4
+    const lfoGain = ctx.createGain()
+    lfoGain.gain.value = targetGain * 0.12
+    lfo.connect(lfoGain)
+    lfoGain.connect(gain.gain)
     lfo.start()
 
-    oscRef.current = osc
-    gainRef.current = gain
-    lfoRef.current = lfo
+    activeNodesRef.current = { osc, osc2, lfo, gain }
   }
 
   const stopAudio = () => {
-    if (gainRef.current && audioCtxRef.current) {
-      gainRef.current.gain.linearRampToValueAtTime(0, audioCtxRef.current.currentTime + 0.2)
-    }
-    setTimeout(() => {
-      try {
-        oscRef.current?.stop()
-        lfoRef.current?.stop()
-      } catch {}
-      oscRef.current = null
-      lfoRef.current = null
-    }, 250)
+    const nodes = activeNodesRef.current
+    activeNodesRef.current = null
+    if (nodes && audioCtxRef.current) killNodes(nodes, audioCtxRef.current)
   }
 
-  // Cleanup on unmount
+  // Update gain when volume slider changes while playing
   useEffect(() => {
-    return () => {
-      stopAudio()
-      audioCtxRef.current?.close()
-    }
-  }, [])
+    if (!playing || !activeNodesRef.current || !audioCtxRef.current) return
+    const g = (volume[0] / 100) * 0.55
+    activeNodesRef.current.gain.gain.cancelScheduledValues(audioCtxRef.current.currentTime)
+    activeNodesRef.current.gain.gain.setValueAtTime(g, audioCtxRef.current.currentTime)
+  }, [volume, playing])
+
+  useEffect(() => () => { stopAudio(); audioCtxRef.current?.close() }, [])
 
   // Progress timer
   useEffect(() => {
@@ -104,55 +124,45 @@ export function MusicPlayer() {
     const t = setInterval(() => {
       setProgress((p) => {
         if (p >= current.duration) {
-          // Auto-advance
-          setCurrentIdx((i) => (i + 1) % TRACKS.length)
+          setCurrentIdx((i) => {
+            const next = (i + 1) % TRACKS.length
+            setTimeout(() => startAudio(next, volume[0]), 0)
+            return next
+          })
           return 0
         }
         return p + 1
       })
     }, 1000)
     return () => clearInterval(t)
-  }, [playing, current.duration])
+  }, [playing, current.duration, volume])
 
   // Visualizer
   useEffect(() => {
-    if (!playing) {
-      const raf = requestAnimationFrame(() => setBars(Array(48).fill(10)))
-      return () => cancelAnimationFrame(raf)
-    }
-    const t = setInterval(() => {
-      setBars(Array.from({ length: 48 }, () => 10 + Math.floor(Math.random() * 80)))
-    }, 100)
+    if (!playing) { setBars(Array(48).fill(10)); return }
+    const t = setInterval(() => setBars(Array.from({ length: 48 }, () => 10 + Math.floor(Math.random() * 80))), 100)
     return () => clearInterval(t)
   }, [playing])
 
   const togglePlay = () => {
-    if (playing) {
-      stopAudio()
-      setPlaying(false)
-    } else {
-      startAudio()
-      setPlaying(true)
-    }
+    if (playing) { stopAudio(); setPlaying(false) }
+    else { startAudio(currentIdx, volume[0]); setPlaying(true) }
   }
   const next = () => {
-    stopAudio()
-    setCurrentIdx((i) => (i + 1) % TRACKS.length)
-    setProgress(0)
-    if (playing) setTimeout(() => startAudio(), 100)
+    const idx = (currentIdx + 1) % TRACKS.length
+    setCurrentIdx(idx); setProgress(0)
+    if (playing) startAudio(idx, volume[0])
+    else stopAudio()
   }
   const prev = () => {
-    stopAudio()
-    setCurrentIdx((i) => (i - 1 + TRACKS.length) % TRACKS.length)
-    setProgress(0)
-    if (playing) setTimeout(() => startAudio(), 100)
+    const idx = (currentIdx - 1 + TRACKS.length) % TRACKS.length
+    setCurrentIdx(idx); setProgress(0)
+    if (playing) startAudio(idx, volume[0])
+    else stopAudio()
   }
   const selectTrack = (i: number) => {
-    stopAudio()
-    setCurrentIdx(i)
-    setProgress(0)
-    setPlaying(true)
-    setTimeout(() => startAudio(), 100)
+    setCurrentIdx(i); setProgress(0); setPlaying(true)
+    startAudio(i, volume[0])
   }
   const toggleLike = (i: number) => {
     setLiked((prev) => {
