@@ -11,7 +11,6 @@ export type AppId =
   | 'activity'
   | 'settings'
   | 'files'
-  | 'browser'
   | 'integrations'
   | 'calculator'
   | 'notes'

@@ -131,6 +131,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const recognitionRef = useRef<any>(null)
   const listeningRef = useRef(false)               // ref mirror of listening state
+  const voiceSessionRef = useRef(false)            // true = user started a voice conversation
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendRef = useRef<(text: string) => void>(() => {})   // always-fresh sendToKrishna ref
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -144,18 +145,19 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     const pick = () => {
       const vs = window.speechSynthesis.getVoices()
       if (!vs.length) return
-      // Ordered preference — neural/natural sounding English voices
-      const preferred = [
-        'Google UK English Female', 'Google UK English Male',
-        'Microsoft Aria', 'Microsoft Guy', 'Microsoft Natasha',
-        'Samantha', 'Karen', 'Daniel', 'Oliver', 'Arthur',
-        'Google US English', 'Microsoft David',
+      // Male voice priority — Jarvis-like deep English voice
+      const malePriority = [
+        'Google UK English Male', 'Microsoft Guy Online',
+        'Microsoft David Online', 'Microsoft David',
+        'Daniel', 'Oliver', 'Arthur', 'Fred',
+        'Google US English', 'Microsoft Zira Online',
       ]
-      for (const name of preferred) {
+      for (const name of malePriority) {
         const m = vs.find(v => v.name.includes(name) && v.lang.startsWith('en'))
         if (m) { bestVoiceRef.current = m; return }
       }
-      bestVoiceRef.current = vs.find(v => v.lang.startsWith('en-')) || vs.find(v => v.lang.startsWith('en')) || vs[0]
+      // Fallback: any English male-sounding voice, then any English voice
+      bestVoiceRef.current = vs.find(v => v.lang.startsWith('en-GB')) || vs.find(v => v.lang.startsWith('en-')) || vs[0]
     }
     pick()
     window.speechSynthesis.onvoiceschanged = pick
@@ -206,12 +208,13 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const closePanel = useCallback(() => {
     setExpanded(false)
+    voiceSessionRef.current = false
     stopListening()
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
     setGlobal('idle')
     setListening(false)
     setTranscript('')
-  }, [])
+  }, [stopListening])
 
   // ── STT helpers ────────────────────────────────────────────────────────
   const stopListening = useCallback(() => {
@@ -300,6 +303,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     stopListening()
 
     listeningRef.current = true
+    voiceSessionRef.current = true
     setListening(true)
     setTranscript('')
     setGlobal('listening')
@@ -309,6 +313,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const toggleListening = useCallback(() => {
     if (listeningRef.current) {
+      // Manual stop — end voice session
+      voiceSessionRef.current = false
       const text = transcript.trim()
       stopListening()
       setListening(false)
@@ -320,7 +326,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     }
   }, [transcript, startListening, stopListening])
 
-  // ── TTS — sentence-by-sentence for natural pacing ─────────────────────
+  // ── TTS — sentence-by-sentence, then auto-restart mic ─────────────────
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) { setGlobal('idle'); return }
@@ -330,23 +336,36 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     const sentences = toSentences(toSpeech(text))
 
     for (const sentence of sentences) {
-      if (gState !== 'talking') break          // interrupted
+      if (gState !== 'talking') break
       await new Promise<void>((resolve) => {
         const u = new SpeechSynthesisUtterance(sentence)
         if (bestVoiceRef.current) u.voice = bestVoiceRef.current
-        u.rate = 0.95          // slightly slower = more natural
-        u.pitch = 1.05         // slightly warmer
+        u.rate = 0.92   // slightly slower — Jarvis-style deliberate pacing
+        u.pitch = 0.9   // lower pitch = deeper/more masculine
         u.volume = 1.0
         let done = false
         const finish = () => { if (!done) { done = true; resolve() } }
         u.onend = finish
         u.onerror = finish
-        setTimeout(finish, sentence.length * 80 + 2000)   // safety timeout
+        setTimeout(finish, sentence.length * 75 + 1500)
         window.speechSynthesis.speak(u)
       })
     }
     setGlobal('idle')
-  }, [muted])
+
+    // Auto-restart mic if this was a voice conversation (user clicked mic first)
+    if (voiceSessionRef.current && !listeningRef.current) {
+      setTimeout(() => {
+        if (voiceSessionRef.current && !listeningRef.current) {
+          listeningRef.current = true
+          setListening(true)
+          setTranscript('')
+          setGlobal('listening')
+          spawnRec({ text: '' })
+        }
+      }, 350)
+    }
+  }, [muted, spawnRec])
 
   // ── Send message to Krishna API ────────────────────────────────────────
   const sendToKrishna = useCallback(async (text: string) => {

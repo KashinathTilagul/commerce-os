@@ -2,7 +2,7 @@
 
 import {
   LayoutDashboard, Inbox, Users, GitBranch, Terminal as TerminalIcon,
-  Activity, Settings as SettingsIcon, FolderOpen, Globe, Plug,
+  Activity, Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon, Music,
   Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
 } from 'lucide-react'
@@ -15,7 +15,6 @@ import { TerminalModule } from '@/components/ekvaar/modules/terminal'
 import { ActivityMonitor } from '@/components/ekvaar/modules/activity-monitor'
 import { Settings } from '@/components/ekvaar/modules/settings'
 import { Files } from '@/components/ekvaar/modules/files'
-import { Browser } from '@/components/ekvaar/modules/browser'
 import { Integrations } from '@/components/ekvaar/modules/integrations'
 import { Calculator } from '@/components/ekvaar/modules/calculator'
 import { Notes } from '@/components/ekvaar/modules/notes'
@@ -162,21 +161,6 @@ export const APPS: AppDef[] = [
       { label: 'File', items: ['New Folder', 'Upload', 'Close Window'] },
       { label: 'View', items: ['Icons', 'List', 'Columns'] },
       { label: 'Go', items: ['Recents', 'Documents', 'Agent Logs', 'Event Ledger'] },
-    ],
-  },
-  {
-    id: 'browser',
-    name: 'Browser',
-    shortName: 'Browser',
-    icon: Globe,
-    iconVariant: 'browser',
-    gradient: 'linear-gradient(135deg, #2A9FF5 0%, #1573D6 100%)',
-    glyphColor: '#F5F1EA',
-    component: Browser,
-    menuItems: [
-      { label: 'File', items: ['New Tab', 'New Window', 'Close Window'] },
-      { label: 'History', items: ['Back', 'Forward', 'Home'] },
-      { label: 'Bookmarks', items: ['EKVAAR Journal', 'Shopify Admin', 'Stripe', 'Brand Book'] },
     ],
   },
   {
@@ -382,7 +366,7 @@ export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
 ) as Record<AppId, AppDef>
 
 // IDs that belong to the "core OS" group (left of dock divider)
-export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'activity', 'settings', 'files', 'browser', 'integrations']
+export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'activity', 'settings', 'files', 'integrations']
 export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar', 'music']
 export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai']
 
