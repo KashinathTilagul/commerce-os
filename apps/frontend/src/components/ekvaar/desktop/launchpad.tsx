@@ -17,9 +17,10 @@ interface LaunchpadProps {
 
 export function Launchpad({ open, onClose }: LaunchpadProps) {
   const { open: openWindow } = useWindowStore()
-  const { customNames } = useAppVisibilityStore()
+  const store = useAppVisibilityStore()
+  const customNames = store.customNames || {}
   const [search, setSearch] = useState('')
-
+  
   useEffect(() => {
     if (!open) {
       const raf = requestAnimationFrame(() => setSearch(''))

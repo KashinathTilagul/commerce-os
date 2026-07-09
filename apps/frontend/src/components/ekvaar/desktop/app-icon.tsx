@@ -48,7 +48,7 @@ function Squircle({ size, children }: { size: number; children: React.ReactNode 
 function IconVariant({ variant, size }: { variant: string; size: number }) {
   switch (variant) {
     case 'launchpad':     return <LaunchpadIcon size={size} />
-    case 'board-room':    return <SystemSettingsIcon size={size} />
+    case 'board-room':    return <BoardRoomIcon size={size} />
     case 'inbox':         return <MailIcon size={size} />
     case 'agents':        return <ContactsIcon size={size} />
     case 'issues':        return <RemindersIcon size={size} />
@@ -63,10 +63,10 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'calendar':      return <CalendarIcon size={size} />
     case 'music':         return <MusicIcon size={size} />
     case 'house':         return <BoxesIcon size={size} />
-    case 'sales':         return <AppStoreIcon size={size} />
+    case 'sales':         return <SalesIcon size={size} />
     case 'finance':       return <WalletIcon size={size} />
-    case 'inventory':     return <FindMyIcon size={size} />
-    case 'community':     return <PhotosIcon size={size} />
+    case 'inventory':     return <InventoryIcon size={size} />
+    case 'community':     return <CommunityIcon size={size} />
     case 'campaigns':     return <NewsIcon size={size} />
     case 'guardian':      return <ShieldIcon size={size} />
     case 'ai':            return <CpuIcon size={size} />
@@ -683,6 +683,101 @@ function CpuIcon({ size }: { size: number }) {
           <rect x="18" y="9" width="3" height="1" fill="#F5F1EA" />
           <rect x="18" y="12" width="3" height="1" fill="#F5F1EA" />
           <rect x="18" y="15" width="3" height="1" fill="#F5F1EA" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Board Room — dark command-center dashboard with KPI tiles
+function BoardRoomIcon({ size }: { size: number }) {
+  const s = size * 0.72
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #1A2A1A 0%, #0A0A0A 50%, #2C1A1A 100%)" />
+      <Highlight opacity={0.12} stop={35} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.4))' }}>
+          {/* Top KPI row */}
+          <rect x="2" y="3" width="9" height="5" rx="1" fill="#2F4F3A" />
+          <rect x="13" y="3" width="9" height="5" rx="1" fill="#C8302A" opacity="0.85" />
+          {/* Trend line chart */}
+          <rect x="2" y="10" width="20" height="7" rx="1" fill="#1F3A5F" opacity="0.9" />
+          <polyline points="4,15 7,12 10,13.5 13,11 16,13 19,10.5" stroke="#F5F1EA" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Bottom bar */}
+          <rect x="2" y="19" width="5" height="2.5" rx="0.5" fill="#2F4F3A" />
+          <rect x="9" y="19" width="5" height="2.5" rx="0.5" fill="#C8302A" opacity="0.7" />
+          <rect x="16" y="19" width="6" height="2.5" rx="0.5" fill="#1F3A5F" opacity="0.8" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Sales & Orders — red gradient with shopping bag
+function SalesIcon({ size }: { size: number }) {
+  const s = size * 0.6
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #E84040 0%, #8B1E1A 100%)" />
+      <Highlight opacity={0.25} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.35))' }}>
+          {/* Bag body */}
+          <path d="M5 8h14l-1.5 12H6.5L5 8z" fill="#FFFFFF" />
+          {/* Bag handle */}
+          <path d="M9 8V6a3 3 0 016 0v2" stroke="#FFFFFF" strokeWidth="2" fill="none" strokeLinecap="round" />
+          {/* Price tag line */}
+          <line x1="9" y1="14" x2="15" y2="14" stroke="#C8302A" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Inventory & Ops — blue-green gradient with stacked package
+function InventoryIcon({ size }: { size: number }) {
+  const s = size * 0.64
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #2A5F6A 0%, #1F3A5F 100%)" />
+      <Highlight opacity={0.22} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.35))' }}>
+          {/* Top package */}
+          <rect x="6" y="3" width="12" height="7" rx="1.2" fill="#F5F1EA" />
+          <line x1="12" y1="3" x2="12" y2="10" stroke="#1F3A5F" strokeWidth="1" opacity="0.4" />
+          <rect x="9.5" y="5.5" width="5" height="1.2" rx="0.6" fill="#1F3A5F" opacity="0.25" />
+          {/* Bottom-left package */}
+          <rect x="2" y="13" width="9" height="8" rx="1.2" fill="#F5F1EA" opacity="0.88" />
+          <line x1="6.5" y1="13" x2="6.5" y2="21" stroke="#1F3A5F" strokeWidth="1" opacity="0.35" />
+          {/* Bottom-right package */}
+          <rect x="13" y="13" width="9" height="8" rx="1.2" fill="#F5F1EA" opacity="0.75" />
+          <line x1="17.5" y1="13" x2="17.5" y2="21" stroke="#1F3A5F" strokeWidth="1" opacity="0.3" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+// Community / Originals — rose gradient with member silhouettes
+function CommunityIcon({ size }: { size: number }) {
+  const s = size * 0.66
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #D4859B 0%, #8B5468 100%)" />
+      <Highlight opacity={0.25} stop={45} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
+          {/* Left person */}
+          <circle cx="6.5" cy="8" r="2.6" fill="#F5F1EA" opacity="0.82" />
+          <path d="M1 21c0-3 2.5-5.5 5.5-5.5S12 18 12 21H1z" fill="#F5F1EA" opacity="0.82" />
+          {/* Right person */}
+          <circle cx="17.5" cy="8" r="2.6" fill="#F5F1EA" opacity="0.82" />
+          <path d="M12 21c0-3 2.5-5.5 5.5-5.5S23 18 23 21H12z" fill="#F5F1EA" opacity="0.82" />
+          {/* Center person (front) */}
+          <circle cx="12" cy="7" r="3" fill="#FFFFFF" />
+          <path d="M5.5 21c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5H5.5z" fill="#FFFFFF" />
         </svg>
       </Glyph>
     </>

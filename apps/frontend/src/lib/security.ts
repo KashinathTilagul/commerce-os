@@ -1,0 +1,189 @@
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+
+export interface RateLimitConfig {
+  windowMs: number
+  maxRequests: number
+}
+
+export const RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
+  default: { windowMs: 60000, maxRequests: 100 },
+  api: { windowMs: 60000, maxRequests: 60 },
+  auth: { windowMs: 900000, maxRequests: 5 },
+  chat: { windowMs: 60000, maxRequests: 20 },
+  seed: { windowMs: 3600000, maxRequests: 2 },
+}
+
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
+
+export function checkRateLimit(ip: string, path: string): { allowed: boolean; retryAfter: number } {
+  const config = path.includes("/api/auth") ? RATE_LIMIT_CONFIG.auth
+    : path.includes("/api/jarvis/chat") ? RATE_LIMIT_CONFIG.chat
+    : path.includes("/api/seed") ? RATE_LIMIT_CONFIG.seed
+    : path.startsWith("/api/") ? RATE_LIMIT_CONFIG.api
+    : RATE_LIMIT_CONFIG.default
+
+  const key = `${ip}:${path.split("/").slice(0, 3).join("/")}`
+  const now = Date.now()
+  const record = rateLimitStore.get(key)
+
+  if (!record || now > record.resetTime) {
+    rateLimitStore.set(key, { count: 1, resetTime: now + config.windowMs })
+    return { allowed: true, retryAfter: 0 }
+  }
+
+  if (record.count >= config.maxRequests) {
+    return { allowed: false, retryAfter: Math.ceil((record.resetTime - now) / 1000) }
+  }
+
+  record.count++
+  return { allowed: true, retryAfter: 0 }
+}
+
+export function getClientIP(req: NextRequest): string {
+  const forwarded = req.headers.get("x-forwarded-for")
+  const realIP = req.headers.get("x-real-ip")
+  const cfIP = req.headers.get("cf-connecting-ip")
+  
+  return cfIP || realIP || (forwarded?.split(",")[0]?.trim()) || "unknown"
+}
+
+interface SanitizeOptions {
+  stripHtml?: boolean
+  maxLength?: number
+  allowedTags?: string[]
+}
+
+const DANGEROUS_PATTERNS = [
+  /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+  /javascript:/gi,
+  /on\w+\s*=/gi,
+  /data:/gi,
+  /vbscript:/gi,
+]
+
+export function sanitizeInput(input: string, options: SanitizeOptions = {}): string {
+  if (typeof input !== "string") return ""
+
+  let sanitized = input
+
+  for (const pattern of DANGEROUS_PATTERNS) {
+    sanitized = sanitized.replace(pattern, "")
+  }
+
+  if (options.stripHtml) {
+    sanitized = sanitized.replace(/<[^>]*>/g, "")
+  }
+
+  if (options.maxLength) {
+    sanitized = sanitized.slice(0, options.maxLength)
+  }
+
+  return sanitized.trim()
+}
+
+export function sanitizeObject<T extends Record<string, any>>(
+  obj: T,
+  options: SanitizeOptions = {}
+): T {
+  const result: Record<string, any> = {}
+
+  for (const [key, value] of Object.entries(obj)) {
+    const cleanKey = sanitizeInput(key, { maxLength: 50 })
+    
+    if (typeof value === "string") {
+      result[cleanKey] = sanitizeInput(value, options)
+    } else if (typeof value === "object" && value !== null) {
+      result[cleanKey] = sanitizeObject(value, options)
+    } else {
+      result[cleanKey] = value
+    }
+  }
+
+  return result as T
+}
+
+export function maskEmail(email: string): string {
+  if (!email || !email.includes("@")) return "***@***"
+  const [local, domain] = email.split("@")
+  const maskedLocal = local.charAt(0) + "*".repeat(Math.min(local.length - 1, 5))
+  return `${maskedLocal}@${domain}`
+}
+
+export function maskPhone(phone: string): string {
+  if (!phone) return "***"
+  return phone.slice(0, 2) + "*".repeat(Math.max(phone.length - 4, 0)) + phone.slice(-2)
+}
+
+const SENSITIVE_FIELDS = ["password", "token", "secret", "apiKey", "secretKey", "accessToken", "refreshToken"]
+
+export function filterSensitiveData<T>(data: T): T {
+  if (typeof data !== "object" || data === null) return data
+
+  if (Array.isArray(data)) {
+    return data.map(item => filterSensitiveData(item)) as T
+  }
+
+  const result: Record<string, any> = {}
+  for (const [key, value] of Object.entries(data as Record<string, any>)) {
+    if (SENSITIVE_FIELDS.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
+      result[key] = "***REDACTED***"
+    } else if (typeof value === "object" && value !== null) {
+      result[key] = filterSensitiveData(value)
+    } else {
+      result[key] = value
+    }
+  }
+
+  return result as T
+}
+
+export function generateCSRFToken(): string {
+  return Buffer.from(`${Date.now()}:${crypto.randomUUID()}`).toString("base64url")
+}
+
+export function validateCSRFToken(token: string, storedToken: string): boolean {
+  if (!token || !storedToken) return false
+  return token === storedToken
+}
+
+export function createApiResponse<T>(data: T, status = 200) {
+  return NextResponse.json(filterSensitiveData(data), { status })
+}
+
+export function createApiError(message: string, status = 400, details?: Record<string, any>) {
+  return NextResponse.json(
+    { 
+      error: sanitizeInput(message, { maxLength: 200 }),
+      ...(process.env.NODE_ENV === "development" && details ? { details } : {})
+    },
+    { status }
+  )
+}
+
+export function withValidation<T extends z.ZodType>(schema: T, handler: (data: z.infer<T>) => Promise<NextResponse>) {
+  return async (req: NextRequest) => {
+    try {
+      const body = await req.json()
+      const sanitized = sanitizeObject(body, { stripHtml: true })
+      const validated = schema.parse(sanitized)
+      return handler(validated)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return createApiError("Validation error", 400, { 
+          issues: error.issues.map(i => ({ path: i.path.join("."), message: i.message }))
+        })
+      }
+      return createApiError("Invalid request body", 400)
+    }
+  }
+}
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, record] of rateLimitStore.entries()) {
+    if (now > record.resetTime) {
+      rateLimitStore.delete(key)
+    }
+  }
+}, 60000)

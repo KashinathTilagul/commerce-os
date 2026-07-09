@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { createApiResponse, createApiError } from "@/lib/security";
+import { requireRole } from "@/lib/auth-guard";
 import { db } from "@/lib/db";
 import { seedIntegrations } from "@/lib/composio-service";
 
-// ─── Agent Seed Data ─────────────────────────────────────────────
 const AGENTS = [
   { code: "FOUNDER", name: "Kashinath", role: "Founder & Visionary", department: "EXECUTIVE", primeDirective: "Define the soul and direction of EKVAAR. Every decision must serve permanence.", description: "The human founder and creative force behind EKVAAR.", skills: "vision,strategy,brand,design,culture", avatarColor: "#c084fc", isHuman: true },
   { code: "CEO", name: "Arjun", role: "Chief Executive Officer", department: "EXECUTIVE", primeDirective: "Execute the founder's vision. Coordinate all departments. Drive growth while preserving brand integrity.", description: "Digital CEO managing day-to-day operations and strategic execution.", skills: "strategy,operations,leadership,analytics,governance", avatarColor: "#f472b6" },
@@ -18,7 +19,6 @@ const AGENTS = [
   { code: "LEGAL", name: "Aditya", role: "Legal Manager", department: "LEGAL", primeDirective: "Protect EKVAAR legally. Ensure compliance across all operations.", description: "Digital Legal Manager handling compliance, contracts, and governance.", skills: "legal,compliance,contracts,ip,governance", avatarColor: "#94a3b8" },
 ];
 
-// ─── Product Seed Data ───────────────────────────────────────────
 const PRODUCTS = [
   { name: "Noor Black Essential Tee", sku: "SOL-BLK-TEE-001", house: "Solids", color: "Noor Black", category: "tee", price: 1999, cost: 600, stock: 150, material: "220 GSM Heavyweight Cotton", description: "The foundation. Pure black, zero compromise.", imageHue: 0 },
   { name: "Rui White Foundation Tee", sku: "SOL-WHT-TEE-001", house: "Solids", color: "Rui White", category: "tee", price: 1999, cost: 600, stock: 120, material: "220 GSM Heavyweight Cotton", description: "Clean canvas. Built to last.", imageHue: 0 },
@@ -30,7 +30,6 @@ const PRODUCTS = [
   { name: "Origins White Kurta", sku: "ORI-WHT-KUR-001", house: "Origins", color: "Rui White", category: "accessory", price: 3999, cost: 1200, stock: 40, material: "Hand-spun Khadi", description: "Rooted in tradition. Built for tomorrow.", imageHue: 0 },
 ];
 
-// ─── Customer Seed Data ──────────────────────────────────────────
 const CUSTOMERS = [
   { name: "Aarav Sharma", email: "aarav@example.com", phone: "+91-9876543210", city: "Mumbai", tier: "FOUNDER_CIRCLE", totalOrders: 12, totalSpent: 45000 },
   { name: "Meera Patel", email: "meera@example.com", phone: "+91-9876543211", city: "Ahmedabad", tier: "ARCHIVE", totalOrders: 8, totalSpent: 28000 },
@@ -40,7 +39,6 @@ const CUSTOMERS = [
   { name: "Ananya Joshi", email: "ananya@example.com", phone: "+91-9876543215", city: "Hyderabad", tier: "HOUSE", totalOrders: 6, totalSpent: 22000 },
 ];
 
-// ─── AI Systems Seed Data ────────────────────────────────────────
 const AI_SYSTEMS = [
   { name: "Brand Guardian", status: "ACTIVE", health: 98, tasksToday: 12, tasksTotal: 1450, accuracy: 99.2, description: "Monitors every output for brand alignment — tone, color, philosophy.", pillar: "brand" },
   { name: "Content Engine", status: "ACTIVE", health: 95, tasksToday: 8, tasksTotal: 890, accuracy: 96.5, description: "Generates campaign copy, social posts, and journal entries.", pillar: "content" },
@@ -51,11 +49,9 @@ const AI_SYSTEMS = [
   { name: "Operations AI", status: "ACTIVE", health: 96, tasksToday: 10, tasksTotal: 1800, accuracy: 97.3, description: "Supply chain optimization, logistics, and workflow automation.", pillar: "operations" },
 ];
 
-// ─── Seed Function ───────────────────────────────────────────────
 async function seedDatabase() {
   const results: Record<string, number> = {};
 
-  // Seed Agents
   for (const agent of AGENTS) {
     await db.agent.upsert({
       where: { code: agent.code },
@@ -65,7 +61,6 @@ async function seedDatabase() {
   }
   results.agents = AGENTS.length;
 
-  // Seed Products
   for (const product of PRODUCTS) {
     await db.product.upsert({
       where: { sku: product.sku },
@@ -75,7 +70,6 @@ async function seedDatabase() {
   }
   results.products = PRODUCTS.length;
 
-  // Seed Customers
   for (const customer of CUSTOMERS) {
     await db.customer.upsert({
       where: { email: customer.email },
@@ -85,7 +79,6 @@ async function seedDatabase() {
   }
   results.customers = CUSTOMERS.length;
 
-  // Seed AI Systems
   const existingAI = await db.aISystem.count();
   if (existingAI === 0) {
     for (const system of AI_SYSTEMS) {
@@ -94,11 +87,9 @@ async function seedDatabase() {
   }
   results.aiSystems = AI_SYSTEMS.length;
 
-  // Seed Integrations (from composio-service)
   const integrationCount = await seedIntegrations();
   results.integrations = integrationCount;
 
-  // Seed sample orders
   const existingOrders = await db.order.count();
   if (existingOrders === 0) {
     const orders = [
@@ -114,7 +105,6 @@ async function seedDatabase() {
     results.orders = orders.length;
   }
 
-  // Seed sample transactions
   const existingTx = await db.transaction.count();
   if (existingTx === 0) {
     const transactions = [
@@ -131,7 +121,6 @@ async function seedDatabase() {
     results.transactions = transactions.length;
   }
 
-  // Seed sample campaigns
   const existingCampaigns = await db.campaign.count();
   if (existingCampaigns === 0) {
     const campaigns = [
@@ -145,7 +134,6 @@ async function seedDatabase() {
     results.campaigns = campaigns.length;
   }
 
-  // Seed supplier data
   const existingSuppliers = await db.supplier.count();
   if (existingSuppliers === 0) {
     const suppliers = [
@@ -162,25 +150,20 @@ async function seedDatabase() {
   return results;
 }
 
-// ─── API Route ───────────────────────────────────────────────────
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const authResult = await requireRole(["ADMIN"])
+  if (!authResult.success) return authResult.response
+
   try {
     const results = await seedDatabase();
-    return NextResponse.json({ success: true, seeded: results });
+    return createApiResponse({ success: true, seeded: results });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Seed error:", message);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    console.error("[API] Seed error:", message);
+    return createApiError("Seed operation failed", 500);
   }
 }
 
-export async function GET() {
-  // Also allow GET for easy browser access
-  try {
-    const results = await seedDatabase();
-    return NextResponse.json({ success: true, seeded: results });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+export async function GET(req: NextRequest) {
+  return createApiError("GET method not allowed for seed endpoint. Use POST with admin authentication.", 405);
 }

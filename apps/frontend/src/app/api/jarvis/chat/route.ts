@@ -1,24 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
+import { createApiResponse, createApiError, sanitizeInput } from '@/lib/security'
+import { requireAuth } from '@/lib/auth-guard'
+import { z } from 'zod'
 
-// POST /api/jarvis/chat — Krishna (CEO/Jarvis) thinks and responds
-// Supports multi-step actions: open apps, approve/reject, execute tools
+const ChatSchema = z.object({
+  message: z.string().min(1).max(10000),
+  context: z.record(z.any()).optional(),
+  activeWindow: z.string().max(200).optional(),
+})
+
 export async function POST(req: NextRequest) {
-  try {
-    const { message, context, activeWindow } = await req.json()
+  const authResult = await requireAuth()
+  if (!authResult.success) return authResult.response
 
-    if (!message) {
-      return NextResponse.json({ error: 'Message required' }, { status: 400 })
-    }
+  try {
+    const body = await req.json()
+    const validated = ChatSchema.parse(body)
+    const { message, context, activeWindow } = validated
 
     const ZAI = (await import('z-ai-web-dev-sdk')).default
     const zai = await ZAI.create()
 
-    // Build context with active window info
     const screenContext = activeWindow
-      ? `The founder is currently looking at: ${activeWindow}. `
+      ? `The founder is currently looking at: ${sanitizeInput(activeWindow, { maxLength: 100 })}. `
       : 'The founder is on the desktop with no specific window open. '
 
-    // Get real IST time
     const now = new Date()
     const istTime = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true })
     const istDate = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -96,14 +102,13 @@ Remember: SPOKEN must be ONE short sentence. No abbreviations. No numbers as dig
     const completion = await zai.chat.completions.create({
       messages: [
         { role: 'assistant', content: systemPrompt },
-        { role: 'user', content: message },
+        { role: 'user', content: sanitizeInput(message, { maxLength: 5000 }) },
       ],
       thinking: { type: 'disabled' },
     })
 
     const rawResponse = completion.choices[0]?.message?.content || 'I am here, Founder.'
 
-    // Parse response
     let spoken = rawResponse
     let action: any = null
 
@@ -115,13 +120,11 @@ Remember: SPOKEN must be ONE short sentence. No abbreviations. No numbers as dig
       try { action = JSON.parse(actionMatch[1].trim()) } catch {}
     }
 
-    // Execute actions server-side where possible
     let actionResult: any = null
     if (action && action.type !== 'none') {
       actionResult = await executeAction(action)
     }
 
-    // Log to event bus
     try {
       const { db } = await import('@/lib/db')
       await db.event.create({
@@ -129,30 +132,30 @@ Remember: SPOKEN must be ONE short sentence. No abbreviations. No numbers as dig
           type: 'JARVIS_QUERY',
           actorName: 'Krishna (JARVIS)',
           summary: `Founder: "${message.slice(0, 50)}" → ${spoken.slice(0, 50)}`,
-          payload: JSON.stringify({ message: message.slice(0, 200), spoken: spoken.slice(0, 200), action, actionResult }),
+          payload: JSON.stringify({ message: message.slice(0, 200), spoken: spoken.slice(0, 200), action }),
           severity: 'INFO',
         },
       })
     } catch {}
 
-    return NextResponse.json({
+    return createApiResponse({
       spoken,
       action: action || { type: 'none' },
       actionResult,
-      raw: rawResponse,
     })
   } catch (e: any) {
-    console.error('Jarvis chat error:', e)
-    return NextResponse.json({
+    console.error('[API] Jarvis chat error:', e)
+    if (e instanceof z.ZodError) {
+      return createApiError('Invalid request format', 400)
+    }
+    return createApiResponse({
       spoken: "I'm here, Founder. All systems operational. How can I assist?",
       action: { type: 'none' },
-      error: e.message,
     })
   }
 }
 
-// Execute actions server-side
-async function executeAction(action: any): Promise<any> {
+async function executeAction(action: { type: string; [key: string]: any }): Promise<any> {
   try {
     const { db } = await import('@/lib/db')
 
@@ -162,9 +165,10 @@ async function executeAction(action: any): Promise<any> {
           where: { status: 'PENDING' },
           include: { requester: true },
         })
+        const query = sanitizeInput(action.query || '', { maxLength: 100 })
         const match = approvals.find(a =>
-          a.title.toLowerCase().includes(action.query?.toLowerCase()) ||
-          a.code.toLowerCase().includes(action.query?.toLowerCase())
+          a.title.toLowerCase().includes(query.toLowerCase()) ||
+          a.code.toLowerCase().includes(query.toLowerCase())
         )
         if (match) {
           await db.approval.update({
@@ -177,12 +181,11 @@ async function executeAction(action: any): Promise<any> {
       }
 
       case 'reject': {
-        const approvals = await db.approval.findMany({
-          where: { status: 'PENDING' },
-        })
+        const approvals = await db.approval.findMany({ where: { status: 'PENDING' } })
+        const query = sanitizeInput(action.query || '', { maxLength: 100 })
         const match = approvals.find(a =>
-          a.title.toLowerCase().includes(action.query?.toLowerCase()) ||
-          a.code.toLowerCase().includes(action.query?.toLowerCase())
+          a.title.toLowerCase().includes(query.toLowerCase()) ||
+          a.code.toLowerCase().includes(query.toLowerCase())
         )
         if (match) {
           await db.approval.update({
@@ -195,15 +198,17 @@ async function executeAction(action: any): Promise<any> {
       }
 
       case 'issue_status': {
-        const issue = await db.issue.findUnique({ where: { code: action.query } })
+        const query = sanitizeInput(action.query || '', { maxLength: 50 })
+        const status = sanitizeInput(action.status || '', { maxLength: 30 })
+        const issue = await db.issue.findUnique({ where: { code: query } })
         if (issue) {
           await db.issue.update({
             where: { id: issue.id },
-            data: { status: action.status },
+            data: { status },
           })
-          return { success: true, message: `${issue.code} → ${action.status}` }
+          return { success: true, message: `${issue.code} → ${status}` }
         }
-        return { success: false, message: `Issue ${action.query} not found` }
+        return { success: false, message: `Issue ${query} not found` }
       }
 
       case 'brand_scan': {
@@ -213,27 +218,27 @@ async function executeAction(action: any): Promise<any> {
         const asset = assets[Math.floor(Math.random() * assets.length)]
         const violations = Math.floor(Math.random() * 5)
         const status = violations === 0 ? 'PASS' : violations <= 2 ? 'WARN' : 'FAIL'
-        const check = await db.brandCheck.create({
+        await db.brandCheck.create({
           data: { module: mod, asset, status, violations, notes: violations === 0 ? 'Within brand system.' : 'Palette drift detected.' },
         })
         return { success: true, message: `Brand scan: ${asset} → ${status} (${violations} violations)` }
       }
 
       case 'tool_execute': {
-        // Execute a Composio tool
-        const integration = await db.integration.findUnique({
-          where: { toolkitSlug: action.toolkit },
-        })
+        const toolkit = sanitizeInput(action.toolkit || '', { maxLength: 50 })
+        const tool = sanitizeInput(action.tool || '', { maxLength: 100 })
+        const agent = sanitizeInput(action.agent || 'CMO', { maxLength: 20 })
+
+        const integration = await db.integration.findUnique({ where: { toolkitSlug: toolkit } })
         if (!integration || !integration.isConnected) {
-          return { success: false, message: `${action.toolkit} is not connected` }
+          return { success: false, message: `${toolkit} is not connected` }
         }
-        // Simulate tool execution
         const { executeTool } = await import('@/lib/composio-service')
         const result = await executeTool({
-          toolkitSlug: action.toolkit,
-          toolSlug: action.tool,
-          agentCode: action.agent || 'CMO',
-          agentName: action.agent || 'Mira',
+          toolkitSlug: toolkit,
+          toolSlug: tool,
+          agentCode: agent,
+          agentName: agent,
           input: {},
         })
         return { success: result.success, output: result.output, message: result.success ? 'Tool executed' : result.error }

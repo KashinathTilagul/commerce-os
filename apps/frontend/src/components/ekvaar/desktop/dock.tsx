@@ -26,10 +26,17 @@ const DEFAULT_DOCK_ORDER: string[] = [
 
 export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   const { open, windows, activeId, focus } = useWindowStore()
-  const {
-    hiddenApps, customNames, dockOrder,
-    hideApp, showApp, reorderDock, moveAppLeft, moveAppRight, renameApp, resetAll,
-  } = useAppVisibilityStore()
+  const store = useAppVisibilityStore()
+  const hiddenApps = store.hiddenApps || []
+  const customNames = store.customNames || {}
+  const dockOrder = store.dockOrder
+  const hideApp = store.hideApp
+  const showApp = store.showApp
+  const reorderDock = store.reorderDock
+  const moveAppLeft = store.moveAppLeft
+  const moveAppRight = store.moveAppRight
+  const renameApp = store.renameApp
+  const resetAll = store.resetAll
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [mouseX, setMouseX] = useState<number | null>(null)

@@ -1,12 +1,11 @@
 'use client'
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 interface AppVisibilityStore {
   hiddenApps: string[]
   customNames: Record<string, string>
-  // Custom dock order — flat array of app IDs in user-preferred order
   dockOrder: string[] | null
   hideApp: (id: string) => void
   showApp: (id: string) => void
@@ -18,20 +17,24 @@ interface AppVisibilityStore {
   resetAll: () => void
 }
 
+const initialState = {
+  hiddenApps: [] as string[],
+  customNames: {} as Record<string, string>,
+  dockOrder: null as string[] | null,
+}
+
 export const useAppVisibilityStore = create<AppVisibilityStore>()(
   persist(
     (set) => ({
-      hiddenApps: [],
-      customNames: {},
-      dockOrder: null,
-      hideApp: (id) => set((s) => ({ hiddenApps: [...new Set([...s.hiddenApps, id])] })),
-      showApp: (id) => set((s) => ({ hiddenApps: s.hiddenApps.filter((a) => a !== id) })),
+      ...initialState,
+      hideApp: (id) => set((s) => ({ hiddenApps: [...new Set([...(s.hiddenApps || []), id])] })),
+      showApp: (id) => set((s) => ({ hiddenApps: (s.hiddenApps || []).filter((a) => a !== id) })),
       toggleApp: (id) => set((s) => ({
-        hiddenApps: s.hiddenApps.includes(id)
-          ? s.hiddenApps.filter((a) => a !== id)
-          : [...s.hiddenApps, id]
+        hiddenApps: (s.hiddenApps || []).includes(id)
+          ? (s.hiddenApps || []).filter((a) => a !== id)
+          : [...(s.hiddenApps || []), id]
       })),
-      renameApp: (id, name) => set((s) => ({ customNames: { ...s.customNames, [id]: name } })),
+      renameApp: (id, name) => set((s) => ({ customNames: { ...(s.customNames || {}), [id]: name } })),
       reorderDock: (newOrder) => set({ dockOrder: newOrder }),
       moveAppLeft: (id, currentOrder) => set((s) => {
         const order = s.dockOrder || currentOrder
@@ -49,9 +52,24 @@ export const useAppVisibilityStore = create<AppVisibilityStore>()(
         ;[newOrder[idx + 1], newOrder[idx]] = [newOrder[idx], newOrder[idx + 1]]
         return { dockOrder: newOrder }
       }),
-      resetAll: () => set({ hiddenApps: [], customNames: {}, dockOrder: null }),
+      resetAll: () => set(initialState),
     }),
-    { name: 'ekvaar-app-visibility' }
+    { 
+      name: 'ekvaar-app-visibility',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        hiddenApps: state.hiddenApps,
+        customNames: state.customNames,
+        dockOrder: state.dockOrder,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.hiddenApps = state.hiddenApps || []
+          state.customNames = state.customNames || {}
+          state.dockOrder = state.dockOrder || null
+        }
+      },
+    }
   )
 )
 
