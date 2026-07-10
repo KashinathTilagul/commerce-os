@@ -5,6 +5,9 @@ RUN bun install
 COPY . .
 ENV DATABASE_URL=file:/app/db/custom.db
 RUN bunx prisma generate
+# ponytail: needed at build time too — next build statically prerenders /api
+# routes that query the DB, against this stage's own throwaway sqlite file.
+RUN bunx prisma db push --skip-generate --accept-data-loss
 RUN node node_modules/next/dist/bin/next build
 
 FROM oven/bun:1 AS runner
