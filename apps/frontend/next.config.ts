@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: true,
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'recharts', 'framer-motion'],
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'recharts'],
   },
   images: {
     formats: ['image/avif', 'image/webp'],
