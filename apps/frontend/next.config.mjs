@@ -1,12 +1,10 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
   },
   reactStrictMode: true,
-  experimental: {},
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
