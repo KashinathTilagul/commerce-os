@@ -1,10 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSession, signOut } from 'next-auth/react'
 import { useWindowStore } from '@/lib/window-store'
 import { useThemeStore } from '@/lib/theme-store'
+import { useLockStore } from '@/lib/lock-store'
 import { BootScreen, DesktopWallpaper } from '@/components/ekvaar/desktop/boot-and-wallpaper'
 import { MenuBar } from '@/components/ekvaar/desktop/menu-bar'
+import { LockScreen } from '@/components/ekvaar/desktop/lock-screen'
 import { Dock } from '@/components/ekvaar/desktop/dock'
 import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
 import { ToastContainer } from '@/components/ekvaar/desktop/toast'
@@ -13,6 +16,8 @@ import { Jarvis, JarvisWallpaperOrb } from '@/components/ekvaar/desktop/jarvis'
 import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
 
 export default function Desktop() {
+  const { status } = useSession()
+  const { locked, lock } = useLockStore()
   const { windows, open } = useWindowStore()
   const { mode, accent } = useThemeStore()
   const [launchpadOpen, setLaunchpadOpen] = useState(false)
@@ -53,12 +58,25 @@ export default function Desktop() {
     return () => window.removeEventListener('keydown', handler)
   }, [launchpadOpen, spotlightOpen])
 
+  if (status === 'loading') return <BootScreen />
+  if (status === 'unauthenticated' || locked) {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden">
+        <DesktopWallpaper />
+        <LockScreen />
+      </div>
+    )
+  }
+
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <DesktopWallpaper />
       <MenuBar
         onSpotlight={() => setSpotlightOpen(true)}
         onKrishna={() => setJarvisTrigger(t => t + 1)}
+        onLock={() => lock()}
+        onSignOut={() => signOut({ redirect: false })}
+        onRestart={() => window.location.reload()}
       />
       <div className="absolute inset-0 top-7 bottom-0 pointer-events-none">
         <div className="relative w-full h-full pointer-events-none">
@@ -70,7 +88,6 @@ export default function Desktop() {
         </div>
       </div>
       <Dock onLaunchpad={() => setLaunchpadOpen(true)} onJarvisClick={() => setJarvisTrigger(t => t + 1)} />
-      <BootScreen />
       <ToastContainer />
       <Launchpad open={launchpadOpen} onClose={() => setLaunchpadOpen(false)} />
       <Spotlight open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />

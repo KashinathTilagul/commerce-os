@@ -10,9 +10,12 @@ import { NotificationsPanel } from './notifications-panel'
 interface MenuBarProps {
   onSpotlight?: () => void
   onKrishna?: () => void
+  onLock?: () => void
+  onSignOut?: () => void
+  onRestart?: () => void
 }
 
-export function MenuBar({ onSpotlight, onKrishna }: MenuBarProps) {
+export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }: MenuBarProps) {
   const { activeId, windows, open, close, minimize } = useWindowStore()
   const [now, setNow] = useState<Date | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
@@ -74,7 +77,10 @@ export function MenuBar({ onSpotlight, onKrishna }: MenuBarProps) {
       if (top) useWindowStore.getState().focus(top.id)
       return
     }
-  }, [activeId, open, close, minimize, windows])
+    if (item === 'Lock Screen') { onLock?.(); return }
+    if (item === 'Sign Out') { onSignOut?.(); return }
+    if (item === 'Restart') { onRestart?.(); return }
+  }, [activeId, open, close, minimize, windows, onLock, onSignOut, onRestart])
 
   const dateStr = now ? now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'
   const timeStr = now ? now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '—:—'
@@ -98,12 +104,14 @@ export function MenuBar({ onSpotlight, onKrishna }: MenuBarProps) {
     >
       {/* Left cluster */}
       <div className="flex items-center gap-1">
-        <button
-          className="px-2 py-0.5 rounded hover:bg-white/15 transition-colors font-display tracking-tight"
+        <MenuButton
+          label="EKVAAR"
+          isOpen={openMenu === 'ekvaar'}
           onClick={() => handleMenuClick('ekvaar')}
-        >
-          <span className="text-[14px] tracking-tighter">EKVAAR</span>
-        </button>
+          items={['Lock Screen', 'Sign Out', 'Restart']}
+          onAction={handleMenuAction}
+          onClose={() => setOpenMenu(null)}
+        />
 
         <span className="ml-1 font-semibold">{activeApp ? activeApp.name : 'Finder'}</span>
 

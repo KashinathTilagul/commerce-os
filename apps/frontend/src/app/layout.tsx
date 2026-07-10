@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryProvider } from "@/components/ekvaar/query-provider";
+import { AuthProvider } from "@/components/ekvaar/auth-provider";
 import { Suspense } from "react";
 
 const geistSans = Inter({
@@ -54,12 +55,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <QueryProvider>
-          <Suspense fallback={<LoadingFallback />}>
-            {children}
-          </Suspense>
-          <Toaster />
-        </QueryProvider>
+        <AuthProvider>
+          <QueryProvider>
+            <Suspense fallback={<LoadingFallback />}>
+              {children}
+            </Suspense>
+            <Toaster />
+          </QueryProvider>
+        </AuthProvider>
       </body>
     </html>
   );
