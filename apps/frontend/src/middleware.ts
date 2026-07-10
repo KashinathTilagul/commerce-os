@@ -23,22 +23,10 @@ export default withAuth(
     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.set("Permissions-Policy", "camera=(), microphone=(self), geolocation=()")
     
-    const nonce = Buffer.from(crypto.randomUUID()).toString("base64")
-    const isDev = process.env.NODE_ENV !== "production"
-    const scriptSrc = isDev
-      ? `'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-eval'`
-      : `'self' 'nonce-${nonce}' 'strict-dynamic'`
     response.headers.set(
       "Content-Security-Policy",
-      `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:${isDev ? " ws:" : ""}; frame-src https: http:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
+      `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-src https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
     )
-
-    response.cookies.set("x-request-nonce", nonce, {
-      httpOnly: true,
-      sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-    })
 
     return response
   },
