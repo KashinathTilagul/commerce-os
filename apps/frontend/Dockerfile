@@ -4,6 +4,7 @@ COPY package.json bun.lock ./
 RUN bun install
 COPY . .
 ENV DATABASE_URL=file:/app/db/custom.db
+ENV TURBOPACK=0
 RUN bunx prisma generate
 RUN bun run build
 
