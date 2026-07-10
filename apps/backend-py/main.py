@@ -38,6 +38,7 @@ from routes.approvals_routes import router as approvals_router
 from routes.routines_routes import router as routines_router
 from routes.telemetry_routes import router as telemetry_router
 from routes.workflow_routes import router as workflow_router
+from routes.dashboard_routes import router as dashboard_router
 
 
 @asynccontextmanager
@@ -48,10 +49,24 @@ async def lifespan(app: FastAPI):
     await pool.initialize()
     print("[EKVAAR OS] SQLite database initialized — all tables ready.")
     print("[EKVAAR OS] Connection pool initialized with 5 connections.")
-    await scheduler.start()
     
     ensure_triggers_registered()
     print("[EKVAAR OS] Workflow trigger system operational.")
+    
+    from core.telemetry.telemetry_ingestion import telemetry
+    from core.telemetry.risk_engine import risk_engine
+    from core.telemetry.signal_detection import signal_engine
+    
+    async def run_telemetry_cycle():
+        await telemetry.ingest_from_live_metrics()
+        await telemetry.ingest_agent_metrics()
+        await signal_engine.run_full_detection_cycle()
+        await risk_engine.assess_risks()
+    
+    scheduler.schedule_job("telemetry_cycle", 300, run_telemetry_cycle)
+    print("[EKVAAR OS] Telemetry and Risk assessment scheduled every 5 minutes.")
+    
+    await scheduler.start()
     
     yield
     await scheduler.stop()
@@ -67,8 +82,10 @@ app = FastAPI(
 
 # Enable CORS for the React Frontend - restrict to known origins
 ALLOWED_ORIGINS = [
+    "http://localhost:3000",
     "http://localhost:5173",
     "http://localhost:3005",
+    "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3005",
 ]
@@ -119,6 +136,7 @@ app.include_router(approvals_router, prefix="/api")
 app.include_router(routines_router, prefix="/api")
 app.include_router(telemetry_router, prefix="/api")
 app.include_router(workflow_router, prefix="/api")
+app.include_router(dashboard_router, prefix="/api")
 
 
 # ─── Root health check ──────────────────────────────────────────────────────
@@ -215,24 +233,6 @@ async def websocket_agent(websocket: WebSocket):
         print(f"WebSocket Error: {e}")
     finally:
         print("Client disconnected.")
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Schedule telemetry and risk assessment on startup."""
-    from core.telemetry.telemetry_ingestion import telemetry
-    from core.telemetry.risk_engine import risk_engine
-    from core.telemetry.signal_detection import signal_engine
-    
-    async def run_telemetry_cycle():
-        await telemetry.ingest_from_live_metrics()
-        await telemetry.ingest_agent_metrics()
-        await signal_engine.run_full_detection_cycle()
-        await risk_engine.assess_risks()
-    
-    from core.automation.scheduler import scheduler
-    scheduler.schedule_job("telemetry_cycle", 300, run_telemetry_cycle)
-    print("[EKVAAR OS] Telemetry and Risk assessment scheduled every 5 minutes.")
 
 
 if __name__ == "__main__":

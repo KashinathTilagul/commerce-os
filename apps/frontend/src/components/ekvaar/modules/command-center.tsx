@@ -144,7 +144,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
 
         {/* Reality Layer — Cash Position, Runway, Workforce */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Card className="bg-noar text-rui border-0">
+          <Card className="bg-noor text-rui border-0">
             <CardContent className="p-5">
               <div className="text-[10px] tracking-[0.25em] uppercase text-rui/50 mb-2 flex items-center gap-1.5">
                 <Wallet className="h-3 w-3" /> Cash Position

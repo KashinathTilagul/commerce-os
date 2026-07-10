@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
     const validated = ChatSchema.parse(body)
     const { message, context, activeWindow } = validated
 
-    const ZAI = (await import('z-ai-web-dev-sdk')).default
-    const zai = await ZAI.create()
+    const { BedrockRuntimeClient, ConverseCommand } = await import('@aws-sdk/client-bedrock-runtime')
+    const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' })
 
     const screenContext = activeWindow
       ? `The founder is currently looking at: ${sanitizeInput(activeWindow, { maxLength: 100 })}. `
@@ -99,15 +99,14 @@ ACTION: {"type":"tool_execute","toolkit":"shopify","tool":"shopify_get_orders","
 
 Remember: SPOKEN must be ONE short sentence. No abbreviations. No numbers as digits — write them out (twenty four, not 24). No pauses or fragments.`
 
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'assistant', content: systemPrompt },
-        { role: 'user', content: sanitizeInput(message, { maxLength: 5000 }) },
-      ],
-      thinking: { type: 'disabled' },
-    })
+    const completion = await bedrock.send(new ConverseCommand({
+      modelId: 'amazon.nova-lite-v1:0',
+      system: [{ text: systemPrompt }],
+      messages: [{ role: 'user', content: [{ text: sanitizeInput(message, { maxLength: 5000 }) }] }],
+      inferenceConfig: { maxTokens: 300, temperature: 0.7 },
+    }))
 
-    const rawResponse = completion.choices[0]?.message?.content || 'I am here, Founder.'
+    const rawResponse = (completion.output?.message?.content?.[0] as any)?.text || 'I am here, Founder.'
 
     let spoken = rawResponse
     let action: any = null

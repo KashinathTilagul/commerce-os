@@ -2,7 +2,14 @@ import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError } from '@/lib/security'
 import { requireAuth } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
-import { PaginationSchema } from '@/lib/validations'
+import { z } from 'zod'
+
+const PaginationSchema = z.object({
+  page: z.coerce.number().int().min(1).max(1000).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  sortBy: z.string().max(30).optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+})
 
 export async function GET(req: NextRequest) {
   const authResult = await requireAuth()

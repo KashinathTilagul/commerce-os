@@ -6,7 +6,6 @@ import { LayoutGrid, X, Check, Edit3, RotateCcw } from 'lucide-react'
 import { useWindowStore, type AppId } from '@/lib/window-store'
 import { APPS, CORE_APP_IDS, UTILITY_APP_IDS, BUSINESS_APP_IDS } from './app-registry'
 import { AppIcon } from './app-icon'
-import { useAppVisibilityStore } from '@/lib/app-visibility-store'
 import { DockContextMenu } from './dock-context-menu'
 import { toast } from './toast'
 
@@ -25,18 +24,9 @@ const DEFAULT_DOCK_ORDER: string[] = [
 ]
 
 export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
-  const { open, windows, activeId, focus } = useWindowStore()
-  const store = useAppVisibilityStore()
-  const hiddenApps = store.hiddenApps || []
-  const customNames = store.customNames || {}
-  const dockOrder = store.dockOrder
-  const hideApp = store.hideApp
-  const showApp = store.showApp
-  const reorderDock = store.reorderDock
-  const moveAppLeft = store.moveAppLeft
-  const moveAppRight = store.moveAppRight
-  const renameApp = store.renameApp
-  const resetAll = store.resetAll
+  const { open, windows, activeId, focus, hiddenApps: _hiddenApps, customNames: _customNames, dockOrder, hideApp, showApp, reorderDock, moveAppLeft, moveAppRight, renameApp, resetVisibility: resetAll } = useWindowStore()
+  const hiddenApps = _hiddenApps || []
+  const customNames = _customNames || {}
 
   const [hovered, setHovered] = useState<string | null>(null)
   const [mouseX, setMouseX] = useState<number | null>(null)
@@ -468,14 +458,17 @@ function DockItem({
 
   return (
     <div className="flex flex-col items-center justify-end relative">
-      {/* Tooltip label */}
+      {/* Tooltip label — floats above the icon at all magnification levels */}
       <motion.div
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: showLabel ? 1 : 0, y: showLabel ? 0 : 4 }}
         transition={{ duration: 0.12 }}
-        className="absolute -top-9 px-2 py-1 rounded-md text-[11px] text-white whitespace-nowrap border border-white/10"
+        className="absolute px-2 py-1 rounded-md text-[11px] text-white whitespace-nowrap border border-white/10 pointer-events-none z-50"
         style={{
-          background: 'rgba(20, 20, 20, 0.9)',
+          bottom: 'calc(100% + 12px)',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(20, 20, 20, 0.92)',
           backdropFilter: 'blur(20px)',
         }}
       >

@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type AppId =
   | 'command'
@@ -43,6 +44,10 @@ interface WindowStore {
   activeId: AppId | null
   topZ: number
   bootDone: boolean
+  // persisted visibility / dock prefs
+  hiddenApps: string[]
+  customNames: Record<string, string>
+  dockOrder: string[] | null
 
   open: (id: AppId, title: string) => void
   close: (id: AppId) => void
@@ -52,6 +57,14 @@ interface WindowStore {
   move: (id: AppId, position: { x: number; y: number }) => void
   resize: (id: AppId, size: { width: number; height: number }) => void
   setBootDone: (v: boolean) => void
+  hideApp: (id: string) => void
+  showApp: (id: string) => void
+  toggleApp: (id: string) => void
+  renameApp: (id: string, name: string) => void
+  reorderDock: (newOrder: string[]) => void
+  moveAppLeft: (id: string, currentOrder: string[]) => void
+  moveAppRight: (id: string, currentOrder: string[]) => void
+  resetVisibility: () => void
 }
 
 const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
@@ -86,11 +99,20 @@ function offsetFor(idx: number): { x: number; y: number } {
   return { x: baseX, y: baseY }
 }
 
-export const useWindowStore = create<WindowStore>((set, get) => ({
+const visibilityInitial = {
+  hiddenApps: [] as string[],
+  customNames: {} as Record<string, string>,
+  dockOrder: null as string[] | null,
+}
+
+export const useWindowStore = create<WindowStore>()(
+  persist(
+  (set, get) => ({
   windows: [],
   activeId: null,
   topZ: 10,
   bootDone: false,
+  ...visibilityInitial,
 
   open: (id, title) => {
     const state = get()
@@ -202,4 +224,49 @@ export const useWindowStore = create<WindowStore>((set, get) => ({
     })),
 
   setBootDone: (v) => set({ bootDone: v }),
-}))
+
+  hideApp: (id) => set((s) => ({ hiddenApps: [...new Set([...(s.hiddenApps || []), id])] })),
+  showApp: (id) => set((s) => ({ hiddenApps: (s.hiddenApps || []).filter((a) => a !== id) })),
+  toggleApp: (id) => set((s) => ({
+    hiddenApps: (s.hiddenApps || []).includes(id)
+      ? (s.hiddenApps || []).filter((a) => a !== id)
+      : [...(s.hiddenApps || []), id],
+  })),
+  renameApp: (id, name) => set((s) => ({ customNames: { ...(s.customNames || {}), [id]: name } })),
+  reorderDock: (newOrder) => set({ dockOrder: newOrder }),
+  moveAppLeft: (id, currentOrder) => set((s) => {
+    const order = s.dockOrder || currentOrder
+    const idx = order.indexOf(id)
+    if (idx <= 0) return s
+    const newOrder = [...order]
+    ;[newOrder[idx - 1], newOrder[idx]] = [newOrder[idx], newOrder[idx - 1]]
+    return { dockOrder: newOrder }
+  }),
+  moveAppRight: (id, currentOrder) => set((s) => {
+    const order = s.dockOrder || currentOrder
+    const idx = order.indexOf(id)
+    if (idx < 0 || idx >= order.length - 1) return s
+    const newOrder = [...order]
+    ;[newOrder[idx + 1], newOrder[idx]] = [newOrder[idx], newOrder[idx + 1]]
+    return { dockOrder: newOrder }
+  }),
+  resetVisibility: () => set(visibilityInitial),
+  }),
+  {
+    name: 'ekvaar-app-visibility',
+    storage: createJSONStorage(() => localStorage),
+    partialize: (state) => ({
+      hiddenApps: state.hiddenApps,
+      customNames: state.customNames,
+      dockOrder: state.dockOrder,
+    }),
+    onRehydrateStorage: () => (state) => {
+      if (state) {
+        state.hiddenApps = state.hiddenApps || []
+        state.customNames = state.customNames || {}
+        state.dockOrder = state.dockOrder || null
+      }
+    },
+  }
+  )
+)

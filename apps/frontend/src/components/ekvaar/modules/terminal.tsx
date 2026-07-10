@@ -119,10 +119,10 @@ export function TerminalModule() {
         </div>
 
         {/* Terminal log */}
-        <Card className="bg-noar text-rui border-0 overflow-hidden">
+        <Card className="bg-noor text-rui border-0 overflow-hidden">
           <CardHeader className="pb-2 border-b border-rui/10">
             <div className="flex items-center justify-between">
-              <CardTitle className="font-display tracking-tight flex items-center gap-2 text-base" style={{ color: '#F5F1EA' }}>
+              <CardTitle className="font-display tracking-tight flex items-center gap-2 text-base text-rui">
                 <Terminal className="h-4 w-4" /> ekvaar@os ~ event-ledger
               </CardTitle>
               <div className="flex items-center gap-1.5">

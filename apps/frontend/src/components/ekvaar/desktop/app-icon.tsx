@@ -24,7 +24,7 @@ export function AppIcon({ variant, size = 56, className = '' }: AppIconProps) {
 }
 
 function Squircle({ size, children }: { size: number; children: React.ReactNode }) {
-  const r = size * 0.2235 // macOS corner radius ratio
+  const r = size * 0.27 // macOS squircle — 27% CSS border-radius approximates the superellipse
   return (
     <div
       className="relative overflow-hidden flex items-center justify-center"
@@ -107,26 +107,6 @@ function Glyph({ size, children }: { size: number; children: React.ReactNode }) 
 }
 
 // ============ ICON VARIANTS ============
-
-// System Settings — gray gradient with gear
-function SystemSettingsIcon({ size }: { size: number }) {
-  const s = size * 0.52
-  return (
-    <>
-      <Bg gradient="linear-gradient(180deg, #8E8E93 0%, #48484A 100%)" />
-      <Highlight opacity={0.22} stop={45} />
-      <Glyph size={size}>
-        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.35))' }}>
-          {/* Gear */}
-          <path
-            d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.488.488 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94 0 .31.04.64.09.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.21.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
-            fill="#F5F5F7"
-          />
-        </svg>
-      </Glyph>
-    </>
-  )
-}
 
 // Mail — blue gradient with white envelope
 function MailIcon({ size }: { size: number }) {
@@ -236,25 +216,6 @@ function BoxesIcon({ size }: { size: number }) {
   )
 }
 
-// App Store — blue with white "A" strokes (pencil, ruler, brush)
-function AppStoreIcon({ size }: { size: number }) {
-  const s = size * 0.62
-  return (
-    <>
-      <Bg gradient="linear-gradient(180deg, #2A9FF5 0%, #1573D6 100%)" />
-      <Highlight opacity={0.28} stop={45} />
-      <Glyph size={size}>
-        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
-          {/* Three strokes forming an A */}
-          <path d="M12 4L4 20" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
-          <path d="M12 4L20 20" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
-          <path d="M7.5 16h9" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" />
-        </svg>
-      </Glyph>
-    </>
-  )
-}
-
 // Wallet — dark with stacked colored cards
 function WalletIcon({ size }: { size: number }) {
   const s = size * 0.66
@@ -277,58 +238,6 @@ function WalletIcon({ size }: { size: number }) {
           <circle cx="16" cy="8.5" r="1.4" fill="#FF3B30" />
           <rect x="5.5" y="6" width="6" height="0.8" rx="0.4" fill="#C9C9CE" />
           <rect x="5.5" y="7.5" width="4" height="0.8" rx="0.4" fill="#C9C9CE" />
-        </svg>
-      </Glyph>
-    </>
-  )
-}
-
-// Find My — green with location pulse
-function FindMyIcon({ size }: { size: number }) {
-  const s = size * 0.62
-  return (
-    <>
-      <Bg gradient="linear-gradient(180deg, #4CD964 0%, #2EB14E 100%)" />
-      <Highlight opacity={0.28} stop={45} />
-      <Glyph size={size}>
-        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
-          {/* Person silhouette */}
-          <circle cx="12" cy="8" r="3.5" fill="#FFFFFF" />
-          <path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7v1H5v-1z" fill="#FFFFFF" />
-        </svg>
-      </Glyph>
-    </>
-  )
-}
-
-// Photos — pinwheel of 8 colors on white
-function PhotosIcon({ size }: { size: number }) {
-  const s = size * 0.78
-  const cx = 12, cy = 12, r = 8.5
-  const colors = ['#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#5AC8FA', '#007AFF', '#AF52DE', '#FF2D55']
-  return (
-    <>
-      <Bg gradient="linear-gradient(180deg, #FFFFFF 0%, #E8E8EA 100%)" />
-      <Highlight opacity={0.45} stop={35} />
-      <Glyph size={size}>
-        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 1.5px rgba(0,0,0,0.15))' }}>
-          {Array.from({ length: 8 }).map((_, i) => {
-            const a1 = (i * 45 - 22.5) * Math.PI / 180
-            const a2 = (i * 45 + 22.5) * Math.PI / 180
-            // Round to 4 decimals — prevents SSR/client hydration mismatch
-            const x1 = (cx + r * Math.cos(a1)).toFixed(4)
-            const y1 = (cy + r * Math.sin(a1)).toFixed(4)
-            const x2 = (cx + r * Math.cos(a2)).toFixed(4)
-            const y2 = (cy + r * Math.sin(a2)).toFixed(4)
-            return (
-              <path
-                key={i}
-                d={`M${cx},${cy} L${x1},${y1} A${r},${r} 0 0 1 ${x2},${y2} Z`}
-                fill={colors[i]}
-              />
-            )
-          })}
-          <circle cx="12" cy="12" r="1.8" fill="#FFFFFF" />
         </svg>
       </Glyph>
     </>
@@ -370,48 +279,6 @@ function ShieldIcon({ size }: { size: number }) {
         <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
           <path d="M12 2L4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3z" fill="#FFFFFF" />
           <path d="M8.5 12.5l2.5 2.5 4.5-5" stroke="#8B7355" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </Glyph>
-    </>
-  )
-}
-
-// Safari — blue with compass
-function SafariIcon({ size }: { size: number }) {
-  const s = size * 0.86
-  return (
-    <>
-      <Bg gradient="linear-gradient(180deg, #2A9FF5 0%, #1573D6 100%)" />
-      <Highlight opacity={0.18} stop={40} />
-      <Glyph size={size}>
-        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.25))' }}>
-          <circle cx="12" cy="12" r="10" fill="#F5F5F7" />
-          <circle cx="12" cy="12" r="9.2" fill="none" stroke="#C9C9CE" strokeWidth="0.4" />
-          {/* Tick marks */}
-          {Array.from({ length: 60 }).map((_, i) => {
-            const a = (i * 6) * Math.PI / 180
-            const isMajor = i % 5 === 0
-            const r1 = isMajor ? 8.6 : 9.1
-            const r2 = 9.6
-            // Round to 4 decimals — prevents SSR/client hydration mismatch
-            // (JS number-to-string precision differs between server and client)
-            const x1 = (12 + r1 * Math.cos(a)).toFixed(4)
-            const y1 = (12 + r1 * Math.sin(a)).toFixed(4)
-            const x2 = (12 + r2 * Math.cos(a)).toFixed(4)
-            const y2 = (12 + r2 * Math.sin(a)).toFixed(4)
-            return (
-              <line
-                key={i}
-                x1={x1} y1={y1} x2={x2} y2={y2}
-                stroke={isMajor ? '#3A3A3E' : '#86868B'}
-                strokeWidth={isMajor ? 0.5 : 0.25}
-              />
-            )
-          })}
-          {/* Needle — red/white */}
-          <path d="M12 12L17 7L12 12Z" fill="#FF3B30" />
-          <path d="M12 12L7 17L12 12Z" fill="#FFFFFF" stroke="#86868B" strokeWidth="0.2" />
-          <circle cx="12" cy="12" r="0.9" fill="#3A3A3E" />
         </svg>
       </Glyph>
     </>

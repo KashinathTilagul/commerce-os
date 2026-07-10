@@ -6,3 +6,4 @@ openai
 aiosqlite
 pydantic
 httpx
+boto3

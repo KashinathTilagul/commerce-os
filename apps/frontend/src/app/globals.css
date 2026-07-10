@@ -52,6 +52,12 @@
 :root {
   --radius: 0.5rem;
 
+  /* Glass surfaces */
+  --window-bg: rgba(248, 246, 242, 0.78);
+  --window-border: rgba(0, 0, 0, 0.10);
+  --glass-card-bg: rgba(255, 255, 255, 0.55);
+  --glass-card-border: rgba(0, 0, 0, 0.07);
+
   /* EKVAAR Light — Architectural, restrained */
   --background: oklch(0.985 0.002 60);
   --foreground: oklch(0.18 0.005 60);
@@ -88,6 +94,12 @@
 }
 
 .dark {
+  /* Glass surfaces */
+  --window-bg: rgba(16, 16, 18, 0.72);
+  --window-border: rgba(255, 255, 255, 0.08);
+  --glass-card-bg: rgba(255, 255, 255, 0.04);
+  --glass-card-border: rgba(255, 255, 255, 0.07);
+
   --background: oklch(0.13 0.003 60);
   --foreground: oklch(0.95 0.002 60);
   --card: oklch(0.18 0.003 60);
@@ -176,23 +188,35 @@
     height: 1px;
   }
 
+  /* Glass card — subtle frost */
   .glass-card {
-    backdrop-filter: blur(12px);
-    background: oklch(1 0 0 / 0.7);
+    background: var(--glass-card-bg);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid var(--glass-card-border);
   }
 
-  .dark .glass-card {
-    background: oklch(0.18 0.003 60 / 0.7);
+  /* Glass panel — stronger frost for floating surfaces */
+  .glass-panel {
+    background: var(--window-bg);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border: 0.5px solid var(--window-border);
   }
 
-  /* Restrained, architectural card */
+  /* Restrained, architectural card — now with subtle glass */
   .arch-card {
-    @apply border border-border bg-card rounded-lg;
-    transition: border-color 0.2s ease, transform 0.2s ease;
+    @apply border rounded-lg;
+    background: var(--glass-card-bg);
+    border-color: var(--glass-card-border);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    transition: border-color 0.2s ease, background 0.2s ease;
   }
 
   .arch-card:hover {
-    border-color: oklch(0.5 0.005 60 / 0.4);
+    background: var(--glass-card-bg);
+    border-color: oklch(0.5 0.005 60 / 0.25);
   }
 
   /* Subtle film grain — cinematic feel */

@@ -136,11 +136,13 @@ export function WindowFrame({ win }: { win: WindowState }) {
             width: bounds.width,
             height: bounds.height,
             zIndex: win.zIndex,
-            background: 'var(--card)',
+            background: 'var(--window-bg)',
+            backdropFilter: 'blur(32px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(32px) saturate(160%)',
             boxShadow: isActive
-              ? '0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.10), 0 0 0 0.5px rgba(0,0,0,0.4)'
-              : '0 18px 50px rgba(0,0,0,0.40), 0 0 0 0.5px rgba(255,255,255,0.06)',
-            border: '0.5px solid rgba(255,255,255,0.10)',
+              ? '0 32px 80px rgba(0,0,0,0.38), 0 0 0 1px var(--window-border)'
+              : '0 16px 48px rgba(0,0,0,0.20), 0 0 0 0.5px var(--window-border)',
+            border: '0.5px solid var(--window-border)',
           }}
         >
           {/* Title bar */}
@@ -148,9 +150,10 @@ export function WindowFrame({ win }: { win: WindowState }) {
             className="relative flex items-center h-9 px-3 flex-shrink-0 cursor-grab active:cursor-grabbing"
             style={{
               background: isActive
-                ? 'linear-gradient(180deg, rgba(38,38,38,0.95), rgba(22,22,22,0.95))'
-                : 'linear-gradient(180deg, rgba(34,34,34,0.95), rgba(20,20,20,0.95))',
-              borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+                ? 'linear-gradient(180deg, rgba(28,28,30,0.88), rgba(18,18,20,0.92))'
+                : 'linear-gradient(180deg, rgba(24,24,26,0.82), rgba(16,16,18,0.88))',
+              borderBottom: '0.5px solid rgba(255,255,255,0.07)',
+              backdropFilter: 'blur(8px)',
             }}
             onMouseDown={handleTitleMouseDown}
             onDoubleClick={() => toggleMaximize(win.id)}
@@ -191,7 +194,7 @@ export function WindowFrame({ win }: { win: WindowState }) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto bg-background">
+          <div className="flex-1 overflow-y-auto" style={{ background: 'var(--window-bg)' }}>
             <AppComponentWrapper Component={AppComponent} appId={win.id} />
           </div>
 

@@ -276,7 +276,7 @@ export function DigitalEmployeesHub() {
         ))}
 
         {/* Architecture explainer */}
-        <Card className="bg-noar text-rui border-0">
+        <Card className="bg-noor text-rui border-0">
           <CardContent className="p-8">
             <div className="text-[10px] tracking-[0.3em] uppercase text-rui/50 mb-3">Heartbeat Engine</div>
             <div className="font-display text-xl tracking-tight mb-4">Agents wake autonomously. They don't wait for prompts.</div>

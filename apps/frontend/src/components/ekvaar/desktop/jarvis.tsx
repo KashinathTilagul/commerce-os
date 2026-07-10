@@ -181,10 +181,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   // ── Keyboard shortcuts ─────────────────────────────────────────────────
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.code === 'Space') {
-        e.preventDefault(); e.stopPropagation()
-        if (expanded) closePanel(); else openPanel()
-      }
       if (e.key === 'Escape' && expanded) closePanel()
     }
     window.addEventListener('keydown', down, true)
@@ -206,16 +202,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setTimeout(() => speakText(msg), 120)
   }, [])
 
-  const closePanel = useCallback(() => {
-    setExpanded(false)
-    voiceSessionRef.current = false
-    stopListening()
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
-    setGlobal('idle')
-    setListening(false)
-    setTranscript('')
-  }, [stopListening])
-
   // ── STT helpers ────────────────────────────────────────────────────────
   const stopListening = useCallback(() => {
     listeningRef.current = false
@@ -226,6 +212,16 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       try { rec.abort() } catch {}
     }
   }, [])
+
+  const closePanel = useCallback(() => {
+    setExpanded(false)
+    voiceSessionRef.current = false
+    stopListening()
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+    setGlobal('idle')
+    setListening(false)
+    setTranscript('')
+  }, [stopListening])
 
   // One recognition "session" — continuous: false + manual restart in onend
   const spawnRec = useCallback((accumulated: { text: string }) => {

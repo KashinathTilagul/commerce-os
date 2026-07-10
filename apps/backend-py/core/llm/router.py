@@ -8,6 +8,12 @@ from core.execution.action_schema import ToolRequest
 from core.execution.secrets_vault import SecretsVault
 from core.execution.integration_registry import IntegrationRegistry
 
+try:
+    import boto3
+    _bedrock = boto3.client('bedrock-runtime', region_name=os.getenv('AWS_REGION', 'us-east-1'))
+except Exception:
+    _bedrock = None
+
 logger = logging.getLogger(__name__)
 
 # Free fallback models from OpenRouter — fast/reliable models first
@@ -37,8 +43,23 @@ class LLMRouter:
         self.execution_manager = ExecutionManager()
 
     async def route_request(self, prompt: str, system_prompt: str = None, task_type: str = "general") -> Dict[str, Any]:
+        # ponytail: bedrock first, falls through to openai-compat providers if unavailable
+        if _bedrock:
+            try:
+                kwargs = dict(
+                    modelId='amazon.nova-lite-v1:0',
+                    messages=[{'role': 'user', 'content': [{'text': prompt}]}],
+                    inferenceConfig={'maxTokens': 512, 'temperature': 0.7},
+                )
+                if system_prompt:
+                    kwargs['system'] = [{'text': system_prompt}]
+                resp = _bedrock.converse(**kwargs)
+                return {'status': 'success', 'provider': 'bedrock', 'model': 'nova-lite', 'message': resp['output']['message']['content'][0]['text']}
+            except Exception as e:
+                logger.warning(f"Bedrock failed: {e}, falling back to openai-compat")
+
         if not self.client:
-            return {"status": "error", "message": "No valid LLM API key available. Please set OPENAI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in your .env file."}
+            return {"status": "error", "message": "No valid LLM API key available. Please set AWS credentials, OPENAI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in your .env file."}
 
         # Select models based on provider
         if self.provider == "openai":

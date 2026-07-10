@@ -103,18 +103,6 @@ export function sanitizeObject<T extends Record<string, any>>(
   return result as T
 }
 
-export function maskEmail(email: string): string {
-  if (!email || !email.includes("@")) return "***@***"
-  const [local, domain] = email.split("@")
-  const maskedLocal = local.charAt(0) + "*".repeat(Math.min(local.length - 1, 5))
-  return `${maskedLocal}@${domain}`
-}
-
-export function maskPhone(phone: string): string {
-  if (!phone) return "***"
-  return phone.slice(0, 2) + "*".repeat(Math.max(phone.length - 4, 0)) + phone.slice(-2)
-}
-
 const SENSITIVE_FIELDS = ["password", "token", "secret", "apiKey", "secretKey", "accessToken", "refreshToken"]
 
 export function filterSensitiveData<T>(data: T): T {
@@ -136,15 +124,6 @@ export function filterSensitiveData<T>(data: T): T {
   }
 
   return result as T
-}
-
-export function generateCSRFToken(): string {
-  return Buffer.from(`${Date.now()}:${crypto.randomUUID()}`).toString("base64url")
-}
-
-export function validateCSRFToken(token: string, storedToken: string): boolean {
-  if (!token || !storedToken) return false
-  return token === storedToken
 }
 
 export function createApiResponse<T>(data: T, status = 200) {

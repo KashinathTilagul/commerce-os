@@ -91,10 +91,11 @@ export function Calculator() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
-    <div className="flex flex-col h-full bg-noar text-rui" style={{ background: '#1C1C1E' }}>
+    <div className="flex flex-col h-full text-rui" style={{ background: '#1C1C1E' }}>
       {/* Display */}
       <div className="flex-1 flex items-end justify-end p-6 pb-4">
         <div

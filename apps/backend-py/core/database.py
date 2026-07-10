@@ -99,8 +99,13 @@ class DatabasePool:
                 await conn.close()
             except asyncio.QueueEmpty:
                 break
-        for conn in self.in_use:
-            await conn.close()
+        conns = list(self.in_use)
+        for conn in conns:
+            try:
+                await conn.close()
+            except:
+                pass
+        self.in_use.clear()
         logger.info("All database connections closed")
 
     async def __aenter__(self):
@@ -408,16 +413,6 @@ CREATE TABLE IF NOT EXISTS founder_inbox_history (
     created_at TEXT
 );
 
-CREATE TABLE IF NOT EXISTS notifications (
-    id TEXT PRIMARY KEY,
-    source TEXT,
-    title TEXT,
-    body TEXT,
-    severity TEXT,
-    read_at TEXT,
-    created_at TEXT
-);
-
 CREATE TABLE IF NOT EXISTS knowledge (
     knowledge_id TEXT PRIMARY KEY,
     output_id    TEXT REFERENCES outputs(output_id),
@@ -485,16 +480,6 @@ CREATE TABLE IF NOT EXISTS media_tracks (
     source_type  TEXT,
     created_at   TEXT,
     updated_at   TEXT
-);
-
-CREATE TABLE IF NOT EXISTS notifications (
-    id          TEXT PRIMARY KEY,
-    source      TEXT,
-    title       TEXT,
-    body        TEXT,
-    severity    TEXT,
-    read_at     TEXT,
-    created_at  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS ui_actions (
@@ -1092,7 +1077,19 @@ CREATE TABLE IF NOT EXISTS production_decision_queue (
     confidence          REAL,
     impact              REAL,
     risk                REAL,
-    status              TEXT, -- PENDING, APPROVED, REJECTED
+    status              TEXT,
+    created_at          TEXT
+);
+
+CREATE TABLE IF NOT EXISTS approval_queue (
+    id                  TEXT PRIMARY KEY,
+    agent_id            TEXT,
+    action              TEXT,
+    capability          TEXT,
+    risk                TEXT,
+    cost               REAL,
+    status              TEXT DEFAULT 'PENDING',
+    context             TEXT,
     created_at          TEXT
 );
 
@@ -1226,12 +1223,17 @@ CREATE TABLE IF NOT EXISTS system_approvals (
     id TEXT PRIMARY KEY,
     title TEXT,
     description TEXT,
+    category TEXT,
+    priority TEXT DEFAULT 'MEDIUM',
     context TEXT,
     requester TEXT,
     risk TEXT,
     cost REAL,
-    status TEXT, -- PENDING, APPROVED, REJECTED
+    amount REAL DEFAULT 0,
+    status TEXT,
     resolved_by TEXT,
+    inbox TEXT DEFAULT 'MINE',
+    code TEXT,
     created_at TEXT,
     updated_at TEXT
 );
@@ -1499,16 +1501,20 @@ CREATE TABLE IF NOT EXISTS company_protocols (
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
-    id                TEXT PRIMARY KEY,
-    type              TEXT,
-    title             TEXT,
-    message           TEXT,
-    priority          TEXT DEFAULT 'normal',
-    app_id            TEXT,
-    data              TEXT,
-    read              BOOLEAN DEFAULT 0,
-    created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
-    updated_at        TEXT DEFAULT CURRENT_TIMESTAMP
+    id          TEXT PRIMARY KEY,
+    type        TEXT,
+    source      TEXT,
+    title       TEXT,
+    body        TEXT,
+    message     TEXT,
+    severity    TEXT,
+    priority    TEXT DEFAULT 'normal',
+    app_id      TEXT,
+    data        TEXT,
+    read        BOOLEAN DEFAULT 0,
+    read_at     TEXT,
+    created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ===================================================================

@@ -6,7 +6,6 @@ import { Search, X } from 'lucide-react'
 import { APPS } from './app-registry'
 import { AppIcon } from './app-icon'
 import { useWindowStore } from '@/lib/window-store'
-import { useAppVisibilityStore } from '@/lib/app-visibility-store'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
@@ -16,9 +15,8 @@ interface LaunchpadProps {
 }
 
 export function Launchpad({ open, onClose }: LaunchpadProps) {
-  const { open: openWindow } = useWindowStore()
-  const store = useAppVisibilityStore()
-  const customNames = store.customNames || {}
+  const { open: openWindow, customNames: _customNames } = useWindowStore()
+  const customNames = _customNames || {}
   const [search, setSearch] = useState('')
   
   useEffect(() => {
