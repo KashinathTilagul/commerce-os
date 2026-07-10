@@ -21,7 +21,7 @@ export function middleware(req: NextRequest) {
   response.headers.set("Permissions-Policy", "camera=(), microphone=(self), geolocation=()")
   response.headers.set(
     "Content-Security-Policy",
-    `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-src https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
+    `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-src https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
   )
   return response
 }
