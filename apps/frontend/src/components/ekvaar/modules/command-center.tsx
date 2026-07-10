@@ -262,10 +262,10 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
               <CardDescription className="text-xs">House of Originals distribution</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {data && Object.entries(data.salesByHouse)
+              {Object.entries(data?.salesByHouse ?? {})
                 .sort((a, b) => b[1] - a[1])
                 .map(([house, val]) => {
-                  const total = Object.values(data.salesByHouse).reduce((s, v) => s + v, 0)
+                  const total = Object.values(data?.salesByHouse ?? {}).reduce((s, v) => s + v, 0)
                   const pct = total > 0 ? (val / total) * 100 : 0
                   return (
                     <div key={house}>
@@ -298,10 +298,10 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
               <CardDescription className="text-xs">Permanent palette · cross-collection compatibility</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {data && Object.entries(data.salesByColor)
+              {Object.entries(data?.salesByColor ?? {})
                 .sort((a, b) => b[1] - a[1])
                 .map(([color, val]) => {
-                  const total = Object.values(data.salesByColor).reduce((s, v) => s + v, 0)
+                  const total = Object.values(data?.salesByColor ?? {}).reduce((s, v) => s + v, 0)
                   const pct = total > 0 ? (val / total) * 100 : 0
                   return (
                     <div key={color} className="flex items-center gap-3">
@@ -321,7 +321,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                {data && Object.entries(data.orderStatusBreakdown).map(([status, count]) => (
+                {Object.entries(data?.orderStatusBreakdown ?? {}).map(([status, count]) => (
                   <button
                     key={status}
                     onClick={() => onNavigate('sales')}
@@ -336,7 +336,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
               </div>
               <div className="brand-divider my-5" />
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {data && Object.entries(data.channelBreakdown).map(([ch, val]) => (
+                {Object.entries(data?.channelBreakdown ?? {}).map(([ch, val]) => (
                   <div key={ch} className="text-xs">
                     <div className="text-muted-foreground">{ch}</div>
                     <div className="font-mono mt-1">{formatINR(val)}</div>

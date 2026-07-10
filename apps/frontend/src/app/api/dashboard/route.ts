@@ -101,6 +101,13 @@ export async function GET(req: NextRequest) {
       salesTrend,
       orderStatusBreakdown,
       tierBreakdown,
+      // ponytail: real per-house/color/channel breakdowns need an OrderItem->Product
+      // join we don't do here yet; empty for now so the UI renders instead of crashing.
+      salesByHouse: {},
+      salesByColor: {},
+      channelBreakdown: {},
+      houses: [],
+      colors: [],
       lowStock: lowStock.slice(0, 10),
       recentEvents: events,
     })
