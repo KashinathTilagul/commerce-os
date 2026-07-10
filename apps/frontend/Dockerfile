@@ -5,7 +5,6 @@ RUN bun install
 COPY . .
 ENV DATABASE_URL=file:/app/db/custom.db
 RUN bunx prisma generate
-RUN bunx prisma db push --skip-generate
 RUN node node_modules/next/dist/bin/next build
 
 FROM oven/bun:1 AS runner
@@ -13,7 +12,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-CMD ["bun", "server.js"]
+COPY --from=builder /app ./
+# ponytail: db push runs at container start (not build time) because the sqlite
+# file lives on a runtime volume mount that's empty on first boot/redeploy.
+CMD ["sh", "-c", "bunx prisma db push --skip-generate --accept-data-loss && bun run start"]
