@@ -4,9 +4,10 @@ COPY package.json bun.lock ./
 RUN bun install
 COPY . .
 ENV DATABASE_URL=file:/app/db/custom.db
-ENV TURBOPACK=0
 RUN bunx prisma generate
-RUN bun run build
+RUN bunx prisma db push --skip-generate
+# ponytail: run next build with node, not bun — bun triggers turbopack path in Next.js 14
+RUN node node_modules/next/dist/bin/next build
 
 FROM oven/bun:1-alpine AS runner
 WORKDIR /app
