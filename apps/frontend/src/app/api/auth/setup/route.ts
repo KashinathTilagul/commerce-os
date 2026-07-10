@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { hash } from "bcrypt"
+import { hash } from "bcryptjs"
 import { createApiResponse, createApiError } from "@/lib/security"
 
 export async function POST() {
