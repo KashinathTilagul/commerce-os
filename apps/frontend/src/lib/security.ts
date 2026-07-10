@@ -9,7 +9,10 @@ export interface RateLimitConfig {
 export const RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
   default: { windowMs: 60000, maxRequests: 100 },
   api: { windowMs: 60000, maxRequests: 60 },
-  auth: { windowMs: 900000, maxRequests: 5 },
+  // Only actual credential submissions are brute-force targets. session/csrf
+  // are polled constantly by next-auth just from having the lock screen open.
+  authLogin: { windowMs: 900000, maxRequests: 10 },
+  authSession: { windowMs: 60000, maxRequests: 60 },
   chat: { windowMs: 60000, maxRequests: 20 },
   seed: { windowMs: 3600000, maxRequests: 2 },
 }
@@ -17,13 +20,17 @@ export const RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 export function checkRateLimit(ip: string, path: string): { allowed: boolean; retryAfter: number } {
-  const config = path.includes("/api/auth") ? RATE_LIMIT_CONFIG.auth
-    : path.includes("/api/jarvis/chat") ? RATE_LIMIT_CONFIG.chat
-    : path.includes("/api/seed") ? RATE_LIMIT_CONFIG.seed
-    : path.startsWith("/api/") ? RATE_LIMIT_CONFIG.api
-    : RATE_LIMIT_CONFIG.default
+  const bucket = path.includes("/api/auth/callback") ? "authLogin"
+    : path.includes("/api/auth") ? "authSession"
+    : path.includes("/api/jarvis/chat") ? "chat"
+    : path.includes("/api/seed") ? "seed"
+    : path.startsWith("/api/") ? "api"
+    : "default"
+  const config = RATE_LIMIT_CONFIG[bucket]
 
-  const key = `${ip}:${path.split("/").slice(0, 3).join("/")}`
+  // bucket is part of the key so distinct configs (e.g. auth session polling
+  // vs. login attempts) don't share the same counter and starve each other.
+  const key = `${ip}:${bucket}`
   const now = Date.now()
   const record = rateLimitStore.get(key)
 

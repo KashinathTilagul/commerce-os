@@ -65,12 +65,12 @@ export function LockScreen() {
               autoFocus
               required
               disabled={loading}
-              className="w-64 px-4 py-2 pr-10 rounded-full bg-white/10 border border-white/20 text-white text-sm text-center placeholder:text-white/40 focus:outline-none focus:border-white/40"
+              className="lock-password-input w-64 px-4 py-2 pr-10 rounded-full bg-white/10 border border-white/20 text-white text-sm text-center placeholder:text-white/40 focus:outline-none focus:border-white/40"
             />
             <button
               type="submit"
               disabled={loading}
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+              className="absolute right-1 top-1/2 -translate-y-1/2 z-10 h-6 w-6 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
             >
               <ArrowRight className="h-3.5 w-3.5 text-white" />
             </button>

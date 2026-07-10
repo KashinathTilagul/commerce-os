@@ -265,4 +265,15 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
+
+  /* Suppress browser-native password icons so they don't overlap our submit button */
+  .lock-password-input::-ms-reveal,
+  .lock-password-input::-ms-clear {
+    display: none;
+  }
+  .lock-password-input::-webkit-credentials-auto-fill-button,
+  .lock-password-input::-webkit-textfield-decoration-container {
+    visibility: hidden;
+    display: none !important;
+  }
 }
