@@ -6,9 +6,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: true,
-  experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons', 'recharts'],
-  },
+  experimental: {},
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
