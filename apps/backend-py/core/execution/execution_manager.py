@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Dict, Any
 from .action_schema import ToolRequest, ExecutionResult
 from .adapter_interface import ToolAdapterInterface
 
