@@ -6,10 +6,9 @@ COPY . .
 ENV DATABASE_URL=file:/app/db/custom.db
 RUN bunx prisma generate
 RUN bunx prisma db push --skip-generate
-# ponytail: run next build with node, not bun — bun triggers turbopack path in Next.js 14
 RUN node node_modules/next/dist/bin/next build
 
-FROM oven/bun:1-alpine AS runner
+FROM oven/bun:1 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
