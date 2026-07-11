@@ -45,8 +45,16 @@ export function Settings() {
       if (!r.ok) throw new Error('Failed to save settings')
       return r.json()
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.setQueryData(['settings'], data)
+      // Don't toast theme/accent — they already have their own toasts
+      const silent = ['theme', 'accent']
+      if (!Object.keys(variables).some(k => silent.includes(k))) {
+        toast.success('Saved')
+      }
+    },
+    onError: () => {
+      toast.error('Save failed', 'Could not reach the settings API — is the dev server running?')
     },
   })
 
@@ -363,25 +371,47 @@ function Row({ label, desc, children }: { label: string; desc: string; children:
 
 function VoicePreviewButton({ voice, speed = 1.0, stability = 0.75, volume = 1.0 }: { voice: string; speed?: number; stability?: number; volume?: number }) {
   const [playing, setPlaying] = useState(false)
+
+  const browserTTSFallback = (onDone: () => void) => {
+    const synth = window.speechSynthesis
+    synth.cancel()
+    const u = new SpeechSynthesisUtterance('Hello. I am Krishna, the intelligence layer of EKVAAR OS.')
+    u.rate = speed * 0.9
+    u.pitch = 1.0 - (1.0 - stability) * 0.4
+    u.volume = Math.min(1.0, volume)
+    const voices = synth.getVoices()
+    const preferred = ['Google UK English Male', 'Microsoft David Desktop', 'Daniel', 'Arthur']
+    const best = preferred.map(n => voices.find(v => v.name === n)).find(Boolean) ||
+      voices.find(v => v.lang.startsWith('en-GB')) ||
+      voices.find(v => v.lang.startsWith('en')) ||
+      null
+    if (best) u.voice = best
+    u.onend = onDone
+    u.onerror = onDone
+    synth.speak(u)
+  }
+
   const play = async () => {
     if (playing) return
     setPlaying(true)
+    const done = () => setPlaying(false)
     try {
       const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: 'Hello. I am Krishna, the intelligence layer of EKVAAR OS.', voice, speed, stability, volume }),
+        signal: AbortSignal.timeout(5000),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) throw new Error('no edge tts')
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const audio = new Audio(url)
-      audio.onended = () => { setPlaying(false); URL.revokeObjectURL(url) }
-      audio.onerror = () => setPlaying(false)
+      audio.onended = () => { done(); URL.revokeObjectURL(url) }
+      audio.onerror = () => { done(); URL.revokeObjectURL(url) }
       await audio.play()
     } catch {
-      setPlaying(false)
-      toast.error('Preview unavailable', 'TTS service not running — deploy first')
+      // Edge TTS not available locally — use browser TTS so preview still works
+      browserTTSFallback(done)
     }
   }
   return (
