@@ -101,7 +101,7 @@ export function Notes() {
   }
 
   return (
-    <div>
+    <div className="flex flex-col h-full">
       <PageHeader
         eyebrow="Notes"
         title="Quick Notes"
@@ -114,7 +114,7 @@ export function Notes() {
         }
       />
 
-      <div className="flex h-[560px] border-t border-border">
+      <div className="flex flex-1 min-h-0 border-t border-border">
         {/* Sidebar */}
         <div className="w-72 border-r border-border flex flex-col bg-muted/30">
           <div className="p-3 border-b border-border">

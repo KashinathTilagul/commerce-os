@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Folder, FileText, Image, FileCode, FileSpreadsheet, Database, ChevronRight, Home, Search, Upload, FolderPlus } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent } from '@/components/ui/card'
@@ -16,7 +17,19 @@ interface FileItem {
   children?: FileItem[]
 }
 
-const FILE_TREE: FileItem[] = [
+interface Note { id: string; title: string; body: string; updatedAt: string }
+
+function timeAgo(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
+const STATIC_TREE: FileItem[] = [
   {
     name: 'EKVAAR OS', type: 'folder', children: [
       {
@@ -35,12 +48,8 @@ const FILE_TREE: FileItem[] = [
               { name: 'Agni Red Drop — Lookbook.pdf', type: 'file', fileType: 'text', size: '12.4 MB', modified: '5d ago' },
             ]
           },
-          {
-            name: 'Founder Notes', type: 'folder', children: [
-              { name: 'Note 07 — On Permanence.md', type: 'file', fileType: 'text', size: '8 KB', modified: '2d ago' },
-              { name: 'Note 08 — Draft.md', type: 'file', fileType: 'text', size: '6 KB', modified: '4h ago' },
-            ]
-          },
+          // Founder Notes is populated dynamically from the Notes API
+          { name: 'Founder Notes', type: 'folder', children: [] },
         ]
       },
       {
@@ -92,6 +101,38 @@ const FILE_COLORS = {
 export function Files() {
   const [path, setPath] = useState<string[]>(['EKVAAR OS'])
   const [search, setSearch] = useState('')
+
+  const { data: notes = [] } = useQuery<Note[]>({
+    queryKey: ['notes'],
+    queryFn: async () => {
+      const r = await fetch('/api/founder-notes')
+      return r.ok ? r.json() : []
+    },
+  })
+
+  // Inject real notes into the Founder Notes folder
+  const FILE_TREE: FileItem[] = STATIC_TREE.map((root) => ({
+    ...root,
+    children: root.children?.map((child) => {
+      if (child.name !== 'Generated Assets') return child
+      return {
+        ...child,
+        children: child.children?.map((sub) => {
+          if (sub.name !== 'Founder Notes') return sub
+          return {
+            ...sub,
+            children: notes.map((n) => ({
+              name: `${n.title || 'Untitled'}.md`,
+              type: 'file' as const,
+              fileType: 'text' as const,
+              size: `${n.body?.length || 0} chars`,
+              modified: timeAgo(n.updatedAt),
+            })),
+          }
+        }),
+      }
+    }),
+  }))
 
   const currentFolder = path.reduce((acc, name) => {
     const found = acc.find((f) => f.name === name && f.type === 'folder')
