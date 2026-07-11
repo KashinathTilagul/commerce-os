@@ -21,7 +21,15 @@ function toSpeech(text: string): string {
     'Q3': 'quarter three', 'Q4': 'quarter four', 'API': 'A P I',
     '₹': 'rupees ', 'EKVAAR': 'Ekvaar', 'AI': 'A I', 'KPI': 'K P I',
   }
-  let r = text.replace(/^SPOKEN:\s*/i, '').replace(/[*_#`>]/g, '').replace(/\n+/g, '. ')
+  let r = text
+    .replace(/^SPOKEN:\s*/i, '')
+    .replace(/```[\s\S]*?```/g, '')        // strip code blocks entirely
+    .replace(/`[^`]*`/g, '')               // strip inline code
+    .replace(/https?:\/\/\S+/g, '')        // strip URLs
+    .replace(/^\s*\d+\.\s+/gm, '')         // strip numbered list markers (1. 2. 3.)
+    .replace(/^\s*[-*•]\s+/gm, '')         // strip bullet markers
+    .replace(/[*_#`>]/g, '')
+    .replace(/\n+/g, '. ')
   for (const [k, v] of Object.entries(expand)) {
     r = r.replace(new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'), v)
   }
@@ -314,14 +322,31 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       // FastAPI offline or error — fall through to browser TTS
     }
 
-    // Browser TTS fallback (works locally — picks best JARVIS-like voice)
+    // Browser TTS fallback (works locally — respects selected voice)
     if (!usedPremium && 'speechSynthesis' in window) {
       const sentences = toSentences(cleanText)
+      // Pick browser voice matching the user's selected voice preference
+      const selectedVoice = ttsVoiceRef.current
+      const allVoices = window.speechSynthesis.getVoices()
+      const isPocket = !selectedVoice.includes('-')
+      const isFemale = isPocket
+        ? /eve|anna|alba|estelle|lola/i.test(selectedVoice)
+        : /Neerja|Emma|Ava|Sonia|Natasha|Swara/i.test(selectedVoice)
+      const lang = isPocket ? 'en-US'
+        : selectedVoice.startsWith('hi-IN') ? 'hi'
+        : selectedVoice.startsWith('en-IN') ? 'en-IN'
+        : selectedVoice.startsWith('en-GB') ? 'en-GB'
+        : selectedVoice.startsWith('en-AU') ? 'en-AU' : 'en-US'
+      const genderHint = isFemale ? 'female' : 'male'
+      const pickVoice = (l: string) =>
+        allVoices.find(v => v.lang.startsWith(l) && v.name.toLowerCase().includes(genderHint)) ||
+        allVoices.find(v => v.lang.startsWith(l))
+      const chosenVoice = pickVoice(lang) || pickVoice('en-GB') || pickVoice('en') || bestVoiceRef.current
       for (const sentence of sentences) {
         if (!speakingRef.current) break
         await new Promise<void>((resolve) => {
           const u = new SpeechSynthesisUtterance(sentence)
-          if (bestVoiceRef.current) u.voice = bestVoiceRef.current
+          if (chosenVoice) u.voice = chosenVoice
           u.rate = ttsSpeedRef.current * 0.82
           u.pitch = 1.0 - (1.0 - ttsStabilityRef.current) * 0.5
           u.volume = Math.min(1.0, ttsVolumeRef.current)
