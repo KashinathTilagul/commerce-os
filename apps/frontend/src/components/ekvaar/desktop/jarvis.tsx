@@ -58,29 +58,29 @@ function pickBestVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | n
   )
 }
 
-// ─── Global state bus (drives wallpaper orb) ────────────────────────────────
+// ─── Global state bus (unused by external consumers now, kept for the orb below) ─
 let gState: KrishnaState = 'idle'
 const stateListeners: ((s: KrishnaState) => void)[] = []
 function setGlobal(s: KrishnaState) { gState = s; stateListeners.forEach(f => f(s)) }
 
-// ─── Wallpaper orb ──────────────────────────────────────────────────────────
-export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; hidden: boolean }) {
-  const [state, setState] = useState<KrishnaState>('idle')
-  const [mounted, setMounted] = useState(false)
+const HISTORY_KEY = 'ekvaar_krishna_history'
+const HISTORY_LIMIT = 200
 
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => setMounted(true))
-    const fn = (s: KrishnaState) => setState(s)
-    stateListeners.push(fn)
-    return () => {
-      cancelAnimationFrame(raf)
-      const i = stateListeners.indexOf(fn)
-      if (i >= 0) stateListeners.splice(i, 1)
-    }
-  }, [])
+function loadHistory(): Msg[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.slice(-HISTORY_LIMIT) : []
+  } catch { return [] }
+}
 
-  if (!mounted) return null
+function saveHistory(messages: Msg[]) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-HISTORY_LIMIT))) } catch {}
+}
 
+// ─── The orb — same animated states, used both ambient (large) and corner (small) ─
+function KrishnaOrb({ state, size, onClick }: { state: KrishnaState; size: number; onClick: () => void }) {
   const colors: Record<KrishnaState, { core: string; glow: string }> = {
     idle:      { core: '#5856D6', glow: 'rgba(88,86,214,0.25)' },
     listening: { core: '#FF3B30', glow: 'rgba(255,59,48,0.35)' },
@@ -88,64 +88,54 @@ export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; h
     talking:   { core: '#34C759', glow: 'rgba(52,199,89,0.35)' },
   }
   const c = colors[state]
-  const size = hidden ? 40 : 80
 
   return (
-    <motion.div
-      className="fixed z-[8500] pointer-events-none"
-      style={{ bottom: hidden ? '80px' : '40px', right: '24px' }}
-      animate={{ opacity: hidden ? 0.4 : 1 }}
-      transition={{ duration: 0.3 }}
+    <motion.button
+      onClick={onClick}
+      className="relative pointer-events-auto cursor-pointer"
+      style={{ width: size, height: size }}
+      whileHover={{ scale: 1.06 }}
+      whileTap={{ scale: 0.94 }}
     >
-      <motion.button
-        onClick={onClick}
-        className="relative pointer-events-auto cursor-pointer"
-        style={{ width: size, height: size }}
-        animate={{ scale: hidden ? 0.5 : 1 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        whileHover={{ scale: hidden ? 0.6 : 1.1 }}
-        whileTap={{ scale: 0.9 }}
+      <motion.div className="absolute inset-0 rounded-full"
+        animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
+        transition={{ duration: state === 'talking' ? 0.9 : state === 'idle' ? 4 : 1.5, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)` }} />
+
+      {state === 'listening' && [0, 0.7, 1.4].map(d => (
+        <motion.div key={d} className="absolute inset-0 rounded-full border-2" style={{ borderColor: c.core }}
+          animate={{ scale: [1, 2], opacity: [0.5, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, delay: d }} />
+      ))}
+
+      {state === 'talking' && (
+        <motion.div className="absolute inset-0 rounded-full" style={{ background: c.glow }}
+          animate={{ scale: [1, 1.25, 1, 1.15, 1], opacity: [0.3, 0.6, 0.3, 0.5, 0.3] }}
+          transition={{ duration: 0.9, repeat: Infinity, times: [0, 0.15, 0.35, 0.55, 1] }} />
+      )}
+
+      {state === 'thinking' && (
+        <motion.div className="absolute inset-0 rounded-full border-2 border-t-transparent"
+          style={{ borderColor: c.core }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 0.8, repeat: Infinity }} />
+      )}
+
+      <motion.div className="absolute rounded-full flex items-center justify-center overflow-hidden"
+        style={{
+          inset: '20%',
+          background: `linear-gradient(135deg, ${c.core} 0%, ${c.core}CC 100%)`,
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 12px ${c.glow}`,
+        }}
+        animate={{ scale: state === 'idle' ? [1, 1.04, 1] : state === 'talking' ? [1, 1.12, 1, 1.08, 1] : 1 }}
+        transition={{ duration: state === 'idle' ? 4 : state === 'talking' ? 0.9 : 1, repeat: Infinity }}
       >
-        <motion.div className="absolute inset-0 rounded-full"
-          animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
-          transition={{ duration: state === 'talking' ? 0.9 : state === 'idle' ? 4 : 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)` }} />
-
-        {state === 'listening' && [0, 0.7, 1.4].map(d => (
-          <motion.div key={d} className="absolute inset-0 rounded-full border-2" style={{ borderColor: c.core }}
-            animate={{ scale: [1, 2], opacity: [0.5, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, delay: d }} />
-        ))}
-
-        {state === 'talking' && (
-          <motion.div className="absolute inset-0 rounded-full" style={{ background: c.glow }}
-            animate={{ scale: [1, 1.25, 1, 1.15, 1], opacity: [0.3, 0.6, 0.3, 0.5, 0.3] }}
-            transition={{ duration: 0.9, repeat: Infinity, times: [0, 0.15, 0.35, 0.55, 1] }} />
-        )}
-
-        {state === 'thinking' && (
-          <motion.div className="absolute inset-0 rounded-full border-2 border-t-transparent"
-            style={{ borderColor: c.core }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 0.8, repeat: Infinity }} />
-        )}
-
-        <motion.div className="absolute rounded-full flex items-center justify-center overflow-hidden"
-          style={{
-            inset: '20%',
-            background: `linear-gradient(135deg, ${c.core} 0%, ${c.core}CC 100%)`,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 12px ${c.glow}`,
-          }}
-          animate={{ scale: state === 'idle' ? [1, 1.04, 1] : state === 'talking' ? [1, 1.12, 1, 1.08, 1] : 1 }}
-          transition={{ duration: state === 'idle' ? 4 : state === 'talking' ? 0.9 : 1, repeat: Infinity }}
-        >
-          <motion.div className="absolute inset-0 opacity-30" animate={{ rotate: 360 }}
-            transition={{ duration: state === 'idle' ? 15 : 4, repeat: Infinity }}
-            style={{ background: `conic-gradient(from 0deg, transparent, ${c.core}, transparent 60%, ${c.core}80, transparent)` }} />
-          <span className="relative font-display text-white/95" style={{ fontSize: size * 0.22 }}>K</span>
-        </motion.div>
-      </motion.button>
-    </motion.div>
+        <motion.div className="absolute inset-0 opacity-30" animate={{ rotate: 360 }}
+          transition={{ duration: state === 'idle' ? 15 : 4, repeat: Infinity }}
+          style={{ background: `conic-gradient(from 0deg, transparent, ${c.core}, transparent 60%, ${c.core}80, transparent)` }} />
+        <span className="relative font-display text-white/95" style={{ fontSize: size * 0.22 }}>K</span>
+      </motion.div>
+    </motion.button>
   )
 }
 
@@ -154,6 +144,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const { open: openWindow, activeId, windows } = useWindowStore()
   const [expanded, setExpanded] = useState(false)
   const [messages, setMessages] = useState<Msg[]>([])
+  const [krishnaState, setKrishnaState] = useState<KrishnaState>('idle')
   const [inputText, setInputText] = useState('')
   const [transcript, setTranscript] = useState('')
   const [muted, setMuted] = useState(false)
@@ -182,6 +173,17 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const vuRef             = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
+
+  // Hydrate chat history from localStorage on mount — survives reloads
+  useEffect(() => { setMessages(loadHistory()) }, [])
+  useEffect(() => { saveHistory(messages) }, [messages])
+
+  // Subscribe to the state bus so the orb animates without prop drilling
+  useEffect(() => {
+    const fn = (s: KrishnaState) => setKrishnaState(s)
+    stateListeners.push(fn)
+    return () => { const i = stateListeners.indexOf(fn); if (i >= 0) stateListeners.splice(i, 1) }
+  }, [])
 
   // Load TTS voice — localStorage is instant; server is the authoritative fallback
   useEffect(() => {
@@ -517,18 +519,22 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const openPanel = useCallback(() => {
     setExpanded(true)
-    const h = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
-    const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night'
-    const greets = [
-      `${g}. Online and ready.`,
-      `${g}. How can I help?`,
-      `${g}. What do you need?`,
-      `${g}. All systems operational.`,
-      `${g}. I'm listening.`,
-    ]
-    const msg = greets[Math.floor(Math.random() * greets.length)]
-    setMessages(m => [...m, { role: 'krishna', text: msg, ts: Date.now() }])
-    setTimeout(() => speakText(msg), 120)
+    // Only greet on a genuinely fresh start — history now survives reloads
+    setMessages(m => {
+      if (m.length > 0) return m
+      const h = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
+      const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night'
+      const greets = [
+        `${g}. Online and ready.`,
+        `${g}. How can I help?`,
+        `${g}. What do you need?`,
+        `${g}. All systems operational.`,
+        `${g}. I'm listening.`,
+      ]
+      const msg = greets[Math.floor(Math.random() * greets.length)]
+      setTimeout(() => speakText(msg), 120)
+      return [...m, { role: 'krishna', text: msg, ts: Date.now() }]
+    })
   }, [speakText])
 
   const handleTextSend = () => {
@@ -545,8 +551,52 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     : isSpeaking ? 'speaking'
     : 'standby'
 
+  const lastMsg = messages[messages.length - 1]
+
   return (
-    <AnimatePresence>
+    <>
+      {/* ── Ambient presence — large centered orb on empty wallpaper; shrinks to
+             a corner presence once a window is open. Click expands full history. ── */}
+      {!expanded && (
+        <motion.div
+          className="fixed z-[500] flex flex-col items-center pointer-events-none"
+          animate={hasOpenWindows
+            ? { top: 'auto', bottom: '24px', right: '24px', left: 'auto', transform: 'none' }
+            : { top: '15%', bottom: 'auto', left: '42%', right: 'auto', transform: 'none' }
+          }
+          transition={{ type: 'spring', stiffness: 200, damping: 26 }}
+          style={{ position: 'fixed' }}
+        >
+          <KrishnaOrb state={krishnaState} size={hasOpenWindows ? 44 : 120} onClick={openPanel} />
+          {!hasOpenWindows && (
+            <AnimatePresence mode="wait">
+              {lastMsg && (
+                <motion.p
+                  key={lastMsg.ts}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 0.85, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  className="mt-4 max-w-[360px] text-center text-[13px] leading-relaxed text-white/80 pointer-events-none"
+                >
+                  {lastMsg.text}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          )}
+          {!hasOpenWindows && micSupported && (
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleListening() }}
+              className="mt-4 pointer-events-auto h-9 w-9 rounded-full flex items-center justify-center text-white/50 hover:text-white/90 transition-colors"
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+              title={listening ? 'Stop listening' : 'Speak to Krishna'}
+            >
+              {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          )}
+        </motion.div>
+      )}
+
+      <AnimatePresence>
       {expanded && (
         <motion.div
           initial={{ opacity: 0, y: 24, scale: 0.93 }}
@@ -735,6 +785,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           </div>
         </motion.div>
       )}
-    </AnimatePresence>
+      </AnimatePresence>
+    </>
   )
 }
