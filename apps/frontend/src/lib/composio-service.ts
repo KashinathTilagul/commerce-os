@@ -128,8 +128,11 @@ const TOOLS_BY_TOOLKIT: Record<string, { slug: string; name: string; description
   ],
 }
 
+const ALL_TOOLKIT_SLUGS = TOOLKIT_CATALOG.map((t) => t.slug)
+
 // Agent → toolkit permissions mapping
 export const AGENT_TOOLKIT_ACCESS: Record<string, string[]> = {
+  FOUNDER: ALL_TOOLKIT_SLUGS, // founder has access to everything
   CMO: ['shopify', 'stripe', 'meta_ads', 'google_analytics', 'instagram', 'twitter'],
   CTO: ['github', 'vercel', 'aws', 'slack'],
   CFO: ['stripe', 'google_sheets', 'shopify'],

@@ -173,16 +173,22 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const inputRef          = useRef<HTMLTextAreaElement>(null)
   const isAtBottomRef     = useRef(true)
   const ttsVoiceRef       = useRef<string>('en-IN-NeerjaNeural')
+  const ttsSpeedRef       = useRef<number>(1.0)
+  const ttsStabilityRef   = useRef<number>(0.75)
+  const ttsVolumeRef      = useRef<number>(1.0)
   const audioStopRef      = useRef<(() => void) | null>(null)
   const speakingRef       = useRef(false)
   const vuRef             = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
 
-  // Load saved TTS voice
+  // Load saved TTS voice + settings
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then(s => {
       if (s?.ttsVoice) ttsVoiceRef.current = s.ttsVoice
+      if (s?.ttsSpeed != null) ttsSpeedRef.current = s.ttsSpeed
+      if (s?.ttsStability != null) ttsStabilityRef.current = s.ttsStability
+      if (s?.ttsVolume != null) ttsVolumeRef.current = s.ttsVolume
     }).catch(() => {})
   }, [])
 
@@ -275,7 +281,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cleanText, voice: ttsVoiceRef.current }),
+        body: JSON.stringify({ text: cleanText, voice: ttsVoiceRef.current, speed: ttsSpeedRef.current, stability: ttsStabilityRef.current, volume: ttsVolumeRef.current }),
         signal: AbortSignal.timeout(14000),
       })
       if (res.ok) {
@@ -312,10 +318,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         await new Promise<void>((resolve) => {
           const u = new SpeechSynthesisUtterance(sentence)
           if (bestVoiceRef.current) u.voice = bestVoiceRef.current
-          // Slower + deeper = much more JARVIS-like
-          u.rate = 0.82
-          u.pitch = 0.75
-          u.volume = 1.0
+          u.rate = ttsSpeedRef.current * 0.82   // apply user speed over base
+          u.pitch = 1.0 - (1.0 - ttsStabilityRef.current) * 0.5   // stability → pitch
+          u.volume = Math.min(1.0, ttsVolumeRef.current)
           let done = false
           const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
           audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }

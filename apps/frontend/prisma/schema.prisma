@@ -397,8 +397,12 @@ model SystemSetting {
   escalationPolicy String  @default("standard")
 
   // Voice & prompt
-  ttsVoice      String  @default("en-IN-NeerjaNeural")
-  krishnaPrompt String  @default("")
+  ttsVoice        String  @default("en-IN-NeerjaNeural")
+  ttsSpeed        Float   @default(1.0)    // 0.5–2.0, maps to SSML rate
+  ttsStability    Float   @default(0.75)   // 0–1, maps to pitch offset
+  ttsVolume       Float   @default(1.0)    // 0–1.5, maps to SSML volume
+  responseEagerness Float @default(0.85)  // LLM temperature
+  krishnaPrompt   String  @default("")
 
   // 3-tier AI model cascade
   primaryProvider  String  @default("openrouter")

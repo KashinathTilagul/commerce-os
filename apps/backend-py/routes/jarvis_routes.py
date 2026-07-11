@@ -47,7 +47,7 @@ _VOICE_STYLES: dict[str, str] = {
     # Hindi voices have very limited style support — skip express-as
 }
 
-def _build_ssml(text: str, voice: str) -> str:
+def _build_ssml(text: str, voice: str, speed: float = 1.0, stability: float = 0.75, volume: float = 1.0) -> str:
     """Convert plain text to SSML with breathing pauses and natural prosody."""
     lang = voice[:5]
     safe = html.escape(text)
@@ -62,10 +62,17 @@ def _build_ssml(text: str, voice: str) -> str:
     # Breath before longer responses
     breath = '<break time="200ms"/>' if len(text) > 100 else ''
 
-    # Slower + slightly deeper = much more natural and human
-    rate  = "-10%"
-    pitch = "-5%"
+    # Convert speed (0.5–2.0) → SSML rate percent: 1.0 = -10% (slightly slower baseline)
+    rate_pct = round((speed - 1.0) * 100 - 10)
+    rate = f"{rate_pct:+d}%"
+    # stability (0–1) → pitch: 0.75 = -5% (natural baseline), lower = more expressive
+    pitch_pct = round((stability - 0.75) * 20 - 5)
+    pitch = f"{pitch_pct:+d}%"
+    # volume (0–1.5) → SSML volume dB: 1.0 = +0dB
+    vol_db = round((volume - 1.0) * 6)
+    vol = f"{vol_db:+d}dB" if vol_db != 0 else "default"
 
+    vol_attr = f" volume='{vol}'" if vol != "default" else ""
     style = _VOICE_STYLES.get(voice)
     if style:
         return (
@@ -75,18 +82,17 @@ def _build_ssml(text: str, voice: str) -> str:
             f"xml:lang='{lang}'>"
             f"<voice name='{voice}'>"
             f"<mstts:express-as style='{style}' styledegree='1.3'>"
-            f"<prosody rate='{rate}' pitch='{pitch}'>"
+            f"<prosody rate='{rate}' pitch='{pitch}'{vol_attr}>"
             f"{breath}{safe}"
             f"</prosody>"
             f"</mstts:express-as>"
             f"</voice>"
             f"</speak>"
         )
-    # Hindi and other voices — prosody only
     return (
         f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{lang}'>"
         f"<voice name='{voice}'>"
-        f"<prosody rate='{rate}' pitch='{pitch}'>"
+        f"<prosody rate='{rate}' pitch='{pitch}'{vol_attr}>"
         f"{breath}{safe}"
         f"</prosody>"
         f"</voice>"
@@ -97,6 +103,9 @@ def _build_ssml(text: str, voice: str) -> str:
 class TTSRequest(BaseModel):
     text: str
     voice: str = "en-IN-NeerjaNeural"
+    speed: float = 1.0
+    stability: float = 0.75
+    volume: float = 1.0
 
 @router.post("/tts")
 async def tts(req: TTSRequest):
@@ -109,7 +118,7 @@ async def tts(req: TTSRequest):
     if not text:
         raise HTTPException(400, "text required")
 
-    ssml = _build_ssml(text, req.voice)
+    ssml = _build_ssml(text, req.voice, req.speed, req.stability, req.volume)
     communicate = edge_tts.Communicate(ssml, req.voice)
 
     async def generate():

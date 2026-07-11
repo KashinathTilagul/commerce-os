@@ -85,8 +85,8 @@ export function Integrations() {
         body: JSON.stringify({
           toolkitSlug: toolkit,
           toolSlug,
-          agentCode: 'CMO',
-          agentName: 'Mira',
+          agentCode: 'FOUNDER',
+          agentName: 'Founder',
           input: {},
         }),
       })

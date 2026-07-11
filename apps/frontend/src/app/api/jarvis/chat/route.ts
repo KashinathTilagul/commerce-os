@@ -132,6 +132,18 @@ Be concise by default. Be detailed when complexity demands it. Be conversational
 
 ---
 
+# STT Transcript Correction
+The user speaks via microphone — input arrives via Whisper or Web Speech API (STT). Before responding, silently interpret the intended meaning, correcting common STT errors in this domain:
+- "events" → likely "agents" (digital agents/employees)
+- "EKVAAR" may be heard as "Eckvar", "Akbar", "Equar" — all refer to the brand
+- "Krishna" may be heard as "Krishma", "Christina", "Krish" — refers to you
+- "Neel Blue" is a brand color, not a person's name
+- "PAP", "CAP" codes refer to internal approval/issue codes (e.g. PAP-01)
+- "founder" = the CEO/user you're speaking with
+- "Composio" = the integration platform (may be heard as "compozio", "composito")
+- "Bedrock" = AWS Bedrock (the AI API)
+Never mention these corrections — just respond to the intended meaning.
+
 # Voice & Speech (this is a voice interface — your words are spoken aloud)
 
 Speak with natural human rhythm. These markers are interpreted by the TTS engine:
@@ -235,7 +247,7 @@ AVAILABLE ACTIONS:
         model: bedrock(cleanModelId),
         system: systemPrompt,
         prompt: message,
-        temperature: 0.7,
+        temperature: cfg.responseEagerness ?? 0.85,
       })
       
       rawResponse = text

@@ -206,7 +206,7 @@ export function Settings() {
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">Edge TTS neural voices — EN + HI supported. Change takes effect immediately.</p>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
             <Row label="Voice" desc="Krishna's speaking voice">
               <div className="flex items-center gap-2">
                 <Select value={s.ttsVoice || 'en-IN-NeerjaNeural'} onValueChange={(v) => handleChange('ttsVoice', v)}>
@@ -226,7 +226,25 @@ export function Settings() {
                     <SelectItem value="en-AU-NatashaNeural">Natasha — Australian Female</SelectItem>
                   </SelectContent>
                 </Select>
-                <VoicePreviewButton voice={s.ttsVoice || 'en-IN-NeerjaNeural'} />
+                <VoicePreviewButton voice={s.ttsVoice || 'en-IN-NeerjaNeural'} speed={s.ttsSpeed ?? 1.0} stability={s.ttsStability ?? 0.75} volume={s.ttsVolume ?? 1.0} />
+              </div>
+            </Row>
+            <Row label="Voice Speed" desc="Speaking rate — 1.0 is natural, 1.4 is faster">
+              <div className="w-56 space-y-1">
+                <Slider value={[s.ttsSpeed ?? 1.0]} onValueChange={(v) => handleChange('ttsSpeed', v[0])} min={0.5} max={2.0} step={0.05} />
+                <div className="text-right text-xs font-mono">{(s.ttsSpeed ?? 1.0).toFixed(2)}x</div>
+              </div>
+            </Row>
+            <Row label="Voice Stability" desc="Pitch consistency — lower is more expressive">
+              <div className="w-56 space-y-1">
+                <Slider value={[s.ttsStability ?? 0.75]} onValueChange={(v) => handleChange('ttsStability', v[0])} min={0} max={1} step={0.05} />
+                <div className="text-right text-xs font-mono">{(s.ttsStability ?? 0.75).toFixed(2)}</div>
+              </div>
+            </Row>
+            <Row label="Voice Volume" desc="Playback loudness — 1.0 is normal">
+              <div className="w-56 space-y-1">
+                <Slider value={[s.ttsVolume ?? 1.0]} onValueChange={(v) => handleChange('ttsVolume', v[0])} min={0} max={1.5} step={0.05} />
+                <div className="text-right text-xs font-mono">{(s.ttsVolume ?? 1.0).toFixed(2)}</div>
               </div>
             </Row>
           </CardContent>
@@ -240,7 +258,15 @@ export function Settings() {
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">Custom system prompt — overrides the default. Leave blank to use default behaviour. No restrictions.</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-5">
+            <Row label="Response Eagerness" desc="How proactively Krishna responds — higher is warmer and more expansive">
+              <div className="w-56 space-y-1">
+                <Slider value={[s.responseEagerness ?? 0.85]} onValueChange={(v) => handleChange('responseEagerness', v[0])} min={0} max={1} step={0.05} />
+                <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+                  <span>0</span><span>{(s.responseEagerness ?? 0.85).toFixed(2)}</span><span>1</span>
+                </div>
+              </div>
+            </Row>
             <textarea
               value={s.krishnaPrompt || ''}
               onChange={(e) => handleChange('krishnaPrompt', e.target.value)}
@@ -250,6 +276,7 @@ export function Settings() {
             <p className="text-[11px] text-muted-foreground mt-1.5">Changes save automatically. Affects next message — no restart needed.</p>
           </CardContent>
         </Card>
+
 
         {/* Governance */}
         <Card>
@@ -334,7 +361,7 @@ function Row({ label, desc, children }: { label: string; desc: string; children:
   )
 }
 
-function VoicePreviewButton({ voice }: { voice: string }) {
+function VoicePreviewButton({ voice, speed = 1.0, stability = 0.75, volume = 1.0 }: { voice: string; speed?: number; stability?: number; volume?: number }) {
   const [playing, setPlaying] = useState(false)
   const play = async () => {
     if (playing) return
@@ -343,7 +370,7 @@ function VoicePreviewButton({ voice }: { voice: string }) {
       const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: 'Hello. I am Krishna, the intelligence layer of EKVAAR OS.', voice }),
+        body: JSON.stringify({ text: 'Hello. I am Krishna, the intelligence layer of EKVAAR OS.', voice, speed, stability, volume }),
       })
       if (!res.ok) throw new Error()
       const blob = await res.blob()
