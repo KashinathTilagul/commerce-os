@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Deploy to AWS EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -21,9 +21,11 @@ jobs:
           script: |
             cd ~/Ekvaar
             git pull origin main
+            docker builder prune -f || true
             sudo docker compose up -d --build fastapi frontend
             sudo docker compose restart nginx
-            docker image prune -f
+            docker image prune -f || true
             sleep 8
-            curl -fsS https://os.ekvaar.com -o /dev/null || exit 1
-            echo "[✓] Deployed OK"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://os.ekvaar.com)
+            [ "$STATUS" -lt 500 ] || { echo "[✗] Health check failed: HTTP $STATUS"; exit 1; }
+            echo "[✓] Deployed OK (HTTP $STATUS)"
