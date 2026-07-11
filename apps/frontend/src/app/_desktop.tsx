@@ -14,6 +14,7 @@ import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
 import { Jarvis, JarvisWallpaperOrb } from '@/components/ekvaar/desktop/jarvis'
 import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
+import { DesktopWidgets } from '@/components/ekvaar/desktop/desktop-widgets'
 
 export default function Desktop() {
   const { status } = useSession()
@@ -71,6 +72,7 @@ export default function Desktop() {
   return (
     <div className="relative h-screen w-screen overflow-hidden">
       <DesktopWallpaper />
+      <DesktopWidgets />
       <MenuBar
         onSpotlight={() => setSpotlightOpen(true)}
         onKrishna={() => setJarvisTrigger(t => t + 1)}

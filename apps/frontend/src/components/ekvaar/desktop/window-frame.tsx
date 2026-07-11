@@ -136,15 +136,15 @@ export function WindowFrame({ win }: { win: WindowState }) {
             width: bounds.width,
             height: bounds.height,
             zIndex: win.zIndex,
-            background: 'var(--window-bg)',
-            backdropFilter: 'blur(32px) saturate(160%)',
-            WebkitBackdropFilter: 'blur(32px) saturate(160%)',
+            background: win.isMaximized ? 'var(--window-bg)' : 'rgba(10, 10, 12, 0.45)',
+            backdropFilter: win.isMaximized ? 'none' : 'blur(60px) saturate(180%)',
+            WebkitBackdropFilter: win.isMaximized ? 'none' : 'blur(60px) saturate(180%)',
             boxShadow: win.isMaximized
               ? 'none'
               : isActive
-              ? '0 32px 80px rgba(0,0,0,0.38), 0 0 0 1px var(--window-border)'
-              : '0 16px 48px rgba(0,0,0,0.20), 0 0 0 0.5px var(--window-border)',
-            border: win.isMaximized ? 'none' : '0.5px solid var(--window-border)',
+              ? '0 32px 80px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.2)'
+              : '0 16px 48px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.08)',
+            border: 'none',
           }}
         >
           {/* Title bar */}
@@ -152,10 +152,9 @@ export function WindowFrame({ win }: { win: WindowState }) {
             className="relative flex items-center h-9 px-3 flex-shrink-0 cursor-grab active:cursor-grabbing"
             style={{
               background: isActive
-                ? 'linear-gradient(180deg, rgba(28,28,30,0.88), rgba(18,18,20,0.92))'
-                : 'linear-gradient(180deg, rgba(24,24,26,0.82), rgba(16,16,18,0.88))',
-              borderBottom: '0.5px solid rgba(255,255,255,0.07)',
-              backdropFilter: 'blur(8px)',
+                ? 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))'
+                : 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))',
+              borderBottom: '1px solid rgba(255,255,255,0.1)',
             }}
             onMouseDown={handleTitleMouseDown}
             onDoubleClick={() => toggleMaximize(win.id)}
@@ -196,7 +195,7 @@ export function WindowFrame({ win }: { win: WindowState }) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto" style={{ background: 'var(--window-bg)' }}>
+          <div className="flex-1 overflow-y-auto bg-transparent">
             <AppComponentWrapper Component={AppComponent} appId={win.id} />
           </div>
 

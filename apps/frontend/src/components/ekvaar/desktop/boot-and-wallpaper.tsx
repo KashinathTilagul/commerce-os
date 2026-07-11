@@ -6,75 +6,118 @@ import { useWindowStore } from '@/lib/window-store'
 
 export function BootScreen() {
   const { bootDone, setBootDone, open } = useWindowStore()
+  const [phase, setPhase] = useState(0)
   const [progress, setProgress] = useState(0)
+  
+  const phases = [
+    'INITIALIZING AI CORES...',
+    'ESTABLISHING NEURAL LINK...',
+    'VERIFYING SECURE NETWORK...',
+    'WAKING KRISHNA MAINFRAME...',
+    'ENTERING THE HOUSE.'
+  ]
 
   useEffect(() => {
+    let currentPhase = 0
+    let currentProgress = 0
+    
     const t = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          clearInterval(t)
-          setTimeout(() => {
-            setBootDone(true)
-          }, 350)
-          return 100
-        }
-        return p + 8
-      })
-    }, 80)
+      currentProgress += Math.random() * 4 + 2
+      if (currentProgress > 100) currentProgress = 100
+      
+      setProgress(currentProgress)
+      
+      const newPhase = Math.min(
+        Math.floor((currentProgress / 100) * phases.length),
+        phases.length - 1
+      )
+      
+      if (newPhase !== currentPhase) {
+        currentPhase = newPhase
+        setPhase(currentPhase)
+      }
+      
+      if (currentProgress >= 100) {
+        clearInterval(t)
+        setTimeout(() => setBootDone(true), 600)
+      }
+    }, 50)
+    
     return () => clearInterval(t)
-  }, [setBootDone, open])
+  }, [setBootDone])
 
   return (
     <AnimatePresence>
       {!bootDone && (
         <motion.div
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.6 }}
-          className="fixed inset-0 z-[10000] flex flex-col items-center justify-center"
-          style={{
-            background: '#0A0A0A',
-          }}
+          exit={{ opacity: 0, scale: 1.05 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="fixed inset-0 z-[10000] flex flex-col items-center justify-center overflow-hidden"
+          style={{ background: '#050505' }}
         >
-          {/* EKVAAR logo */}
+          {/* Scanning/Glitch Overlay */}
+          <motion.div 
+            className="absolute inset-0 pointer-events-none opacity-20"
+            animate={{ 
+              backgroundPosition: ['0% 0%', '0% 100%'] 
+            }}
+            transition={{ repeat: Infinity, duration: 4, ease: 'linear' }}
+            style={{
+              backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.05) 2px, rgba(255,255,255,0.05) 4px)'
+            }}
+          />
+
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.6 }}
-            className="text-center"
+            initial={{ opacity: 0, y: 20, filter: 'blur(10px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 1, ease: 'easeOut' }}
+            className="text-center relative z-10"
           >
-            <div className="font-display text-6xl tracking-tighter text-rui mb-2" style={{ color: '#F5F1EA' }}>
+            <div className="font-display text-[80px] tracking-tighter text-rui mb-1" style={{ color: '#F5F1EA', textShadow: '0 0 40px rgba(245,241,234,0.3)' }}>
               EKVAAR
             </div>
-            <div className="text-[10px] tracking-[0.4em] uppercase" style={{ color: 'rgba(245,241,234,0.5)' }}>
+            <div className="text-[11px] tracking-[0.5em] uppercase font-mono" style={{ color: 'rgba(245,241,234,0.6)' }}>
               India ka Original
-            </div>
-            {/* Color stripes */}
-            <div className="flex items-center gap-1 mt-6 justify-center">
-              <div className="h-0.5 w-8" style={{ background: '#C8302A' }} />
-              <div className="h-0.5 w-8" style={{ background: '#1F3A5F' }} />
-              <div className="h-0.5 w-8" style={{ background: '#2F4F3A' }} />
-              <div className="h-0.5 w-8" style={{ background: '#D4859B' }} />
-              <div className="h-0.5 w-8" style={{ background: '#F5F1EA' }} />
             </div>
           </motion.div>
 
-          {/* Progress bar */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="absolute bottom-32 w-56"
+            transition={{ delay: 0.8 }}
+            className="absolute bottom-24 w-80 flex flex-col items-center z-10"
           >
-            <div className="h-0.5 w-full rounded-full overflow-hidden" style={{ background: 'rgba(245,241,234,0.15)' }}>
+            {/* Phase Text */}
+            <AnimatePresence mode="wait">
               <motion.div
-                className="h-full"
-                style={{ background: '#F5F1EA' }}
+                key={phase}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                className="text-[10px] tracking-[0.3em] font-mono mb-4 text-center h-4"
+                style={{ color: 'rgba(245,241,234,0.7)' }}
+              >
+                {phases[phase]}
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Futuristic Progress Bar */}
+            <div className="w-full h-[1px] relative overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.1)' }}>
+              <motion.div
+                className="h-full absolute left-0 top-0 bottom-0"
+                style={{ 
+                  background: 'linear-gradient(90deg, transparent, #F5F1EA, #F5F1EA)',
+                  boxShadow: '0 0 10px #F5F1EA'
+                }}
                 animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.08 }}
+                transition={{ duration: 0.1 }}
               />
             </div>
-            <div className="mt-3 text-center text-[10px] tracking-[0.25em] uppercase" style={{ color: 'rgba(245,241,234,0.4)' }}>
-              {progress < 30 ? 'Loading House' : progress < 60 ? 'Restoring Originals' : progress < 100 ? 'Calibrating AI' : 'Entering the House'}
+            
+            {/* Hex Dump / Console log simulation */}
+            <div className="mt-4 w-full flex justify-between text-[8px] font-mono opacity-30" style={{ color: '#F5F1EA' }}>
+              <span>SYS.BOOT.v2.0.4</span>
+              <span>{(progress * 0.01).toFixed(4)} TFLOPS</span>
             </div>
           </motion.div>
         </motion.div>

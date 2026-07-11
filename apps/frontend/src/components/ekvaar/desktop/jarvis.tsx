@@ -446,6 +446,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           a.shortName.toLowerCase().includes((data.action.app || '').toLowerCase())
         )
         if (app) openWindow(app.id, app.name)
+      } else if (data.action?.type === 'close_window') {
+        const active = useWindowStore.getState().activeId
+        if (active) useWindowStore.getState().close(active)
       }
 
       await speakText(reply)
