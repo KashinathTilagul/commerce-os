@@ -222,8 +222,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   }, [])
 
   useEffect(() => {
-    if (isAtBottomRef.current) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, transcript, isProcessing])
+    // Always follow the conversation — this is a small panel, new turns should never go unseen
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, transcript, isProcessing, speakingCaption])
 
   // Trigger from dock / keyboard
   useEffect(() => {
@@ -307,9 +308,12 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     speakingRef.current = false
     setSpeakingCaption('')
     setGlobal('idle')
-    // Push-to-talk only — no auto-restart. Auto-restarting the mic after
-    // speaking caused it to pick up Krishna's own voice through speakers,
-    // creating a feedback loop (garbage transcript → reply → speak → repeat).
+
+    // Continue the conversation — mic uses echoCancellation so it won't
+    // re-hear this reply through the speakers and loop.
+    if (voiceSessionRef.current && !listeningRef.current) {
+      setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 400)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [muted, stopTTS])
 
@@ -317,10 +321,12 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const startListening = useCallback(async () => {
     if (typeof window === 'undefined' || listeningRef.current) return
 
-    // Get mic access
+    // Get mic access — echo cancellation stops the mic from re-hearing Krishna's own voice
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      })
     } catch {
       toast.error('Microphone blocked', 'Allow mic access in browser settings')
       voiceSessionRef.current = false
@@ -394,16 +400,18 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         return
       }
 
-      // Try Whisper first (server-side quality)
-      let finalText = ''
-      if (chunks.length) {
+      // Web Speech transcript is already in hand — use it immediately, no network wait.
+      // Only fall back to the Whisper roundtrip if Web Speech gave us nothing.
+      let finalText = webSpeechText
+
+      if (!finalText && chunks.length) {
         try {
           const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
           const fd = new FormData()
           fd.append('audio', blob, 'audio.webm')
           const res = await fetch('/api/jarvis/stt', {
             method: 'POST', body: fd,
-            signal: AbortSignal.timeout(8000),
+            signal: AbortSignal.timeout(6000),
           })
           if (res.ok) {
             const { transcript: t } = await res.json()
@@ -411,9 +419,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           }
         } catch {}
       }
-
-      // Fallback: use Web Speech API transcript
-      if (!finalText && webSpeechText) finalText = webSpeechText
 
       setTranscript('')
       if (finalText) {
