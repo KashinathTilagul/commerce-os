@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn, useSession } from 'next-auth/react'
 import { ArrowRight } from 'lucide-react'
 import { motion } from 'framer-motion'
