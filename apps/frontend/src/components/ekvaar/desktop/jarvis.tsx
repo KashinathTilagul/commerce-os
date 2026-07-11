@@ -303,10 +303,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
     speakingRef.current = false
     setGlobal('idle')
-
-    if (voiceSessionRef.current && !listeningRef.current) {
-      setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 350)
-    }
+    // Push-to-talk only — no auto-restart. Auto-restarting the mic after
+    // speaking caused it to pick up Krishna's own voice through speakers,
+    // creating a feedback loop (garbage transcript → reply → speak → repeat).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [muted, stopTTS])
 
@@ -385,12 +384,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       webSpeechFinal.current = ''
 
       if (!chunks.length && !webSpeechText) {
-        // Nothing captured — if voice session is active, restart listening
-        if (voiceSessionRef.current) {
-          setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 400)
-        } else {
-          setGlobal('idle')
-        }
+        // Nothing captured — stop, don't loop
+        voiceSessionRef.current = false
+        setGlobal('idle')
         return
       }
 
@@ -421,11 +417,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         return  // sendToKrishna manages state from here
       }
 
-      // No speech detected — restart if in voice session
+      // No speech detected — stop, don't loop
+      voiceSessionRef.current = false
       setGlobal('idle')
-      if (voiceSessionRef.current) {
-        setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 400)
-      }
     }
 
     recorder.start(250) // collect data every 250ms
