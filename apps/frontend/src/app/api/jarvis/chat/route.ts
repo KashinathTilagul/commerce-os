@@ -142,6 +142,19 @@ ACTION: {"type":"none"}`
       })
     }
 
+    let finalApiKey = apiKey
+    // If it looks like base64 (no spaces, ends in =), maybe the proxy wants the decoded string
+    if (apiKey.length > 40 && apiKey.endsWith('=') && !apiKey.includes(' ')) {
+      try {
+        const decoded = Buffer.from(apiKey, 'base64').toString('utf8')
+        if (decoded.includes('BedrockAPIKey') || decoded.includes(':')) {
+          finalApiKey = decoded
+          // If there's a weird binary prefix, strip it (e.g. ?BedrockAPIKey -> BedrockAPIKey)
+          finalApiKey = finalApiKey.replace(/^[^a-zA-Z0-9]+/, '')
+        }
+      } catch (e) {}
+    }
+
     try {
       console.log(`[Krishna] Querying Core with model ${model}`)
       const r = await fetch(`${baseUrl}/chat/completions`, {
@@ -149,6 +162,8 @@ ACTION: {"type":"none"}`
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
+          'x-api-key': apiKey,
+          'X-Custom-Auth': finalApiKey, // send decoded version just in case
           'HTTP-Referer': 'https://os.ekvaar.com',
           'X-Title': 'EKVAAR OS Krishna',
         },
