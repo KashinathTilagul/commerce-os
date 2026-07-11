@@ -42,9 +42,15 @@ export default function Desktop() {
         const active = useWindowStore.getState().activeId
         if (active) useWindowStore.getState().close(active)
       }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      // Ctrl/Cmd + Space → Spotlight
+      if ((e.metaKey || e.ctrlKey) && e.key === ' ') {
         e.preventDefault()
         setSpotlightOpen((v) => !v)
+      }
+      // Ctrl/Cmd + K → Krishna (Jarvis)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setJarvisTrigger((v) => v + 1)
       }
       if (e.key === 'F4' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l')) {
         e.preventDefault()

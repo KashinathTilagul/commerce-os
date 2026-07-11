@@ -136,14 +136,14 @@ export function WindowFrame({ win }: { win: WindowState }) {
             width: bounds.width,
             height: bounds.height,
             zIndex: win.zIndex,
-            background: win.isMaximized ? 'var(--window-bg)' : 'rgba(10, 10, 12, 0.45)',
+            background: 'var(--window-bg)',
             backdropFilter: win.isMaximized ? 'none' : 'blur(60px) saturate(180%)',
             WebkitBackdropFilter: win.isMaximized ? 'none' : 'blur(60px) saturate(180%)',
             boxShadow: win.isMaximized
               ? 'none'
               : isActive
-              ? '0 32px 80px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.2)'
-              : '0 16px 48px rgba(0,0,0,0.3), inset 0 0 0 1px rgba(255,255,255,0.08)',
+              ? '0 32px 80px rgba(0,0,0,0.35), 0 0 0 1px var(--window-border)'
+              : '0 16px 48px rgba(0,0,0,0.2), 0 0 0 1px var(--window-border)',
             border: 'none',
           }}
         >
@@ -152,9 +152,9 @@ export function WindowFrame({ win }: { win: WindowState }) {
             className="relative flex items-center h-9 px-3 flex-shrink-0 cursor-grab active:cursor-grabbing"
             style={{
               background: isActive
-                ? 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03))'
-                : 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))',
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
+                ? 'var(--glass-card-bg)'
+                : 'transparent',
+              borderBottom: '1px solid var(--window-border)',
             }}
             onMouseDown={handleTitleMouseDown}
             onDoubleClick={() => toggleMaximize(win.id)}
@@ -183,10 +183,10 @@ export function WindowFrame({ win }: { win: WindowState }) {
 
             {/* Centered title */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="flex items-center gap-2 text-xs text-white/80 font-medium">
-                <app.icon className="h-3.5 w-3.5" style={{ color: '#F5F1EA' }} />
+              <div className="flex items-center gap-2 text-xs text-foreground/70 font-medium">
+                <app.icon className="h-3.5 w-3.5 text-foreground/60" />
                 <span className="font-display tracking-tight">{win.title}</span>
-                {!isActive && <span className="text-white/40">·</span>}
+                {!isActive && <span className="text-foreground/30">·</span>}
               </div>
             </div>
 
@@ -195,7 +195,7 @@ export function WindowFrame({ win }: { win: WindowState }) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto bg-transparent">
+          <div className="flex-1 overflow-y-auto bg-background text-foreground">
             <AppComponentWrapper Component={AppComponent} appId={win.id} />
           </div>
 

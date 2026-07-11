@@ -130,47 +130,40 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const [isProcessing, setIsProcessing] = useState(false)
   const [micSupported, setMicSupported] = useState(true)
 
-  const recognitionRef = useRef<any>(null)
-  const listeningRef = useRef(false)               // ref mirror of listening state
-  const voiceSessionRef = useRef(false)            // true = user started a voice conversation
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const listeningRef = useRef(false)
+  const voiceSessionRef = useRef(false)
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const sendRef = useRef<(text: string) => void>(() => {})   // always-fresh sendToKrishna ref
+  const sendRef = useRef<(text: string) => void>(() => {})
   const scrollRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const bestVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
   const isAtBottomRef = useRef(true)
+  const ttsVoiceRef = useRef<string>('en-IN-NeerjaNeural')
 
-  // ── Pick best available TTS voice ──────────────────────────────────────
+  // Load saved TTS voice from settings
+  useEffect(() => {
+    fetch('/api/settings').then(r => r.json()).then(s => {
+      if (s?.ttsVoice) ttsVoiceRef.current = s.ttsVoice
+    }).catch(() => {})
+  }, [])
+
+  // Pick browser fallback TTS voice
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
     const pick = () => {
       const vs = window.speechSynthesis.getVoices()
-      if (!vs.length) return
-      // Male voice priority — Jarvis-like deep English voice
-      const malePriority = [
-        'Google UK English Male', 'Microsoft Guy Online',
-        'Microsoft David Online', 'Microsoft David',
-        'Daniel', 'Oliver', 'Arthur', 'Fred',
-        'Google US English', 'Microsoft Zira Online',
-      ]
-      for (const name of malePriority) {
-        const m = vs.find(v => v.name.includes(name) && v.lang.startsWith('en'))
-        if (m) { bestVoiceRef.current = m; return }
-      }
-      // Fallback: any English male-sounding voice, then any English voice
-      bestVoiceRef.current = vs.find(v => v.lang.startsWith('en-GB')) || vs.find(v => v.lang.startsWith('en-')) || vs[0]
+      bestVoiceRef.current = vs.find(v => v.lang.startsWith('en-IN')) || vs.find(v => v.lang.startsWith('en-')) || vs[0] || null
     }
     pick()
     window.speechSynthesis.onvoiceschanged = pick
     return () => { if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = null }
   }, [])
 
-  useEffect(() => {
-    const SR = typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
-    setMicSupported(!!SR)
-  }, [])
+  // MediaRecorder is available on all modern browsers
+  useEffect(() => { setMicSupported(typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia) }, [])
 
   // Smart scroll — always anchor to bottom when new messages arrive if already at bottom
   useEffect(() => {
@@ -210,24 +203,23 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     const istHour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
     const g = istHour < 12 ? 'Good morning' : istHour < 17 ? 'Good afternoon' : istHour < 21 ? 'Good evening' : 'Good night'
     const greets = [
-      `${g}, Founder. Krishna here — how can I help?`,
-      `${g}, Sir. I'm listening.`,
-      `${g}, Founder. At your service.`,
-      `${g}. All systems operational.`,
+      `${g}. Krishna here — what do you need?`,
+      `${g}. I'm listening.`,
+      `${g}. What's on your mind?`,
+      `${g}. All systems operational — go ahead.`,
+      `${g}. How can I help?`,
     ]
     const msg = greets[Math.floor(Math.random() * greets.length)]
     setMessages(m => [...m, { role: 'krishna', text: msg, ts: Date.now() }])
     setTimeout(() => speakText(msg), 120)
   }, [])
 
-  // ── STT helpers ────────────────────────────────────────────────────────
+  // ── STT helpers (MediaRecorder → Faster-Whisper) ──────────────────────
   const stopListening = useCallback(() => {
     listeningRef.current = false
     if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
-    if (recognitionRef.current) {
-      const rec = recognitionRef.current
-      recognitionRef.current = null
-      try { rec.abort() } catch {}
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      try { recorderRef.current.stop() } catch {}
     }
   }, [])
 
@@ -301,14 +293,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const startListening = useCallback(async () => {
     if (typeof window === 'undefined') return
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR) { toast.error('Mic not supported', 'Use Chrome or Edge for voice'); return }
 
-    // Explicitly request mic permission first — clears any stale blocked state
+    let stream: MediaStream
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach(t => t.stop())   // we only needed the permission grant
-    } catch (err: any) {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
       toast.error('Microphone blocked', 'Allow mic access in browser settings')
       return
     }
@@ -322,8 +311,68 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setTranscript('')
     setGlobal('listening')
 
-    spawnRec({ text: '' })
-  }, [stopListening, spawnRec])
+    // ── VAD via AudioContext analyser ──────────────────────────────────
+    const audioCtx = new AudioContext()
+    const source = audioCtx.createMediaStreamSource(stream)
+    const analyser = audioCtx.createAnalyser()
+    analyser.fftSize = 512
+    source.connect(analyser)
+    const buf = new Uint8Array(analyser.frequencyBinCount)
+
+    // Pick best supported MIME type (Safari needs mp4/aac)
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+      : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
+      : ''
+
+    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {})
+    recorderRef.current = recorder
+    const chunks: Blob[] = []
+
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+
+    recorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop())
+      audioCtx.close()
+      if (!chunks.length) return
+      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+      const fd = new FormData()
+      fd.append('audio', blob, 'audio.webm')
+      try {
+        const res = await fetch('/api/jarvis/stt', { method: 'POST', body: fd })
+        if (res.ok) {
+          const { transcript: text } = await res.json()
+          if (text?.trim()) {
+            setTranscript(text.trim())
+            sendRef.current(text.trim())
+          }
+        }
+      } catch {}
+      setTranscript('')
+      setListening(false)
+      listeningRef.current = false
+      setGlobal('idle')
+    }
+
+    recorder.start()
+
+    // Silence detection — stop after 1.8s of silence
+    let lastSoundAt = Date.now()
+    const vadInterval = setInterval(() => {
+      if (!listeningRef.current) { clearInterval(vadInterval); return }
+      analyser.getByteFrequencyData(buf)
+      const avg = buf.reduce((a, b) => a + b, 0) / buf.length
+      if (avg > 8) {
+        lastSoundAt = Date.now()
+        setTranscript('…')
+      }
+      if (Date.now() - lastSoundAt > 1800 && Date.now() - (lastSoundAt - 1800) > 800) {
+        clearInterval(vadInterval)
+        if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
+      }
+    }, 100)
+  }, [stopListening])
 
   const toggleListening = useCallback(() => {
     if (listeningRef.current) {
@@ -356,7 +405,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cleanText }),
+        body: JSON.stringify({ text: cleanText, voice: ttsVoiceRef.current }),
         signal: AbortSignal.timeout(12000),
       })
       if (res.ok) {
@@ -405,14 +454,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     // Auto-restart mic if this was a voice conversation
     if (voiceSessionRef.current && !listeningRef.current) {
       setTimeout(() => {
-        if (voiceSessionRef.current && !listeningRef.current) {
-          listeningRef.current = true
-          setListening(true)
-          setTranscript('')
-          setGlobal('listening')
-          spawnRec({ text: '' })
-        }
-      }, 350)
+        if (voiceSessionRef.current && !listeningRef.current) startListening()
+      }, 400)
     }
   }, [muted, spawnRec])
 

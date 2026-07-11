@@ -7,3 +7,6 @@ aiosqlite
 pydantic
 httpx
 boto3
+edge-tts
+faster-whisper
+python-multipart

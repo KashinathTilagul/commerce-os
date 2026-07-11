@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, ChevronDown } from 'lucide-react'
+import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useThemeStore } from '@/lib/theme-store'
 import { toast } from '@/components/ekvaar/desktop/toast'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 export function Settings() {
   const { mode, accent, setMode, setAccent } = useThemeStore()
@@ -94,7 +94,7 @@ export function Settings() {
   const s = settings || {}
 
   return (
-    <div>
+    <div className="min-h-full bg-background">
       <PageHeader
         eyebrow="System Settings"
         title="Preferences"
@@ -126,7 +126,7 @@ export function Settings() {
                     className="h-6 w-6 rounded-full border-2 transition-transform hover:scale-110"
                     style={{
                       background: c,
-                      borderColor: accent === c ? '#FFFFFF' : 'rgba(255,255,255,0.2)',
+                      borderColor: accent === c ? 'var(--foreground)' : 'var(--border)',
                       boxShadow: accent === c ? `0 0 0 2px ${c}` : 'none',
                     }}
                   />
@@ -195,6 +195,59 @@ export function Settings() {
             <Row label="Budget alerts" desc="Warn at 80% token spend">
               <Switch checked={s.budgetAlerts ?? true} onCheckedChange={(v) => handleChange('budgetAlerts', v)} />
             </Row>
+          </CardContent>
+        </Card>
+
+        {/* Krishna Voice */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <Mic className="h-4 w-4" /> Krishna Voice
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Edge TTS neural voices — EN + HI supported. Change takes effect immediately.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Row label="Voice" desc="Krishna's speaking voice">
+              <div className="flex items-center gap-2">
+                <Select value={s.ttsVoice || 'en-IN-NeerjaNeural'} onValueChange={(v) => handleChange('ttsVoice', v)}>
+                  <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en-IN-NeerjaNeural">Neerja — Indian English Female</SelectItem>
+                    <SelectItem value="en-IN-PrabhatNeural">Prabhat — Indian English Male</SelectItem>
+                    <SelectItem value="hi-IN-SwaraNeural">Swara — Hindi Female</SelectItem>
+                    <SelectItem value="hi-IN-MadhurNeural">Madhur — Hindi Male</SelectItem>
+                    <SelectItem value="en-US-AndrewNeural">Andrew — US English Male</SelectItem>
+                    <SelectItem value="en-US-EmmaNeural">Emma — US English Female</SelectItem>
+                    <SelectItem value="en-US-BrianNeural">Brian — US English Male (deep)</SelectItem>
+                    <SelectItem value="en-US-AvaNeural">Ava — US English Female (warm)</SelectItem>
+                    <SelectItem value="en-GB-RyanNeural">Ryan — British Male</SelectItem>
+                    <SelectItem value="en-GB-SoniaNeural">Sonia — British Female</SelectItem>
+                    <SelectItem value="en-AU-WilliamNeural">William — Australian Male</SelectItem>
+                    <SelectItem value="en-AU-NatashaNeural">Natasha — Australian Female</SelectItem>
+                  </SelectContent>
+                </Select>
+                <VoicePreviewButton voice={s.ttsVoice || 'en-IN-NeerjaNeural'} />
+              </div>
+            </Row>
+          </CardContent>
+        </Card>
+
+        {/* Krishna Behaviour */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" /> Krishna Behaviour
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Custom system prompt — overrides the default. Leave blank to use default behaviour. No restrictions.</p>
+          </CardHeader>
+          <CardContent>
+            <textarea
+              value={s.krishnaPrompt || ''}
+              onChange={(e) => handleChange('krishnaPrompt', e.target.value)}
+              placeholder={`You are Krishna, the central AI of EKVAAR OS...\n\nDefine personality, tone, language, restrictions (or none), and anything else you want Krishna to follow.`}
+              className="w-full h-48 bg-muted/30 border border-border rounded-md px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-arav placeholder:text-muted-foreground/40"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1.5">Changes save automatically. Affects next message — no restart needed.</p>
           </CardContent>
         </Card>
 
@@ -278,6 +331,36 @@ function Row({ label, desc, children }: { label: string; desc: string; children:
       </div>
       <div className="flex-shrink-0">{children}</div>
     </div>
+  )
+}
+
+function VoicePreviewButton({ voice }: { voice: string }) {
+  const [playing, setPlaying] = useState(false)
+  const play = async () => {
+    if (playing) return
+    setPlaying(true)
+    try {
+      const res = await fetch('/api/jarvis/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'Hello. I am Krishna, the intelligence layer of EKVAAR OS.', voice }),
+      })
+      if (!res.ok) throw new Error()
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const audio = new Audio(url)
+      audio.onended = () => { setPlaying(false); URL.revokeObjectURL(url) }
+      audio.onerror = () => setPlaying(false)
+      await audio.play()
+    } catch {
+      setPlaying(false)
+      toast.error('Preview unavailable', 'TTS service not running — deploy first')
+    }
+  }
+  return (
+    <Button variant="outline" size="sm" onClick={play} disabled={playing} className="h-9 w-9 p-0 flex-shrink-0">
+      {playing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+    </Button>
   )
 }
 

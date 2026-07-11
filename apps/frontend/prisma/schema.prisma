@@ -396,6 +396,10 @@ model SystemSetting {
   autoApproveLimit Float   @default(5000)
   escalationPolicy String  @default("standard")
 
+  // Voice & prompt
+  ttsVoice      String  @default("en-IN-NeerjaNeural")
+  krishnaPrompt String  @default("")
+
   // 3-tier AI model cascade
   primaryProvider  String  @default("openrouter")
   primaryModel     String  @default("google/gemma-3-27b-it:free")

@@ -39,6 +39,7 @@ from routes.routines_routes import router as routines_router
 from routes.telemetry_routes import router as telemetry_router
 from routes.workflow_routes import router as workflow_router
 from routes.dashboard_routes import router as dashboard_router
+from routes.jarvis_routes import router as jarvis_router, load_whisper
 
 
 @asynccontextmanager
@@ -52,6 +53,10 @@ async def lifespan(app: FastAPI):
     
     ensure_triggers_registered()
     print("[EKVAAR OS] Workflow trigger system operational.")
+
+    # Load Whisper STT model in background so it's ready on first request
+    import threading
+    threading.Thread(target=load_whisper, daemon=True).start()
     
     from core.telemetry.telemetry_ingestion import telemetry
     from core.telemetry.risk_engine import risk_engine
@@ -137,6 +142,7 @@ app.include_router(routines_router, prefix="/api")
 app.include_router(telemetry_router, prefix="/api")
 app.include_router(workflow_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
+app.include_router(jarvis_router)
 
 
 # ─── Root health check ──────────────────────────────────────────────────────

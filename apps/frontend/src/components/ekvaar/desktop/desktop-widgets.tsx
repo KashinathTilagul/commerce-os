@@ -71,17 +71,17 @@ function WidgetCard({ title, value, sub, delay, alert }: { title: string, value:
       transition={{ delay, type: 'spring', stiffness: 200, damping: 20 }}
       className="p-4 rounded-2xl flex flex-col gap-1"
       style={{
-        background: 'rgba(20, 20, 24, 0.4)',
+        background: 'var(--glass-card-bg)',
         backdropFilter: 'blur(40px)',
-        border: '1px solid rgba(255, 255, 255, 0.05)',
+        border: '1px solid var(--glass-card-border)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
       }}
     >
-      <div className="text-[10px] font-medium tracking-wider text-white/50 uppercase">{title}</div>
-      <div className={`text-2xl font-display tracking-tight ${alert ? 'text-[#FF5F57]' : 'text-white'}`}>
+      <div className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase">{title}</div>
+      <div className={`text-2xl font-display tracking-tight ${alert ? 'text-[#FF5F57]' : 'text-foreground'}`}>
         {value}
       </div>
-      <div className="text-xs text-white/40">{sub}</div>
+      <div className="text-xs text-muted-foreground/60">{sub}</div>
     </motion.div>
   )
 }
