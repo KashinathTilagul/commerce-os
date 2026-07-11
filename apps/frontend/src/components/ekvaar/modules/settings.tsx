@@ -369,46 +369,19 @@ function Row({ label, desc, children }: { label: string; desc: string; children:
 function VoicePreviewButton({ voice }: { voice: string }) {
   const [playing, setPlaying] = useState(false)
 
-  const play = async () => {
+  // Non-async: speechSynthesis.speak() must be called synchronously inside the
+  // click handler or browsers (Safari, Chrome autoplay policy) will block it.
+  const play = () => {
     if (playing) return
     setPlaying(true)
     const done = () => setPlaying(false)
     const text = 'Hello. I am Krishna, the intelligence layer of EKVAAR OS.'
-
-    // Try Edge TTS (production, via nginx → FastAPI)
-    try {
-      const res = await fetch('/api/jarvis/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice, speed: 1.0, stability: 0.80, volume: 1.0 }),
-        signal: AbortSignal.timeout(5000),
-      })
-      if (!res.ok) throw new Error()
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const audio = new Audio(url)
-      audio.onended = () => { done(); URL.revokeObjectURL(url) }
-      audio.onerror = () => { done(); URL.revokeObjectURL(url) }
-      await audio.play()
-      return
-    } catch {}
-
-    // Browser TTS fallback — pick a voice that matches the accent of the selected Edge TTS voice
     const synth = window.speechSynthesis
+
+    // ── 1. Start browser TTS immediately (synchronous — preserves user gesture) ──
     synth.cancel()
     const u = new SpeechSynthesisUtterance(text)
     u.volume = 1.0
-
-    const loadVoices = (): Promise<SpeechSynthesisVoice[]> =>
-      new Promise(resolve => {
-        const v = synth.getVoices()
-        if (v.length) { resolve(v); return }
-        synth.onvoiceschanged = () => resolve(synth.getVoices())
-        setTimeout(() => resolve(synth.getVoices()), 1200)
-      })
-    const allVoices = await loadVoices()
-
-    // Detect pocket-tts vs Edge TTS voice and map to browser accent/gender
     const isPocket = !voice.includes('-')
     const isFemale = isPocket
       ? /eve|anna|alba|estelle|lola/i.test(voice)
@@ -418,30 +391,40 @@ function VoicePreviewButton({ voice }: { voice: string }) {
       : voice.startsWith('en-IN') ? 'en-IN'
       : voice.startsWith('en-GB') ? 'en-GB'
       : voice.startsWith('en-AU') ? 'en-AU' : 'en-US'
-
     const genderHint = isFemale ? 'female' : 'male'
-    const pick = (lang: string) => allVoices.find(v =>
-      v.lang.startsWith(lang) && v.name.toLowerCase().includes(genderHint)
-    ) || allVoices.find(v => v.lang.startsWith(lang))
-
-    const best =
-      pick(lang) ||
-      pick('en-IN') ||
-      pick('en-GB') ||
-      pick('en') ||
-      allVoices[0] || null
-
+    const allVoices = synth.getVoices()
+    const pickVoice = (l: string) =>
+      allVoices.find(v => v.lang.startsWith(l) && v.name.toLowerCase().includes(genderHint)) ||
+      allVoices.find(v => v.lang.startsWith(l))
+    const best = pickVoice(lang) || pickVoice('en-GB') || pickVoice('en') || allVoices[0] || null
     if (best) u.voice = best
-
-    // Tune rate/pitch to approximate the voice style
-    if (voice.startsWith('hi-IN')) { u.rate = 0.88; u.pitch = isFemale ? 1.1 : 0.85 }
+    if (voice.startsWith('hi-IN'))      { u.rate = 0.88; u.pitch = isFemale ? 1.1  : 0.85 }
     else if (voice.startsWith('en-IN')) { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.88 }
-    else if (voice.startsWith('en-GB')) { u.rate = 0.88; u.pitch = isFemale ? 1.0 : 0.80 }
+    else if (lang === 'en-GB')          { u.rate = 0.88; u.pitch = isFemale ? 1.0  : 0.80 }
     else if (voice.startsWith('en-AU')) { u.rate = 0.92; u.pitch = isFemale ? 1.05 : 0.85 }
-    else { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.82 } // en-US
-
-    u.onend = done; u.onerror = done
+    else                                { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.82 }
+    u.onend = done
+    u.onerror = done
     synth.speak(u)
+
+    // ── 2. Concurrently try server TTS — upgrades to neural voice if FastAPI is up ──
+    fetch('/api/jarvis/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice, speed: 1.0, stability: 0.80, volume: 1.0 }),
+      signal: AbortSignal.timeout(8000),
+    }).then(async res => {
+      if (!res.ok) return
+      const buf = await res.arrayBuffer()
+      synth.cancel() // stop browser TTS — neural voice takes over
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const audioBuffer = await audioCtx.decodeAudioData(buf)
+      const source = audioCtx.createBufferSource()
+      source.buffer = audioBuffer
+      source.connect(audioCtx.destination)
+      source.onended = () => { done(); audioCtx.close().catch(() => {}) }
+      source.start(0)
+    }).catch(() => { /* browser TTS already playing — no-op */ })
   }
 
   return (
