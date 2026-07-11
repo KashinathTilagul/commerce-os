@@ -19,7 +19,7 @@ export function Settings() {
   const queryClient = useQueryClient()
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
-    try { return localStorage.getItem('krishna_voice') || 'af_heart' } catch { return 'af_heart' }
+    try { return localStorage.getItem('krishna_voice') || 'en-IN-NeerjaNeural' } catch { return 'en-IN-NeerjaNeural' }
   })
 
   const { data: settings, isLoading } = useQuery({
@@ -217,7 +217,7 @@ export function Settings() {
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
               <Mic className="h-4 w-4" /> Krishna Voice
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Kokoro local neural voices (highest quality) + Edge TTS cloud voices. Change takes effect immediately.</p>
+            <p className="text-xs text-muted-foreground mt-1">Edge TTS neural voices — EN + HI supported. Change takes effect immediately.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <Row label="Voice" desc="Krishna's speaking voice">
@@ -233,28 +233,18 @@ export function Settings() {
                 >
                   <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <div className="px-2 py-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Kokoro — Local Neural</div>
-                    <SelectItem value="af_heart">Heart — American Female (warm)</SelectItem>
-                    <SelectItem value="af_bella">Bella — American Female (expressive)</SelectItem>
-                    <SelectItem value="af_nicole">Nicole — American Female (smooth)</SelectItem>
-                    <SelectItem value="af_sarah">Sarah — American Female (clear)</SelectItem>
-                    <SelectItem value="af_sky">Sky — American Female (natural)</SelectItem>
-                    <SelectItem value="am_adam">Adam — American Male (deep)</SelectItem>
-                    <SelectItem value="am_michael">Michael — American Male (professional)</SelectItem>
-                    <SelectItem value="am_echo">Echo — American Male (clean)</SelectItem>
-                    <SelectItem value="bf_emma">Emma — British Female</SelectItem>
-                    <SelectItem value="bf_isabella">Isabella — British Female (rich)</SelectItem>
-                    <SelectItem value="bm_george">George — British Male</SelectItem>
-                    <SelectItem value="bm_lewis">Lewis — British Male (authoritative)</SelectItem>
-                    <div className="px-2 py-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider border-t border-border mt-1 pt-2">Edge TTS — Cloud Neural</div>
                     <SelectItem value="en-IN-NeerjaNeural">Neerja — Indian English Female</SelectItem>
                     <SelectItem value="en-IN-PrabhatNeural">Prabhat — Indian English Male</SelectItem>
                     <SelectItem value="hi-IN-SwaraNeural">Swara — Hindi Female</SelectItem>
                     <SelectItem value="hi-IN-MadhurNeural">Madhur — Hindi Male</SelectItem>
                     <SelectItem value="en-US-AndrewNeural">Andrew — US English Male</SelectItem>
                     <SelectItem value="en-US-EmmaNeural">Emma — US English Female</SelectItem>
+                    <SelectItem value="en-US-BrianNeural">Brian — US English Male (deep)</SelectItem>
+                    <SelectItem value="en-US-AvaNeural">Ava — US English Female (warm)</SelectItem>
                     <SelectItem value="en-GB-RyanNeural">Ryan — British Male</SelectItem>
+                    <SelectItem value="en-GB-SoniaNeural">Sonia — British Female</SelectItem>
                     <SelectItem value="en-AU-WilliamNeural">William — Australian Male</SelectItem>
+                    <SelectItem value="en-AU-NatashaNeural">Natasha — Australian Female</SelectItem>
                   </SelectContent>
                 </Select>
                 <VoicePreviewButton voice={localVoice} />
@@ -393,7 +383,7 @@ function VoicePreviewButton({ voice }: { voice: string }) {
       return
     } catch {}
 
-    // Browser TTS fallback — map voice ID to accent/gender
+    // Browser TTS fallback — pick a voice that matches the accent of the selected Edge TTS voice
     const synth = window.speechSynthesis
     synth.cancel()
     const u = new SpeechSynthesisUtterance(text)
@@ -408,32 +398,33 @@ function VoicePreviewButton({ voice }: { voice: string }) {
       })
     const allVoices = await loadVoices()
 
-    // Detect gender + lang from voice ID (supports both Kokoro af_/am_/bf_/bm_ and Edge TTS en-XX- format)
-    const isKokoro = voice.length > 3 && voice[2] === '_'
-    const isFemale = isKokoro
-      ? voice[1] === 'f'  // af_, bf_ = female
-      : /Neerja|Emma|Ava|Sonia|Natasha|Swara|Isabella|Sky|Sarah|Nicole|Bella|Heart/i.test(voice)
-    const lang = isKokoro
-      ? (voice[0] === 'b' ? 'en-GB' : 'en-US')
-      : voice.startsWith('hi-IN') ? 'hi'
-      : voice.startsWith('en-IN') ? 'en-IN'
-      : voice.startsWith('en-GB') ? 'en-GB'
-      : voice.startsWith('en-AU') ? 'en-AU' : 'en-US'
+    // Map Edge TTS voice ID → browser voice selection criteria
+    const isFemale = /Neerja|Emma|Ava|Sonia|Natasha|Swara/i.test(voice)
+    const lang = voice.startsWith('hi-IN') ? 'hi' :
+                 voice.startsWith('en-IN') ? 'en-IN' :
+                 voice.startsWith('en-GB') ? 'en-GB' :
+                 voice.startsWith('en-AU') ? 'en-AU' : 'en-US'
 
     const genderHint = isFemale ? 'female' : 'male'
-    const pick = (l: string) => allVoices.find(v =>
-      v.lang.startsWith(l) && v.name.toLowerCase().includes(genderHint)
-    ) || allVoices.find(v => v.lang.startsWith(l))
+    const pick = (lang: string) => allVoices.find(v =>
+      v.lang.startsWith(lang) && v.name.toLowerCase().includes(genderHint)
+    ) || allVoices.find(v => v.lang.startsWith(lang))
 
-    const best = pick(lang) || pick('en-GB') || pick('en') || allVoices[0] || null
+    const best =
+      pick(lang) ||
+      pick('en-IN') ||
+      pick('en-GB') ||
+      pick('en') ||
+      allVoices[0] || null
+
     if (best) u.voice = best
 
-    // Tune rate/pitch to approximate voice style
+    // Tune rate/pitch to approximate the voice style
     if (voice.startsWith('hi-IN')) { u.rate = 0.88; u.pitch = isFemale ? 1.1 : 0.85 }
     else if (voice.startsWith('en-IN')) { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.88 }
-    else if (lang === 'en-GB') { u.rate = 0.88; u.pitch = isFemale ? 1.0 : 0.80 }
+    else if (voice.startsWith('en-GB')) { u.rate = 0.88; u.pitch = isFemale ? 1.0 : 0.80 }
     else if (voice.startsWith('en-AU')) { u.rate = 0.92; u.pitch = isFemale ? 1.05 : 0.85 }
-    else { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.82 }
+    else { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.82 } // en-US
 
     u.onend = done; u.onerror = done
     synth.speak(u)
