@@ -134,10 +134,12 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const voiceSessionRef = useRef(false)            // true = user started a voice conversation
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sendRef = useRef<(text: string) => void>(() => {})   // always-fresh sendToKrishna ref
+  const scrollRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const bestVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
+  const isAtBottomRef = useRef(true)
 
   // ── Pick best available TTS voice ──────────────────────────────────────
   useEffect(() => {
@@ -169,7 +171,22 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setMicSupported(!!SR)
   }, [])
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, transcript])
+  // Smart scroll — always anchor to bottom when new messages arrive if already at bottom
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [])
+
+  useEffect(() => {
+    if (isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, transcript, isProcessing])
 
   // ── Trigger from dock / menu bar ───────────────────────────────────────
   useEffect(() => {
@@ -428,13 +445,14 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 30, scale: 0.9 }}
           transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-          className="fixed z-[9900] w-[400px] rounded-2xl overflow-hidden"
+          className="fixed z-[9900] w-[420px] flex flex-col rounded-2xl overflow-hidden"
           style={{
             bottom: '90px', right: '20px',
-            background: 'rgba(8,8,10,0.92)',
+            maxHeight: '70vh',
+            background: 'rgba(8,8,10,0.94)',
             backdropFilter: 'blur(40px) saturate(180%)',
             border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.55)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(88,86,214,0.15)',
           }}
         >
           {/* Header */}
@@ -457,47 +475,118 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="max-h-56 min-h-[64px] overflow-y-auto px-4 py-3 space-y-2.5">
+          {/* Messages — scrollable area */}
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[80px] max-h-[340px] scroll-smooth"
+            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}
+          >
             {messages.length === 0 && (
-              <div className="text-center py-4 text-[11px] text-white/25">
-                {micSupported ? 'Click the mic or type below to talk to Krishna.' : 'Type a message to talk to Krishna.'}
+              <div className="flex flex-col items-center justify-center py-8 gap-2">
+                <div className="w-8 h-8 rounded-full bg-purple-600/30 flex items-center justify-center text-sm font-display text-white/60">K</div>
+                <p className="text-center text-[11px] text-white/25 leading-relaxed">
+                  {micSupported ? 'Click the mic or type below\nto talk to Krishna.' : 'Type a message to talk to Krishna.'}
+                </p>
               </div>
             )}
-            {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {m.role === 'krishna' && (
-                  <div className="w-5 h-5 rounded-full bg-purple-600/40 flex items-center justify-center text-[9px] text-white/70 mr-1.5 mt-0.5 shrink-0">K</div>
-                )}
-                <div className={`max-w-[82%] rounded-xl px-3 py-2 text-[11px] leading-relaxed ${
-                  m.role === 'user'
-                    ? 'bg-white/12 text-white/90 rounded-tr-sm'
-                    : 'bg-purple-900/30 text-white/75 border border-purple-500/10 rounded-tl-sm'
-                }`}>{m.text}</div>
-              </div>
-            ))}
 
-            {/* Live transcript */}
+            {messages.map((m, i) => {
+              const isKrishna = m.role === 'krishna'
+              const prevSameRole = i > 0 && messages[i - 1].role === m.role
+              const nextSameRole = i < messages.length - 1 && messages[i + 1].role === m.role
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 28, delay: 0.03 }}
+                  className={`flex items-end gap-2 ${ isKrishna ? 'justify-start' : 'justify-end'}`}
+                >
+                  {/* Krishna avatar — only on last message in a group */}
+                  {isKrishna && (
+                    <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display text-white/80 ${
+                      nextSameRole ? 'opacity-0' : 'opacity-100'
+                    }`}
+                    style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 2px 8px rgba(88,86,214,0.4)' }}
+                    >
+                      K
+                    </div>
+                  )}
+
+                  <div
+                    className={`max-w-[78%] px-3 py-2 text-[12px] leading-relaxed ${
+                      isKrishna
+                        ? `rounded-2xl rounded-bl-sm text-white/85 border ${
+                            !prevSameRole ? 'rounded-tl-2xl' : 'rounded-tl-sm'
+                          } ${
+                            !nextSameRole ? 'rounded-bl-sm' : 'rounded-bl-2xl'
+                          }`
+                        : `rounded-2xl rounded-br-sm text-white/90 ${
+                            !prevSameRole ? 'rounded-tr-2xl' : 'rounded-tr-sm'
+                          } ${
+                            !nextSameRole ? 'rounded-br-sm' : 'rounded-br-2xl'
+                          }`
+                    }`}
+                    style={isKrishna ? {
+                      background: 'rgba(88,86,214,0.15)',
+                      borderColor: 'rgba(88,86,214,0.2)',
+                    } : {
+                      background: 'rgba(255,255,255,0.1)',
+                      border: '0.5px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    {m.text}
+                  </div>
+                </motion.div>
+              )
+            })}
+
+            {/* Live transcript — ghost bubble */}
             {listening && transcript && (
-              <div className="flex justify-end">
-                <div className="max-w-[82%] rounded-xl px-3 py-2 text-[11px] bg-red-900/20 text-white/40 italic border border-red-500/10">
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-end"
+              >
+                <div
+                  className="max-w-[78%] px-3 py-2 rounded-2xl rounded-br-sm text-[12px] italic text-white/35"
+                  style={{ background: 'rgba(255,59,48,0.08)', border: '0.5px solid rgba(255,59,48,0.15)' }}
+                >
                   {transcript}
                 </div>
-              </div>
+              </motion.div>
             )}
 
+            {/* Typing indicator */}
             {isProcessing && (
-              <div className="flex justify-start">
-                <div className="w-5 h-5 rounded-full bg-purple-600/40 flex items-center justify-center text-[9px] text-white/70 mr-1.5 mt-0.5 shrink-0">K</div>
-                <div className="px-3 py-2 rounded-xl bg-purple-900/30 border border-purple-500/10">
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-end gap-2"
+              >
+                <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display text-white/80"
+                  style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 2px 8px rgba(88,86,214,0.4)' }}
+                >
+                  K
+                </div>
+                <div className="px-3 py-2.5 rounded-2xl rounded-bl-sm"
+                  style={{ background: 'rgba(88,86,214,0.15)', border: '0.5px solid rgba(88,86,214,0.2)' }}
+                >
                   <div className="flex gap-1 items-center">
-                    <motion.div animate={{ opacity: [0.3,1,0.3] }} transition={{ duration: 1, repeat: Infinity, delay: 0 }} className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                    <motion.div animate={{ opacity: [0.3,1,0.3] }} transition={{ duration: 1, repeat: Infinity, delay: 0.2 }} className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                    <motion.div animate={{ opacity: [0.3,1,0.3] }} transition={{ duration: 1, repeat: Infinity, delay: 0.4 }} className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                    {[0, 0.18, 0.36].map((delay) => (
+                      <motion.div
+                        key={delay}
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ background: '#8B89E8' }}
+                        animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.1, 0.8] }}
+                        transition={{ duration: 1.1, repeat: Infinity, delay, ease: 'easeInOut' }}
+                      />
+                    ))}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
+
             <div ref={messagesEndRef} />
           </div>
 
