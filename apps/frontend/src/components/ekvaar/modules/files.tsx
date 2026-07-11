@@ -29,55 +29,12 @@ function timeAgo(ts: string): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
+// Empty scaffold — only the Founder Notes folder is populated, from real data (see FILE_TREE below).
 const STATIC_TREE: FileItem[] = [
   {
     name: 'EKVAAR OS', type: 'folder', children: [
-      {
-        name: 'Reports', type: 'folder', children: [
-          { name: 'Q3 P&L Statement.pdf', type: 'file', fileType: 'text', size: '2.4 MB', modified: '2d ago' },
-          { name: 'Cash Flow Forecast.xlsx', type: 'file', fileType: 'sheet', size: '1.1 MB', modified: '5d ago' },
-          { name: 'Brand Compliance Q3.pdf', type: 'file', fileType: 'text', size: '4.7 MB', modified: '1w ago' },
-        ]
-      },
-      {
-        name: 'Generated Assets', type: 'folder', children: [
-          {
-            name: 'Campaigns', type: 'folder', children: [
-              { name: 'Restoration Series — Hero.png', type: 'file', fileType: 'image', size: '8.2 MB', modified: '3h ago' },
-              { name: 'Restoration Series — Email.html', type: 'file', fileType: 'code', size: '142 KB', modified: '3h ago' },
-              { name: 'Agni Red Drop — Lookbook.pdf', type: 'file', fileType: 'text', size: '12.4 MB', modified: '5d ago' },
-            ]
-          },
-          // Founder Notes is populated dynamically from the Notes API
-          { name: 'Founder Notes', type: 'folder', children: [] },
-        ]
-      },
-      {
-        name: 'Agent Logs', type: 'folder', children: [
-          { name: 'CEO_heartbeat_2024-07-18.log', type: 'file', fileType: 'text', size: '412 KB', modified: '1h ago' },
-          { name: 'CMO_heartbeat_2024-07-18.log', type: 'file', fileType: 'text', size: '680 KB', modified: '32m ago' },
-          { name: 'CTO_runtime_2024-07-18.log', type: 'file', fileType: 'text', size: '1.2 MB', modified: '15m ago' },
-        ]
-      },
-      {
-        name: 'Event Ledger', type: 'folder', children: [
-          { name: 'events_2024-07.db', type: 'file', fileType: 'db', size: '18.7 GB', modified: 'now' },
-          { name: 'events_archive_Q2.db', type: 'file', fileType: 'db', size: '12.3 GB', modified: '2w ago' },
-        ]
-      },
-      {
-        name: 'Knowledge Graph', type: 'folder', children: [
-          { name: 'concepts.json', type: 'file', fileType: 'code', size: '4.2 MB', modified: '1d ago' },
-          { name: 'relationships.json', type: 'file', fileType: 'code', size: '8.7 MB', modified: '1d ago' },
-        ]
-      },
-      {
-        name: 'System', type: 'folder', children: [
-          { name: 'config.yaml', type: 'file', fileType: 'code', size: '12 KB', modified: '3d ago' },
-          { name: 'agent_souls/', type: 'folder', children: [] },
-          { name: 'playbooks/', type: 'folder', children: [] },
-        ]
-      },
+      // Founder Notes is populated dynamically from the Notes API
+      { name: 'Founder Notes', type: 'folder', children: [] },
     ]
   }
 ]
@@ -114,22 +71,16 @@ export function Files() {
   const FILE_TREE: FileItem[] = STATIC_TREE.map((root) => ({
     ...root,
     children: root.children?.map((child) => {
-      if (child.name !== 'Generated Assets') return child
+      if (child.name !== 'Founder Notes') return child
       return {
         ...child,
-        children: child.children?.map((sub) => {
-          if (sub.name !== 'Founder Notes') return sub
-          return {
-            ...sub,
-            children: notes.map((n) => ({
-              name: `${n.title || 'Untitled'}.md`,
-              type: 'file' as const,
-              fileType: 'text' as const,
-              size: `${n.body?.length || 0} chars`,
-              modified: timeAgo(n.updatedAt),
-            })),
-          }
-        }),
+        children: notes.map((n) => ({
+          name: `${n.title || 'Untitled'}.md`,
+          type: 'file' as const,
+          fileType: 'text' as const,
+          size: `${n.body?.length || 0} chars`,
+          modified: timeAgo(n.updatedAt),
+        })),
       }
     }),
   }))
