@@ -1,0 +1,58 @@
+name: Wipe Production Business Data (manual, one-time)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type WIPE to confirm — this permanently deletes all live business data (orders, agents, issues, approvals, etc.) on os.ekvaar.com'
+        required: true
+
+jobs:
+  wipe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify confirmation
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "WIPE" ]; then
+            echo "[✗] Confirmation input must be exactly 'WIPE' — aborting."
+            exit 1
+          fi
+
+      - name: Wipe business tables on AWS EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ${{ secrets.AWS_USER }}
+          key: ${{ secrets.AWS_SSH_KEY }}
+          port: 22
+          command_timeout: 5m
+          script: |
+            set -e -o pipefail
+            cd ~/Ekvaar || cd ~/EKVAAR || { echo "[✗] Repo directory not found"; exit 1; }
+            DB_DIR="$(pwd)/apps/frontend/db"
+            [ -f "$DB_DIR/custom.db" ] || { echo "[✗] custom.db not found at $DB_DIR"; exit 1; }
+            echo "[i] Wiping business tables in $DB_DIR/custom.db"
+            docker run --rm -v "$DB_DIR:/data" alpine:latest sh -c "
+              apk add --no-cache sqlite >/dev/null &&
+              sqlite3 /data/custom.db '
+                DELETE FROM OrderItem;
+                DELETE FROM IssueComment;
+                DELETE FROM ToolExecution;
+                DELETE FROM Event;
+                DELETE FROM Approval;
+                DELETE FROM Issue;
+                DELETE FROM Agent;
+                DELETE FROM \"Order\";
+                DELETE FROM Product;
+                DELETE FROM Customer;
+                DELETE FROM Transaction;
+                DELETE FROM Campaign;
+                DELETE FROM FounderNote;
+                DELETE FROM Restoration;
+                DELETE FROM Supplier;
+                DELETE FROM AISystem;
+                DELETE FROM BrandCheck;
+                DELETE FROM Integration;
+              '
+            "
+            echo "[✓] Production business data wiped"
