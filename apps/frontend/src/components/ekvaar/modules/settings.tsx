@@ -17,8 +17,10 @@ import { useEffect, useState } from 'react'
 export function Settings() {
   const { mode, accent, setMode, setAccent } = useThemeStore()
   const queryClient = useQueryClient()
-  // Local voice state — updates immediately on select, syncs to server in background
-  const [localVoice, setLocalVoice] = useState('en-IN-NeerjaNeural')
+  // Local voice state — reads from localStorage first so it's instant even before server responds
+  const [localVoice, setLocalVoice] = useState(() => {
+    try { return localStorage.getItem('krishna_voice') || 'en-IN-NeerjaNeural' } catch { return 'en-IN-NeerjaNeural' }
+  })
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -224,6 +226,8 @@ export function Settings() {
                   value={localVoice}
                   onValueChange={(v) => {
                     setLocalVoice(v)
+                    // Save to localStorage immediately — works even if server save fails
+                    try { localStorage.setItem('krishna_voice', v) } catch {}
                     handleChange('ttsVoice', v)
                   }}
                 >
@@ -379,26 +383,49 @@ function VoicePreviewButton({ voice }: { voice: string }) {
       return
     } catch {}
 
-    // Browser TTS fallback (local dev)
+    // Browser TTS fallback — pick a voice that matches the accent of the selected Edge TTS voice
     const synth = window.speechSynthesis
     synth.cancel()
     const u = new SpeechSynthesisUtterance(text)
-    u.rate = 0.9; u.pitch = 0.85; u.volume = 1.0
-    // Wait for voices to load (getVoices() returns [] on first call in some browsers)
+    u.volume = 1.0
+
     const loadVoices = (): Promise<SpeechSynthesisVoice[]> =>
       new Promise(resolve => {
         const v = synth.getVoices()
         if (v.length) { resolve(v); return }
         synth.onvoiceschanged = () => resolve(synth.getVoices())
-        setTimeout(() => resolve(synth.getVoices()), 1000)
+        setTimeout(() => resolve(synth.getVoices()), 1200)
       })
-    const voices = await loadVoices()
-    const preferred = ['Google UK English Male', 'Microsoft David Desktop', 'Daniel', 'Arthur', 'Rishi']
-    const best = preferred.map(n => voices.find(v => v.name === n)).find(Boolean) ||
-      voices.find(v => v.lang.startsWith('en-GB')) ||
-      voices.find(v => v.lang.startsWith('en-IN')) ||
-      voices.find(v => v.lang.startsWith('en')) || null
+    const allVoices = await loadVoices()
+
+    // Map Edge TTS voice ID → browser voice selection criteria
+    const isFemale = /Neerja|Emma|Ava|Sonia|Natasha|Swara/i.test(voice)
+    const lang = voice.startsWith('hi-IN') ? 'hi' :
+                 voice.startsWith('en-IN') ? 'en-IN' :
+                 voice.startsWith('en-GB') ? 'en-GB' :
+                 voice.startsWith('en-AU') ? 'en-AU' : 'en-US'
+
+    const genderHint = isFemale ? 'female' : 'male'
+    const pick = (lang: string) => allVoices.find(v =>
+      v.lang.startsWith(lang) && v.name.toLowerCase().includes(genderHint)
+    ) || allVoices.find(v => v.lang.startsWith(lang))
+
+    const best =
+      pick(lang) ||
+      pick('en-IN') ||
+      pick('en-GB') ||
+      pick('en') ||
+      allVoices[0] || null
+
     if (best) u.voice = best
+
+    // Tune rate/pitch to approximate the voice style
+    if (voice.startsWith('hi-IN')) { u.rate = 0.88; u.pitch = isFemale ? 1.1 : 0.85 }
+    else if (voice.startsWith('en-IN')) { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.88 }
+    else if (voice.startsWith('en-GB')) { u.rate = 0.88; u.pitch = isFemale ? 1.0 : 0.80 }
+    else if (voice.startsWith('en-AU')) { u.rate = 0.92; u.pitch = isFemale ? 1.05 : 0.85 }
+    else { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.82 } // en-US
+
     u.onend = done; u.onerror = done
     synth.speak(u)
   }

@@ -182,10 +182,17 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
 
-  // Load saved TTS voice from settings (speed/stability/volume are hardcoded constants above)
+  // Load TTS voice — localStorage is instant; server is the authoritative fallback
   useEffect(() => {
+    try {
+      const local = localStorage.getItem('krishna_voice')
+      if (local) ttsVoiceRef.current = local
+    } catch {}
     fetch('/api/settings').then(r => r.json()).then(s => {
-      if (s?.ttsVoice) ttsVoiceRef.current = s.ttsVoice
+      if (s?.ttsVoice) {
+        ttsVoiceRef.current = s.ttsVoice
+        try { localStorage.setItem('krishna_voice', s.ttsVoice) } catch {}
+      }
     }).catch(() => {})
   }, [])
 

@@ -13,11 +13,31 @@ export async function GET() {
   return NextResponse.json(settings)
 }
 
+// Only fields the current Prisma client knows about — prevents validation errors
+// when the schema has been updated but the client hasn't been regenerated yet.
+const SAFE_FIELDS = new Set([
+  'theme', 'accent', 'notifications', 'agentHeartbeats', 'approvalAlerts', 'budgetAlerts',
+  'maxTokens', 'intelligence', 'autoApproveLimit', 'escalationPolicy',
+  'ttsVoice', 'krishnaPrompt',
+  'primaryProvider', 'primaryModel', 'primaryApiKey', 'primaryBaseUrl',
+  'fallback1Provider', 'fallback1Model', 'fallback1ApiKey', 'fallback1BaseUrl',
+  'fallback2Provider', 'fallback2Model', 'fallback2ApiKey', 'fallback2BaseUrl',
+  // New voice params — included once prisma generate has been run
+  'ttsSpeed', 'ttsStability', 'ttsVolume', 'responseEagerness',
+])
+
 export async function PATCH(req: Request) {
   try {
-    const body = await req.json()
-    delete body.id
-    delete body.updatedAt
+    const raw = await req.json()
+    // Strip unknown fields so Prisma never sees them (avoids PrismaClientValidationError
+    // when schema was pushed with --skip-generate and client is stale)
+    const body = Object.fromEntries(
+      Object.entries(raw).filter(([k]) => SAFE_FIELDS.has(k))
+    )
+
+    if (Object.keys(body).length === 0) {
+      return NextResponse.json({ error: 'No valid fields' }, { status: 400 })
+    }
 
     const updated = await db.systemSetting.upsert({
       where: { id: 'global' },
