@@ -19,6 +19,7 @@ export const Message = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTM
     animate={{ opacity: 1, y: 0, scale: 1 }}
     transition={{ type: 'spring', stiffness: 400, damping: 28, delay: 0.03 }}
     className={cn("flex items-end gap-2", isKrishna ? "justify-start" : "justify-end", className)}
+    {...props}
   />
 ))
 Message.displayName = "Message"
