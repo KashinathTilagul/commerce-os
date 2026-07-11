@@ -14,7 +14,7 @@ export function LockScreen() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true) // Start true while checking setup
   const [isSetupMode, setIsSetupMode] = useState(false)
-  const [name, setName] = useState('')
+  const [setupName, setSetupName] = useState('')
 
   useEffect(() => {
     fetch('/api/auth/setup')
@@ -38,7 +38,7 @@ export function LockScreen() {
         const res = await fetch('/api/auth/setup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, name })
+          body: JSON.stringify({ email, password, name: setupName })
         })
         const data = await res.json()
         if (!res.ok) {
@@ -93,8 +93,8 @@ export function LockScreen() {
               <div className="text-white/60 text-xs mb-2">First-Boot Initialization</div>
               <input
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={setupName}
+                onChange={(e) => setSetupName(e.target.value)}
                 placeholder="Founder Name"
                 required
                 disabled={loading}
