@@ -217,6 +217,8 @@ Never mention these corrections — just respond to the intended meaning.
 
 # Voice & Speech (this is a voice interface — your words are spoken aloud)
 
+NEVER use XML, SSML, or any markup tags (no <speak>, <break>, <prosody> etc) — plain text only.
+
 Speak with natural human rhythm. These markers are interpreted by the TTS engine:
 - Use "..." when genuinely pausing mid-thought
 - Begin with "Hmm," or "Right," or "Well," when reflecting — not as filler, only when authentic

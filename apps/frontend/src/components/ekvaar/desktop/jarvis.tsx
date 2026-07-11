@@ -23,10 +23,11 @@ function toSpeech(text: string): string {
   }
   let r = text
     .replace(/^(?:SPOKEN|Speech\s+[Vv]ersion|Speech):\s*/i, '')
-    .replace(/```[\s\S]*?```/g, '')        // strip code blocks entirely
+    .replace(/<[^>]*>/g, '')               // strip XML/SSML tags entirely
+    .replace(/```[\s\S]*?```/g, '')        // strip code blocks
     .replace(/`[^`]*`/g, '')               // strip inline code
     .replace(/https?:\/\/\S+/g, '')        // strip URLs
-    .replace(/^\s*\d+\.\s+/gm, '')         // strip numbered list markers (1. 2. 3.)
+    .replace(/^\s*\d+\.\s+/gm, '')         // strip numbered list markers
     .replace(/^\s*[-*•]\s+/gm, '')         // strip bullet markers
     .replace(/[*_#`>]/g, '')
     .replace(/\n+/g, '. ')
@@ -40,29 +41,39 @@ function toSentences(text: string): string[] {
   return text.match(/[^.!?]+[.!?]*/g)?.map(s => s.trim()).filter(s => s.length > 3) || [text]
 }
 
-// Pick the most JARVIS-like voice from what the browser has
+// Pick the clearest available voice — Microsoft Neural Online > Google > Apple > offline
 function pickBestVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  const preferred = [
-    'Google UK English Male',
-    'Microsoft David Desktop',
-    'Daniel',                  // macOS British male
-    'Arthur',                  // macOS British male
-    'Aaron',
-    'Rishi',                   // macOS Indian English male
+  // Microsoft Neural Online (Windows/Chrome/Edge) — best quality, non-robotic
+  const msNeural = [
+    'Microsoft Ryan Online (Natural) - English (United Kingdom)',
+    'Microsoft Sonia Online (Natural) - English (United Kingdom)',
+    'Microsoft David Online (Natural) - English (United States)',
+    'Microsoft Mark Online (Natural) - English (United States)',
+    'Microsoft Guy Online (Natural) - English (United States)',
+    'Microsoft Aria Online (Natural) - English (United States)',
+    'Microsoft Neerja Online (Natural) - English (India)',
+    'Microsoft Prabhat Online (Natural) - Hindi (India)',
+    // Offline fallbacks
+    'Microsoft David Desktop - English (United States)',
+    'Microsoft Mark - Online (Natural) - English (United States)',
   ]
-  for (const name of preferred) {
+  for (const name of msNeural) {
     const v = voices.find(v => v.name === name)
     if (v) return v
   }
-  // Fallback: prefer en-GB male, then en-US male, then any en
-  return (
-    voices.find(v => v.lang === 'en-GB' && v.name.toLowerCase().includes('male')) ||
-    voices.find(v => v.lang.startsWith('en-GB')) ||
+  // Google voices (good quality)
+  const goog = voices.find(v => v.name.startsWith('Google') && v.lang.startsWith('en'))
+  if (goog) return goog
+  // macOS Apple voices
+  const apple = ['Daniel', 'Arthur', 'Aaron', 'Rishi']
+  for (const name of apple) {
+    const v = voices.find(v => v.name === name)
+    if (v) return v
+  }
+  return voices.find(v => v.lang.startsWith('en-GB')) ||
     voices.find(v => v.lang.startsWith('en-US')) ||
-    voices.find(v => v.lang.startsWith('en-IN')) ||
     voices.find(v => v.lang.startsWith('en')) ||
     voices[0] || null
-  )
 }
 
 // ─── Global state bus (drives wallpaper orb) ────────────────────────────────
@@ -277,7 +288,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setVolume(0)
   }, [stopTTS, stopListening])
 
-  // ── TTS: Edge TTS API → browser fallback ────────────────────────────────
+  // ── TTS: browser-native primary (stable) → Edge TTS server enhancement ───
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
     if (typeof window === 'undefined') { setGlobal('idle'); return }
@@ -286,81 +297,69 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     speakingRef.current = true
 
     const cleanText = toSpeech(text)
-    let usedPremium = false
 
-    // Try Edge TTS API
+    // ── Try Edge TTS server (fast path — 4s timeout, skip if slow) ──────
+    let usedServer = false
     try {
       const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: cleanText, voice: ttsVoiceRef.current, speed: ttsSpeedRef.current, stability: ttsStabilityRef.current, volume: ttsVolumeRef.current }),
-        signal: AbortSignal.timeout(14000),
+        signal: AbortSignal.timeout(4000), // skip server if it takes >4s
       })
       if (res.ok) {
         const arrayBuffer = await res.arrayBuffer()
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
-        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
-        await new Promise<void>((resolve) => {
-          const source = audioCtx.createBufferSource()
-          source.buffer = audioBuffer
-          source.connect(audioCtx.destination)
-          let done = false
-          const finish = () => {
-            if (done) return; done = true
-            audioStopRef.current = null
-            audioCtx.close().catch(() => {})
-            resolve()
-          }
-          audioStopRef.current = () => { try { source.stop() } catch {} finish() }
-          source.onended = finish
-          setTimeout(finish, audioBuffer.duration * 1000 + 2000)
-          source.start(0)
-        })
-        usedPremium = true
+        if (arrayBuffer.byteLength > 1000) { // valid audio response
+          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+          const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
+          await new Promise<void>((resolve) => {
+            const source = audioCtx.createBufferSource()
+            source.buffer = audioBuffer
+            source.connect(audioCtx.destination)
+            let done = false
+            const finish = () => {
+              if (done) return; done = true
+              audioStopRef.current = null
+              audioCtx.close().catch(() => {})
+              resolve()
+            }
+            audioStopRef.current = () => { try { source.stop() } catch {} finish() }
+            source.onended = finish
+            setTimeout(finish, audioBuffer.duration * 1000 + 2000)
+            source.start(0)
+          })
+          usedServer = true
+        }
       }
-    } catch (e) {
-      // FastAPI offline or error — fall through to browser TTS
+    } catch {
+      // server offline or too slow — browser TTS below
     }
 
-    // Browser TTS fallback (works locally — respects selected voice)
-    if (!usedPremium && 'speechSynthesis' in window) {
+    // ── Browser-native TTS (primary when server unavailable) ─────────────
+    if (!usedServer && 'speechSynthesis' in window) {
       const sentences = toSentences(cleanText)
-      // Pick browser voice matching the user's selected voice preference
-      const selectedVoice = ttsVoiceRef.current
       const allVoices = window.speechSynthesis.getVoices()
-      const isPocket = !selectedVoice.includes('-')
-      const isFemale = isPocket
-        ? /eve|anna|alba|estelle|lola/i.test(selectedVoice)
-        : /Neerja|Emma|Ava|Sonia|Natasha|Swara/i.test(selectedVoice)
-      const lang = isPocket ? 'en-US'
-        : selectedVoice.startsWith('hi-IN') ? 'hi'
-        : selectedVoice.startsWith('en-IN') ? 'en-IN'
-        : selectedVoice.startsWith('en-GB') ? 'en-GB'
-        : selectedVoice.startsWith('en-AU') ? 'en-AU' : 'en-US'
-      const genderHint = isFemale ? 'female' : 'male'
-      const pickVoice = (l: string) =>
-        allVoices.find(v => v.lang.startsWith(l) && v.name.toLowerCase().includes(genderHint)) ||
-        allVoices.find(v => v.lang.startsWith(l))
-      const chosenVoice = pickVoice(lang) || pickVoice('en-GB') || pickVoice('en') || bestVoiceRef.current
+      // Use best voice (pickBestVoice prioritises Microsoft Neural Online)
+      const chosenVoice = bestVoiceRef.current || pickBestVoice(allVoices)
+
       for (const sentence of sentences) {
         if (!speakingRef.current) break
         await new Promise<void>((resolve) => {
           const u = new SpeechSynthesisUtterance(sentence)
           if (chosenVoice) u.voice = chosenVoice
-          u.rate = ttsSpeedRef.current * 0.82
-          u.pitch = 1.0 - (1.0 - ttsStabilityRef.current) * 0.5
+          u.rate = Math.min(1.1, ttsSpeedRef.current * 0.85)
+          u.pitch = 1.0
           u.volume = Math.min(1.0, ttsVolumeRef.current)
           let done = false
           const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
           audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
           u.onend = finish
           u.onerror = finish
-          setTimeout(finish, sentence.length * 90 + 2000)
+          setTimeout(finish, sentence.length * 80 + 2000)
           window.speechSynthesis.speak(u)
         })
-        // Natural inter-sentence pause
         if (speakingRef.current && sentences.indexOf(sentence) < sentences.length - 1) {
-          await new Promise(r => setTimeout(r, 120))
+          await new Promise(r => setTimeout(r, 100))
         }
       }
       audioStopRef.current = null
@@ -369,7 +368,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     speakingRef.current = false
     setGlobal('idle')
 
-    // Auto-restart mic — this is what makes continuous conversation work
+    // Auto-restart mic for continuous conversation
     if (voiceSessionRef.current && !listeningRef.current) {
       setTimeout(() => {
         if (voiceSessionRef.current && !listeningRef.current) startListening()
