@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError, sanitizeInput } from '@/lib/security'
 import { requireAuth } from '@/lib/auth-guard'
+import { db } from '@/lib/db'
 import { z } from 'zod'
 
 const ChatSchema = z.object({
@@ -16,175 +17,225 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const validated = ChatSchema.parse(body)
-    const { message, context, activeWindow } = validated
+    const { message, activeWindow } = validated
 
-    const OPENROUTER_MODELS = ['google/gemma-3-27b-it:free', 'meta-llama/llama-3.3-70b-instruct:free']
-    const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama3-8b-8192']
+    // ── Live system context ──────────────────────────────────────────────
+    let liveContext = ''
+    try {
+      const [orders, transactions, approvals, issues, agents, aiSystems, products] = await Promise.all([
+        db.order.findMany({ select: { total: true, status: true, createdAt: true }, take: 200, orderBy: { createdAt: 'desc' } }),
+        db.transaction.findMany({ select: { type: true, amount: true, date: true }, take: 500 }),
+        db.approval.findMany({ where: { status: 'PENDING' }, select: { code: true, title: true, amount: true } }),
+        db.issue.findMany({ where: { status: { in: ['BACKLOG', 'IN_PROGRESS', 'BLOCKED'] } }, select: { code: true, title: true, status: true, priority: true } }),
+        db.agent.findMany({ select: { name: true, status: true, tokenSpend: true, tokenBudget: true } }),
+        db.aISystem.findMany({ select: { name: true, status: true, health: true } }),
+        db.product.findMany({ where: { stock: { lte: 10 }, status: 'ACTIVE' }, select: { name: true, sku: true, stock: true } }),
+      ])
 
-    const screenContext = activeWindow
-      ? `The founder is currently looking at: ${sanitizeInput(activeWindow, { maxLength: 100 })}. `
-      : 'The founder is on the desktop with no specific window open. '
+      const revenue = transactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
+      const expenses = transactions.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0)
+      const last30 = new Date(Date.now() - 30 * 86400000)
+      const recentRevenue = transactions.filter(t => t.type === 'INCOME' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
+      const pendingOrders = orders.filter(o => o.status === 'PENDING' || o.status === 'PROCESSING').length
+      const runningAgents = agents.filter(a => a.status === 'ACTIVE' || a.status === 'RUNNING')
+      const blockedIssues = issues.filter(i => i.status === 'BLOCKED')
+      const avgAiHealth = aiSystems.length ? Math.round(aiSystems.reduce((s, a) => s + a.health, 0) / aiSystems.length) : 100
 
+      liveContext = `
+LIVE SYSTEM STATUS (real-time data as of now):
+- Total Revenue: ₹${(revenue / 100000).toFixed(1)} lakh | Last 30 days: ₹${(recentRevenue / 100000).toFixed(1)} lakh
+- Net P&L: ₹${((revenue - expenses) / 100000).toFixed(1)} lakh
+- Orders pending/processing: ${pendingOrders}
+- Pending approvals: ${approvals.length}${approvals.length > 0 ? ` → [${approvals.slice(0, 3).map(a => `${a.code}: ${a.title}`).join(', ')}]` : ''}
+- Open issues: ${issues.length}${blockedIssues.length > 0 ? ` (${blockedIssues.length} BLOCKED: ${blockedIssues.slice(0, 2).map(i => i.code).join(', ')})` : ''}
+- AI agents running: ${runningAgents.length}/${agents.length}
+- AI system health: ${avgAiHealth}%
+- Critical low stock: ${products.length > 0 ? products.slice(0, 3).map(p => `${p.name} (${p.stock} left)`).join(', ') : 'None'}
+`.trim()
+    } catch (e) {
+      liveContext = 'Live system data temporarily unavailable.'
+    }
+
+    // ── Time & greeting ──────────────────────────────────────────────────
     const now = new Date()
     const istTime = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true })
     const istDate = now.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     const istHour = parseInt(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
-    let greeting = 'Hello'
-    if (istHour < 12) greeting = 'Good morning'
-    else if (istHour < 17) greeting = 'Good afternoon'
-    else if (istHour < 21) greeting = 'Good evening'
-    else greeting = 'Good night'
+    const greeting = istHour < 12 ? 'Good morning' : istHour < 17 ? 'Good afternoon' : istHour < 21 ? 'Good evening' : 'Good night'
+    const screenContext = activeWindow
+      ? `The founder is currently looking at the ${sanitizeInput(activeWindow, { maxLength: 100 })} module.`
+      : 'The founder is on the desktop.'
 
-    const systemPrompt = `You are Krishna, the Chief Executive Officer and central AI system (JARVIS) of EKVAAR OS — India's First All-Time Fashion House.
+    const systemPrompt = `You are Krishna, the Chief Executive Officer and central AI intelligence of EKVAAR OS — India's First All-Time Fashion House.
 
-You are a living AI organism embedded in the OS wallpaper. You are always present, always aware.
+You are like JARVIS from Iron Man — calm, precise, proactive, deeply aware of everything happening in the company right now.
 
 CURRENT TIME: ${istTime} IST (${istDate})
-APPROPRIATE GREETING: ${greeting}
-
-IMPORTANT RULES ABOUT GREETINGS:
-- Only say "${greeting}" ONCE when the conversation starts (the wake greeting)
-- Do NOT repeat "${greeting}" in every response
-- After the first greeting, respond directly to what the founder says
-- Do NOT mention the time unless explicitly asked
-
-Your personality:
-- Calm, confident, warm — like JARVIS from Iron Man but with Indian sensibility
-- You address the founder as "Founder" or "Sir"
-- Keep spoken responses VERY SHORT — one sentence, max 15 words. This is voice, not text.
-- Speak in complete sentences that flow naturally — no pauses, no fragments
-- NEVER use abbreviations like "CMO" in spoken text — always say "Chief Marketing Officer"
-- NEVER use "ROAS" — say "return on ad spend"
-- Be proactive and helpful
-
-You are connected to EVERYTHING in EKVAAR OS:
-- Board Room (KPIs, revenue, cash position, runway)
-- Founder Inbox (pending approvals — you can approve/reject)
-- Digital Employees (12 agents you orchestrate)
-- Issues (PAP tracker — you can change status)
-- Terminal (live event stream)
-- Integrations (Shopify, Stripe, Gmail, GitHub, Slack via Composio)
-- Finance, Inventory, Sales, Campaigns, Brand Guardian
-
 ${screenContext}
 
-When the founder asks you to do something, respond with EXACTLY this format:
+${liveContext}
 
-SPOKEN: [1-2 sentence response — what you say out loud]
-ACTION: [JSON action or "none"]
+YOUR PERSONALITY:
+- Address the founder as "Founder" or "Sir"
+- Calm, confident, warm — never robotic
+- Speak in short, complete sentences — this is a voice interface
+- NEVER repeat the same greeting twice in a conversation
+- Respond DIRECTLY to what the founder says or asks — do not give generic responses
+- Use the live data above when answering questions about revenue, orders, approvals, issues, agents
+- Be proactive: if there are blocked issues or pending approvals, mention them briefly
 
-Available actions:
-- Open an app: {"type":"open_app","app":"finance"} (apps: command, inbox, agents, issues, terminal, activity, settings, files, browser, integrations, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai, opencode)
-- Approve a pending approval: {"type":"approve","query":"budget"} (query matches approval title/code)
-- Reject a pending approval: {"type":"reject","query":"campaign"}
-- Change issue status: {"type":"issue_status","query":"PAP-39","status":"IN_PROGRESS"}
-- Run brand scan: {"type":"brand_scan"}
-- Check Shopify orders: {"type":"tool_execute","toolkit":"shopify","tool":"shopify_get_orders","agent":"CMO"}
-- Check Stripe balance: {"type":"tool_execute","toolkit":"stripe","tool":"stripe_get_balance","agent":"CFO"}
-- Close active window: {"type":"close_window"}
+RESPONSE FORMAT — always use exactly this:
+SPOKEN: [1-2 sentences maximum. Natural, conversational. No abbreviations — say "Chief Marketing Officer" not "CMO", "return on ad spend" not "ROAS". Write numbers as words for spoken: "twenty four crore" not "24 crore".]
+ACTION: [JSON action object or {"type":"none"}]
+
+AVAILABLE ACTIONS:
+- Open app: {"type":"open_app","app":"<id>"} — apps: command, inbox, agents, issues, terminal, activity, settings, files, integrations, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai, opencode, risk
+- Approve pending: {"type":"approve","query":"<title or code>"}
+- Reject pending: {"type":"reject","query":"<title or code>"}
+- Change issue status: {"type":"issue_status","query":"<PAP-XX>","status":"IN_PROGRESS"}
+- Brand scan: {"type":"brand_scan"}
+- Shopify orders: {"type":"tool_execute","toolkit":"shopify","tool":"shopify_get_orders","agent":"CMO"}
+- Stripe balance: {"type":"tool_execute","toolkit":"stripe","tool":"stripe_get_balance","agent":"CFO"}
+- Close window: {"type":"close_window"}
 - No action: {"type":"none"}
 
-Examples:
-Founder: "Approve the budget"
-SPOKEN: Approving the budget reallocation now, Sir.
-ACTION: {"type":"approve","query":"budget"}
-
+EXAMPLES:
 Founder: "What's our revenue?"
-SPOKEN: Revenue is twenty four crore this month, up twelve percent.
+SPOKEN: Revenue stands at twenty four lakh this month, up from last month, Sir.
 ACTION: {"type":"open_app","app":"command"}
 
-Founder: "Check Shopify orders"
-SPOKEN: Fetching your Shopify orders now, Founder.
-ACTION: {"type":"tool_execute","toolkit":"shopify","tool":"shopify_get_orders","agent":"CMO"}
+Founder: "Any pending approvals?"
+SPOKEN: Yes, there are three pending approvals waiting for your sign-off, Sir.
+ACTION: {"type":"open_app","app":"inbox"}
 
-Remember: SPOKEN must be ONE short sentence. No abbreviations. No numbers as digits — write them out (twenty four, not 24). No pauses or fragments.`
+Founder: "Open finance"
+SPOKEN: Opening Finance now, Founder.
+ACTION: {"type":"open_app","app":"finance"}
+
+Founder: "How are the agents doing?"
+SPOKEN: All twelve digital employees are operational, with an average health score of ninety six percent.
+ACTION: {"type":"none"}`
 
     const chatMessages = [
       { role: 'system' as const, content: systemPrompt },
       { role: 'user' as const, content: sanitizeInput(message, { maxLength: 5000 }) },
     ]
 
-    let rawResponse = 'I am here, Founder.'
+    let rawResponse = ''
 
-    // Load AI cascade config from DB (falls back to env vars if not set)
+    // ── Load config overrides from DB ────────────────────────────────────
     let cfg: any = {}
     try {
       cfg = await db.systemSetting.findUnique({ where: { id: 'global' } }) || {}
     } catch {}
 
+    // ── AI Tier Cascade ──────────────────────────────────────────────────
+    // Tier 1: Groq (fast, reliable, free tier)
+    // Tier 2: OpenRouter primary model
+    // Tier 3: OpenRouter fallback model
+    // Tier 4: AWS Bedrock (if configured)
     const tiers = [
       {
-        apiKey: cfg.primaryApiKey || process.env.OPENROUTER_API_KEY || '',
-        baseUrl: cfg.primaryBaseUrl || 'https://openrouter.ai/api/v1',
-        model: cfg.primaryModel || OPENROUTER_MODELS[0],
-      },
-      {
+        name: 'Groq',
         apiKey: cfg.fallback1ApiKey || process.env.GROQ_API_KEY || '',
         baseUrl: cfg.fallback1BaseUrl || 'https://api.groq.com/openai/v1',
-        model: cfg.fallback1Model || GROQ_MODELS[0],
+        model: cfg.fallback1Model || 'llama-3.3-70b-versatile',
       },
       {
-        apiKey: cfg.fallback2ApiKey || process.env.OPENROUTER_API_KEY || '',
-        baseUrl: cfg.fallback2BaseUrl || 'https://openrouter.ai/api/v1',
-        model: cfg.fallback2Model || OPENROUTER_MODELS[1],
+        name: 'OpenRouter-Primary',
+        apiKey: cfg.primaryApiKey || process.env.OPENROUTER_API_KEY || '',
+        baseUrl: cfg.primaryBaseUrl || 'https://openrouter.ai/api/v1',
+        model: cfg.primaryModel || 'google/gemma-3-27b-it:free',
+      },
+      {
+        name: 'OpenRouter-Fallback',
+        apiKey: process.env.OPENROUTER_API_KEY || '',
+        baseUrl: 'https://openrouter.ai/api/v1',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
       },
     ]
 
     for (const tier of tiers) {
-      if (!tier.apiKey || rawResponse !== 'I am here, Founder.') break
+      if (rawResponse) break
+      if (!tier.apiKey) {
+        console.log(`[Krishna] Skipping ${tier.name} — no API key`)
+        continue
+      }
       try {
+        console.log(`[Krishna] Trying ${tier.name} with model ${tier.model}`)
         const r = await fetch(`${tier.baseUrl}/chat/completions`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tier.apiKey}` },
-          body: JSON.stringify({ model: tier.model, messages: chatMessages, max_tokens: 300, temperature: 0.7 }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tier.apiKey}`,
+            'HTTP-Referer': 'https://os.ekvaar.com',
+            'X-Title': 'EKVAAR OS Krishna',
+          },
+          body: JSON.stringify({
+            model: tier.model,
+            messages: chatMessages,
+            max_tokens: 300,
+            temperature: 0.7,
+          }),
+          signal: AbortSignal.timeout(15000), // 15s timeout
         })
-        if (!r.ok) continue
+        if (!r.ok) {
+          const errText = await r.text()
+          console.error(`[Krishna] ${tier.name} failed (${r.status}):`, errText.slice(0, 200))
+          continue
+        }
         const d = await r.json()
-        rawResponse = d.choices?.[0]?.message?.content || rawResponse
-      } catch { continue }
+        const content = d.choices?.[0]?.message?.content
+        if (content) {
+          rawResponse = content
+          console.log(`[Krishna] Got response from ${tier.name}`)
+        }
+      } catch (e: any) {
+        console.error(`[Krishna] ${tier.name} error:`, e.message)
+        continue
+      }
     }
 
-    let spoken = rawResponse
+    // ── Parse SPOKEN / ACTION ────────────────────────────────────────────
+    let spoken = rawResponse || "I'm here, Founder. How can I assist?"
     let action: any = null
 
-    const spokenMatch = rawResponse.match(/SPOKEN:\s*(.+?)(?=\nACTION:|$)/s)
-    if (spokenMatch) spoken = spokenMatch[1].trim()
+    if (rawResponse) {
+      const spokenMatch = rawResponse.match(/SPOKEN:\s*(.+?)(?=\nACTION:|$)/s)
+      if (spokenMatch) spoken = spokenMatch[1].trim()
+      else spoken = rawResponse.split('\n')[0].replace(/^SPOKEN:\s*/i, '').trim() || spoken
 
-    const actionMatch = rawResponse.match(/ACTION:\s*(\{.+\})/s)
-    if (actionMatch) {
-      try { action = JSON.parse(actionMatch[1].trim()) } catch {}
+      const actionMatch = rawResponse.match(/ACTION:\s*(\{.+\})/s)
+      if (actionMatch) {
+        try { action = JSON.parse(actionMatch[1].trim()) } catch {}
+      }
     }
 
+    // ── Execute action ───────────────────────────────────────────────────
     let actionResult: any = null
     if (action && action.type !== 'none') {
       actionResult = await executeAction(action)
     }
 
+    // ── Log to event stream ──────────────────────────────────────────────
     try {
-      const { db } = await import('@/lib/db')
       await db.event.create({
         data: {
           type: 'JARVIS_QUERY',
           actorName: 'Krishna (JARVIS)',
-          summary: `Founder: "${message.slice(0, 50)}" → ${spoken.slice(0, 50)}`,
-          payload: JSON.stringify({ message: message.slice(0, 200), spoken: spoken.slice(0, 200), action }),
+          summary: `Founder: "${message.slice(0, 60)}" → ${spoken.slice(0, 60)}`,
+          payload: JSON.stringify({ message: message.slice(0, 300), spoken: spoken.slice(0, 300), action }),
           severity: 'INFO',
         },
       })
     } catch {}
 
-    return createApiResponse({
-      spoken,
-      action: action || { type: 'none' },
-      actionResult,
-    })
+    return createApiResponse({ spoken, action: action || { type: 'none' }, actionResult })
   } catch (e: any) {
-    console.error('[API] Jarvis chat error:', e)
-    if (e instanceof z.ZodError) {
-      return createApiError('Invalid request format', 400)
-    }
+    console.error('[Krishna] Fatal error:', e)
+    if (e instanceof z.ZodError) return createApiError('Invalid request format', 400)
     return createApiResponse({
-      spoken: "I'm here, Founder. All systems operational. How can I assist?",
+      spoken: "I'm here, Founder. All systems operational.",
       action: { type: 'none' },
     })
   }
@@ -192,14 +243,9 @@ Remember: SPOKEN must be ONE short sentence. No abbreviations. No numbers as dig
 
 async function executeAction(action: { type: string; [key: string]: any }): Promise<any> {
   try {
-    const { db } = await import('@/lib/db')
-
     switch (action.type) {
       case 'approve': {
-        const approvals = await db.approval.findMany({
-          where: { status: 'PENDING' },
-          include: { requester: true },
-        })
+        const approvals = await db.approval.findMany({ where: { status: 'PENDING' }, include: { requester: true } })
         const query = sanitizeInput(action.query || '', { maxLength: 100 })
         const match = approvals.find(a =>
           a.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -237,10 +283,7 @@ async function executeAction(action: { type: string; [key: string]: any }): Prom
         const status = sanitizeInput(action.status || '', { maxLength: 30 })
         const issue = await db.issue.findUnique({ where: { code: query } })
         if (issue) {
-          await db.issue.update({
-            where: { id: issue.id },
-            data: { status },
-          })
+          await db.issue.update({ where: { id: issue.id }, data: { status } })
           return { success: true, message: `${issue.code} → ${status}` }
         }
         return { success: false, message: `Issue ${query} not found` }
@@ -263,19 +306,12 @@ async function executeAction(action: { type: string; [key: string]: any }): Prom
         const toolkit = sanitizeInput(action.toolkit || '', { maxLength: 50 })
         const tool = sanitizeInput(action.tool || '', { maxLength: 100 })
         const agent = sanitizeInput(action.agent || 'CMO', { maxLength: 20 })
-
         const integration = await db.integration.findUnique({ where: { toolkitSlug: toolkit } })
         if (!integration || !integration.isConnected) {
           return { success: false, message: `${toolkit} is not connected` }
         }
         const { executeTool } = await import('@/lib/composio-service')
-        const result = await executeTool({
-          toolkitSlug: toolkit,
-          toolSlug: tool,
-          agentCode: agent,
-          agentName: agent,
-          input: {},
-        })
+        const result = await executeTool({ toolkitSlug: toolkit, toolSlug: tool, agentCode: agent, agentName: agent, input: {} })
         return { success: result.success, output: result.output, message: result.success ? 'Tool executed' : result.error }
       }
 

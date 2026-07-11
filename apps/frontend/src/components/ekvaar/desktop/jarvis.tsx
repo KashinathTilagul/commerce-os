@@ -339,34 +339,69 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     }
   }, [transcript, startListening, stopListening])
 
-  // ── TTS — sentence-by-sentence, then auto-restart mic ─────────────────
+  // ── Premium TTS via API → fallback to browser TTS ────────────────────
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) { setGlobal('idle'); return }
-    window.speechSynthesis.cancel()
+    if (typeof window === 'undefined') { setGlobal('idle'); return }
+    // Cancel any ongoing browser TTS
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
     setGlobal('talking')
 
-    const sentences = toSentences(toSpeech(text))
+    const cleanText = toSpeech(text)
 
-    for (const sentence of sentences) {
-      if (gState !== 'talking') break
-      await new Promise<void>((resolve) => {
-        const u = new SpeechSynthesisUtterance(sentence)
-        if (bestVoiceRef.current) u.voice = bestVoiceRef.current
-        u.rate = 0.92   // slightly slower — Jarvis-style deliberate pacing
-        u.pitch = 0.9   // lower pitch = deeper/more masculine
-        u.volume = 1.0
-        let done = false
-        const finish = () => { if (!done) { done = true; resolve() } }
-        u.onend = finish
-        u.onerror = finish
-        setTimeout(finish, sentence.length * 75 + 1500)
-        window.speechSynthesis.speak(u)
+    // ── Try premium TTS API first ────────────────────────────────────
+    let usedPremium = false
+    try {
+      const res = await fetch('/api/jarvis/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: cleanText }),
+        signal: AbortSignal.timeout(12000),
       })
+      if (res.ok) {
+        const arrayBuffer = await res.arrayBuffer()
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
+        await new Promise<void>((resolve) => {
+          const source = audioCtx.createBufferSource()
+          source.buffer = audioBuffer
+          source.connect(audioCtx.destination)
+          source.onended = () => resolve()
+          // Safety timeout
+          setTimeout(resolve, (audioBuffer.duration * 1000) + 2000)
+          source.start(0)
+        })
+        await audioCtx.close()
+        usedPremium = true
+      }
+    } catch (e) {
+      console.warn('[Krishna TTS] Premium API failed, falling back to browser TTS:', e)
     }
+
+    // ── Fallback: sentence-by-sentence browser TTS ───────────────────
+    if (!usedPremium && 'speechSynthesis' in window) {
+      const sentences = toSentences(cleanText)
+      for (const sentence of sentences) {
+        if (gState !== 'talking') break
+        await new Promise<void>((resolve) => {
+          const u = new SpeechSynthesisUtterance(sentence)
+          if (bestVoiceRef.current) u.voice = bestVoiceRef.current
+          u.rate = 0.92
+          u.pitch = 0.9
+          u.volume = 1.0
+          let done = false
+          const finish = () => { if (!done) { done = true; resolve() } }
+          u.onend = finish
+          u.onerror = finish
+          setTimeout(finish, sentence.length * 75 + 1500)
+          window.speechSynthesis.speak(u)
+        })
+      }
+    }
+
     setGlobal('idle')
 
-    // Auto-restart mic if this was a voice conversation (user clicked mic first)
+    // Auto-restart mic if this was a voice conversation
     if (voiceSessionRef.current && !listeningRef.current) {
       setTimeout(() => {
         if (voiceSessionRef.current && !listeningRef.current) {
