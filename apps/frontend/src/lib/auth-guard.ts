@@ -17,7 +17,7 @@ export async function requireRole(roles: string | string[]) {
   if (!authResult.success) return authResult
 
   const userRoles = Array.isArray(roles) ? roles : [roles]
-  const userRole = authResult.user.role || "USER"
+  const userRole = authResult.user?.role || "USER"
 
   if (!userRoles.includes(userRole)) {
     return {

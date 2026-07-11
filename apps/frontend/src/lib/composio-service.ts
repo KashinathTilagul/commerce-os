@@ -17,7 +17,7 @@ async function getComposio() {
     if (!apiKey || apiKey.includes('replace_with_real')) {
       return null // No real key — fall back to demo mode
     }
-    composioClient = new Composio(apiKey)
+    composioClient = new Composio({ apiKey })
     return composioClient
   } catch {
     return null

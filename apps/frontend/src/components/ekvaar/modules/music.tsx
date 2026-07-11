@@ -240,7 +240,7 @@ export function MusicPlayer() {
 
             {/* Progress */}
             <div className="mb-4">
-              <Slider value={[progress]} onValueChange={(v) => setProgress(v)} max={current.duration} step={1} className="mb-2" />
+              <Slider value={[progress]} onValueChange={(v) => setProgress(Array.isArray(v) ? v[0] : v)} max={current.duration} step={1} className="mb-2" />
               <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
                 <span>{fmtTime(progress)}</span>
                 <span>{fmtTime(current.duration)}</span>

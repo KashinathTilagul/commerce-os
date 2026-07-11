@@ -9,17 +9,17 @@ export async function GET() {
     
     // Get real recent events by the CEO, fallback to system events if none exist
     const recentEvents = await db.event.findMany({
-      where: { actor: 'CEO' },
+      where: { actorId: 'CEO' },
       take: 5,
-      orderBy: { createdAt: 'desc' }
+      orderBy: { timestamp: 'desc' }
     })
     
     // Format decisions
     const recentDecisions = recentEvents.length > 0 
       ? recentEvents.map(e => ({
           issue: e.type,
-          action: e.action,
-          timestamp: e.createdAt.toISOString()
+          action: e.summary,
+          timestamp: e.timestamp.toISOString()
         }))
       : []
 

@@ -516,10 +516,12 @@ function DockItem({
           cursor: editMode && !isSpecial ? 'grab' : 'pointer',
         }}
         draggable={editMode && !isSpecial}
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-        onDragEnd={onDragEnd}
+        {...(editMode && !isSpecial && {
+          onDragStart: onDragStart as any,
+          onDragOver: onDragOver as any,
+          onDrop: onDrop as any,
+          onDragEnd: onDragEnd as any,
+        })}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()

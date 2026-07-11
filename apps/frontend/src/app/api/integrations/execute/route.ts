@@ -11,7 +11,7 @@ const ExecuteSchema = z.object({
   toolSlug: z.string().min(1).max(100),
   agentCode: z.string().min(1).max(20),
   agentName: z.string().max(50).optional(),
-  input: z.record(z.any()).optional(),
+  input: z.record(z.string(), z.any()).optional(),
 })
 
 export async function POST(req: NextRequest) {

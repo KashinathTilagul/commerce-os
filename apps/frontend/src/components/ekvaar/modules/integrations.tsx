@@ -185,11 +185,11 @@ export function Integrations() {
                     {meta.label}
                   </h2>
                   <span className="text-[10px] text-muted-foreground">
-                    {items.filter((i: any) => i.isConnected).length}/{items.length} connected
+                    {(items as any[]).filter((i: any) => i.isConnected).length}/{(items as any[]).length} connected
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {items.map((i: any) => (
+                  {(items as any[]).map((i: any) => (
                     <IntegrationCard
                       key={i.id}
                       integration={i}
