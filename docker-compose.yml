@@ -53,17 +53,5 @@ services:
       - redis-data:/data
     restart: unless-stopped
 
-  celery_worker:
-    build:
-      context: ./apps/backend-py
-      dockerfile: Dockerfile
-    command: ["celery", "-A", "core.worker", "worker", "--loglevel=info", "--concurrency=4", "--max-tasks-per-child=50", "--max-memory-per-child=512000"]
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-    depends_on:
-      - redis
-    restart: unless-stopped
-
 volumes:
   redis-data:
