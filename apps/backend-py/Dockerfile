@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y \
 # Install OpenCode (AI terminal IDE)
 RUN curl -fsSL https://opencode.ai/install | sh || true
 
+# Install CPU-only torch first — prevents pocket-tts from pulling CUDA variant (~2GB)
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
