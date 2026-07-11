@@ -24,6 +24,7 @@ export function CampaignsModule() {
     queryKey: ['campaigns'],
     queryFn: async () => {
       const r = await fetch('/api/campaigns')
+      if (!r.ok) throw new Error('Failed to fetch campaigns')
       return r.json()
     },
   })

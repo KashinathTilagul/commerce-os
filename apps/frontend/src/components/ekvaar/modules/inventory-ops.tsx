@@ -15,6 +15,7 @@ export function InventoryOps() {
     queryKey: ['products-all-ops'],
     queryFn: async () => {
       const r = await fetch('/api/products')
+      if (!r.ok) throw new Error('Failed to fetch products')
       return r.json()
     },
   })
@@ -23,6 +24,7 @@ export function InventoryOps() {
     queryKey: ['suppliers'],
     queryFn: async () => {
       const r = await fetch('/api/suppliers')
+      if (!r.ok) throw new Error('Failed to fetch suppliers')
       return r.json()
     },
   })

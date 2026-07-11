@@ -25,6 +25,7 @@ export function SalesOrders() {
       if (status !== 'ALL') params.set('status', status)
       if (channel !== 'ALL') params.set('channel', channel)
       const r = await fetch(`/api/orders?${params}`)
+      if (!r.ok) throw new Error('Failed to fetch orders')
       return r.json()
     },
   })

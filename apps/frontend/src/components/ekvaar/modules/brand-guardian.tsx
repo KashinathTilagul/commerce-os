@@ -19,6 +19,7 @@ export function BrandGuardian() {
     queryKey: ['brand-checks'],
     queryFn: async () => {
       const r = await fetch('/api/brand-checks')
+      if (!r.ok) throw new Error('Failed to fetch brand checks')
       return r.json()
     },
   })

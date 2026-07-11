@@ -24,6 +24,7 @@ export function TerminalModule() {
     queryKey: ['events'],
     queryFn: async () => {
       const r = await fetch('/api/events')
+      if (!r.ok) throw new Error('Failed to fetch events')
       return r.json()
     },
     refetchInterval: 5000, // live refresh

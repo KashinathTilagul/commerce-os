@@ -33,6 +33,7 @@ export function AIInfrastructure() {
     queryKey: ['ai-systems'],
     queryFn: async () => {
       const r = await fetch('/api/ai-systems')
+      if (!r.ok) throw new Error('Failed to fetch AI systems')
       return r.json()
     },
   })

@@ -24,18 +24,20 @@ export function CommunityModule() {
   const [tab, setTab] = useState('members')
   const [search, setSearch] = useState('')
 
-  const { data: customers = [] } = useQuery<any[]>(({
+  const { data: customers = [] } = useQuery<any[]>({
     queryKey: ['customers'],
     queryFn: async () => {
       const r = await fetch('/api/customers')
+      if (!r.ok) throw new Error('Failed to fetch customers')
       return r.json()
     },
-  }))
+  })
 
   const { data: restorations = [] } = useQuery<any[]>({
     queryKey: ['restorations'],
     queryFn: async () => {
       const r = await fetch('/api/restorations')
+      if (!r.ok) throw new Error('Failed to fetch restorations')
       return r.json()
     },
   })
@@ -44,6 +46,7 @@ export function CommunityModule() {
     queryKey: ['founder-notes'],
     queryFn: async () => {
       const r = await fetch('/api/founder-notes')
+      if (!r.ok) throw new Error('Failed to fetch founder notes')
       return r.json()
     },
   })

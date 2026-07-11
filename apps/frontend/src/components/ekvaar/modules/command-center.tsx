@@ -65,6 +65,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
     queryKey: ['dashboard'],
     queryFn: async () => {
       const r = await fetch('/api/dashboard')
+      if (!r.ok) throw new Error('Failed to fetch dashboard')
       return r.json()
     },
   })
@@ -363,7 +364,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
               </Button>
             </CardHeader>
             <CardContent className="space-y-2">
-              {data?.lowStock.slice(0, 5).map((p) => (
+              {(data?.lowStock ?? []).slice(0, 5).map((p) => (
                 <div key={p.id} className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
                   <div className="flex items-center gap-3">
                     <ColorDot color={p.color} size={12} />

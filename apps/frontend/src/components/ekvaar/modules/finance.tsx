@@ -40,6 +40,7 @@ export function FinanceModule() {
     queryKey: ['finance'],
     queryFn: async () => {
       const r = await fetch('/api/finance')
+      if (!r.ok) throw new Error('Failed to fetch finance data')
       return r.json()
     },
   })
@@ -192,7 +193,7 @@ export function FinanceModule() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.recentTransactions.map((t) => (
+                  {(data?.recentTransactions ?? []).map((t) => (
                     <TableRow key={t.id}>
                       <TableCell className="text-[10px] text-muted-foreground">{new Date(t.date).toLocaleDateString()}</TableCell>
                       <TableCell>

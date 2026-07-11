@@ -31,6 +31,7 @@ export function FounderInbox() {
     queryKey: ['approvals', tab],
     queryFn: async () => {
       const r = await fetch(`/api/approvals?inbox=${tab}`)
+      if (!r.ok) throw new Error('Failed to fetch approvals')
       return r.json()
     },
   })
@@ -39,6 +40,7 @@ export function FounderInbox() {
     queryKey: ['approvals', 'ALL'],
     queryFn: async () => {
       const r = await fetch('/api/approvals?inbox=ALL')
+      if (!r.ok) throw new Error('Failed to fetch approvals')
       return r.json()
     },
   })

@@ -52,6 +52,7 @@ export function IssuesModule() {
     queryKey: ['issues'],
     queryFn: async () => {
       const r = await fetch('/api/issues')
+      if (!r.ok) throw new Error('Failed to fetch issues')
       return r.json()
     },
   })

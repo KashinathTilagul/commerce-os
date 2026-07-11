@@ -26,7 +26,8 @@ export function HouseOfOriginals() {
       if (house !== 'ALL') params.set('house', house)
       if (status !== 'ALL') params.set('status', status)
       const r = await fetch(`/api/products?${params}`)
-      return r.json()
+      const json = await r.json()
+      return Array.isArray(json) ? json : []
     },
   })
 
