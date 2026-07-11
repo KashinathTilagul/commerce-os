@@ -18,9 +18,20 @@ export async function POST(req: NextRequest) {
     const validated = ChatSchema.parse(body)
     const { message, context, activeWindow } = validated
 
-    const { BedrockRuntimeClient, ConverseCommand } = await import('@aws-sdk/client-bedrock-runtime')
-    const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' })
-    const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0'
+    const BEDROCK_MODEL = process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0'
+    const OPENROUTER_MODELS = [
+      'google/gemma-3-27b-it:free',
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'deepseek/deepseek-chat-v3-0324:free',
+      'qwen/qwen3-235b-a22b:free',
+      'qwen/qwen3-coder:free',
+      'nousresearch/hermes-3-llama-3.1-405b:free',
+      'google/gemma-2-9b-it:free',
+      'meta-llama/llama-3.2-3b-instruct:free',
+      'microsoft/phi-3-mini-128k-instruct:free',
+      'liquid/lfm-2.5-1.2b-instruct:free',
+    ]
+    const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama3-8b-8192', 'gemma2-9b-it']
 
     const screenContext = activeWindow
       ? `The founder is currently looking at: ${sanitizeInput(activeWindow, { maxLength: 100 })}. `
@@ -100,14 +111,62 @@ ACTION: {"type":"tool_execute","toolkit":"shopify","tool":"shopify_get_orders","
 
 Remember: SPOKEN must be ONE short sentence. No abbreviations. No numbers as digits — write them out (twenty four, not 24). No pauses or fragments.`
 
-    const completion = await bedrock.send(new ConverseCommand({
-      modelId: MODEL_ID,
-      system: [{ text: systemPrompt }],
-      messages: [{ role: 'user', content: [{ text: sanitizeInput(message, { maxLength: 5000 }) }] }],
-      inferenceConfig: { maxTokens: 300, temperature: 0.7 },
-    }))
+    const chatMessages = [
+      { role: 'system' as const, content: systemPrompt },
+      { role: 'user' as const, content: sanitizeInput(message, { maxLength: 5000 }) },
+    ]
 
-    const rawResponse = (completion.output?.message?.content?.[0] as any)?.text || 'I am here, Founder.'
+    let rawResponse = 'I am here, Founder.'
+
+    const orKey = process.env.OPENROUTER_API_KEY
+    const groqKey = process.env.GROQ_API_KEY
+
+    // 1. Bedrock primary
+    try {
+      const { BedrockRuntimeClient, ConverseCommand } = await import('@aws-sdk/client-bedrock-runtime')
+      const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' })
+      const completion = await bedrock.send(new ConverseCommand({
+        modelId: BEDROCK_MODEL,
+        system: [{ text: chatMessages[0].content }],
+        messages: [{ role: 'user', content: [{ text: chatMessages[1].content }] }],
+        inferenceConfig: { maxTokens: 300, temperature: 0.7 },
+      }))
+      rawResponse = (completion.output?.message?.content?.[0] as any)?.text || rawResponse
+    } catch { /* fall through to OpenRouter */ }
+
+    // 2. OpenRouter free models
+    if (rawResponse === 'I am here, Founder.' && orKey) {
+      for (const model of OPENROUTER_MODELS) {
+        try {
+          const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${orKey}` },
+            body: JSON.stringify({ model, messages: chatMessages, max_tokens: 300, temperature: 0.7 }),
+          })
+          if (!r.ok) continue
+          const d = await r.json()
+          rawResponse = d.choices?.[0]?.message?.content || rawResponse
+          break
+        } catch { continue }
+      }
+    }
+
+    // 3. Groq final fallback
+    if (rawResponse === 'I am here, Founder.' && groqKey) {
+      for (const model of GROQ_MODELS) {
+        try {
+          const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
+            body: JSON.stringify({ model, messages: chatMessages, max_tokens: 300, temperature: 0.7 }),
+          })
+          if (!r.ok) continue
+          const d = await r.json()
+          rawResponse = d.choices?.[0]?.message?.content || rawResponse
+          break
+        } catch { continue }
+      }
+    }
 
     let spoken = rawResponse
     let action: any = null
