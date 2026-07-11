@@ -331,15 +331,27 @@ AVAILABLE ACTIONS:
     }
 
     // ── Parse SPOKEN / ACTION ────────────────────────────────────────────
-    let spoken = rawResponse || "I'm here, Founder. How can I assist?"
+    let spoken = "I'm here, Founder. How can I assist?"
     let action: any = null
 
     if (rawResponse) {
-      const spokenMatch = rawResponse.match(/(?:SPOKEN|Speech\s+[Vv]ersion|Speech):\s*([\s\S]+?)(?=\n(?:ACTION|Action):|$)/)
-      if (spokenMatch) spoken = spokenMatch[1].trim()
-      else spoken = rawResponse.split('\n')[0].replace(/^(?:SPOKEN|Speech\s+[Vv]ersion|Speech):\s*/i, '').trim() || spoken
+      // Strip XML/SSML the model sometimes emits before parsing
+      const clean = rawResponse.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
 
-      const actionMatch = rawResponse.match(/ACTION:\s*(\{[\s\S]+\})/)
+      const spokenMatch = clean.match(/SPOKEN:\s*([\s\S]+?)(?=\s*ACTION:|$)/i)
+      if (spokenMatch) {
+        spoken = spokenMatch[1].trim()
+      } else {
+        // Model didn't follow format — use full response minus any ACTION block
+        spoken = clean.replace(/ACTION:\s*\{[\s\S]*\}/gi, '').trim() || spoken
+      }
+
+      // Remove any residual ACTION block that leaked into spoken
+      spoken = spoken.replace(/\n?ACTION:\s*\{[\s\S]*\}/gi, '').trim()
+      // Remove any XML tags remaining
+      spoken = spoken.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+
+      const actionMatch = rawResponse.match(/ACTION:\s*(\{[\s\S]+?\})\s*$/im)
       if (actionMatch) {
         try { action = JSON.parse(actionMatch[1].trim()) } catch {}
       }

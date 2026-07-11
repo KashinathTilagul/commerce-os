@@ -11,69 +11,51 @@ import { MessageScroller, Message, Bubble } from '@/components/ui/chat'
 type KrishnaState = 'idle' | 'listening' | 'thinking' | 'talking'
 interface Msg { role: 'user' | 'krishna'; text: string; ts: number }
 
-// ─── Abbreviation expander for speech ──────────────────────────────────────
+// ─── Strip everything that isn't plain speakable English ────────────────────
 function toSpeech(text: string): string {
-  const expand: Record<string, string> = {
-    'CMO': 'Chief Marketing Officer', 'CTO': 'Chief Technology Officer',
-    'CFO': 'Chief Financial Officer', 'COO': 'Chief Operating Officer',
-    'CEO': 'Chief Executive Officer', 'ROAS': 'return on ad spend',
-    'P&L': 'profit and loss', 'Q1': 'quarter one', 'Q2': 'quarter two',
-    'Q3': 'quarter three', 'Q4': 'quarter four', 'API': 'A P I',
-    '₹': 'rupees ', 'EKVAAR': 'Ekvaar', 'AI': 'A I', 'KPI': 'K P I',
-  }
-  let r = text
-    .replace(/^(?:SPOKEN|Speech\s+[Vv]ersion|Speech):\s*/i, '')
-    .replace(/<[^>]*>/g, '')               // strip XML/SSML tags entirely
-    .replace(/```[\s\S]*?```/g, '')        // strip code blocks
-    .replace(/`[^`]*`/g, '')               // strip inline code
-    .replace(/https?:\/\/\S+/g, '')        // strip URLs
-    .replace(/^\s*\d+\.\s+/gm, '')         // strip numbered list markers
-    .replace(/^\s*[-*•]\s+/gm, '')         // strip bullet markers
-    .replace(/[*_#`>]/g, '')
-    .replace(/\n+/g, '. ')
-  for (const [k, v] of Object.entries(expand)) {
-    r = r.replace(new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'), v)
-  }
-  return r.replace(/(\d+\.?\d*)%/g, '$1 percent').replace(/\s+/g, ' ').trim()
+  return text
+    .replace(/<[^>]*>/g, ' ')                          // XML / SSML tags
+    .replace(/^[\s\S]*?SPOKEN:\s*/im, '')              // everything before SPOKEN: label
+    .replace(/\n?ACTION:\s*\{[\s\S]*\}/gi, '')         // ACTION block if it leaked through
+    .replace(/```[\s\S]*?```/g, ' ')                   // fenced code blocks
+    .replace(/`[^`]*`/g, ' ')                          // inline code
+    .replace(/https?:\/\/\S+/g, ' ')                   // URLs
+    .replace(/^\s*\d+\.\s+/gm, ' ')                    // numbered list markers
+    .replace(/^\s*[-*•]\s+/gm, ' ')                    // bullet markers
+    .replace(/[*_#`>\\|]/g, ' ')                       // markdown symbols
+    .replace(/₹/g, 'rupees ')
+    .replace(/\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
-function toSentences(text: string): string[] {
-  return text.match(/[^.!?]+[.!?]*/g)?.map(s => s.trim()).filter(s => s.length > 3) || [text]
-}
-
-// Pick the clearest available voice — Microsoft Neural Online > Google > Apple > offline
+// ─── Pick the best available browser voice ───────────────────────────────────
 function pickBestVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  // Microsoft Neural Online (Windows/Chrome/Edge) — best quality, non-robotic
-  const msNeural = [
+  // Priority: Microsoft Neural Online (Windows/Chrome/Edge) > Google > Apple > any en
+  const priority = [
     'Microsoft Ryan Online (Natural) - English (United Kingdom)',
     'Microsoft Sonia Online (Natural) - English (United Kingdom)',
-    'Microsoft David Online (Natural) - English (United States)',
-    'Microsoft Mark Online (Natural) - English (United States)',
     'Microsoft Guy Online (Natural) - English (United States)',
+    'Microsoft David Online (Natural) - English (United States)',
     'Microsoft Aria Online (Natural) - English (United States)',
+    'Microsoft Mark Online (Natural) - English (United States)',
     'Microsoft Neerja Online (Natural) - English (India)',
-    'Microsoft Prabhat Online (Natural) - Hindi (India)',
-    // Offline fallbacks
+    // offline fallbacks
     'Microsoft David Desktop - English (United States)',
-    'Microsoft Mark - Online (Natural) - English (United States)',
+    'Google UK English Male',
+    'Daniel', 'Arthur', 'Aaron',
   ]
-  for (const name of msNeural) {
+  for (const name of priority) {
     const v = voices.find(v => v.name === name)
     if (v) return v
   }
-  // Google voices (good quality)
-  const goog = voices.find(v => v.name.startsWith('Google') && v.lang.startsWith('en'))
-  if (goog) return goog
-  // macOS Apple voices
-  const apple = ['Daniel', 'Arthur', 'Aaron', 'Rishi']
-  for (const name of apple) {
-    const v = voices.find(v => v.name === name)
-    if (v) return v
-  }
-  return voices.find(v => v.lang.startsWith('en-GB')) ||
+  return (
+    voices.find(v => v.name.startsWith('Google') && v.lang.startsWith('en')) ||
+    voices.find(v => v.lang.startsWith('en-GB')) ||
     voices.find(v => v.lang.startsWith('en-US')) ||
     voices.find(v => v.lang.startsWith('en')) ||
     voices[0] || null
+  )
 }
 
 // ─── Global state bus (drives wallpaper orb) ────────────────────────────────
@@ -288,91 +270,42 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setVolume(0)
   }, [stopTTS, stopListening])
 
-  // ── TTS: browser-native primary (stable) → Edge TTS server enhancement ───
+  // ── TTS: browser Web Speech API — simple, stable, zero server dependency ──
   const speakText = useCallback(async (text: string) => {
-    if (muted) { setGlobal('idle'); return }
-    if (typeof window === 'undefined') { setGlobal('idle'); return }
+    if (muted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      setGlobal('idle')
+      return
+    }
+
     stopTTS()
+    const clean = toSpeech(text)
+    if (!clean) { setGlobal('idle'); return }
+
     setGlobal('talking')
     speakingRef.current = true
 
-    const cleanText = toSpeech(text)
+    const u = new SpeechSynthesisUtterance(clean)
+    u.voice = bestVoiceRef.current
+    u.rate  = 0.93
+    u.pitch = 1.0
+    u.volume = 1.0
 
-    // ── Try Edge TTS server (fast path — 4s timeout, skip if slow) ──────
-    let usedServer = false
-    try {
-      const res = await fetch('/api/jarvis/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: cleanText, voice: ttsVoiceRef.current, speed: ttsSpeedRef.current, stability: ttsStabilityRef.current, volume: ttsVolumeRef.current }),
-        signal: AbortSignal.timeout(4000), // skip server if it takes >4s
-      })
-      if (res.ok) {
-        const arrayBuffer = await res.arrayBuffer()
-        if (arrayBuffer.byteLength > 1000) { // valid audio response
-          const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
-          const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
-          await new Promise<void>((resolve) => {
-            const source = audioCtx.createBufferSource()
-            source.buffer = audioBuffer
-            source.connect(audioCtx.destination)
-            let done = false
-            const finish = () => {
-              if (done) return; done = true
-              audioStopRef.current = null
-              audioCtx.close().catch(() => {})
-              resolve()
-            }
-            audioStopRef.current = () => { try { source.stop() } catch {} finish() }
-            source.onended = finish
-            setTimeout(finish, audioBuffer.duration * 1000 + 2000)
-            source.start(0)
-          })
-          usedServer = true
-        }
-      }
-    } catch {
-      // server offline or too slow — browser TTS below
-    }
-
-    // ── Browser-native TTS (primary when server unavailable) ─────────────
-    if (!usedServer && 'speechSynthesis' in window) {
-      const sentences = toSentences(cleanText)
-      const allVoices = window.speechSynthesis.getVoices()
-      // Use best voice (pickBestVoice prioritises Microsoft Neural Online)
-      const chosenVoice = bestVoiceRef.current || pickBestVoice(allVoices)
-
-      for (const sentence of sentences) {
-        if (!speakingRef.current) break
-        await new Promise<void>((resolve) => {
-          const u = new SpeechSynthesisUtterance(sentence)
-          if (chosenVoice) u.voice = chosenVoice
-          u.rate = Math.min(1.1, ttsSpeedRef.current * 0.85)
-          u.pitch = 1.0
-          u.volume = Math.min(1.0, ttsVolumeRef.current)
-          let done = false
-          const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
-          audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
-          u.onend = finish
-          u.onerror = finish
-          setTimeout(finish, sentence.length * 80 + 2000)
-          window.speechSynthesis.speak(u)
-        })
-        if (speakingRef.current && sentences.indexOf(sentence) < sentences.length - 1) {
-          await new Promise(r => setTimeout(r, 100))
-        }
-      }
-      audioStopRef.current = null
-    }
+    await new Promise<void>((resolve) => {
+      let done = false
+      const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
+      audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
+      u.onend  = finish
+      u.onerror = finish
+      // safety timeout: ~70ms per char + 3s buffer
+      setTimeout(finish, clean.length * 70 + 3000)
+      window.speechSynthesis.speak(u)
+    })
 
     speakingRef.current = false
     setGlobal('idle')
 
-    // Auto-restart mic for continuous conversation
     if (voiceSessionRef.current && !listeningRef.current) {
-      setTimeout(() => {
-        if (voiceSessionRef.current && !listeningRef.current) startListening()
-      }, 350)
+      setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 350)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [muted, stopTTS])
