@@ -2,22 +2,20 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Loader2, Volume2, VolumeX, Mic, MicOff, Send } from 'lucide-react'
+import { X, Loader2, Volume2, VolumeX, Mic, MicOff, Send, Radio } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
 import { APPS } from './app-registry'
 import { toast } from './toast'
 import { MessageScroller, Message, Bubble } from '@/components/ui/chat'
 
 type KrishnaState = 'idle' | 'listening' | 'thinking' | 'talking'
+interface Msg { role: 'user' | 'krishna'; text: string; ts: number }
 
-interface Message { role: 'user' | 'krishna'; text: string; ts: number }
-
-// ─── Preprocess text for natural speech ────────────────────────────────────
+// ─── Abbreviation expander for speech ──────────────────────────────────────
 function toSpeech(text: string): string {
   const expand: Record<string, string> = {
     'CMO': 'Chief Marketing Officer', 'CTO': 'Chief Technology Officer',
     'CFO': 'Chief Financial Officer', 'COO': 'Chief Operating Officer',
-    'CCO': 'Chief Creative Officer', 'CSM': 'Customer Success Manager',
     'CEO': 'Chief Executive Officer', 'ROAS': 'return on ad spend',
     'P&L': 'profit and loss', 'Q1': 'quarter one', 'Q2': 'quarter two',
     'Q3': 'quarter three', 'Q4': 'quarter four', 'API': 'A P I',
@@ -30,12 +28,36 @@ function toSpeech(text: string): string {
   return r.replace(/(\d+\.?\d*)%/g, '$1 percent').replace(/\s+/g, ' ').trim()
 }
 
-// Split long text into speakable sentences
 function toSentences(text: string): string[] {
-  return text.match(/[^.!?]+[.!?]*/g)?.map(s => s.trim()).filter(s => s.length > 2) || [text]
+  return text.match(/[^.!?]+[.!?]*/g)?.map(s => s.trim()).filter(s => s.length > 3) || [text]
 }
 
-// ─── Global state bus ───────────────────────────────────────────────────────
+// Pick the most JARVIS-like voice from what the browser has
+function pickBestVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  const preferred = [
+    'Google UK English Male',
+    'Microsoft David Desktop',
+    'Daniel',                  // macOS British male
+    'Arthur',                  // macOS British male
+    'Aaron',
+    'Rishi',                   // macOS Indian English male
+  ]
+  for (const name of preferred) {
+    const v = voices.find(v => v.name === name)
+    if (v) return v
+  }
+  // Fallback: prefer en-GB male, then en-US male, then any en
+  return (
+    voices.find(v => v.lang === 'en-GB' && v.name.toLowerCase().includes('male')) ||
+    voices.find(v => v.lang.startsWith('en-GB')) ||
+    voices.find(v => v.lang.startsWith('en-US')) ||
+    voices.find(v => v.lang.startsWith('en-IN')) ||
+    voices.find(v => v.lang.startsWith('en')) ||
+    voices[0] || null
+  )
+}
+
+// ─── Global state bus (drives wallpaper orb) ────────────────────────────────
 let gState: KrishnaState = 'idle'
 const stateListeners: ((s: KrishnaState) => void)[] = []
 function setGlobal(s: KrishnaState) { gState = s; stateListeners.forEach(f => f(s)) }
@@ -49,7 +71,11 @@ export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; h
     const raf = requestAnimationFrame(() => setMounted(true))
     const fn = (s: KrishnaState) => setState(s)
     stateListeners.push(fn)
-    return () => { cancelAnimationFrame(raf); const i = stateListeners.indexOf(fn); if (i >= 0) stateListeners.splice(i, 1) }
+    return () => {
+      cancelAnimationFrame(raf)
+      const i = stateListeners.indexOf(fn)
+      if (i >= 0) stateListeners.splice(i, 1)
+    }
   }, [])
 
   if (!mounted) return null
@@ -79,34 +105,38 @@ export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; h
         whileHover={{ scale: hidden ? 0.6 : 1.1 }}
         whileTap={{ scale: 0.9 }}
       >
-        <motion.div
-          className="absolute inset-0 rounded-full"
+        <motion.div className="absolute inset-0 rounded-full"
           animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
           transition={{ duration: state === 'talking' ? 0.9 : state === 'idle' ? 4 : 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)` }}
-        />
+          style={{ background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)` }} />
+
         {state === 'listening' && [0, 0.7, 1.4].map(d => (
           <motion.div key={d} className="absolute inset-0 rounded-full border-2" style={{ borderColor: c.core }}
-            animate={{ scale: [1, 2], opacity: [0.5, 0] }} transition={{ duration: 1.5, repeat: Infinity, delay: d }} />
+            animate={{ scale: [1, 2], opacity: [0.5, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, delay: d }} />
         ))}
+
         {state === 'talking' && (
           <motion.div className="absolute inset-0 rounded-full" style={{ background: c.glow }}
             animate={{ scale: [1, 1.25, 1, 1.15, 1], opacity: [0.3, 0.6, 0.3, 0.5, 0.3] }}
             transition={{ duration: 0.9, repeat: Infinity, times: [0, 0.15, 0.35, 0.55, 1] }} />
         )}
+
         {state === 'thinking' && (
           <motion.div className="absolute inset-0 rounded-full border-2 border-t-transparent"
-            style={{ borderColor: c.core }} animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity }} />
+            style={{ borderColor: c.core }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 0.8, repeat: Infinity }} />
         )}
-        <motion.div
-          className="absolute rounded-full flex items-center justify-center overflow-hidden"
+
+        <motion.div className="absolute rounded-full flex items-center justify-center overflow-hidden"
           style={{
             inset: '20%',
             background: `linear-gradient(135deg, ${c.core} 0%, ${c.core}CC 100%)`,
             boxShadow: `inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 12px ${c.glow}`,
           }}
           animate={{ scale: state === 'idle' ? [1, 1.04, 1] : state === 'talking' ? [1, 1.12, 1, 1.08, 1] : 1 }}
-          transition={{ duration: state === 'idle' ? 4 : state === 'talking' ? 0.9 : 1, repeat: Infinity, times: state === 'talking' ? [0, 0.15, 0.35, 0.55, 1] : undefined }}
+          transition={{ duration: state === 'idle' ? 4 : state === 'talking' ? 0.9 : 1, repeat: Infinity }}
         >
           <motion.div className="absolute inset-0 opacity-30" animate={{ rotate: 360 }}
             transition={{ duration: state === 'idle' ? 15 : 4, repeat: Infinity }}
@@ -122,105 +152,96 @@ export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; h
 export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenWindows?: boolean }) {
   const { open: openWindow, activeId, windows } = useWindowStore()
   const [expanded, setExpanded] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Msg[]>([])
   const [inputText, setInputText] = useState('')
   const [transcript, setTranscript] = useState('')
   const [muted, setMuted] = useState(false)
   const [listening, setListening] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [micSupported, setMicSupported] = useState(true)
+  const [volume, setVolume] = useState(0) // 0-100 VU meter
 
-  const recorderRef = useRef<MediaRecorder | null>(null)
-  const listeningRef = useRef(false)
-  const voiceSessionRef = useRef(false)
-  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const sendRef = useRef<(text: string) => void>(() => {})
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const bestVoiceRef = useRef<SpeechSynthesisVoice | null>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const recorderRef       = useRef<MediaRecorder | null>(null)
+  const webSpeechRef      = useRef<any>(null)          // Web Speech API instance
+  const webSpeechFinal    = useRef<string>('')         // latest Web Speech final transcript
+  const listeningRef      = useRef(false)
+  const voiceSessionRef   = useRef(false)
+  const sendRef           = useRef<(text: string) => void>(() => {})
+  const scrollRef         = useRef<HTMLDivElement>(null)
+  const messagesEndRef    = useRef<HTMLDivElement>(null)
+  const bestVoiceRef      = useRef<SpeechSynthesisVoice | null>(null)
+  const inputRef          = useRef<HTMLTextAreaElement>(null)
+  const isAtBottomRef     = useRef(true)
+  const ttsVoiceRef       = useRef<string>('en-IN-NeerjaNeural')
+  const audioStopRef      = useRef<(() => void) | null>(null)
+  const speakingRef       = useRef(false)
+  const vuRef             = useRef<ReturnType<typeof setInterval> | null>(null)
+
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
-  const isAtBottomRef = useRef(true)
-  const ttsVoiceRef = useRef<string>('en-IN-NeerjaNeural')
-  // Interruptible TTS — store stop handle so mic click cancels playback immediately
-  const audioStopRef = useRef<(() => void) | null>(null)
-  const speakingRef = useRef(false)
 
-  // Load saved TTS voice from settings
+  // Load saved TTS voice
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then(s => {
       if (s?.ttsVoice) ttsVoiceRef.current = s.ttsVoice
     }).catch(() => {})
   }, [])
 
-  // Pick browser fallback TTS voice
+  // Pick best browser fallback voice (JARVIS-like)
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
     const pick = () => {
       const vs = window.speechSynthesis.getVoices()
-      bestVoiceRef.current = vs.find(v => v.lang.startsWith('en-IN')) || vs.find(v => v.lang.startsWith('en-')) || vs[0] || null
+      if (vs.length) bestVoiceRef.current = pickBestVoice(vs)
     }
     pick()
     window.speechSynthesis.onvoiceschanged = pick
     return () => { if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = null }
   }, [])
 
-  // MediaRecorder is available on all modern browsers
   useEffect(() => { setMicSupported(typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia) }, [])
 
-  // Smart scroll — always anchor to bottom when new messages arrive if already at bottom
+  // Scroll anchor
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const onScroll = () => {
-      isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
-    }
+    const onScroll = () => { isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40 }
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
   }, [])
 
   useEffect(() => {
-    if (isAtBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
+    if (isAtBottomRef.current) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, transcript, isProcessing])
 
-  // ── Trigger from dock / menu bar ───────────────────────────────────────
+  // Trigger from dock / keyboard
   useEffect(() => {
-    if (trigger && trigger > 0) {
-      if (expanded) closePanel(); else openPanel()
-    }
+    if (trigger && trigger > 0) { if (expanded) closePanel(); else openPanel() }
   }, [trigger])
 
-  // ── Keyboard shortcuts ─────────────────────────────────────────────────
   useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && expanded) closePanel()
-    }
+    const down = (e: KeyboardEvent) => { if (e.key === 'Escape' && expanded) closePanel() }
     window.addEventListener('keydown', down, true)
     return () => window.removeEventListener('keydown', down, true)
   }, [expanded])
 
-  const openPanel = useCallback(() => {
-    setExpanded(true)
-    const istHour = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
-    const g = istHour < 12 ? 'Good morning' : istHour < 17 ? 'Good afternoon' : istHour < 21 ? 'Good evening' : 'Good night'
-    const greets = [
-      `${g}. Krishna here — what do you need?`,
-      `${g}. I'm listening.`,
-      `${g}. What's on your mind?`,
-      `${g}. All systems operational — go ahead.`,
-      `${g}. How can I help?`,
-    ]
-    const msg = greets[Math.floor(Math.random() * greets.length)]
-    setMessages(m => [...m, { role: 'krishna', text: msg, ts: Date.now() }])
-    setTimeout(() => speakText(msg), 120)
+  // ── Stop TTS immediately ─────────────────────────────────────────────────
+  const stopTTS = useCallback(() => {
+    if (audioStopRef.current) { audioStopRef.current(); audioStopRef.current = null }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
+    speakingRef.current = false
   }, [])
 
-  // ── STT helpers (MediaRecorder → Faster-Whisper) ──────────────────────
+  // ── Stop mic/recording ───────────────────────────────────────────────────
   const stopListening = useCallback(() => {
     listeningRef.current = false
-    if (silenceTimerRef.current) { clearTimeout(silenceTimerRef.current); silenceTimerRef.current = null }
+    if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
+    setVolume(0)
+    // Stop Web Speech API
+    if (webSpeechRef.current) {
+      try { webSpeechRef.current.stop() } catch {}
+      webSpeechRef.current = null
+    }
+    // Stop MediaRecorder
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
       try { recorderRef.current.stop() } catch {}
     }
@@ -229,131 +250,27 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const closePanel = useCallback(() => {
     setExpanded(false)
     voiceSessionRef.current = false
+    stopTTS()
     stopListening()
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
     setGlobal('idle')
     setListening(false)
     setTranscript('')
-  }, [stopListening])
+    if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
+    setVolume(0)
+  }, [stopTTS, stopListening])
 
-  const startListening = useCallback(async () => {
-    if (typeof window === 'undefined') return
-
-    let stream: MediaStream
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    } catch {
-      toast.error('Microphone blocked', 'Allow mic access in browser settings')
-      return
-    }
-
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
-    stopListening()
-
-    listeningRef.current = true
-    voiceSessionRef.current = true
-    setListening(true)
-    setTranscript('')
-    setGlobal('listening')
-
-    // ── VAD via AudioContext analyser ──────────────────────────────────
-    const audioCtx = new AudioContext()
-    const source = audioCtx.createMediaStreamSource(stream)
-    const analyser = audioCtx.createAnalyser()
-    analyser.fftSize = 512
-    source.connect(analyser)
-    const buf = new Uint8Array(analyser.frequencyBinCount)
-
-    // Pick best supported MIME type (Safari needs mp4/aac)
-    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-      ? 'audio/webm;codecs=opus'
-      : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
-      : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4'
-      : ''
-
-    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {})
-    recorderRef.current = recorder
-    const chunks: Blob[] = []
-
-    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-
-    recorder.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop())
-      audioCtx.close()
-      // Reset listening state immediately — before any async work
-      setListening(false)
-      listeningRef.current = false
-      if (!chunks.length) { setGlobal('idle'); return }
-      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
-      const fd = new FormData()
-      fd.append('audio', blob, 'audio.webm')
-      try {
-        const res = await fetch('/api/jarvis/stt', { method: 'POST', body: fd })
-        if (res.ok) {
-          const { transcript: text } = await res.json()
-          if (text?.trim()) {
-            setTranscript('')
-            sendRef.current(text.trim())
-            return  // sendToKrishna owns state from here
-          }
-        }
-      } catch {}
-      setTranscript('')
-      setGlobal('idle')
-    }
-
-    recorder.start()
-
-    // Silence detection — stop after 1.8s of silence, minimum 600ms recording
-    let lastSoundAt = Date.now()
-    const startedAt = Date.now()
-    const vadInterval = setInterval(() => {
-      if (!listeningRef.current) { clearInterval(vadInterval); return }
-      analyser.getByteFrequencyData(buf)
-      const avg = buf.reduce((a, b) => a + b, 0) / buf.length
-      if (avg > 10) {
-        lastSoundAt = Date.now()
-        setTranscript('…')
-      }
-      const silentFor = Date.now() - lastSoundAt
-      const recordedFor = Date.now() - startedAt
-      if (silentFor > 1800 && recordedFor > 600) {
-        clearInterval(vadInterval)
-        if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
-      }
-    }, 100)
-  }, [stopListening])
-
-  const toggleListening = useCallback(() => {
-    if (listeningRef.current) {
-      // Stop recording — end voice session
-      voiceSessionRef.current = false
-      stopListening()
-      setListening(false)
-      setGlobal('idle')
-      setTranscript('')
-    } else {
-      // If Krishna is speaking, interrupt immediately then start mic
-      if (audioStopRef.current) {
-        speakingRef.current = false
-        audioStopRef.current()
-        audioStopRef.current = null
-      }
-      startListening()
-    }
-  }, [startListening, stopListening])
-
-  // ── TTS: Edge TTS API → browser fallback. Interruptible via audioStopRef ─
+  // ── TTS: Edge TTS API → browser fallback ────────────────────────────────
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
     if (typeof window === 'undefined') { setGlobal('idle'); return }
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel()
+    stopTTS()
     setGlobal('talking')
     speakingRef.current = true
 
     const cleanText = toSpeech(text)
     let usedPremium = false
 
+    // Try Edge TTS API
     try {
       const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
@@ -376,7 +293,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
             audioCtx.close().catch(() => {})
             resolve()
           }
-          // Store stop handle so mic click can interrupt immediately
           audioStopRef.current = () => { try { source.stop() } catch {} finish() }
           source.onended = finish
           setTimeout(finish, audioBuffer.duration * 1000 + 2000)
@@ -385,24 +301,33 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         usedPremium = true
       }
     } catch (e) {
-      console.warn('[TTS] API failed, falling back to browser TTS:', e)
+      // FastAPI offline or error — fall through to browser TTS
     }
 
-    // Fallback: browser TTS sentence-by-sentence
+    // Browser TTS fallback (works locally — picks best JARVIS-like voice)
     if (!usedPremium && 'speechSynthesis' in window) {
-      for (const sentence of toSentences(cleanText)) {
+      const sentences = toSentences(cleanText)
+      for (const sentence of sentences) {
         if (!speakingRef.current) break
         await new Promise<void>((resolve) => {
           const u = new SpeechSynthesisUtterance(sentence)
           if (bestVoiceRef.current) u.voice = bestVoiceRef.current
-          u.rate = 0.9; u.pitch = 0.88; u.volume = 1.0
+          // Slower + deeper = much more JARVIS-like
+          u.rate = 0.82
+          u.pitch = 0.75
+          u.volume = 1.0
           let done = false
           const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
           audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
-          u.onend = finish; u.onerror = finish
-          setTimeout(finish, sentence.length * 80 + 1500)
+          u.onend = finish
+          u.onerror = finish
+          setTimeout(finish, sentence.length * 90 + 2000)
           window.speechSynthesis.speak(u)
         })
+        // Natural inter-sentence pause
+        if (speakingRef.current && sentences.indexOf(sentence) < sentences.length - 1) {
+          await new Promise(r => setTimeout(r, 120))
+        }
       }
       audioStopRef.current = null
     }
@@ -410,15 +335,171 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     speakingRef.current = false
     setGlobal('idle')
 
-    // Auto-restart mic for voice conversations
+    // Auto-restart mic — this is what makes continuous conversation work
     if (voiceSessionRef.current && !listeningRef.current) {
       setTimeout(() => {
         if (voiceSessionRef.current && !listeningRef.current) startListening()
       }, 350)
     }
-  }, [muted, startListening])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [muted, stopTTS])
 
-  // ── Send message to Krishna API ────────────────────────────────────────
+  // ── STT: dual system — Web Speech API (instant) + Whisper (quality) ─────
+  const startListening = useCallback(async () => {
+    if (typeof window === 'undefined' || listeningRef.current) return
+
+    // Get mic access
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
+      toast.error('Microphone blocked', 'Allow mic access in browser settings')
+      voiceSessionRef.current = false
+      return
+    }
+
+    stopTTS()
+    listeningRef.current = true
+    voiceSessionRef.current = true
+    webSpeechFinal.current = ''
+    setListening(true)
+    setTranscript('')
+    setGlobal('listening')
+
+    // ── Web Speech API — real-time display + fallback transcript ─────────
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (SR) {
+      const rec = new SR()
+      rec.continuous = true
+      rec.interimResults = true
+      rec.lang = 'en-IN'
+      webSpeechRef.current = rec
+      rec.onresult = (e: any) => {
+        let interim = ''
+        let final = ''
+        for (let i = 0; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript
+          if (e.results[i].isFinal) final += t
+          else interim += t
+        }
+        if (final) webSpeechFinal.current = final.trim()
+        setTranscript(final || interim || '…')
+      }
+      rec.onerror = () => {}
+      rec.onend = () => {}
+      try { rec.start() } catch {}
+    }
+
+    // ── VAD via AudioContext + VU meter display ───────────────────────────
+    const audioCtx = new AudioContext()
+    const analyser = audioCtx.createAnalyser()
+    analyser.fftSize = 512
+    audioCtx.createMediaStreamSource(stream).connect(analyser)
+    const buf = new Uint8Array(analyser.frequencyBinCount)
+
+    // ── MediaRecorder for Whisper quality ────────────────────────────────
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+      : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+      : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''
+    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {})
+    recorderRef.current = recorder
+    const chunks: Blob[] = []
+    recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
+
+    recorder.onstop = async () => {
+      // Tear down audio infra
+      stream.getTracks().forEach(t => t.stop())
+      audioCtx.close().catch(() => {})
+      if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
+      setVolume(0)
+      setListening(false)
+      listeningRef.current = false
+
+      const webSpeechText = webSpeechFinal.current.trim()
+      webSpeechFinal.current = ''
+
+      if (!chunks.length && !webSpeechText) {
+        // Nothing captured — if voice session is active, restart listening
+        if (voiceSessionRef.current) {
+          setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 400)
+        } else {
+          setGlobal('idle')
+        }
+        return
+      }
+
+      // Try Whisper first (server-side quality)
+      let finalText = ''
+      if (chunks.length) {
+        try {
+          const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+          const fd = new FormData()
+          fd.append('audio', blob, 'audio.webm')
+          const res = await fetch('/api/jarvis/stt', {
+            method: 'POST', body: fd,
+            signal: AbortSignal.timeout(8000),
+          })
+          if (res.ok) {
+            const { transcript: t } = await res.json()
+            if (t?.trim()) finalText = t.trim()
+          }
+        } catch {}
+      }
+
+      // Fallback: use Web Speech API transcript
+      if (!finalText && webSpeechText) finalText = webSpeechText
+
+      setTranscript('')
+      if (finalText) {
+        sendRef.current(finalText)
+        return  // sendToKrishna manages state from here
+      }
+
+      // No speech detected — restart if in voice session
+      setGlobal('idle')
+      if (voiceSessionRef.current) {
+        setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 400)
+      }
+    }
+
+    recorder.start(250) // collect data every 250ms
+
+    // VAD loop — VU meter + silence detection
+    let lastSoundAt = Date.now()
+    const startedAt = Date.now()
+    vuRef.current = setInterval(() => {
+      if (!listeningRef.current) { clearInterval(vuRef.current!); vuRef.current = null; return }
+      analyser.getByteFrequencyData(buf)
+      const avg = buf.reduce((a, b) => a + b, 0) / buf.length
+      setVolume(Math.min(100, avg * 3))
+      if (avg > 10) lastSoundAt = Date.now()
+      const silentFor = Date.now() - lastSoundAt
+      const recordedFor = Date.now() - startedAt
+      if (silentFor > 2000 && recordedFor > 700) {
+        clearInterval(vuRef.current!); vuRef.current = null
+        if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
+      }
+    }, 80)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stopTTS])
+
+  // Keep sendRef always pointing to latest sendToKrishna (stale closure guard)
+  const toggleListening = useCallback(() => {
+    if (listeningRef.current) {
+      // User manually stops — end voice session
+      voiceSessionRef.current = false
+      stopListening()
+      setListening(false)
+      setGlobal('idle')
+      setTranscript('')
+    } else {
+      // Interrupt TTS if playing, then start listening
+      stopTTS()
+      startListening()
+    }
+  }, [startListening, stopListening, stopTTS])
+
+  // ── Send to Krishna API ──────────────────────────────────────────────────
   const sendToKrishna = useCallback(async (text: string) => {
     if (!text.trim() || isProcessing) return
     setIsProcessing(true)
@@ -440,9 +521,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       const data = await res.json()
       const reply = data.spoken || "I'm here."
       setMessages(prev => [...prev, { role: 'krishna', text: reply, ts: Date.now() }])
-      setIsProcessing(false)  // unlock mic before TTS so user can interrupt
+      setIsProcessing(false) // unlock mic before TTS — user can interrupt
 
-      // Handle OS actions
+      // OS actions
       if (data.action?.type === 'open_app') {
         const app = APPS.find(a =>
           a.id === data.action.app ||
@@ -463,12 +544,26 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       await speakText(fallback)
     } finally {
       setIsProcessing(false)
-      setGlobal('idle')
     }
   }, [activeWindowName, windows, isProcessing, openWindow, speakText])
 
-  // Keep sendRef pointing at the latest sendToKrishna (avoids stale closure in STT)
   useEffect(() => { sendRef.current = sendToKrishna }, [sendToKrishna])
+
+  const openPanel = useCallback(() => {
+    setExpanded(true)
+    const h = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
+    const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night'
+    const greets = [
+      `${g}. Online and ready.`,
+      `${g}. How can I help?`,
+      `${g}. What do you need?`,
+      `${g}. All systems operational.`,
+      `${g}. I'm listening.`,
+    ]
+    const msg = greets[Math.floor(Math.random() * greets.length)]
+    setMessages(m => [...m, { role: 'krishna', text: msg, ts: Date.now() }])
+    setTimeout(() => speakText(msg), 120)
+  }, [speakText])
 
   const handleTextSend = () => {
     const text = inputText.trim()
@@ -476,55 +571,87 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     sendToKrishna(text)
   }
 
-  const stateLabel = listening ? '· listening…' : isProcessing ? '· thinking…' : gState === 'talking' ? '· speaking…' : micSupported ? '· click mic to speak' : '· type to chat'
-
-  const stateColor = listening ? '#FF3B30' : isProcessing ? '#0A84FF' : gState === 'talking' ? '#34C759' : '#5856D6'
+  const isSpeaking = speakingRef.current
+  const stateColor = listening ? '#FF3B30' : isProcessing ? '#0A84FF' : isSpeaking ? '#34C759' : '#5856D6'
+  const stateLabel = listening
+    ? 'listening'
+    : isProcessing ? 'processing'
+    : isSpeaking ? 'speaking'
+    : 'standby'
 
   return (
     <AnimatePresence>
       {expanded && (
         <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.9 }}
+          initial={{ opacity: 0, y: 24, scale: 0.93 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 30, scale: 0.9 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+          exit={{ opacity: 0, y: 24, scale: 0.93 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 30 }}
           className="fixed z-[9900] w-[420px] flex flex-col rounded-2xl overflow-hidden"
           style={{
             bottom: '90px', right: '20px',
-            maxHeight: '70vh',
-            background: 'rgba(8,8,10,0.94)',
+            maxHeight: '72vh',
+            background: 'rgba(6,6,9,0.96)',
             backdropFilter: 'blur(40px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(88,86,214,0.15)',
+            border: '1px solid rgba(88,86,214,0.25)',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(88,86,214,0.12), inset 0 1px 0 rgba(255,255,255,0.04)',
           }}
         >
-          {/* Header */}
-          <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-white/[0.05]">
-            <motion.div
-              className="w-2 h-2 rounded-full"
-              style={{ background: stateColor, boxShadow: `0 0 8px ${stateColor}` }}
-              animate={{ scale: listening ? [1, 1.3, 1] : 1 }}
-              transition={{ duration: 0.7, repeat: listening ? Infinity : 0 }}
-            />
-            <span className="font-display text-xs text-white/80 tracking-wider">KRISHNA</span>
-            <span className="text-[9px] text-white/30">{stateLabel}</span>
-            <div className="ml-auto flex items-center gap-1">
-              <button onClick={() => setMuted(m => !m)} className="text-white/30 hover:text-white/70 p-1 transition-colors" title={muted ? 'Unmute' : 'Mute'}>
+          {/* ── Header / HUD bar ─────────────────────────────────────────── */}
+          <div className="flex items-center gap-3 px-4 py-2.5 border-b"
+            style={{ borderColor: 'rgba(88,86,214,0.15)', background: 'rgba(88,86,214,0.06)' }}>
+
+            {/* Animated state dot */}
+            <motion.div className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ background: stateColor, boxShadow: `0 0 10px ${stateColor}` }}
+              animate={{ scale: listening ? [1, 1.4, 1] : isSpeaking ? [1, 1.2, 1] : 1, opacity: isProcessing ? [1, 0.4, 1] : 1 }}
+              transition={{ duration: listening ? 0.6 : 0.9, repeat: (listening || isSpeaking || isProcessing) ? Infinity : 0 }} />
+
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[10px] tracking-[0.2em] text-white/70 uppercase">KRISHNA</span>
+              <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">/ {stateLabel}</span>
+            </div>
+
+            {/* VU meter when listening */}
+            {listening && (
+              <div className="flex items-center gap-0.5 ml-1">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <motion.div key={i}
+                    className="w-0.5 rounded-full"
+                    style={{
+                      height: 10,
+                      background: volume > i * 12.5 ? '#FF3B30' : 'rgba(255,59,48,0.2)',
+                      transformOrigin: 'bottom',
+                    }}
+                    animate={{ scaleY: volume > i * 12.5 ? [1, 1.5, 1] : 1 }}
+                    transition={{ duration: 0.2, repeat: Infinity, delay: i * 0.03 }} />
+                ))}
+              </div>
+            )}
+
+            <div className="ml-auto flex items-center gap-0.5">
+              <button onClick={() => setMuted(m => !m)}
+                className="text-white/25 hover:text-white/60 p-1.5 transition-colors rounded"
+                title={muted ? 'Unmute' : 'Mute'}>
                 {muted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
               </button>
-              <button onClick={closePanel} className="text-white/30 hover:text-white/70 p-1 transition-colors">
+              <button onClick={closePanel} className="text-white/25 hover:text-white/60 p-1.5 transition-colors rounded">
                 <X className="h-3 w-3" />
               </button>
             </div>
           </div>
 
-          {/* Messages — scrollable area */}
+          {/* ── Messages ─────────────────────────────────────────────────── */}
           <MessageScroller ref={scrollRef}>
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-8 gap-2">
-                <div className="w-8 h-8 rounded-full bg-purple-600/30 flex items-center justify-center text-sm font-display text-white/60">K</div>
-                <p className="text-center text-[11px] text-white/25 leading-relaxed">
-                  {micSupported ? 'Click the mic or type below\nto talk to Krishna.' : 'Type a message to talk to Krishna.'}
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <motion.div className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 0 24px rgba(88,86,214,0.4)' }}
+                  animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 3, repeat: Infinity }}>
+                  <Radio className="h-4 w-4 text-white/80" />
+                </motion.div>
+                <p className="text-[11px] font-mono text-white/20 tracking-wider uppercase">
+                  {micSupported ? 'Click mic to speak' : 'Type to connect'}
                 </p>
               </div>
             )}
@@ -535,68 +662,41 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
               const nextSameRole = i < messages.length - 1 && messages[i + 1].role === m.role
               return (
                 <Message key={i} isKrishna={isKrishna}>
-                  {/* Krishna avatar — only on last message in a group */}
                   {isKrishna && (
-                    <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display text-white/80 ${
-                      nextSameRole ? 'opacity-0' : 'opacity-100'
-                    }`}
-                    style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 2px 8px rgba(88,86,214,0.4)' }}
-                    >
+                    <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display text-white/80 transition-opacity ${nextSameRole ? 'opacity-0' : 'opacity-100'}`}
+                      style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 2px 8px rgba(88,86,214,0.4)' }}>
                       K
                     </div>
                   )}
-
-                  <Bubble 
-                    isKrishna={isKrishna} 
-                    prevSameRole={prevSameRole} 
-                    nextSameRole={nextSameRole}
-                  >
+                  <Bubble isKrishna={isKrishna} prevSameRole={prevSameRole} nextSameRole={nextSameRole}>
                     {m.text}
                   </Bubble>
                 </Message>
               )
             })}
 
-            {/* Live transcript — ghost bubble */}
+            {/* Ghost transcript */}
             {listening && transcript && (
-              <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex justify-end"
-              >
-                <div
-                  className="max-w-[78%] px-3 py-2 rounded-2xl rounded-br-sm text-[12px] italic text-white/35"
-                  style={{ background: 'rgba(255,59,48,0.08)', border: '0.5px solid rgba(255,59,48,0.15)' }}
-                >
+              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end">
+                <div className="max-w-[78%] px-3 py-2 rounded-2xl rounded-br-sm text-[12px] italic"
+                  style={{ color: 'rgba(255,59,48,0.5)', background: 'rgba(255,59,48,0.06)', border: '0.5px solid rgba(255,59,48,0.12)' }}>
                   {transcript}
                 </div>
               </motion.div>
             )}
 
-            {/* Typing indicator */}
+            {/* Thinking indicator */}
             {isProcessing && (
-              <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-end gap-2"
-              >
+              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-end gap-2">
                 <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display text-white/80"
-                  style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 2px 8px rgba(88,86,214,0.4)' }}
-                >
-                  K
-                </div>
+                  style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 2px 8px rgba(88,86,214,0.4)' }}>K</div>
                 <div className="px-3 py-2.5 rounded-2xl rounded-bl-sm"
-                  style={{ background: 'rgba(88,86,214,0.15)', border: '0.5px solid rgba(88,86,214,0.2)' }}
-                >
+                  style={{ background: 'rgba(88,86,214,0.12)', border: '0.5px solid rgba(88,86,214,0.2)' }}>
                   <div className="flex gap-1 items-center">
-                    {[0, 0.18, 0.36].map((delay) => (
-                      <motion.div
-                        key={delay}
-                        className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: '#8B89E8' }}
-                        animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.1, 0.8] }}
-                        transition={{ duration: 1.1, repeat: Infinity, delay, ease: 'easeInOut' }}
-                      />
+                    {[0, 0.2, 0.4].map(delay => (
+                      <motion.div key={delay} className="w-1.5 h-1.5 rounded-full" style={{ background: '#8B89E8' }}
+                        animate={{ opacity: [0.3, 1, 0.3], scaleY: [0.6, 1, 0.6] }}
+                        transition={{ duration: 1.2, repeat: Infinity, delay, ease: 'easeInOut' }} />
                     ))}
                   </div>
                 </div>
@@ -606,43 +706,51 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
             <div ref={messagesEndRef} />
           </MessageScroller>
 
-          {/* Listening bar */}
-          {listening && (
-            <motion.div
-              initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-              className="px-4 py-2 flex items-center justify-center gap-2 bg-red-500/8 border-t border-red-500/10"
-            >
-              {[0, 0.1, 0.2, 0.1, 0].map((d, i) => (
-                <motion.div key={i} animate={{ scaleY: [0.3, 1, 0.3] }}
-                  transition={{ duration: 0.7, repeat: Infinity, delay: d }}
-                  className="w-0.5 rounded-full bg-red-400" style={{ height: 16, transformOrigin: 'center' }} />
-              ))}
-              <span className="text-[10px] text-red-400 ml-1">Listening — click mic to send</span>
-            </motion.div>
-          )}
+          {/* ── Input row ────────────────────────────────────────────────── */}
+          <div className="px-3 pb-3 pt-2 flex items-end gap-2 border-t"
+            style={{ borderColor: 'rgba(88,86,214,0.12)' }}>
 
-          {/* Input row */}
-          <div className="px-3 pb-3 pt-2 flex items-end gap-2 border-t border-white/[0.05]">
-            {/* Mic toggle */}
             {micSupported && (
               <button
                 onClick={toggleListening}
                 disabled={isProcessing && !speakingRef.current}
-                title={listening ? 'Stop recording' : speakingRef.current ? 'Interrupt Krishna' : 'Start listening'}
-                className={`shrink-0 h-9 w-9 rounded-full flex items-center justify-center transition-all ${
+                title={listening ? 'Stop' : speakingRef.current ? 'Interrupt' : 'Speak'}
+                className={`shrink-0 h-9 w-9 rounded-full flex items-center justify-center transition-all duration-200 ${
                   listening
-                    ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'
-                    : 'bg-white/10 text-white/50 hover:bg-white/15 hover:text-white/80'
+                    ? 'text-white shadow-lg shadow-red-500/40'
+                    : speakingRef.current
+                    ? 'text-white shadow-lg shadow-green-500/30'
+                    : 'text-white/40 hover:text-white/80'
                 }`}
+                style={{
+                  background: listening
+                    ? 'linear-gradient(135deg, #FF3B30, #FF2D55)'
+                    : speakingRef.current
+                    ? 'rgba(52,199,89,0.25)'
+                    : 'rgba(255,255,255,0.06)',
+                  border: listening
+                    ? 'none'
+                    : speakingRef.current
+                    ? '1px solid rgba(52,199,89,0.4)'
+                    : '1px solid rgba(255,255,255,0.08)',
+                }}
               >
-                {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {listening
+                  ? <MicOff className="h-4 w-4" />
+                  : <Mic className="h-4 w-4" />
+                }
               </button>
             )}
 
             <textarea
               ref={inputRef}
-              className="flex-1 bg-white/[0.05] border border-white/[0.07] rounded-xl px-3 py-2 text-[12px] text-white/85 placeholder:text-white/20 outline-none resize-none leading-relaxed"
-              placeholder={isProcessing ? 'Krishna is responding…' : 'Type a message…'}
+              className="flex-1 rounded-xl px-3 py-2 text-[12px] outline-none resize-none leading-relaxed"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                color: 'rgba(255,255,255,0.85)',
+              }}
+              placeholder={isProcessing ? 'Processing…' : 'Message Krishna…'}
               rows={1}
               value={inputText}
               onChange={e => setInputText(e.target.value)}
@@ -654,8 +762,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
             <button
               onClick={handleTextSend}
               disabled={!inputText.trim() || isProcessing}
-              className="shrink-0 h-9 w-9 rounded-full flex items-center justify-center bg-purple-600/70 text-white disabled:opacity-30 hover:bg-purple-600 transition-all"
-            >
+              className="shrink-0 h-9 w-9 rounded-full flex items-center justify-center text-white transition-all disabled:opacity-20"
+              style={{ background: 'linear-gradient(135deg, #5856D6, #3634A3)' }}>
               {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             </button>
           </div>

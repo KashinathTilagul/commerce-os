@@ -31,43 +31,50 @@ def load_whisper():
 import re
 import html
 
-# Voices that support express-as styles in Edge TTS
-_EXPRESSIVE_VOICES = {
-    "en-IN-NeerjaNeural", "en-IN-PrabhatNeural",
-    "en-US-AndrewNeural", "en-US-EmmaNeural", "en-US-BrianNeural", "en-US-AvaNeural",
-    "en-GB-RyanNeural", "en-GB-SoniaNeural",
-    "en-AU-WilliamNeural", "en-AU-NatashaNeural",
+# Per-voice express-as styles — each voice supports different ones
+# Using wrong style causes Edge TTS to error or ignore it silently
+_VOICE_STYLES: dict[str, str] = {
+    "en-IN-NeerjaNeural":  "friendly",
+    "en-IN-PrabhatNeural": "friendly",
+    "en-US-AndrewNeural":  "chat",
+    "en-US-EmmaNeural":    "chat",
+    "en-US-BrianNeural":   "chat",
+    "en-US-AvaNeural":     "chat",
+    "en-GB-RyanNeural":    "chat",
+    "en-GB-SoniaNeural":   "chat",
+    "en-AU-WilliamNeural": "chat",
+    "en-AU-NatashaNeural": "chat",
+    # Hindi voices have very limited style support — skip express-as
 }
 
 def _build_ssml(text: str, voice: str) -> str:
     """Convert plain text to SSML with breathing pauses and natural prosody."""
-    lang = voice[:5]  # e.g. en-IN
+    lang = voice[:5]
     safe = html.escape(text)
 
-    # Ellipses → natural thinking pause
-    safe = re.sub(r'\.\.\.', '<break time="600ms"/>', safe)
-    safe = re.sub(r'(?<!\.)\.\.(?!\.)', '<break time="300ms"/>', safe)
-    # Em-dash → pause
-    safe = safe.replace('—', '<break time="200ms"/>')
-    safe = safe.replace('–', '<break time="150ms"/>')
-    # Slight pause after commas for rhythm
-    safe = re.sub(r',(\s)', r',<break time="80ms"/>\1', safe)
+    # Natural pauses — these make the biggest difference
+    safe = re.sub(r'\.\.\.', '<break time="650ms"/>', safe)
+    safe = re.sub(r'(?<!\.)\.\.(?!\.)', '<break time="320ms"/>', safe)
+    safe = safe.replace('—', '<break time="220ms"/>')
+    safe = safe.replace('–', '<break time="160ms"/>')
+    safe = re.sub(r',(\s)', r',<break time="90ms"/>\1', safe)
 
-    # Breath before long responses
-    breath = '<break time="180ms"/>' if len(text) > 120 else ''
+    # Breath before longer responses
+    breath = '<break time="200ms"/>' if len(text) > 100 else ''
 
-    # Slightly slower rate for clarity — more natural than the default robotic speed
-    rate = "-8%"
-    pitch = "-3%"
+    # Slower + slightly deeper = much more natural and human
+    rate  = "-10%"
+    pitch = "-5%"
 
-    if voice in _EXPRESSIVE_VOICES:
+    style = _VOICE_STYLES.get(voice)
+    if style:
         return (
             f"<speak version='1.0' "
             f"xmlns='http://www.w3.org/2001/10/synthesis' "
             f"xmlns:mstts='http://www.w3.org/2001/mstts' "
             f"xml:lang='{lang}'>"
             f"<voice name='{voice}'>"
-            f"<mstts:express-as style='chat' styledegree='1.2'>"
+            f"<mstts:express-as style='{style}' styledegree='1.3'>"
             f"<prosody rate='{rate}' pitch='{pitch}'>"
             f"{breath}{safe}"
             f"</prosody>"
@@ -75,7 +82,7 @@ def _build_ssml(text: str, voice: str) -> str:
             f"</voice>"
             f"</speak>"
         )
-    # Fallback for voices without style support (Hindi etc.)
+    # Hindi and other voices — prosody only
     return (
         f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{lang}'>"
         f"<voice name='{voice}'>"
