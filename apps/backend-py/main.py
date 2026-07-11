@@ -161,25 +161,16 @@ from core.llm.router import router as llm_router
 async def websocket_agent(websocket: WebSocket):
     await websocket.accept()
     
-    # Check LLM availability
-    from core.llm.router import router
-    llm_status = "CONNECTED" if router.client else "NOT CONFIGURED"
-    llm_provider = router.provider or "NONE"
-    
+    from core.llm.router import MODEL_ID
     boot_messages = [
         "\r\n\x1b[1;36m[EKVAAR OS]\x1b[0m Booting Hermes Intelligence Layer...\r\n",
         "\x1b[1;32m[SYSTEM]\x1b[0m Python Unified Backend v2.0.0 Online.\r\n",
         "\x1b[1;32m[SYSTEM]\x1b[0m 28 SQLite tables initialized.\r\n",
         "\x1b[1;32m[SYSTEM]\x1b[0m Graph, Agent, and Content routes mounted.\r\n",
         "\x1b[1;33m[SYSTEM]\x1b[0m Node.js backend fully deprecated.\r\n",
-        f"\x1b[1;34m[LLM]\x1b[0m Status: {llm_status} | Provider: {llm_provider}\r\n",
+        f"\x1b[1;34m[LLM]\x1b[0m Provider: Amazon Bedrock | Model: {MODEL_ID}\r\n",
+        "\x1b[1;32m[SYSTEM]\x1b[0m LLM router initialized — Amazon Bedrock.\r\n",
     ]
-    
-    if not router.client:
-        boot_messages.append("\x1b[1;33m[WARNING]\x1b[0m No LLM API key found. Set OPENAI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in .env file.\r\n")
-        boot_messages.append("\x1b[1;33m[WARNING]\x1b[0m Agent chat will be disabled until LLM is configured.\r\n")
-    else:
-        boot_messages.append("\x1b[1;32m[SYSTEM]\x1b[0m LLM router initialized and ready.\r\n")
     
     boot_messages.append("\r\n\x1b[1;35mHermes>\x1b[0m ")
     
@@ -206,10 +197,7 @@ async def websocket_agent(websocket: WebSocket):
                         system_prompt = sf.read()
 
                 # Check if LLM is available before routing
-                if not llm_router.client:
-                    await websocket.send_text("[System Error] No LLM API key configured. Please set OPENAI_API_KEY, OPENROUTER_API_KEY, or GROQ_API_KEY in your .env file to enable agent chat.")
-                    await websocket.send_text("\r\n[Hermes> ")
-                    continue
+                # Bedrock errors surface via route_request return value; no pre-check needed
                 
                 # Run fallback route request
                 response = await llm_router.route_request(

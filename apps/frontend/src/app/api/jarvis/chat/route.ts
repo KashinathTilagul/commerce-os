@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
 
     const { BedrockRuntimeClient, ConverseCommand } = await import('@aws-sdk/client-bedrock-runtime')
     const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' })
+    const MODEL_ID = process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0'
 
     const screenContext = activeWindow
       ? `The founder is currently looking at: ${sanitizeInput(activeWindow, { maxLength: 100 })}. `
@@ -100,7 +101,7 @@ ACTION: {"type":"tool_execute","toolkit":"shopify","tool":"shopify_get_orders","
 Remember: SPOKEN must be ONE short sentence. No abbreviations. No numbers as digits — write them out (twenty four, not 24). No pauses or fragments.`
 
     const completion = await bedrock.send(new ConverseCommand({
-      modelId: 'amazon.nova-lite-v1:0',
+      modelId: MODEL_ID,
       system: [{ text: systemPrompt }],
       messages: [{ role: 'user', content: [{ text: sanitizeInput(message, { maxLength: 5000 }) }] }],
       inferenceConfig: { maxTokens: 300, temperature: 0.7 },
