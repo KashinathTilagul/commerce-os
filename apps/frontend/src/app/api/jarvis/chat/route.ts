@@ -161,9 +161,9 @@ ACTION: {"type":"none"}`
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'x-api-key': apiKey,
-          'X-Custom-Auth': finalApiKey, // send decoded version just in case
+          'Authorization': `Bearer ${finalApiKey}`,
+          'x-api-key': finalApiKey,
+          'X-Custom-Auth': apiKey, 
           'HTTP-Referer': 'https://os.ekvaar.com',
           'X-Title': 'EKVAAR OS Krishna',
         },
