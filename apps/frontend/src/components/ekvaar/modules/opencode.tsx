@@ -9,6 +9,19 @@ export function OpenCodeApp() {
   const wsRef = useRef<WebSocket | null>(null)
   const fitRef = useRef<any>(null)
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
+  const [apiKey, setApiKey] = useState('')
+  const [showSettings, setShowSettings] = useState(false)
+
+  // Load saved key on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('opencode_api_key')
+    if (saved) setApiKey(saved)
+  }, [])
+
+  const saveApiKey = (key: string) => {
+    setApiKey(key)
+    localStorage.setItem('opencode_api_key', key)
+  }
 
   const connect = () => {
     setStatus('connecting')
@@ -145,6 +158,13 @@ export function OpenCodeApp() {
         </div>
         <div className="ml-auto flex items-center gap-1">
           <button
+            onClick={() => setShowSettings(!showSettings)}
+            className={`p-1 rounded hover:bg-white/10 transition-colors ${showSettings ? 'text-[#F5F1EA]/90' : 'text-[#F5F1EA]/40 hover:text-[#F5F1EA]/80'}`}
+            title="Settings"
+          >
+            <span className="text-xs font-mono px-1">Settings</span>
+          </button>
+          <button
             onClick={reconnect}
             className="p-1 rounded hover:bg-white/10 text-[#F5F1EA]/40 hover:text-[#F5F1EA]/80 transition-colors"
             title="Reconnect"
@@ -160,6 +180,25 @@ export function OpenCodeApp() {
           </button>
         </div>
       </div>
+
+      {showSettings && (
+        <div className="px-4 py-3 bg-[#161616] border-b border-white/10 shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-mono text-[#F5F1EA]/70">OpenCode API Key:</span>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => saveApiKey(e.target.value)}
+              placeholder="Enter API Key (e.g. Bedrock/OpenCode)"
+              className="flex-1 max-w-sm h-7 bg-[#0A0A0A] border border-white/10 rounded px-2 text-xs font-mono text-[#F5F1EA] focus:outline-none focus:border-[#C8302A]/50"
+            />
+            {apiKey && <span className="text-[10px] text-green-500 font-mono">Saved</span>}
+          </div>
+          <div className="text-[10px] text-[#F5F1EA]/40 font-mono mt-1 ml-32">
+            This key will be used to authenticate your remote connection.
+          </div>
+        </div>
+      )}
 
       {/* Terminal */}
       <div ref={containerRef} className="flex-1 overflow-hidden" style={{ padding: '4px 8px' }} />
