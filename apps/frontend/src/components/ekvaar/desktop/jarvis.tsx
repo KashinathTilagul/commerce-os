@@ -29,6 +29,10 @@ function toSpeech(text: string): string {
     .trim()
 }
 
+function toSentences(text: string): string[] {
+  return text.match(/[^.!?]+[.!?]*/g)?.map(s => s.trim()).filter(s => s.length > 1) || [text]
+}
+
 // ─── Pick the best available browser voice ───────────────────────────────────
 function pickBestVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
   // Priority: Microsoft Neural Online (Windows/Chrome/Edge) > Google > Apple > any en
@@ -62,6 +66,23 @@ function pickBestVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | n
 let gState: KrishnaState = 'idle'
 const stateListeners: ((s: KrishnaState) => void)[] = []
 function setGlobal(s: KrishnaState) { gState = s; stateListeners.forEach(f => f(s)) }
+
+// ─── Chat history persistence — survives reload/close instead of resetting ──
+const HISTORY_KEY = 'ekvaar_krishna_history'
+const HISTORY_LIMIT = 200
+
+function loadHistory(): Msg[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.slice(-HISTORY_LIMIT) : []
+  } catch { return [] }
+}
+
+function saveHistory(messages: Msg[]) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-HISTORY_LIMIT))) } catch {}
+}
 
 // ─── Wallpaper orb ──────────────────────────────────────────────────────────
 export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; hidden: boolean }) {
@@ -184,6 +205,10 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
 
+  // Hydrate chat history from localStorage on mount — survives reloads
+  useEffect(() => { setMessages(loadHistory()) }, [])
+  useEffect(() => { saveHistory(messages) }, [messages])
+
   // Load TTS voice — localStorage is instant; server is the authoritative fallback
   useEffect(() => {
     try {
@@ -288,22 +313,31 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     speakingRef.current = true
     setSpeakingCaption(clean)
 
-    const u = new SpeechSynthesisUtterance(clean)
-    u.voice = bestVoiceRef.current
-    u.rate  = 0.93
-    u.pitch = 1.0
-    u.volume = 1.0
-
-    await new Promise<void>((resolve) => {
-      let done = false
-      const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
-      audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
-      u.onend  = finish
-      u.onerror = finish
-      // safety timeout: ~70ms per char + 3s buffer
-      setTimeout(finish, clean.length * 70 + 3000)
-      window.speechSynthesis.speak(u)
-    })
+    // Speak sentence-by-sentence with tiny natural pauses and slight rate/pitch
+    // variance between sentences — a single flat utterance reads as robotic.
+    const sentences = toSentences(clean)
+    for (const sentence of sentences) {
+      if (!speakingRef.current) break
+      await new Promise<void>((resolve) => {
+        const u = new SpeechSynthesisUtterance(sentence)
+        u.voice = bestVoiceRef.current
+        u.rate  = 0.91 + Math.random() * 0.08   // 0.91–0.99, avoids metronome cadence
+        u.pitch = 0.97 + Math.random() * 0.08   // 0.97–1.05
+        u.volume = 1.0
+        let done = false
+        const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
+        audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
+        u.onend = finish
+        u.onerror = finish
+        setTimeout(finish, sentence.length * 80 + 2000)
+        window.speechSynthesis.speak(u)
+      })
+      // Natural breath/pause between sentences — longer after a question or pause marker
+      if (speakingRef.current && sentences.indexOf(sentence) < sentences.length - 1) {
+        const pause = /[?…]$/.test(sentence.trim()) ? 260 : 140
+        await new Promise(r => setTimeout(r, pause))
+      }
+    }
 
     speakingRef.current = false
     setSpeakingCaption('')
@@ -520,18 +554,22 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const openPanel = useCallback(() => {
     setExpanded(true)
-    const h = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
-    const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night'
-    const greets = [
-      `${g}. Online and ready.`,
-      `${g}. How can I help?`,
-      `${g}. What do you need?`,
-      `${g}. All systems operational.`,
-      `${g}. I'm listening.`,
-    ]
-    const msg = greets[Math.floor(Math.random() * greets.length)]
-    setMessages(m => [...m, { role: 'krishna', text: msg, ts: Date.now() }])
-    setTimeout(() => speakText(msg), 120)
+    // Only greet on a genuinely fresh start — history now survives reloads
+    setMessages(m => {
+      if (m.length > 0) return m
+      const h = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
+      const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night'
+      const greets = [
+        `${g}. Online and ready.`,
+        `${g}. How can I help?`,
+        `${g}. What do you need?`,
+        `${g}. All systems operational.`,
+        `${g}. I'm listening.`,
+      ]
+      const msg = greets[Math.floor(Math.random() * greets.length)]
+      setTimeout(() => speakText(msg), 120)
+      return [...m, { role: 'krishna', text: msg, ts: Date.now() }]
+    })
   }, [speakText])
 
   const handleTextSend = () => {
