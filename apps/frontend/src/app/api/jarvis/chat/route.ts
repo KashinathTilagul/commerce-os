@@ -3,6 +3,8 @@ import { createApiResponse, createApiError, sanitizeInput } from '@/lib/security
 import { requireAuth } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { z } from 'zod'
+import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
+import { generateText } from 'ai'
 
 const ChatSchema = z.object({
   message: z.string().min(1).max(10000),
@@ -130,9 +132,10 @@ ACTION: {"type":"none"}`
     } catch {}
 
     // ── Single AI Core (OpenCode / Bedrock) ──────────────────────────────
+    const providerStr = cfg.primaryProvider || 'opencode'
     const apiKey = cfg.primaryApiKey || process.env.OPENCODE_API_KEY || ''
     const baseUrl = cfg.primaryBaseUrl || 'https://api.opencode.dev/v1'
-    const model = cfg.primaryModel || 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+    const modelStr = cfg.primaryModel || 'anthropic.claude-3-5-sonnet-20241022-v2:0'
 
     if (!apiKey) {
       console.error('[Krishna] No OpenCode API Key configured in Settings')
@@ -156,41 +159,63 @@ ACTION: {"type":"none"}`
     }
 
     try {
-      console.log(`[Krishna] Querying Core with model ${model}`)
-      const r = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${finalApiKey}`,
-          'x-api-key': finalApiKey,
-          'X-Custom-Auth': apiKey, 
-          'HTTP-Referer': 'https://os.ekvaar.com',
-          'X-Title': 'EKVAAR OS Krishna',
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: chatMessages,
-          max_tokens: 300,
-          temperature: 0.7,
-        }),
-        signal: AbortSignal.timeout(20000), // 20s timeout
-      })
+      console.log(`[Krishna] Querying Core with model ${modelStr}`)
       
-      if (!r.ok) {
-        const errText = await r.text()
-        console.error(`[Krishna] Core failed (${r.status}):`, errText.slice(0, 300))
-        rawResponse = `SPOKEN: I'm sorry Founder, my core cognitive link failed with status ${r.status}.\nACTION: {"type":"none"}`
+      if (providerStr === 'bedrock' || modelStr.includes('amazon-bedrock')) {
+        // --- Native Bedrock Integration ---
+        const bedrock = createAmazonBedrock({
+          apiKey: apiKey, // The Vercel AI SDK will handle passing this as a Bearer Token for Bedrock Dedicated API Keys
+          region: 'us-east-1',
+        })
+        const cleanModelId = modelStr.replace('amazon-bedrock/', '')
+        
+        const { text } = await generateText({
+          model: bedrock(cleanModelId),
+          system: systemPrompt,
+          prompt: message,
+          maxTokens: 300,
+          temperature: 0.7,
+        })
+        rawResponse = text
+        console.log(`[Krishna] Got successful response from Native Bedrock`)
+
       } else {
-        const d = await r.json()
-        const content = d.choices?.[0]?.message?.content
-        if (content) {
-          rawResponse = content
-          console.log(`[Krishna] Got successful response from Core`)
+        // --- OpenCode / OpenAI-Compat Proxy Integration ---
+        const r = await fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${finalApiKey}`,
+            'x-api-key': finalApiKey,
+            'X-Custom-Auth': apiKey, 
+            'HTTP-Referer': 'https://os.ekvaar.com',
+            'X-Title': 'EKVAAR OS Krishna',
+          },
+          body: JSON.stringify({
+            model: modelStr,
+            messages: chatMessages,
+            max_tokens: 300,
+            temperature: 0.7,
+          }),
+          signal: AbortSignal.timeout(20000), // 20s timeout
+        })
+        
+        if (!r.ok) {
+          const errText = await r.text()
+          console.error(`[Krishna] Core proxy failed (${r.status}):`, errText.slice(0, 300))
+          rawResponse = `SPOKEN: I'm sorry Founder, my core cognitive link failed with status ${r.status}.\nACTION: {"type":"none"}`
+        } else {
+          const d = await r.json()
+          const content = d.choices?.[0]?.message?.content
+          if (content) {
+            rawResponse = content
+            console.log(`[Krishna] Got successful response from Proxy Core`)
+          }
         }
       }
     } catch (e: any) {
       console.error(`[Krishna] Core error:`, e.message)
-      rawResponse = `SPOKEN: I'm having trouble reaching my intelligence core, sir. Network timeout or unreachable endpoint.\nACTION: {"type":"none"}`
+      rawResponse = `SPOKEN: I'm having trouble reaching my intelligence core, sir. ${e.message}\nACTION: {"type":"none"}`
     }
 
     // ── Parse SPOKEN / ACTION ────────────────────────────────────────────
