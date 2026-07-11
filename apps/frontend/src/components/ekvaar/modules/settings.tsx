@@ -217,7 +217,7 @@ export function Settings() {
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
               <Mic className="h-4 w-4" /> Krishna Voice
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Edge TTS neural voices — EN + HI supported. Change takes effect immediately.</p>
+            <p className="text-xs text-muted-foreground mt-1">Pocket TTS (kyutai local neural) + Edge TTS cloud voices. Change takes effect immediately.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <Row label="Voice" desc="Krishna's speaking voice">
@@ -233,6 +233,16 @@ export function Settings() {
                 >
                   <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    <div className="px-2 py-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Pocket TTS — kyutai Local Neural</div>
+                    <SelectItem value="charles">Charles — English Male</SelectItem>
+                    <SelectItem value="eve">Eve — English Female</SelectItem>
+                    <SelectItem value="anna">Anna — English Female (warm)</SelectItem>
+                    <SelectItem value="alba">Alba — English Female (clear)</SelectItem>
+                    <SelectItem value="estelle">Estelle — English Female</SelectItem>
+                    <SelectItem value="lola">Lola — English Female</SelectItem>
+                    <SelectItem value="giovanni">Giovanni — Male</SelectItem>
+                    <SelectItem value="rafael">Rafael — Male</SelectItem>
+                    <div className="px-2 py-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider border-t border-border mt-1 pt-2">Edge TTS — Cloud Neural</div>
                     <SelectItem value="en-IN-NeerjaNeural">Neerja — Indian English Female</SelectItem>
                     <SelectItem value="en-IN-PrabhatNeural">Prabhat — Indian English Male</SelectItem>
                     <SelectItem value="hi-IN-SwaraNeural">Swara — Hindi Female</SelectItem>
@@ -398,12 +408,16 @@ function VoicePreviewButton({ voice }: { voice: string }) {
       })
     const allVoices = await loadVoices()
 
-    // Map Edge TTS voice ID → browser voice selection criteria
-    const isFemale = /Neerja|Emma|Ava|Sonia|Natasha|Swara/i.test(voice)
-    const lang = voice.startsWith('hi-IN') ? 'hi' :
-                 voice.startsWith('en-IN') ? 'en-IN' :
-                 voice.startsWith('en-GB') ? 'en-GB' :
-                 voice.startsWith('en-AU') ? 'en-AU' : 'en-US'
+    // Detect pocket-tts vs Edge TTS voice and map to browser accent/gender
+    const isPocket = !voice.includes('-')
+    const isFemale = isPocket
+      ? /eve|anna|alba|estelle|lola/i.test(voice)
+      : /Neerja|Emma|Ava|Sonia|Natasha|Swara/i.test(voice)
+    const lang = isPocket ? 'en-US'
+      : voice.startsWith('hi-IN') ? 'hi'
+      : voice.startsWith('en-IN') ? 'en-IN'
+      : voice.startsWith('en-GB') ? 'en-GB'
+      : voice.startsWith('en-AU') ? 'en-AU' : 'en-US'
 
     const genderHint = isFemale ? 'female' : 'male'
     const pick = (lang: string) => allVoices.find(v =>
