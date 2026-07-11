@@ -27,11 +27,32 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing credentials")
         }
 
-        const user = await db.user.findUnique({
+        let user = await db.user.findUnique({
           where: { email: credentials.email.toLowerCase().trim() }
         })
 
-        if (!user || !user.password) {
+        if (!user) {
+          // Auto-signup for EKVAAR OS
+          const { hash } = require('bcryptjs')
+          const hashedPassword = await hash(credentials.password, 10)
+          user = await db.user.create({
+            data: {
+              email: credentials.email.toLowerCase().trim(),
+              password: hashedPassword,
+              name: 'Founder',
+              role: 'ADMIN',
+            }
+          })
+          
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role || "ADMIN",
+          }
+        }
+
+        if (!user.password) {
           throw new Error("Invalid credentials")
         }
 
