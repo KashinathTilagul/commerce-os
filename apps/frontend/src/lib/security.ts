@@ -8,7 +8,9 @@ export interface RateLimitConfig {
 
 export const RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
   default: { windowMs: 60000, maxRequests: 100 },
-  api: { windowMs: 60000, maxRequests: 60 },
+  // Shared across every /api/* route per IP — the desktop opens many modules
+  // that each fetch on mount, so this needs headroom for a single real user.
+  api: { windowMs: 60000, maxRequests: 300 },
   // Only actual credential submissions are brute-force targets. session/csrf
   // are polled constantly by next-auth just from having the lock screen open.
   authLogin: { windowMs: 900000, maxRequests: 10 },
