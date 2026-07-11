@@ -273,16 +273,15 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   return (
     <>
       {/* Invisible trigger zone — only shown when dock is hidden (fullscreen mode) */}
-      {hasMaximized && (
+      {hasMaximized && !isDockHovered && (
         <div
-          className="fixed bottom-0 left-0 right-0 z-[7999] h-4"
+          className="fixed bottom-0 left-0 right-0 z-[7999] h-2"
           onMouseEnter={() => setIsDockHovered(true)}
         />
       )}
 
       <div
         className="fixed bottom-1 left-0 right-0 z-[8000] flex justify-center pointer-events-none"
-        onMouseLeave={() => setIsDockHovered(false)}
       >
         {/* Edit mode controls — appear above dock */}
         <AnimatePresence>
@@ -321,6 +320,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
           onMouseLeave={() => {
             setHovered(null)
             setMouseX(null)
+            setIsDockHovered(false)
           }}
           onMouseEnter={() => setIsDockHovered(true)}
           className="pointer-events-auto flex items-end gap-1.5 px-2.5 py-2 rounded-2xl border border-white/10"
@@ -330,12 +330,12 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
             WebkitBackdropFilter: 'blur(30px) saturate(180%)',
             boxShadow: '0 10px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
           }}
-          initial={{ y: 100, opacity: 0 }}
+          initial={{ y: 120, opacity: 0 }}
           animate={{
             y: dockVisible ? 0 : 120,
             opacity: dockVisible ? 1 : 0,
           }}
-          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          transition={{ duration: 0.35, ease: [0.2, 1, 0.3, 1] }}
         >
           {visibleOrder.map((appId, idx) => {
             const showDivider = isDividerBefore(appId, idx)

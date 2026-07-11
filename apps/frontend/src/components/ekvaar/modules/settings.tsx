@@ -136,74 +136,61 @@ export function Settings() {
           </CardContent>
         </Card>
 
-        {/* AI Model Cascade */}
+        {/* Intelligence Core */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
-              <Cpu className="h-4 w-4" /> AI Model Cascade
+              <Cpu className="h-4 w-4" /> Intelligence Core
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Krishna (Jarvis) tries each tier in order. If the primary fails, it falls to fallback 1, then fallback 2.</p>
+            <p className="text-xs text-muted-foreground mt-1">Configure Krishna to connect directly to your OpenCode / AWS Bedrock endpoint.</p>
           </CardHeader>
           <CardContent className="space-y-6">
-            {([
-              { tier: 'primary', label: 'Primary', color: 'text-green-500', borderColor: 'border-green-500/30', bg: 'bg-green-500/5' },
-              { tier: 'fallback1', label: 'Fallback 1', color: 'text-yellow-500', borderColor: 'border-yellow-500/30', bg: 'bg-yellow-500/5' },
-              { tier: 'fallback2', label: 'Fallback 2', color: 'text-muted-foreground', borderColor: 'border-border', bg: '' },
-            ] as const).map(({ tier, label, color, borderColor, bg }) => (
-              <div key={tier} className={`rounded-lg border ${borderColor} ${bg} p-4 space-y-3`}>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-semibold uppercase tracking-wider ${color}`}>{label}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-muted-foreground">Provider</label>
-                    <Select
-                      value={s[`${tier}Provider`] || (tier === 'primary' ? 'openrouter' : tier === 'fallback1' ? 'groq' : 'openrouter')}
-                      onValueChange={(v) => handleChange(`${tier}Provider`, v)}
-                    >
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="openrouter">OpenRouter</SelectItem>
-                        <SelectItem value="groq">Groq</SelectItem>
-                        <SelectItem value="openai">OpenAI</SelectItem>
-                        <SelectItem value="anthropic">Anthropic</SelectItem>
-                        <SelectItem value="bedrock">Amazon Bedrock</SelectItem>
-                        <SelectItem value="opencode">OpenCode</SelectItem>
-                        <SelectItem value="custom">Custom (OpenAI-compat)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-muted-foreground">Model ID</label>
-                    <Input
-                      value={s[`${tier}Model`] || ''}
-                      onChange={(e) => handleChange(`${tier}Model`, e.target.value)}
-                      placeholder="e.g. llama-3.3-70b-versatile"
-                      className="h-8 text-xs font-mono"
-                    />
-                  </div>
-                </div>
+            <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
+              <div className="space-y-1">
+                <label className="text-[11px] text-muted-foreground">Provider</label>
+                <Select
+                  value={s.primaryProvider || 'opencode'}
+                  onValueChange={(v) => handleChange('primaryProvider', v)}
+                >
+                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="opencode">OpenCode (AWS Bedrock Proxy)</SelectItem>
+                    <SelectItem value="bedrock">AWS Bedrock (Direct)</SelectItem>
+                    <SelectItem value="custom">Custom (OpenAI-compat)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1"><Key className="h-3 w-3" /> API Key</label>
+                <Input
+                  type="password"
+                  value={s.primaryApiKey || ''}
+                  onChange={(e) => handleChange('primaryApiKey', e.target.value)}
+                  placeholder="Paste your OpenCode Base64 key here..."
+                  className="h-8 text-xs font-mono"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground flex items-center gap-1"><Key className="h-3 w-3" /> API Key</label>
+                  <label className="text-[11px] text-muted-foreground">Base URL</label>
                   <Input
-                    type="password"
-                    value={s[`${tier}ApiKey`] || ''}
-                    onChange={(e) => handleChange(`${tier}ApiKey`, e.target.value)}
-                    placeholder="sk-••••••••••••••••"
+                    value={s.primaryBaseUrl || ''}
+                    onChange={(e) => handleChange('primaryBaseUrl', e.target.value)}
+                    placeholder="https://api.opencode.dev/v1"
                     className="h-8 text-xs font-mono"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground">Base URL <span className="text-muted-foreground/50">(optional — for custom/OpenCode endpoints)</span></label>
+                  <label className="text-[11px] text-muted-foreground">Model ID</label>
                   <Input
-                    value={s[`${tier}BaseUrl`] || ''}
-                    onChange={(e) => handleChange(`${tier}BaseUrl`, e.target.value)}
-                    placeholder="https://openrouter.ai/api/v1"
+                    value={s.primaryModel || ''}
+                    onChange={(e) => handleChange('primaryModel', e.target.value)}
+                    placeholder="anthropic.claude-3-5-sonnet-20241022-v2:0"
                     className="h-8 text-xs font-mono"
                   />
                 </div>
               </div>
-            ))}
+            </div>
             <Row label="Max token budget %" desc="Auto-pause agents at this threshold">
               <div className="w-56">
                 <Slider value={[s.maxTokens ?? 80]} onValueChange={(v) => handleChange('maxTokens', v[0])} max={100} step={5} />

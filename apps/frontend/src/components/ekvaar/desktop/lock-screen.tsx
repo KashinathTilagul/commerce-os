@@ -12,19 +12,62 @@ export function LockScreen() {
   const [email, setEmail] = useState(session?.user?.email ?? '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Start true while checking setup
+  const [isSetupMode, setIsSetupMode] = useState(false)
+  const [name, setName] = useState('')
+
+  useEffect(() => {
+    fetch('/api/auth/setup')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.hasUsers) {
+          setIsSetupMode(true)
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const result = await signIn('credentials', { email, password, redirect: false })
-    setLoading(false)
-    if (result?.error) {
-      setError('Incorrect password')
-      setPassword('')
+
+    if (isSetupMode) {
+      try {
+        const res = await fetch('/api/auth/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name })
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.error || 'Failed to initialize OS')
+          setLoading(false)
+          return
+        }
+        // Success! Now log them in immediately
+        const result = await signIn('credentials', { email, password, redirect: false })
+        setLoading(false)
+        if (result?.error) {
+          setError('Setup successful, but auto-login failed. Please refresh.')
+        } else {
+          unlock()
+        }
+      } catch (err) {
+        setError('Network error during setup')
+        setLoading(false)
+      }
     } else {
-      unlock()
+      // Normal login
+      const result = await signIn('credentials', { email, password, redirect: false })
+      setLoading(false)
+      if (result?.error) {
+        setError('Incorrect credentials')
+        setPassword('')
+      } else {
+        unlock()
+      }
     }
   }
 
@@ -45,16 +88,40 @@ export function LockScreen() {
         <div className="text-white/90 text-lg font-medium">{name}</div>
 
         <form onSubmit={handleSubmit} className="flex flex-col items-center gap-2 mt-2">
-          {!session && (
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              required
-              disabled={loading}
-              className="w-64 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm text-center placeholder:text-white/40 focus:outline-none focus:border-white/40"
-            />
+          {isSetupMode ? (
+            <>
+              <div className="text-white/60 text-xs mb-2">First-Boot Initialization</div>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Founder Name"
+                required
+                disabled={loading}
+                className="w-64 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm text-center placeholder:text-white/40 focus:outline-none focus:border-white/40"
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Founder Email"
+                required
+                disabled={loading}
+                className="w-64 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm text-center placeholder:text-white/40 focus:outline-none focus:border-white/40"
+              />
+            </>
+          ) : (
+            !session && (
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Email"
+                required
+                disabled={loading}
+                className="w-64 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white text-sm text-center placeholder:text-white/40 focus:outline-none focus:border-white/40"
+              />
+            )
           )}
           <div className="relative">
             <input

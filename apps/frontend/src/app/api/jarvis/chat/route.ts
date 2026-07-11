@@ -129,71 +129,53 @@ ACTION: {"type":"none"}`
       cfg = await db.systemSetting.findUnique({ where: { id: 'global' } }) || {}
     } catch {}
 
-    // ── AI Tier Cascade ──────────────────────────────────────────────────
-    // Tier 1: Groq (fast, reliable, free tier)
-    // Tier 2: OpenRouter primary model
-    // Tier 3: OpenRouter fallback model
-    // Tier 4: AWS Bedrock (if configured)
-    const tiers = [
-      {
-        name: 'Groq',
-        apiKey: cfg.fallback1ApiKey || process.env.GROQ_API_KEY || '',
-        baseUrl: cfg.fallback1BaseUrl || 'https://api.groq.com/openai/v1',
-        model: cfg.fallback1Model || 'llama-3.3-70b-versatile',
-      },
-      {
-        name: 'OpenRouter-Primary',
-        apiKey: cfg.primaryApiKey || process.env.OPENROUTER_API_KEY || '',
-        baseUrl: cfg.primaryBaseUrl || 'https://openrouter.ai/api/v1',
-        model: cfg.primaryModel || 'google/gemma-3-27b-it:free',
-      },
-      {
-        name: 'OpenRouter-Fallback',
-        apiKey: process.env.OPENROUTER_API_KEY || '',
-        baseUrl: 'https://openrouter.ai/api/v1',
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
-      },
-    ]
+    // ── Single AI Core (OpenCode / Bedrock) ──────────────────────────────
+    const apiKey = cfg.primaryApiKey || process.env.OPENCODE_API_KEY || ''
+    const baseUrl = cfg.primaryBaseUrl || 'https://api.opencode.dev/v1'
+    const model = cfg.primaryModel || 'anthropic.claude-3-5-sonnet-20241022-v2:0'
 
-    for (const tier of tiers) {
-      if (rawResponse) break
-      if (!tier.apiKey) {
-        console.log(`[Krishna] Skipping ${tier.name} — no API key`)
-        continue
-      }
-      try {
-        console.log(`[Krishna] Trying ${tier.name} with model ${tier.model}`)
-        const r = await fetch(`${tier.baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${tier.apiKey}`,
-            'HTTP-Referer': 'https://os.ekvaar.com',
-            'X-Title': 'EKVAAR OS Krishna',
-          },
-          body: JSON.stringify({
-            model: tier.model,
-            messages: chatMessages,
-            max_tokens: 300,
-            temperature: 0.7,
-          }),
-          signal: AbortSignal.timeout(15000), // 15s timeout
-        })
-        if (!r.ok) {
-          const errText = await r.text()
-          console.error(`[Krishna] ${tier.name} failed (${r.status}):`, errText.slice(0, 200))
-          continue
-        }
+    if (!apiKey) {
+      console.error('[Krishna] No OpenCode API Key configured in Settings')
+      return createApiResponse({
+        spoken: "I'm offline, Founder. Please configure my OpenCode Bedrock API Key in Settings.",
+        action: { type: 'open_app', app: 'settings' }
+      })
+    }
+
+    try {
+      console.log(`[Krishna] Querying Core with model ${model}`)
+      const r = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://os.ekvaar.com',
+          'X-Title': 'EKVAAR OS Krishna',
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: chatMessages,
+          max_tokens: 300,
+          temperature: 0.7,
+        }),
+        signal: AbortSignal.timeout(20000), // 20s timeout
+      })
+      
+      if (!r.ok) {
+        const errText = await r.text()
+        console.error(`[Krishna] Core failed (${r.status}):`, errText.slice(0, 300))
+        rawResponse = `SPOKEN: I'm sorry Founder, my core cognitive link failed with status ${r.status}.\nACTION: {"type":"none"}`
+      } else {
         const d = await r.json()
         const content = d.choices?.[0]?.message?.content
         if (content) {
           rawResponse = content
-          console.log(`[Krishna] Got response from ${tier.name}`)
+          console.log(`[Krishna] Got successful response from Core`)
         }
-      } catch (e: any) {
-        console.error(`[Krishna] ${tier.name} error:`, e.message)
-        continue
       }
+    } catch (e: any) {
+      console.error(`[Krishna] Core error:`, e.message)
+      rawResponse = `SPOKEN: I'm having trouble reaching my intelligence core, sir. Network timeout or unreachable endpoint.\nACTION: {"type":"none"}`
     }
 
     // ── Parse SPOKEN / ACTION ────────────────────────────────────────────
