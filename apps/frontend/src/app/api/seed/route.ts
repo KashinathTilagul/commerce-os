@@ -217,15 +217,15 @@ async function seedDatabase() {
     results.suppliers = suppliers.length;
   }
   
-  const integrationCount = await seedIntegrations();
-  results.integrations = integrationCount;
+  const integrationResult = await seedIntegrations();
+  results.integrations = typeof integrationResult === 'number' ? integrationResult : (integrationResult as any).seeded || 0;
 
   return results;
 }
 
 export async function POST(req: NextRequest) {
   const authResult = await requireRole(["ADMIN"])
-  if (!authResult.success) return authResult.response
+  if (!authResult.success) return createApiError("Unauthorized", 401)
 
   try {
     const results = await seedDatabase();
