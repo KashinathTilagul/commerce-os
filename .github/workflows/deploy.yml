@@ -1,0 +1,45 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy to AWS EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ${{ secrets.AWS_USER }}
+          key: ${{ secrets.AWS_SSH_KEY }}
+          port: 22
+          script: |
+            echo "======================================"
+            echo "EKVAAR OS - Auto Deploy Started"
+            echo "======================================"
+            
+            cd ~/EKVAAR
+            
+            echo "[*] Pulling latest changes..."
+            git pull origin main
+            
+            echo "[*] Rebuilding containers..."
+            docker compose build --no-cache
+            
+            echo "[*] Restarting services..."
+            docker compose down
+            docker compose up -d
+            
+            echo "[*] Cleaning up old images..."
+            docker image prune -f
+            
+            echo "[*] Health check..."
+            sleep 10
+            curl -f https://os.ekvaar.com || exit 1
+            
+            echo "[✓] Deployment Complete!"
