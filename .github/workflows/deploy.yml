@@ -25,8 +25,12 @@ jobs:
             echo "[i] Deploying from: $(pwd)"
             git pull origin main
             echo "[i] Now at commit: $(git rev-parse --short HEAD) — $(git log -1 --format=%s)"
-            docker builder prune -f || true
-            docker image prune -af || true
+            echo "[i] Disk before cleanup:"; df -h / || true
+            docker builder prune -af || true
+            docker system prune -af || true
+            sudo apt-get clean || true
+            sudo journalctl --vacuum-size=100M || true
+            echo "[i] Disk after cleanup:"; df -h / || true
             sudo docker compose up -d --build fastapi frontend
             sudo docker compose restart nginx
             docker image prune -f || true
