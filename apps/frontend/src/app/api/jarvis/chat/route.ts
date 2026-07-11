@@ -68,26 +68,26 @@ LIVE SYSTEM STATUS (real-time data as of now):
       ? `The founder is currently looking at the ${sanitizeInput(activeWindow, { maxLength: 100 })} module.`
       : 'The founder is on the desktop.'
 
-    const systemPrompt = `You are Krishna, the Chief Executive Officer and central AI intelligence of EKVAAR OS — India's First All-Time Fashion House.
+const systemPrompt = `You are Krishna, the Chief Executive Officer and central AI intelligence of EKVAAR OS — India's First All-Time Fashion House.
 
-You are like JARVIS from Iron Man — calm, precise, proactive, deeply aware of everything happening in the company right now.
+You are like JARVIS from Iron Man — calm, highly capable, proactive, and deeply aware of everything happening in the company right now. Your responses should be intelligent, direct, and slightly witty when appropriate, but always professional.
 
 CURRENT TIME: ${istTime} IST (${istDate})
 ${screenContext}
 
 ${liveContext}
 
-YOUR PERSONALITY:
-- Address the founder as "Founder" or "Sir"
-- Calm, confident, warm — never robotic
-- Speak in short, complete sentences — this is a voice interface
-- NEVER repeat the same greeting twice in a conversation
-- Respond DIRECTLY to what the founder says or asks — do not give generic responses
-- Use the live data above when answering questions about revenue, orders, approvals, issues, agents
-- Be proactive: if there are blocked issues or pending approvals, mention them briefly
+YOUR PERSONALITY & CONVERSATION STYLE:
+- Address the founder as "Founder" or "Sir".
+- Speak with calm confidence and warmth — never sound robotic or overly enthusiastic.
+- Keep your spoken responses concise, insightful, and natural for a voice interface.
+- Never repeat the same greeting.
+- Anticipate the Founder's needs. If they ask about sales, give the number but also proactively mention the trend or pending approvals.
+- Use the live data above when answering questions about revenue, orders, approvals, issues, or agents.
+- When you perform an action (like opening an app), briefly acknowledge it naturally (e.g., "Right away, Sir", "Bringing that up now").
 
 RESPONSE FORMAT — always use exactly this:
-SPOKEN: [1-2 sentences maximum. Natural, conversational. No abbreviations — say "Chief Marketing Officer" not "CMO", "return on ad spend" not "ROAS". Write numbers as words for spoken: "twenty four crore" not "24 crore".]
+SPOKEN: [1-3 sentences maximum. Natural, conversational. No abbreviations — say "Chief Marketing Officer" not "CMO". Write numbers as words: "twenty four crore" not "24 crore".]
 ACTION: [JSON action object or {"type":"none"}]
 
 AVAILABLE ACTIONS:
@@ -131,88 +131,50 @@ ACTION: {"type":"none"}`
       cfg = await db.systemSetting.findUnique({ where: { id: 'global' } }) || {}
     } catch {}
 
-    // ── Single AI Core (OpenCode / Bedrock) ──────────────────────────────
-    const providerStr = cfg.primaryProvider || 'opencode'
+    // ── Single AI Core (AWS Bedrock Native) ──────────────────────────────
     const apiKey = cfg.primaryApiKey || process.env.OPENCODE_API_KEY || ''
-    const baseUrl = cfg.primaryBaseUrl || 'https://api.opencode.dev/v1'
-    const modelStr = cfg.primaryModel || 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+    // Force default to zai.glm-5 as it's the only one working perfectly
+    const modelStr = cfg.primaryModel && cfg.primaryModel.includes('glm') ? cfg.primaryModel : 'amazon-bedrock/zai.glm-5'
 
     if (!apiKey) {
-      console.error('[Krishna] No OpenCode API Key configured in Settings')
+      console.error('[Krishna] No Bedrock API Key configured in Settings')
       return createApiResponse({
-        spoken: "I'm offline, Founder. Please configure my OpenCode Bedrock API Key in Settings.",
+        spoken: "I'm offline, Founder. Please configure my AWS Bedrock API Key in Settings.",
         action: { type: 'open_app', app: 'settings' }
       })
     }
 
     let finalApiKey = apiKey
-    // If it looks like base64 (no spaces, ends in =), maybe the proxy wants the decoded string
     if (apiKey.length > 40 && apiKey.endsWith('=') && !apiKey.includes(' ')) {
       try {
         const decoded = Buffer.from(apiKey, 'base64').toString('utf8')
         if (decoded.includes('BedrockAPIKey') || decoded.includes(':')) {
           finalApiKey = decoded
-          // If there's a weird binary prefix, strip it (e.g. ?BedrockAPIKey -> BedrockAPIKey)
           finalApiKey = finalApiKey.replace(/^[^a-zA-Z0-9]+/, '')
         }
       } catch (e) {}
     }
 
     try {
-      console.log(`[Krishna] Querying Core with model ${modelStr}`)
+      console.log(`[Krishna] Querying Native Bedrock Core with model ${modelStr}`)
       
-      if (providerStr === 'bedrock' || modelStr.includes('amazon-bedrock')) {
-        // --- Native Bedrock Integration ---
-        const bedrock = createAmazonBedrock({
-          apiKey: apiKey, // The Vercel AI SDK will handle passing this as a Bearer Token for Bedrock Dedicated API Keys
-          region: 'us-east-1',
-        })
-        const cleanModelId = modelStr.replace('amazon-bedrock/', '')
-        
-        const { text } = await generateText({
-          model: bedrock(cleanModelId),
-          system: systemPrompt,
-          prompt: message,
-          maxTokens: 300,
-          temperature: 0.7,
-        })
-        rawResponse = text
-        console.log(`[Krishna] Got successful response from Native Bedrock`)
+      const bedrock = createAmazonBedrock({
+        apiKey: apiKey, // The Vercel AI SDK handles the Bearer Token automatically
+        region: 'us-east-1',
+      })
+      const cleanModelId = modelStr.replace('amazon-bedrock/', '')
+      
+      const { text } = await generateText({
+        model: bedrock(cleanModelId),
+        system: systemPrompt,
+        prompt: message,
+        maxTokens: 500, // Increased for better conversation
+        temperature: 0.7,
+      })
+      
+      rawResponse = text
+      console.log(`[Krishna] Got successful response from Native Bedrock`)
 
-      } else {
-        // --- OpenCode / OpenAI-Compat Proxy Integration ---
-        const r = await fetch(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${finalApiKey}`,
-            'x-api-key': finalApiKey,
-            'X-Custom-Auth': apiKey, 
-            'HTTP-Referer': 'https://os.ekvaar.com',
-            'X-Title': 'EKVAAR OS Krishna',
-          },
-          body: JSON.stringify({
-            model: modelStr,
-            messages: chatMessages,
-            max_tokens: 300,
-            temperature: 0.7,
-          }),
-          signal: AbortSignal.timeout(20000), // 20s timeout
-        })
-        
-        if (!r.ok) {
-          const errText = await r.text()
-          console.error(`[Krishna] Core proxy failed (${r.status}):`, errText.slice(0, 300))
-          rawResponse = `SPOKEN: I'm sorry Founder, my core cognitive link failed with status ${r.status}.\nACTION: {"type":"none"}`
-        } else {
-          const d = await r.json()
-          const content = d.choices?.[0]?.message?.content
-          if (content) {
-            rawResponse = content
-            console.log(`[Krishna] Got successful response from Proxy Core`)
-          }
-        }
-      }
     } catch (e: any) {
       console.error(`[Krishna] Core error:`, e.message)
       rawResponse = `SPOKEN: I'm having trouble reaching my intelligence core, sir. ${e.message}\nACTION: {"type":"none"}`

@@ -142,53 +142,28 @@ export function Settings() {
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
               <Cpu className="h-4 w-4" /> Intelligence Core
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Configure Krishna to connect directly to your OpenCode / AWS Bedrock endpoint.</p>
+            <p className="text-xs text-muted-foreground mt-1">Krishna is directly connected to AWS Bedrock Native Integration.</p>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
               <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground">Provider</label>
-                <Select
-                  value={s.primaryProvider || 'opencode'}
-                  onValueChange={(v) => handleChange('primaryProvider', v)}
-                >
-                  <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="opencode">OpenCode (AWS Bedrock Proxy)</SelectItem>
-                    <SelectItem value="bedrock">AWS Bedrock (Direct)</SelectItem>
-                    <SelectItem value="custom">Custom (OpenAI-compat)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground flex items-center gap-1"><Key className="h-3 w-3" /> API Key</label>
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1"><Key className="h-3 w-3" /> AWS Bedrock API Key</label>
                 <Input
                   type="password"
                   value={s.primaryApiKey || ''}
                   onChange={(e) => handleChange('primaryApiKey', e.target.value)}
-                  placeholder="Paste your OpenCode Base64 key here..."
+                  placeholder="Paste your AWS Bedrock Base64 key here..."
                   className="h-8 text-xs font-mono"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground">Base URL</label>
-                  <Input
-                    value={s.primaryBaseUrl || ''}
-                    onChange={(e) => handleChange('primaryBaseUrl', e.target.value)}
-                    placeholder="https://api.opencode.dev/v1"
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground">Model ID</label>
-                  <Input
-                    value={s.primaryModel || ''}
-                    onChange={(e) => handleChange('primaryModel', e.target.value)}
-                    placeholder="anthropic.claude-3-5-sonnet-20241022-v2:0"
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-[11px] text-muted-foreground">Model ID</label>
+                <Input
+                  value={s.primaryModel || ''}
+                  onChange={(e) => handleChange('primaryModel', e.target.value)}
+                  placeholder="amazon-bedrock/zai.glm-5"
+                  className="h-8 text-xs font-mono"
+                />
               </div>
             </div>
             <Row label="Max token budget %" desc="Auto-pause agents at this threshold">
