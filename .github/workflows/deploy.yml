@@ -19,27 +19,11 @@ jobs:
           key: ${{ secrets.AWS_SSH_KEY }}
           port: 22
           script: |
-            echo "======================================"
-            echo "EKVAAR OS - Auto Deploy Started"
-            echo "======================================"
-            
-            cd ~/EKVAAR
-            
-            echo "[*] Pulling latest changes..."
+            cd ~/Ekvaar
             git pull origin main
-            
-            echo "[*] Rebuilding containers..."
-            docker compose build --no-cache
-            
-            echo "[*] Restarting services..."
-            docker compose down
-            docker compose up -d
-            
-            echo "[*] Cleaning up old images..."
+            sudo docker compose up -d --build fastapi frontend
+            sudo docker compose restart nginx
             docker image prune -f
-            
-            echo "[*] Health check..."
-            sleep 10
-            curl -f https://os.ekvaar.com || exit 1
-            
-            echo "[✓] Deployment Complete!"
+            sleep 8
+            curl -fsS https://os.ekvaar.com -o /dev/null || exit 1
+            echo "[✓] Deployed OK"
