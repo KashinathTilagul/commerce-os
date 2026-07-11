@@ -142,6 +142,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
   const isAtBottomRef = useRef(true)
   const ttsVoiceRef = useRef<string>('en-IN-NeerjaNeural')
+  // Interruptible TTS — store stop handle so mic click cancels playback immediately
+  const audioStopRef = useRef<(() => void) | null>(null)
+  const speakingRef = useRef(false)
 
   // Load saved TTS voice from settings
   useEffect(() => {
@@ -233,64 +236,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setTranscript('')
   }, [stopListening])
 
-  // One recognition "session" — continuous: false + manual restart in onend
-  const spawnRec = useCallback((accumulated: { text: string }) => {
-    if (typeof window === 'undefined') return
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SR || !listeningRef.current) return
-
-    const rec = new SR()
-    rec.continuous = false      // single-utterance — most reliable in Chrome
-    rec.interimResults = true
-    rec.lang = 'en-IN'
-    rec.maxAlternatives = 1
-    recognitionRef.current = rec
-
-    rec.onresult = (event: any) => {
-      let interim = ''
-      for (let i = 0; i < event.results.length; i++) {
-        const t = event.results[i][0].transcript
-        if (event.results[i].isFinal) accumulated.text += t
-        else interim += t
-      }
-      setTranscript(accumulated.text + interim)
-
-      // Reset silence timer each time we hear something
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      const snapshot = accumulated.text + interim
-      silenceTimerRef.current = setTimeout(() => {
-        if (!snapshot.trim()) return
-        const final = snapshot.trim()
-        stopListening()
-        setListening(false)
-        setGlobal('idle')
-        setTranscript('')
-        sendRef.current(final)
-      }, 2200)
-    }
-
-    rec.onerror = (e: any) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        listeningRef.current = false
-        recognitionRef.current = null
-        toast.error('Microphone blocked', 'Allow mic access in browser settings')
-        setListening(false); setGlobal('idle')
-      }
-      // no-speech / aborted / network → let onend restart
-    }
-
-    rec.onend = () => {
-      if (!listeningRef.current || recognitionRef.current !== rec) return
-      recognitionRef.current = null
-      // Brief gap then restart so Chrome doesn't rate-limit
-      setTimeout(() => spawnRec(accumulated), 80)
-    }
-
-    try { rec.start() } catch {}
-  // spawnRec references itself via setTimeout — intentionally excluded from deps
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stopListening])
-
   const startListening = useCallback(async () => {
     if (typeof window === 'undefined') return
 
@@ -335,7 +280,10 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     recorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop())
       audioCtx.close()
-      if (!chunks.length) return
+      // Reset listening state immediately — before any async work
+      setListening(false)
+      listeningRef.current = false
+      if (!chunks.length) { setGlobal('idle'); return }
       const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
       const fd = new FormData()
       fd.append('audio', blob, 'audio.webm')
@@ -344,30 +292,32 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         if (res.ok) {
           const { transcript: text } = await res.json()
           if (text?.trim()) {
-            setTranscript(text.trim())
+            setTranscript('')
             sendRef.current(text.trim())
+            return  // sendToKrishna owns state from here
           }
         }
       } catch {}
       setTranscript('')
-      setListening(false)
-      listeningRef.current = false
       setGlobal('idle')
     }
 
     recorder.start()
 
-    // Silence detection — stop after 1.8s of silence
+    // Silence detection — stop after 1.8s of silence, minimum 600ms recording
     let lastSoundAt = Date.now()
+    const startedAt = Date.now()
     const vadInterval = setInterval(() => {
       if (!listeningRef.current) { clearInterval(vadInterval); return }
       analyser.getByteFrequencyData(buf)
       const avg = buf.reduce((a, b) => a + b, 0) / buf.length
-      if (avg > 8) {
+      if (avg > 10) {
         lastSoundAt = Date.now()
         setTranscript('…')
       }
-      if (Date.now() - lastSoundAt > 1800 && Date.now() - (lastSoundAt - 1800) > 800) {
+      const silentFor = Date.now() - lastSoundAt
+      const recordedFor = Date.now() - startedAt
+      if (silentFor > 1800 && recordedFor > 600) {
         clearInterval(vadInterval)
         if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
       }
@@ -376,37 +326,40 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const toggleListening = useCallback(() => {
     if (listeningRef.current) {
-      // Manual stop — end voice session
+      // Stop recording — end voice session
       voiceSessionRef.current = false
-      const text = transcript.trim()
       stopListening()
       setListening(false)
       setGlobal('idle')
       setTranscript('')
-      if (text) sendRef.current(text)
     } else {
+      // If Krishna is speaking, interrupt immediately then start mic
+      if (audioStopRef.current) {
+        speakingRef.current = false
+        audioStopRef.current()
+        audioStopRef.current = null
+      }
       startListening()
     }
-  }, [transcript, startListening, stopListening])
+  }, [startListening, stopListening])
 
-  // ── Premium TTS via API → fallback to browser TTS ────────────────────
+  // ── TTS: Edge TTS API → browser fallback. Interruptible via audioStopRef ─
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
     if (typeof window === 'undefined') { setGlobal('idle'); return }
-    // Cancel any ongoing browser TTS
     if ('speechSynthesis' in window) window.speechSynthesis.cancel()
     setGlobal('talking')
+    speakingRef.current = true
 
     const cleanText = toSpeech(text)
-
-    // ── Try premium TTS API first ────────────────────────────────────
     let usedPremium = false
+
     try {
       const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: cleanText, voice: ttsVoiceRef.current }),
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(14000),
       })
       if (res.ok) {
         const arrayBuffer = await res.arrayBuffer()
@@ -416,48 +369,54 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           const source = audioCtx.createBufferSource()
           source.buffer = audioBuffer
           source.connect(audioCtx.destination)
-          source.onended = () => resolve()
-          // Safety timeout
-          setTimeout(resolve, (audioBuffer.duration * 1000) + 2000)
+          let done = false
+          const finish = () => {
+            if (done) return; done = true
+            audioStopRef.current = null
+            audioCtx.close().catch(() => {})
+            resolve()
+          }
+          // Store stop handle so mic click can interrupt immediately
+          audioStopRef.current = () => { try { source.stop() } catch {} finish() }
+          source.onended = finish
+          setTimeout(finish, audioBuffer.duration * 1000 + 2000)
           source.start(0)
         })
-        await audioCtx.close()
         usedPremium = true
       }
     } catch (e) {
-      console.warn('[Krishna TTS] Premium API failed, falling back to browser TTS:', e)
+      console.warn('[TTS] API failed, falling back to browser TTS:', e)
     }
 
-    // ── Fallback: sentence-by-sentence browser TTS ───────────────────
+    // Fallback: browser TTS sentence-by-sentence
     if (!usedPremium && 'speechSynthesis' in window) {
-      const sentences = toSentences(cleanText)
-      for (const sentence of sentences) {
-        if (gState !== 'talking') break
+      for (const sentence of toSentences(cleanText)) {
+        if (!speakingRef.current) break
         await new Promise<void>((resolve) => {
           const u = new SpeechSynthesisUtterance(sentence)
           if (bestVoiceRef.current) u.voice = bestVoiceRef.current
-          u.rate = 0.92
-          u.pitch = 0.9
-          u.volume = 1.0
+          u.rate = 0.9; u.pitch = 0.88; u.volume = 1.0
           let done = false
-          const finish = () => { if (!done) { done = true; resolve() } }
-          u.onend = finish
-          u.onerror = finish
-          setTimeout(finish, sentence.length * 75 + 1500)
+          const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
+          audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
+          u.onend = finish; u.onerror = finish
+          setTimeout(finish, sentence.length * 80 + 1500)
           window.speechSynthesis.speak(u)
         })
       }
+      audioStopRef.current = null
     }
 
+    speakingRef.current = false
     setGlobal('idle')
 
-    // Auto-restart mic if this was a voice conversation
+    // Auto-restart mic for voice conversations
     if (voiceSessionRef.current && !listeningRef.current) {
       setTimeout(() => {
         if (voiceSessionRef.current && !listeningRef.current) startListening()
-      }, 400)
+      }, 350)
     }
-  }, [muted, spawnRec])
+  }, [muted, startListening])
 
   // ── Send message to Krishna API ────────────────────────────────────────
   const sendToKrishna = useCallback(async (text: string) => {
@@ -479,10 +438,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       })
       if (!res.ok) throw new Error('API error')
       const data = await res.json()
-      const reply = data.spoken || "I'm here, Founder."
+      const reply = data.spoken || "I'm here."
       setMessages(prev => [...prev, { role: 'krishna', text: reply, ts: Date.now() }])
+      setIsProcessing(false)  // unlock mic before TTS so user can interrupt
 
-      // Handle actions
+      // Handle OS actions
       if (data.action?.type === 'open_app') {
         const app = APPS.find(a =>
           a.id === data.action.app ||
@@ -497,8 +457,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
       await speakText(reply)
     } catch {
-      const fallback = "I'm here, Founder. How can I assist?"
+      const fallback = "I'm here. How can I help?"
       setMessages(prev => [...prev, { role: 'krishna', text: fallback, ts: Date.now() }])
+      setIsProcessing(false)
       await speakText(fallback)
     } finally {
       setIsProcessing(false)
@@ -666,8 +627,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
             {micSupported && (
               <button
                 onClick={toggleListening}
-                disabled={isProcessing}
-                title={listening ? 'Stop & send' : 'Start listening'}
+                disabled={isProcessing && !speakingRef.current}
+                title={listening ? 'Stop recording' : speakingRef.current ? 'Interrupt Krishna' : 'Start listening'}
                 className={`shrink-0 h-9 w-9 rounded-full flex items-center justify-center transition-all ${
                   listening
                     ? 'bg-red-500 text-white shadow-lg shadow-red-500/30'

@@ -27,7 +27,65 @@ def load_whisper():
         logger.warning(f"[STT] Faster-Whisper not available: {e}")
 
 
-# ── TTS — Edge TTS streaming ─────────────────────────────────────────────────
+# ── TTS — Edge TTS with SSML for human-like voice ────────────────────────────
+import re
+import html
+
+# Voices that support express-as styles in Edge TTS
+_EXPRESSIVE_VOICES = {
+    "en-IN-NeerjaNeural", "en-IN-PrabhatNeural",
+    "en-US-AndrewNeural", "en-US-EmmaNeural", "en-US-BrianNeural", "en-US-AvaNeural",
+    "en-GB-RyanNeural", "en-GB-SoniaNeural",
+    "en-AU-WilliamNeural", "en-AU-NatashaNeural",
+}
+
+def _build_ssml(text: str, voice: str) -> str:
+    """Convert plain text to SSML with breathing pauses and natural prosody."""
+    lang = voice[:5]  # e.g. en-IN
+    safe = html.escape(text)
+
+    # Ellipses → natural thinking pause
+    safe = re.sub(r'\.\.\.', '<break time="600ms"/>', safe)
+    safe = re.sub(r'(?<!\.)\.\.(?!\.)', '<break time="300ms"/>', safe)
+    # Em-dash → pause
+    safe = safe.replace('—', '<break time="200ms"/>')
+    safe = safe.replace('–', '<break time="150ms"/>')
+    # Slight pause after commas for rhythm
+    safe = re.sub(r',(\s)', r',<break time="80ms"/>\1', safe)
+
+    # Breath before long responses
+    breath = '<break time="180ms"/>' if len(text) > 120 else ''
+
+    # Slightly slower rate for clarity — more natural than the default robotic speed
+    rate = "-8%"
+    pitch = "-3%"
+
+    if voice in _EXPRESSIVE_VOICES:
+        return (
+            f"<speak version='1.0' "
+            f"xmlns='http://www.w3.org/2001/10/synthesis' "
+            f"xmlns:mstts='http://www.w3.org/2001/mstts' "
+            f"xml:lang='{lang}'>"
+            f"<voice name='{voice}'>"
+            f"<mstts:express-as style='chat' styledegree='1.2'>"
+            f"<prosody rate='{rate}' pitch='{pitch}'>"
+            f"{breath}{safe}"
+            f"</prosody>"
+            f"</mstts:express-as>"
+            f"</voice>"
+            f"</speak>"
+        )
+    # Fallback for voices without style support (Hindi etc.)
+    return (
+        f"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{lang}'>"
+        f"<voice name='{voice}'>"
+        f"<prosody rate='{rate}' pitch='{pitch}'>"
+        f"{breath}{safe}"
+        f"</prosody>"
+        f"</voice>"
+        f"</speak>"
+    )
+
 
 class TTSRequest(BaseModel):
     text: str
@@ -44,7 +102,8 @@ async def tts(req: TTSRequest):
     if not text:
         raise HTTPException(400, "text required")
 
-    communicate = edge_tts.Communicate(text, req.voice)
+    ssml = _build_ssml(text, req.voice)
+    communicate = edge_tts.Communicate(ssml, req.voice)
 
     async def generate():
         async for chunk in communicate.stream():
