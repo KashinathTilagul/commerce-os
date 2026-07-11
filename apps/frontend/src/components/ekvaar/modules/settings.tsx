@@ -5,7 +5,6 @@ import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic,
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +16,8 @@ import { useEffect, useState } from 'react'
 export function Settings() {
   const { mode, accent, setMode, setAccent } = useThemeStore()
   const queryClient = useQueryClient()
+  // Local voice state — updates immediately on select, syncs to server in background
+  const [localVoice, setLocalVoice] = useState('en-IN-NeerjaNeural')
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -27,11 +28,12 @@ export function Settings() {
     },
   })
 
-  // Sync server theme settings to local zustand store initially
+  // Sync server theme + voice to local state
   useEffect(() => {
     if (settings && !isLoading) {
       if (settings.theme !== mode) setMode(settings.theme)
       if (settings.accent !== accent) setAccent(settings.accent)
+      if (settings.ttsVoice) setLocalVoice(settings.ttsVoice)
     }
   }, [settings, isLoading, mode, accent, setMode, setAccent])
 
@@ -214,10 +216,16 @@ export function Settings() {
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">Edge TTS neural voices — EN + HI supported. Change takes effect immediately.</p>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-4">
             <Row label="Voice" desc="Krishna's speaking voice">
               <div className="flex items-center gap-2">
-                <Select value={s.ttsVoice || 'en-IN-NeerjaNeural'} onValueChange={(v) => handleChange('ttsVoice', v)}>
+                <Select
+                  value={localVoice}
+                  onValueChange={(v) => {
+                    setLocalVoice(v)
+                    handleChange('ttsVoice', v)
+                  }}
+                >
                   <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="en-IN-NeerjaNeural">Neerja — Indian English Female</SelectItem>
@@ -234,25 +242,7 @@ export function Settings() {
                     <SelectItem value="en-AU-NatashaNeural">Natasha — Australian Female</SelectItem>
                   </SelectContent>
                 </Select>
-                <VoicePreviewButton voice={s.ttsVoice || 'en-IN-NeerjaNeural'} speed={s.ttsSpeed ?? 1.0} stability={s.ttsStability ?? 0.75} volume={s.ttsVolume ?? 1.0} />
-              </div>
-            </Row>
-            <Row label="Voice Speed" desc="Speaking rate — 1.0 is natural, 1.4 is faster">
-              <div className="w-56 space-y-1">
-                <Slider value={[s.ttsSpeed ?? 1.0]} onValueChange={(v) => handleChange('ttsSpeed', v[0])} min={0.5} max={2.0} step={0.05} />
-                <div className="text-right text-xs font-mono">{(s.ttsSpeed ?? 1.0).toFixed(2)}x</div>
-              </div>
-            </Row>
-            <Row label="Voice Stability" desc="Pitch consistency — lower is more expressive">
-              <div className="w-56 space-y-1">
-                <Slider value={[s.ttsStability ?? 0.75]} onValueChange={(v) => handleChange('ttsStability', v[0])} min={0} max={1} step={0.05} />
-                <div className="text-right text-xs font-mono">{(s.ttsStability ?? 0.75).toFixed(2)}</div>
-              </div>
-            </Row>
-            <Row label="Voice Volume" desc="Playback loudness — 1.0 is normal">
-              <div className="w-56 space-y-1">
-                <Slider value={[s.ttsVolume ?? 1.0]} onValueChange={(v) => handleChange('ttsVolume', v[0])} min={0} max={1.5} step={0.05} />
-                <div className="text-right text-xs font-mono">{(s.ttsVolume ?? 1.0).toFixed(2)}</div>
+                <VoicePreviewButton voice={localVoice} />
               </div>
             </Row>
           </CardContent>
@@ -266,15 +256,7 @@ export function Settings() {
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">Custom system prompt — overrides the default. Leave blank to use default behaviour. No restrictions.</p>
           </CardHeader>
-          <CardContent className="space-y-5">
-            <Row label="Response Eagerness" desc="How proactively Krishna responds — higher is warmer and more expansive">
-              <div className="w-56 space-y-1">
-                <Slider value={[s.responseEagerness ?? 0.85]} onValueChange={(v) => handleChange('responseEagerness', v[0])} min={0} max={1} step={0.05} />
-                <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                  <span>0</span><span>{(s.responseEagerness ?? 0.85).toFixed(2)}</span><span>1</span>
-                </div>
-              </div>
-            </Row>
+          <CardContent className="space-y-4">
             <textarea
               value={s.krishnaPrompt || ''}
               onChange={(e) => handleChange('krishnaPrompt', e.target.value)}
@@ -369,51 +351,57 @@ function Row({ label, desc, children }: { label: string; desc: string; children:
   )
 }
 
-function VoicePreviewButton({ voice, speed = 1.0, stability = 0.75, volume = 1.0 }: { voice: string; speed?: number; stability?: number; volume?: number }) {
+function VoicePreviewButton({ voice }: { voice: string }) {
   const [playing, setPlaying] = useState(false)
-
-  const browserTTSFallback = (onDone: () => void) => {
-    const synth = window.speechSynthesis
-    synth.cancel()
-    const u = new SpeechSynthesisUtterance('Hello. I am Krishna, the intelligence layer of EKVAAR OS.')
-    u.rate = speed * 0.9
-    u.pitch = 1.0 - (1.0 - stability) * 0.4
-    u.volume = Math.min(1.0, volume)
-    const voices = synth.getVoices()
-    const preferred = ['Google UK English Male', 'Microsoft David Desktop', 'Daniel', 'Arthur']
-    const best = preferred.map(n => voices.find(v => v.name === n)).find(Boolean) ||
-      voices.find(v => v.lang.startsWith('en-GB')) ||
-      voices.find(v => v.lang.startsWith('en')) ||
-      null
-    if (best) u.voice = best
-    u.onend = onDone
-    u.onerror = onDone
-    synth.speak(u)
-  }
 
   const play = async () => {
     if (playing) return
     setPlaying(true)
     const done = () => setPlaying(false)
+    const text = 'Hello. I am Krishna, the intelligence layer of EKVAAR OS.'
+
+    // Try Edge TTS (production, via nginx → FastAPI)
     try {
       const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: 'Hello. I am Krishna, the intelligence layer of EKVAAR OS.', voice, speed, stability, volume }),
+        body: JSON.stringify({ text, voice, speed: 1.0, stability: 0.80, volume: 1.0 }),
         signal: AbortSignal.timeout(5000),
       })
-      if (!res.ok) throw new Error('no edge tts')
+      if (!res.ok) throw new Error()
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const audio = new Audio(url)
       audio.onended = () => { done(); URL.revokeObjectURL(url) }
       audio.onerror = () => { done(); URL.revokeObjectURL(url) }
       await audio.play()
-    } catch {
-      // Edge TTS not available locally — use browser TTS so preview still works
-      browserTTSFallback(done)
-    }
+      return
+    } catch {}
+
+    // Browser TTS fallback (local dev)
+    const synth = window.speechSynthesis
+    synth.cancel()
+    const u = new SpeechSynthesisUtterance(text)
+    u.rate = 0.9; u.pitch = 0.85; u.volume = 1.0
+    // Wait for voices to load (getVoices() returns [] on first call in some browsers)
+    const loadVoices = (): Promise<SpeechSynthesisVoice[]> =>
+      new Promise(resolve => {
+        const v = synth.getVoices()
+        if (v.length) { resolve(v); return }
+        synth.onvoiceschanged = () => resolve(synth.getVoices())
+        setTimeout(() => resolve(synth.getVoices()), 1000)
+      })
+    const voices = await loadVoices()
+    const preferred = ['Google UK English Male', 'Microsoft David Desktop', 'Daniel', 'Arthur', 'Rishi']
+    const best = preferred.map(n => voices.find(v => v.name === n)).find(Boolean) ||
+      voices.find(v => v.lang.startsWith('en-GB')) ||
+      voices.find(v => v.lang.startsWith('en-IN')) ||
+      voices.find(v => v.lang.startsWith('en')) || null
+    if (best) u.voice = best
+    u.onend = done; u.onerror = done
+    synth.speak(u)
   }
+
   return (
     <Button variant="outline" size="sm" onClick={play} disabled={playing} className="h-9 w-9 p-0 flex-shrink-0">
       {playing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}

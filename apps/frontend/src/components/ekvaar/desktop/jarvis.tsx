@@ -173,8 +173,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const inputRef          = useRef<HTMLTextAreaElement>(null)
   const isAtBottomRef     = useRef(true)
   const ttsVoiceRef       = useRef<string>('en-IN-NeerjaNeural')
-  const ttsSpeedRef       = useRef<number>(1.0)
-  const ttsStabilityRef   = useRef<number>(0.75)
+  const ttsSpeedRef       = useRef<number>(1.0)    // adjust here if needed
+  const ttsStabilityRef   = useRef<number>(0.80)
   const ttsVolumeRef      = useRef<number>(1.0)
   const audioStopRef      = useRef<(() => void) | null>(null)
   const speakingRef       = useRef(false)
@@ -182,13 +182,10 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
 
-  // Load saved TTS voice + settings
+  // Load saved TTS voice from settings (speed/stability/volume are hardcoded constants above)
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then(s => {
       if (s?.ttsVoice) ttsVoiceRef.current = s.ttsVoice
-      if (s?.ttsSpeed != null) ttsSpeedRef.current = s.ttsSpeed
-      if (s?.ttsStability != null) ttsStabilityRef.current = s.ttsStability
-      if (s?.ttsVolume != null) ttsVolumeRef.current = s.ttsVolume
     }).catch(() => {})
   }, [])
 
@@ -318,8 +315,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         await new Promise<void>((resolve) => {
           const u = new SpeechSynthesisUtterance(sentence)
           if (bestVoiceRef.current) u.voice = bestVoiceRef.current
-          u.rate = ttsSpeedRef.current * 0.82   // apply user speed over base
-          u.pitch = 1.0 - (1.0 - ttsStabilityRef.current) * 0.5   // stability → pitch
+          u.rate = ttsSpeedRef.current * 0.82
+          u.pitch = 1.0 - (1.0 - ttsStabilityRef.current) * 0.5
           u.volume = Math.min(1.0, ttsVolumeRef.current)
           let done = false
           const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }

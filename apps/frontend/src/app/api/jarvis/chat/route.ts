@@ -317,7 +317,7 @@ AVAILABLE ACTIONS:
         model: bedrock(cleanModelId),
         system: systemPrompt,
         prompt: message,
-        temperature: cfg.responseEagerness ?? 0.85,
+        temperature: 0.87,
       })
       
       rawResponse = text
