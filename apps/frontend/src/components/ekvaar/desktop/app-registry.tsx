@@ -5,7 +5,7 @@ import {
   Activity, Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon, Music,
   Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle,
+  AlertTriangle, Code2,
 } from 'lucide-react'
 import type { AppId } from '@/lib/window-store'
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
@@ -30,6 +30,7 @@ import { CampaignsModule } from '@/components/ekvaar/modules/campaigns'
 import { BrandGuardian } from '@/components/ekvaar/modules/brand-guardian'
 import { AIInfrastructure } from '@/components/ekvaar/modules/ai-infrastructure'
 import { RiskCenter } from '@/components/ekvaar/modules/risk-center'
+import { OpenCodeApp } from '@/components/ekvaar/modules/opencode'
 
 export interface AppDef {
   id: AppId
@@ -362,6 +363,21 @@ export const APPS: AppDef[] = [
     ],
   },
   {
+    id: 'opencode',
+    name: 'OpenCode',
+    shortName: 'OpenCode',
+    icon: Code2,
+    iconVariant: 'opencode',
+    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1F3A5F 50%, #C8302A 100%)',
+    glyphColor: '#F5F1EA',
+    component: OpenCodeApp,
+    menuItems: [
+      { label: 'File', items: ['New Session', 'Close Window'] },
+      { label: 'OpenCode', items: ['Reconnect', 'Clear Terminal', 'Settings'] },
+      { label: 'View', items: ['Fullscreen', 'Refit Terminal'] },
+    ],
+  },
+  {
     id: 'risk',
     name: 'Risk Center',
     shortName: 'Risk',
@@ -384,6 +400,6 @@ export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
 
 // IDs that belong to the "core OS" group (left of dock divider)
 export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'activity', 'settings', 'files', 'integrations']
-export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar', 'music']
+export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar', 'music', 'opencode']
 export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai', 'risk']
 

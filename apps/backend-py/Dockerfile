@@ -6,7 +6,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install OpenCode (AI terminal IDE)
+RUN curl -fsSL https://opencode.ai/install | sh || true
 
 # Install Python dependencies
 COPY requirements.txt .

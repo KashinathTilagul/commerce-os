@@ -26,6 +26,7 @@ export type AppId =
   | 'guardian'
   | 'ai'
   | 'risk'
+  | 'opencode'
 
 export interface WindowState {
   id: AppId
@@ -90,6 +91,7 @@ const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
   guardian: { width: 1180, height: 760 },
   ai: { width: 1180, height: 760 },
   risk: { width: 1180, height: 760 },
+  opencode: { width: 900, height: 640 },
 }
 
 function offsetFor(idx: number): { x: number; y: number } {

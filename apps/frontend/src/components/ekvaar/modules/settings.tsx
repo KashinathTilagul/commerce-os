@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Cpu, Shield, Bell, Globe, Palette, Zap, Loader2 } from 'lucide-react'
+import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, ChevronDown } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -136,29 +136,74 @@ export function Settings() {
           </CardContent>
         </Card>
 
-        {/* Intelligence Layer */}
+        {/* AI Model Cascade */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
-              <Cpu className="h-4 w-4" /> Intelligence Layer
+              <Cpu className="h-4 w-4" /> AI Model Cascade
             </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Krishna (Jarvis) tries each tier in order. If the primary fails, it falls to fallback 1, then fallback 2.</p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Row label="Primary model" desc="Routing target for all LLM calls">
-              <Select value={s.intelligence || 'claude-sonnet'} onValueChange={(v) => handleChange('intelligence', v)}>
-                <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="claude-sonnet">Claude Sonnet 4.5</SelectItem>
-                  <SelectItem value="claude-opus">Claude Opus 4</SelectItem>
-                  <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                  <SelectItem value="glm-4">GLM-4</SelectItem>
-                  <SelectItem value="local">Local (Ollama)</SelectItem>
-                </SelectContent>
-              </Select>
-            </Row>
-            <Row label="API endpoint" desc="Intelligence layer gateway URL">
-              <Input defaultValue="http://localhost:8000/api/v1/intelligence" className="w-72 font-mono text-xs" />
-            </Row>
+          <CardContent className="space-y-6">
+            {([
+              { tier: 'primary', label: 'Primary', color: 'text-green-500', borderColor: 'border-green-500/30', bg: 'bg-green-500/5' },
+              { tier: 'fallback1', label: 'Fallback 1', color: 'text-yellow-500', borderColor: 'border-yellow-500/30', bg: 'bg-yellow-500/5' },
+              { tier: 'fallback2', label: 'Fallback 2', color: 'text-muted-foreground', borderColor: 'border-border', bg: '' },
+            ] as const).map(({ tier, label, color, borderColor, bg }) => (
+              <div key={tier} className={`rounded-lg border ${borderColor} ${bg} p-4 space-y-3`}>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-semibold uppercase tracking-wider ${color}`}>{label}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-muted-foreground">Provider</label>
+                    <Select
+                      value={s[`${tier}Provider`] || (tier === 'primary' ? 'openrouter' : tier === 'fallback1' ? 'groq' : 'openrouter')}
+                      onValueChange={(v) => handleChange(`${tier}Provider`, v)}
+                    >
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="openrouter">OpenRouter</SelectItem>
+                        <SelectItem value="groq">Groq</SelectItem>
+                        <SelectItem value="openai">OpenAI</SelectItem>
+                        <SelectItem value="anthropic">Anthropic</SelectItem>
+                        <SelectItem value="bedrock">Amazon Bedrock</SelectItem>
+                        <SelectItem value="opencode">OpenCode</SelectItem>
+                        <SelectItem value="custom">Custom (OpenAI-compat)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] text-muted-foreground">Model ID</label>
+                    <Input
+                      value={s[`${tier}Model`] || ''}
+                      onChange={(e) => handleChange(`${tier}Model`, e.target.value)}
+                      placeholder="e.g. llama-3.3-70b-versatile"
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] text-muted-foreground flex items-center gap-1"><Key className="h-3 w-3" /> API Key</label>
+                  <Input
+                    type="password"
+                    value={s[`${tier}ApiKey`] || ''}
+                    onChange={(e) => handleChange(`${tier}ApiKey`, e.target.value)}
+                    placeholder="sk-••••••••••••••••"
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] text-muted-foreground">Base URL <span className="text-muted-foreground/50">(optional — for custom/OpenCode endpoints)</span></label>
+                  <Input
+                    value={s[`${tier}BaseUrl`] || ''}
+                    onChange={(e) => handleChange(`${tier}BaseUrl`, e.target.value)}
+                    placeholder="https://openrouter.ai/api/v1"
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+              </div>
+            ))}
             <Row label="Max token budget %" desc="Auto-pause agents at this threshold">
               <div className="w-56">
                 <Slider value={[s.maxTokens ?? 80]} onValueChange={(v) => handleChange('maxTokens', v[0])} max={100} step={5} />

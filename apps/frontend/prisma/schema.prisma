@@ -395,6 +395,22 @@ model SystemSetting {
   intelligence     String  @default("claude-sonnet")
   autoApproveLimit Float   @default(5000)
   escalationPolicy String  @default("standard")
+
+  // 3-tier AI model cascade
+  primaryProvider  String  @default("openrouter")
+  primaryModel     String  @default("google/gemma-3-27b-it:free")
+  primaryApiKey    String  @default("")
+  primaryBaseUrl   String  @default("https://openrouter.ai/api/v1")
+
+  fallback1Provider String @default("groq")
+  fallback1Model    String @default("llama-3.3-70b-versatile")
+  fallback1ApiKey   String @default("")
+  fallback1BaseUrl  String @default("https://api.groq.com/openai/v1")
+
+  fallback2Provider String @default("openrouter")
+  fallback2Model    String @default("meta-llama/llama-3.3-70b-instruct:free")
+  fallback2ApiKey   String @default("")
+  fallback2BaseUrl  String @default("https://openrouter.ai/api/v1")
   
   updatedAt DateTime @updatedAt
 }

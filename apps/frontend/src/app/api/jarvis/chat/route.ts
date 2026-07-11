@@ -18,20 +18,8 @@ export async function POST(req: NextRequest) {
     const validated = ChatSchema.parse(body)
     const { message, context, activeWindow } = validated
 
-    const BEDROCK_MODEL = process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0'
-    const OPENROUTER_MODELS = [
-      'google/gemma-3-27b-it:free',
-      'meta-llama/llama-3.3-70b-instruct:free',
-      'deepseek/deepseek-chat-v3-0324:free',
-      'qwen/qwen3-235b-a22b:free',
-      'qwen/qwen3-coder:free',
-      'nousresearch/hermes-3-llama-3.1-405b:free',
-      'google/gemma-2-9b-it:free',
-      'meta-llama/llama-3.2-3b-instruct:free',
-      'microsoft/phi-3-mini-128k-instruct:free',
-      'liquid/lfm-2.5-1.2b-instruct:free',
-    ]
-    const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama3-8b-8192', 'gemma2-9b-it']
+    const OPENROUTER_MODELS = ['google/gemma-3-27b-it:free', 'meta-llama/llama-3.3-70b-instruct:free']
+    const GROQ_MODELS = ['llama-3.3-70b-versatile', 'llama3-8b-8192']
 
     const screenContext = activeWindow
       ? `The founder is currently looking at: ${sanitizeInput(activeWindow, { maxLength: 100 })}. `
@@ -86,7 +74,7 @@ SPOKEN: [1-2 sentence response — what you say out loud]
 ACTION: [JSON action or "none"]
 
 Available actions:
-- Open an app: {"type":"open_app","app":"finance"} (apps: command, inbox, agents, issues, terminal, activity, settings, files, browser, integrations, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai)
+- Open an app: {"type":"open_app","app":"finance"} (apps: command, inbox, agents, issues, terminal, activity, settings, files, browser, integrations, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai, opencode)
 - Approve a pending approval: {"type":"approve","query":"budget"} (query matches approval title/code)
 - Reject a pending approval: {"type":"reject","query":"campaign"}
 - Change issue status: {"type":"issue_status","query":"PAP-39","status":"IN_PROGRESS"}
@@ -118,54 +106,42 @@ Remember: SPOKEN must be ONE short sentence. No abbreviations. No numbers as dig
 
     let rawResponse = 'I am here, Founder.'
 
-    const orKey = process.env.OPENROUTER_API_KEY
-    const groqKey = process.env.GROQ_API_KEY
-
-    // 1. Bedrock primary
+    // Load AI cascade config from DB (falls back to env vars if not set)
+    let cfg: any = {}
     try {
-      const { BedrockRuntimeClient, ConverseCommand } = await import('@aws-sdk/client-bedrock-runtime')
-      const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION || 'us-east-1' })
-      const completion = await bedrock.send(new ConverseCommand({
-        modelId: BEDROCK_MODEL,
-        system: [{ text: chatMessages[0].content }],
-        messages: [{ role: 'user', content: [{ text: chatMessages[1].content }] }],
-        inferenceConfig: { maxTokens: 300, temperature: 0.7 },
-      }))
-      rawResponse = (completion.output?.message?.content?.[0] as any)?.text || rawResponse
-    } catch { /* fall through to OpenRouter */ }
+      cfg = await db.systemSetting.findUnique({ where: { id: 'global' } }) || {}
+    } catch {}
 
-    // 2. OpenRouter free models
-    if (rawResponse === 'I am here, Founder.' && orKey) {
-      for (const model of OPENROUTER_MODELS) {
-        try {
-          const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${orKey}` },
-            body: JSON.stringify({ model, messages: chatMessages, max_tokens: 300, temperature: 0.7 }),
-          })
-          if (!r.ok) continue
-          const d = await r.json()
-          rawResponse = d.choices?.[0]?.message?.content || rawResponse
-          break
-        } catch { continue }
-      }
-    }
+    const tiers = [
+      {
+        apiKey: cfg.primaryApiKey || process.env.OPENROUTER_API_KEY || '',
+        baseUrl: cfg.primaryBaseUrl || 'https://openrouter.ai/api/v1',
+        model: cfg.primaryModel || OPENROUTER_MODELS[0],
+      },
+      {
+        apiKey: cfg.fallback1ApiKey || process.env.GROQ_API_KEY || '',
+        baseUrl: cfg.fallback1BaseUrl || 'https://api.groq.com/openai/v1',
+        model: cfg.fallback1Model || GROQ_MODELS[0],
+      },
+      {
+        apiKey: cfg.fallback2ApiKey || process.env.OPENROUTER_API_KEY || '',
+        baseUrl: cfg.fallback2BaseUrl || 'https://openrouter.ai/api/v1',
+        model: cfg.fallback2Model || OPENROUTER_MODELS[1],
+      },
+    ]
 
-    // 3. Groq final fallback
-    if (rawResponse === 'I am here, Founder.' && groqKey) {
-      for (const model of GROQ_MODELS) {
-        try {
-          const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${groqKey}` },
-            body: JSON.stringify({ model, messages: chatMessages, max_tokens: 300, temperature: 0.7 }),
-          })
-          if (!r.ok) continue
-          const d = await r.json()
-          rawResponse = d.choices?.[0]?.message?.content || rawResponse
-          break
-        } catch { continue }
-      }
+    for (const tier of tiers) {
+      if (!tier.apiKey || rawResponse !== 'I am here, Founder.') break
+      try {
+        const r = await fetch(`${tier.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tier.apiKey}` },
+          body: JSON.stringify({ model: tier.model, messages: chatMessages, max_tokens: 300, temperature: 0.7 }),
+        })
+        if (!r.ok) continue
+        const d = await r.json()
+        rawResponse = d.choices?.[0]?.message?.content || rawResponse
+      } catch { continue }
     }
 
     let spoken = rawResponse
