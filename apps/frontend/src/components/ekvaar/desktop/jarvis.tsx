@@ -321,7 +321,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       await new Promise<void>((resolve) => {
         const u = new SpeechSynthesisUtterance(sentence)
         u.voice = bestVoiceRef.current
-        u.rate  = 0.91 + Math.random() * 0.08   // 0.91–0.99, avoids metronome cadence
+        u.rate  = 1.12 + Math.random() * 0.08   // 1.12–1.20, avoids metronome cadence
         u.pitch = 0.97 + Math.random() * 0.08   // 0.97–1.05
         u.volume = 1.0
         let done = false
@@ -554,9 +554,14 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const openPanel = useCallback(() => {
     setExpanded(true)
+    // Mic listens automatically from the moment the panel opens — no manual
+    // click needed on the first turn or any turn after.
+    voiceSessionRef.current = true
+
     // Only greet on a genuinely fresh start — history now survives reloads
+    let hasHistory = false
     setMessages(m => {
-      if (m.length > 0) return m
+      if (m.length > 0) { hasHistory = true; return m }
       const h = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
       const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night'
       const greets = [
@@ -570,7 +575,12 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       setTimeout(() => speakText(msg), 120)
       return [...m, { role: 'krishna', text: msg, ts: Date.now() }]
     })
-  }, [speakText])
+    // Returning to existing history — no greeting will fire speakText's
+    // post-speech auto-listen, so start listening directly.
+    if (hasHistory) {
+      setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 300)
+    }
+  }, [speakText, startListening])
 
   const handleTextSend = () => {
     const text = inputText.trim()
