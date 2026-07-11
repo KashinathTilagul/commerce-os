@@ -12,7 +12,7 @@ import { Dock } from '@/components/ekvaar/desktop/dock'
 import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
 import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
-import { Jarvis } from '@/components/ekvaar/desktop/jarvis'
+import { Jarvis, JarvisWallpaperOrb } from '@/components/ekvaar/desktop/jarvis'
 import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
 import { DesktopWidgets } from '@/components/ekvaar/desktop/desktop-widgets'
 
@@ -99,6 +99,7 @@ export default function Desktop() {
       <ToastContainer />
       <Launchpad open={launchpadOpen} onClose={() => setLaunchpadOpen(false)} />
       <Spotlight open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
+      <JarvisWallpaperOrb onClick={() => setJarvisTrigger(t => t + 1)} hidden={windows.length > 0} />
       <Jarvis trigger={jarvisTrigger} hasOpenWindows={windows.length > 0} />
     </div>
   )
