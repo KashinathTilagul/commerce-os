@@ -20,8 +20,11 @@ jobs:
           port: 22
           command_timeout: 30m
           script: |
-            cd ~/Ekvaar
+            set -e -o pipefail
+            cd ~/Ekvaar || cd ~/EKVAAR || { echo "[✗] Repo directory not found (tried ~/Ekvaar and ~/EKVAAR)"; exit 1; }
+            echo "[i] Deploying from: $(pwd)"
             git pull origin main
+            echo "[i] Now at commit: $(git rev-parse --short HEAD) — $(git log -1 --format=%s)"
             docker builder prune -f || true
             docker image prune -af || true
             sudo docker compose up -d --build fastapi frontend
