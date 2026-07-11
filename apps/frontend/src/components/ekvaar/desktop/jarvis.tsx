@@ -22,7 +22,7 @@ function toSpeech(text: string): string {
     '₹': 'rupees ', 'EKVAAR': 'Ekvaar', 'AI': 'A I', 'KPI': 'K P I',
   }
   let r = text
-    .replace(/^SPOKEN:\s*/i, '')
+    .replace(/^(?:SPOKEN|Speech\s+[Vv]ersion|Speech):\s*/i, '')
     .replace(/```[\s\S]*?```/g, '')        // strip code blocks entirely
     .replace(/`[^`]*`/g, '')               // strip inline code
     .replace(/https?:\/\/\S+/g, '')        // strip URLs

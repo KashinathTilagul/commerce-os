@@ -333,9 +333,9 @@ AVAILABLE ACTIONS:
     let action: any = null
 
     if (rawResponse) {
-      const spokenMatch = rawResponse.match(/SPOKEN:\s*([\s\S]+?)(?=\nACTION:|$)/)
+      const spokenMatch = rawResponse.match(/(?:SPOKEN|Speech\s+[Vv]ersion|Speech):\s*([\s\S]+?)(?=\n(?:ACTION|Action):|$)/)
       if (spokenMatch) spoken = spokenMatch[1].trim()
-      else spoken = rawResponse.split('\n')[0].replace(/^SPOKEN:\s*/i, '').trim() || spoken
+      else spoken = rawResponse.split('\n')[0].replace(/^(?:SPOKEN|Speech\s+[Vv]ersion|Speech):\s*/i, '').trim() || spoken
 
       const actionMatch = rawResponse.match(/ACTION:\s*(\{[\s\S]+\})/)
       if (actionMatch) {
