@@ -28,6 +28,11 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   const hiddenApps = _hiddenApps || []
   const customNames = _customNames || {}
 
+  // Auto-hide when any window is maximized
+  const hasMaximized = windows.some((w) => w.isMaximized && !w.isMinimized)
+  const [isDockHovered, setIsDockHovered] = useState(false)
+  const dockVisible = !hasMaximized || isDockHovered
+
   const [hovered, setHovered] = useState<string | null>(null)
   const [mouseX, setMouseX] = useState<number | null>(null)
   const [centers, setCenters] = useState<Record<string, number>>({})
@@ -267,7 +272,18 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
 
   return (
     <>
-      <div className="fixed bottom-1 left-0 right-0 z-[8000] flex justify-center pointer-events-none">
+      {/* Invisible trigger zone — only shown when dock is hidden (fullscreen mode) */}
+      {hasMaximized && (
+        <div
+          className="fixed bottom-0 left-0 right-0 z-[7999] h-4"
+          onMouseEnter={() => setIsDockHovered(true)}
+        />
+      )}
+
+      <div
+        className="fixed bottom-1 left-0 right-0 z-[8000] flex justify-center pointer-events-none"
+        onMouseLeave={() => setIsDockHovered(false)}
+      >
         {/* Edit mode controls — appear above dock */}
         <AnimatePresence>
           {editMode && (
@@ -306,6 +322,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
             setHovered(null)
             setMouseX(null)
           }}
+          onMouseEnter={() => setIsDockHovered(true)}
           className="pointer-events-auto flex items-end gap-1.5 px-2.5 py-2 rounded-2xl border border-white/10"
           style={{
             background: 'rgba(28, 28, 28, 0.6)',
@@ -314,8 +331,11 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
             boxShadow: '0 10px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
           }}
           initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4, type: 'spring', stiffness: 260, damping: 24 }}
+          animate={{
+            y: dockVisible ? 0 : 120,
+            opacity: dockVisible ? 1 : 0,
+          }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         >
           {visibleOrder.map((appId, idx) => {
             const showDivider = isDividerBefore(appId, idx)

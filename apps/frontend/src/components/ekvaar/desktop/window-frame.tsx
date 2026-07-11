@@ -33,7 +33,7 @@ export function WindowFrame({ win }: { win: WindowState }) {
         x: 0,
         y: TOP_BAR_H,
         width: viewport.w,
-        height: viewport.h - TOP_BAR_H - 90,
+        height: viewport.h - TOP_BAR_H,
       }
     : { x: 0, y: TOP_BAR_H, width: 1280, height: 720 }
 
@@ -129,7 +129,7 @@ export function WindowFrame({ win }: { win: WindowState }) {
           exit={{ opacity: 0, scale: 0.85, y: 30 }}
           transition={{ type: 'spring', stiffness: 320, damping: 28 }}
           onMouseDown={() => focus(win.id)}
-          className="absolute flex flex-col overflow-hidden rounded-xl"
+          className={`absolute flex flex-col overflow-hidden ${win.isMaximized ? 'rounded-none' : 'rounded-xl'}`}
           style={{
             left: bounds.x,
             top: bounds.y,
@@ -139,10 +139,12 @@ export function WindowFrame({ win }: { win: WindowState }) {
             background: 'var(--window-bg)',
             backdropFilter: 'blur(32px) saturate(160%)',
             WebkitBackdropFilter: 'blur(32px) saturate(160%)',
-            boxShadow: isActive
+            boxShadow: win.isMaximized
+              ? 'none'
+              : isActive
               ? '0 32px 80px rgba(0,0,0,0.38), 0 0 0 1px var(--window-border)'
               : '0 16px 48px rgba(0,0,0,0.20), 0 0 0 0.5px var(--window-border)',
-            border: '0.5px solid var(--window-border)',
+            border: win.isMaximized ? 'none' : '0.5px solid var(--window-border)',
           }}
         >
           {/* Title bar */}

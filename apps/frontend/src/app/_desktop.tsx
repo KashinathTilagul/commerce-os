@@ -78,7 +78,7 @@ export default function Desktop() {
         onSignOut={() => signOut({ redirect: false })}
         onRestart={() => window.location.reload()}
       />
-      <div className="absolute inset-0 top-7 bottom-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none">
         <div className="relative w-full h-full pointer-events-none">
           {windows.map((w) => (
             <div key={w.id} className="pointer-events-auto">
