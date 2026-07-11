@@ -8,7 +8,7 @@ import { generateText } from 'ai'
 
 const ChatSchema = z.object({
   message: z.string().min(1).max(10000),
-  context: z.union([z.string(), z.record(z.any())]).optional(),
+  context: z.union([z.string(), z.record(z.string(), z.any())]).optional(),
   activeWindow: z.string().max(200).optional().nullable(),
 })
 
@@ -168,7 +168,6 @@ ACTION: {"type":"none"}`
         model: bedrock(cleanModelId),
         system: systemPrompt,
         prompt: message,
-        maxTokens: 500, // Increased for better conversation
         temperature: 0.7,
       })
       
@@ -185,11 +184,11 @@ ACTION: {"type":"none"}`
     let action: any = null
 
     if (rawResponse) {
-      const spokenMatch = rawResponse.match(/SPOKEN:\s*(.+?)(?=\nACTION:|$)/s)
+      const spokenMatch = rawResponse.match(/SPOKEN:\s*([\s\S]+?)(?=\nACTION:|$)/)
       if (spokenMatch) spoken = spokenMatch[1].trim()
       else spoken = rawResponse.split('\n')[0].replace(/^SPOKEN:\s*/i, '').trim() || spoken
 
-      const actionMatch = rawResponse.match(/ACTION:\s*(\{.+\})/s)
+      const actionMatch = rawResponse.match(/ACTION:\s*(\{[\s\S]+\})/)
       if (actionMatch) {
         try { action = JSON.parse(actionMatch[1].trim()) } catch {}
       }
