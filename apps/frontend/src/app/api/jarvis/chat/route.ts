@@ -6,8 +6,8 @@ import { z } from 'zod'
 
 const ChatSchema = z.object({
   message: z.string().min(1).max(10000),
-  context: z.record(z.any()).optional(),
-  activeWindow: z.string().max(200).optional(),
+  context: z.union([z.string(), z.record(z.any())]).optional(),
+  activeWindow: z.string().max(200).optional().nullable(),
 })
 
 export async function POST(req: NextRequest) {
