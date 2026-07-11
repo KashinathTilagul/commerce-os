@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 // Agent Runtime — core lifecycle manager (Planning → Waiting Approval → Executing)
 export async function GET() {
-  const agents = await db.agent.findMany()
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+
+  const agents = await db.agent.findMany({ where: { userId: auth.user.id } })
 
   const lifecycles = agents.filter((a) => !a.isHuman).map((a) => ({
     agent: a.code,

@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 export async function GET() {
-  const transactions = await db.transaction.findMany({ orderBy: { date: 'desc' } })
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+
+  const transactions = await db.transaction.findMany({
+    where: { userId: auth.user.id },
+    orderBy: { date: 'desc' },
+  })
 
   const income = transactions.filter((t) => t.type === 'INCOME')
   const expenses = transactions.filter((t) => t.type === 'EXPENSE')

@@ -45,7 +45,7 @@ jobs:
                 DELETE FROM \"Order\";
                 DELETE FROM Product;
                 DELETE FROM Customer;
-                DELETE FROM Transaction;
+                DELETE FROM \"Transaction\";
                 DELETE FROM Campaign;
                 DELETE FROM FounderNote;
                 DELETE FROM Restoration;

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 export async function GET() {
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+
   const issues = await db.issue.findMany({
+    where: { userId: auth.user.id },
     include: {
       assignee: { select: { id: true, name: true, code: true, avatarColor: true, role: true } },
       createdBy: { select: { id: true, name: true, code: true, avatarColor: true } },
@@ -19,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+
   try {
     const body = await req.json()
     const { title, description, priority, type, department } = body
@@ -27,6 +35,7 @@ export async function POST(req: NextRequest) {
 
     const issue = await db.issue.create({
       data: {
+        userId: auth.user.id,
         code,
         title,
         description,
@@ -44,6 +53,7 @@ export async function POST(req: NextRequest) {
 
     await db.event.create({
       data: {
+        userId: auth.user.id,
         type: 'ISSUE_CREATED',
         actorName: 'Founder',
         summary: `Created issue ${code}: ${title}`,

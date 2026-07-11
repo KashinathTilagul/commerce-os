@@ -1,8 +1,13 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 export async function GET() {
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+
   try {
+    const uid = auth.user.id
     const [
       agentCount,
       issueCount,
@@ -10,11 +15,11 @@ export async function GET() {
       customerCount,
       campaignCount
     ] = await Promise.all([
-      db.agent.count(),
-      db.issue.count(),
-      db.product.count(),
-      db.customer.count(),
-      db.campaign.count(),
+      db.agent.count({ where: { userId: uid } }),
+      db.issue.count({ where: { userId: uid } }),
+      db.product.count({ where: { userId: uid } }),
+      db.customer.count({ where: { userId: uid } }),
+      db.campaign.count({ where: { userId: uid } }),
     ])
 
     return NextResponse.json({

@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 // POST /api/brand-checks/run — generate a new brand scan
 export async function POST() {
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+
   const modules = ['PRODUCT', 'CONTENT', 'CAMPAIGN', 'PACKAGING', 'DIGITAL']
   const assets = [
     'Q4 Lookbook', 'Founder Note 09', 'Neel Blue Drop Campaign',
@@ -17,6 +21,7 @@ export async function POST() {
 
   const check = await db.brandCheck.create({
     data: {
+      userId: auth.user.id,
       module: module_,
       asset,
       status,
@@ -29,6 +34,7 @@ export async function POST() {
 
   await db.event.create({
     data: {
+      userId: auth.user.id,
       type: 'BRAND_SCAN_COMPLETE',
       actorName: 'Brand Guardian AI',
       summary: `${asset}: ${status} (${violations} violations)`,

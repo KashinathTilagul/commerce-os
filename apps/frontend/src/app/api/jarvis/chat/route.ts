@@ -22,16 +22,17 @@ export async function POST(req: NextRequest) {
     const { message, activeWindow } = validated
 
     // ── Live system context ──────────────────────────────────────────────
+    const uid = authResult.user.id
     let liveContext = ''
     try {
       const [orders, transactions, approvals, issues, agents, aiSystems, products] = await Promise.all([
-        db.order.findMany({ select: { total: true, status: true, createdAt: true }, take: 200, orderBy: { createdAt: 'desc' } }),
-        db.transaction.findMany({ select: { type: true, amount: true, date: true }, take: 500 }),
-        db.approval.findMany({ where: { status: 'PENDING' }, select: { code: true, title: true, amount: true } }),
-        db.issue.findMany({ where: { status: { in: ['BACKLOG', 'IN_PROGRESS', 'BLOCKED'] } }, select: { code: true, title: true, status: true, priority: true } }),
-        db.agent.findMany({ select: { name: true, status: true, tokenSpend: true, tokenBudget: true } }),
-        db.aISystem.findMany({ select: { name: true, status: true, health: true } }),
-        db.product.findMany({ where: { stock: { lte: 10 }, status: 'ACTIVE' }, select: { name: true, sku: true, stock: true } }),
+        db.order.findMany({ where: { userId: uid }, select: { total: true, status: true, createdAt: true }, take: 200, orderBy: { createdAt: 'desc' } }),
+        db.transaction.findMany({ where: { userId: uid }, select: { type: true, amount: true, date: true }, take: 500 }),
+        db.approval.findMany({ where: { userId: uid, status: 'PENDING' }, select: { code: true, title: true, amount: true } }),
+        db.issue.findMany({ where: { userId: uid, status: { in: ['BACKLOG', 'IN_PROGRESS', 'BLOCKED'] } }, select: { code: true, title: true, status: true, priority: true } }),
+        db.agent.findMany({ where: { userId: uid }, select: { name: true, status: true, tokenSpend: true, tokenBudget: true } }),
+        db.aISystem.findMany({ where: { userId: uid }, select: { name: true, status: true, health: true } }),
+        db.product.findMany({ where: { userId: uid, stock: { lte: 10 }, status: 'ACTIVE' }, select: { name: true, sku: true, stock: true } }),
       ])
 
       const revenue = transactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
@@ -206,13 +207,14 @@ AVAILABLE ACTIONS:
     // ── Execute action ───────────────────────────────────────────────────
     let actionResult: any = null
     if (action && action.type !== 'none') {
-      actionResult = await executeAction(action)
+      actionResult = await executeAction(action, uid)
     }
 
     // ── Log to event stream ──────────────────────────────────────────────
     try {
       await db.event.create({
         data: {
+          userId: uid,
           type: 'JARVIS_QUERY',
           actorName: 'Krishna (JARVIS)',
           summary: `Founder: "${message.slice(0, 60)}" → ${spoken.slice(0, 60)}`,
@@ -233,11 +235,11 @@ AVAILABLE ACTIONS:
   }
 }
 
-async function executeAction(action: { type: string; [key: string]: any }): Promise<any> {
+async function executeAction(action: { type: string; [key: string]: any }, userId: string): Promise<any> {
   try {
     switch (action.type) {
       case 'approve': {
-        const approvals = await db.approval.findMany({ where: { status: 'PENDING' }, include: { requester: true } })
+        const approvals = await db.approval.findMany({ where: { userId, status: 'PENDING' }, include: { requester: true } })
         const query = sanitizeInput(action.query || '', { maxLength: 100 })
         const match = approvals.find(a =>
           a.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -254,7 +256,7 @@ async function executeAction(action: { type: string; [key: string]: any }): Prom
       }
 
       case 'reject': {
-        const approvals = await db.approval.findMany({ where: { status: 'PENDING' } })
+        const approvals = await db.approval.findMany({ where: { userId, status: 'PENDING' } })
         const query = sanitizeInput(action.query || '', { maxLength: 100 })
         const match = approvals.find(a =>
           a.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -273,7 +275,7 @@ async function executeAction(action: { type: string; [key: string]: any }): Prom
       case 'issue_status': {
         const query = sanitizeInput(action.query || '', { maxLength: 50 })
         const status = sanitizeInput(action.status || '', { maxLength: 30 })
-        const issue = await db.issue.findUnique({ where: { code: query } })
+        const issue = await db.issue.findFirst({ where: { userId, code: query } })
         if (issue) {
           await db.issue.update({ where: { id: issue.id }, data: { status } })
           return { success: true, message: `${issue.code} → ${status}` }
@@ -289,7 +291,7 @@ async function executeAction(action: { type: string; [key: string]: any }): Prom
         const violations = Math.floor(Math.random() * 5)
         const status = violations === 0 ? 'PASS' : violations <= 2 ? 'WARN' : 'FAIL'
         await db.brandCheck.create({
-          data: { module: mod, asset, status, violations, notes: violations === 0 ? 'Within brand system.' : 'Palette drift detected.' },
+          data: { userId, module: mod, asset, status, violations, notes: violations === 0 ? 'Within brand system.' : 'Palette drift detected.' },
         })
         return { success: true, message: `Brand scan: ${asset} → ${status} (${violations} violations)` }
       }
@@ -298,12 +300,12 @@ async function executeAction(action: { type: string; [key: string]: any }): Prom
         const toolkit = sanitizeInput(action.toolkit || '', { maxLength: 50 })
         const tool = sanitizeInput(action.tool || '', { maxLength: 100 })
         const agent = sanitizeInput(action.agent || 'CMO', { maxLength: 20 })
-        const integration = await db.integration.findUnique({ where: { toolkitSlug: toolkit } })
+        const integration = await db.integration.findFirst({ where: { userId, toolkitSlug: toolkit } })
         if (!integration || !integration.isConnected) {
           return { success: false, message: `${toolkit} is not connected` }
         }
         const { executeTool } = await import('@/lib/composio-service')
-        const result = await executeTool({ toolkitSlug: toolkit, toolSlug: tool, agentCode: agent, agentName: agent, input: {} })
+        const result = await executeTool({ userId, toolkitSlug: toolkit, toolSlug: tool, agentCode: agent, agentName: agent, input: {} })
         return { success: result.success, output: result.output, message: result.success ? 'Tool executed' : result.error }
       }
 

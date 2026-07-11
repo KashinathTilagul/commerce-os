@@ -29,27 +29,29 @@ const AI_SYSTEMS = [
   { name: "Operations AI", status: "ACTIVE", health: 96, tasksToday: 10, tasksTotal: 1800, accuracy: 97.3, description: "Supply chain optimization, logistics, and workflow automation.", pillar: "operations" },
 ];
 
-async function seedDatabase() {
+// Seeds a fresh user's digital workforce (agents, AI systems, integration catalog) —
+// every new account needs its own copy of these, they aren't shared across users.
+export async function seedDatabase(userId: string) {
   const results: Record<string, number> = {};
-  
+
   for (const agent of AGENTS) {
     await db.agent.upsert({
-      where: { code: agent.code },
+      where: { userId_code: { userId, code: agent.code } },
       update: {},
-      create: { ...agent, tokenBudget: 50000 },
+      create: { ...agent, userId, tokenBudget: 50000 },
     });
   }
   results.agents = AGENTS.length;
 
-  const existingAI = await db.aISystem.count();
+  const existingAI = await db.aISystem.count({ where: { userId } });
   if (existingAI === 0) {
     for (const system of AI_SYSTEMS) {
-      await db.aISystem.create({ data: system });
+      await db.aISystem.create({ data: { ...system, userId } });
     }
     results.aiSystems = AI_SYSTEMS.length;
   }
 
-  const integrationResult = await seedIntegrations();
+  const integrationResult = await seedIntegrations(userId);
   results.integrations = typeof integrationResult === 'number' ? integrationResult : (integrationResult as any).seeded || 0;
 
   return results;
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
   if (!authResult.success) return createApiError("Unauthorized", 401)
 
   try {
-    const results = await seedDatabase();
+    const results = await seedDatabase(authResult.user.id);
     return createApiResponse({ success: true, seeded: results });
   } catch (error: any) {
     const message = error instanceof Error ? error.message : "Unknown error";

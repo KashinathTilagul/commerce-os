@@ -182,6 +182,7 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
  * Execute a tool via Composio (or simulate in demo mode)
  */
 export async function executeTool(params: {
+  userId: string
   toolkitSlug: string
   toolSlug: string
   agentCode: string
@@ -192,8 +193,8 @@ export async function executeTool(params: {
   const composio = await getComposio()
 
   // Find the integration in DB
-  const integration = await db.integration.findUnique({
-    where: { toolkitSlug: params.toolkitSlug },
+  const integration = await db.integration.findFirst({
+    where: { userId: params.userId, toolkitSlug: params.toolkitSlug },
   })
 
   if (!integration || !integration.isConnected) {
@@ -293,16 +294,17 @@ function simulateToolOutput(toolSlug: string, input: Record<string, any>): any {
 }
 
 /**
- * Seed integrations into the database
+ * Seed integrations into the database for a specific user
  */
-export async function seedIntegrations() {
+export async function seedIntegrations(userId: string) {
   for (const tk of TOOLKIT_CATALOG) {
-    const existing = await db.integration.findUnique({ where: { toolkitSlug: tk.slug } })
+    const existing = await db.integration.findFirst({ where: { userId, toolkitSlug: tk.slug } })
     if (!existing) {
       // Auto-connect Shopify and Stripe (demo — in production this requires OAuth)
       const autoConnect = tk.slug === 'shopify' || tk.slug === 'stripe'
       await db.integration.create({
         data: {
+          userId,
           toolkitSlug: tk.slug,
           name: tk.name,
           description: tk.description,

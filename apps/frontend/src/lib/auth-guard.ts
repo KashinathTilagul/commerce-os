@@ -1,8 +1,14 @@
 import { getServerSession } from "next-auth"
+import { Session } from "next-auth"
+import { NextResponse } from "next/server"
 import { authOptions } from "./auth"
 import { createApiError } from "./security"
 
-export async function requireAuth() {
+type AuthResult =
+  | { success: true; user: Session["user"] }
+  | { success: false; response: NextResponse }
+
+export async function requireAuth(): Promise<AuthResult> {
   const session = await getServerSession(authOptions)
 
   if (!session?.user) {
@@ -12,7 +18,7 @@ export async function requireAuth() {
   return { success: true, user: session.user }
 }
 
-export async function requireRole(roles: string | string[]) {
+export async function requireRole(roles: string | string[]): Promise<AuthResult> {
   const authResult = await requireAuth()
   if (!authResult.success) return authResult
 

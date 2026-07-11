@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 // POST /api/events/generate — generates a simulated agent heartbeat event
 const EVENT_TEMPLATES = [
@@ -27,11 +28,15 @@ const AGENT_NAMES: Record<string, string> = {
 }
 
 export async function POST() {
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+
   const template = EVENT_TEMPLATES[Math.floor(Math.random() * EVENT_TEMPLATES.length)]
   const actorName = AGENT_NAMES[template.actor] || template.actor
 
   const event = await db.event.create({
     data: {
+      userId: auth.user.id,
       type: template.type,
       actorName,
       summary: template.summary,

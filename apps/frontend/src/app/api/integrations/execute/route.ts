@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
       return createApiError(`Agent ${agentCode} does not have access to ${toolkitSlug}`, 403)
     }
 
-    const integration = await db.integration.findUnique({
-      where: { toolkitSlug },
+    const integration = await db.integration.findFirst({
+      where: { userId: authResult.user.id, toolkitSlug },
     })
 
     if (!integration || !integration.isConnected) {
@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     })
 
     const result = await executeTool({
+      userId: authResult.user.id,
       toolkitSlug,
       toolSlug,
       agentCode,
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
 
     await db.event.create({
       data: {
+        userId: authResult.user.id,
         type: 'TOOL_EXECUTION',
         actorName: agentName || agentCode,
         summary: `${agentName || agentCode} executed ${toolSlug} on ${integration.name} → ${result.success ? 'SUCCESS' : 'ERROR'}`,

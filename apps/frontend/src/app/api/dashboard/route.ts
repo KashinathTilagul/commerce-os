@@ -8,19 +8,20 @@ export async function GET(req: NextRequest) {
   if (!authResult.success) return authResult.response
 
   try {
+    const uid = authResult.user.id
     const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks, agents, issues, approvals, events] = await Promise.all([
-      db.product.findMany({ select: { id: true, name: true, sku: true, price: true, stock: true, status: true } }),
-      db.order.findMany({ select: { id: true, orderNumber: true, total: true, status: true, createdAt: true } }),
-      db.customer.findMany({ select: { id: true, tier: true, totalSpent: true } }),
-      db.transaction.findMany({ select: { type: true, amount: true, category: true, date: true } }),
-      db.campaign.findMany({ select: { id: true, title: true, status: true, budget: true, spend: true } }),
-      db.aISystem.findMany({ select: { name: true, status: true, health: true, tasksToday: true } }),
-      db.restoration.findMany({ select: { status: true } }),
-      db.brandCheck.findMany({ select: { status: true } }),
-      db.agent.findMany({ select: { code: true, name: true, status: true, tokenSpend: true, tokenBudget: true } }),
-      db.issue.findMany({ select: { status: true } }),
-      db.approval.findMany({ select: { status: true, isRead: true } }),
-      db.event.findMany({ orderBy: { timestamp: 'desc' }, take: 10, select: { id: true, type: true, actorName: true, summary: true, severity: true, timestamp: true } }),
+      db.product.findMany({ where: { userId: uid }, select: { id: true, name: true, sku: true, price: true, stock: true, status: true } }),
+      db.order.findMany({ where: { userId: uid }, select: { id: true, orderNumber: true, total: true, status: true, createdAt: true } }),
+      db.customer.findMany({ where: { userId: uid }, select: { id: true, tier: true, totalSpent: true } }),
+      db.transaction.findMany({ where: { userId: uid }, select: { type: true, amount: true, category: true, date: true } }),
+      db.campaign.findMany({ where: { userId: uid }, select: { id: true, title: true, status: true, budget: true, spend: true } }),
+      db.aISystem.findMany({ where: { userId: uid }, select: { name: true, status: true, health: true, tasksToday: true } }),
+      db.restoration.findMany({ where: { userId: uid }, select: { status: true } }),
+      db.brandCheck.findMany({ where: { userId: uid }, select: { status: true } }),
+      db.agent.findMany({ where: { userId: uid }, select: { code: true, name: true, status: true, tokenSpend: true, tokenBudget: true } }),
+      db.issue.findMany({ where: { userId: uid }, select: { status: true } }),
+      db.approval.findMany({ where: { userId: uid }, select: { status: true, isRead: true } }),
+      db.event.findMany({ where: { userId: uid }, orderBy: { timestamp: 'desc' }, take: 10, select: { id: true, type: true, actorName: true, summary: true, severity: true, timestamp: true } }),
     ])
 
     const revenue = transactions.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)

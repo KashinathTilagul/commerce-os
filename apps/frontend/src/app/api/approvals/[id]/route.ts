@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/auth-guard'
 
 // PATCH /api/approvals/[id] — approve / reject / request revision
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+
   const { id } = await params
+  const existing = await db.approval.findUnique({ where: { id } })
+  if (!existing || existing.userId !== auth.user.id) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
+
   const body = await req.json()
   const { action } = body as { action: 'approve' | 'reject' | 'revision' }
 
@@ -33,6 +42,7 @@ export async function PATCH(
 
   await db.event.create({
     data: {
+      userId: auth.user.id,
       type: action === 'approve' ? 'APPROVAL_GRANTED' : action === 'reject' ? 'APPROVAL_REJECTED' : 'APPROVAL_REVISION',
       actorName: 'Founder',
       summary: `${updated.code}: ${status.replace(/_/g, ' ').toLowerCase()}`,

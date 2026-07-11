@@ -1,17 +1,22 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { listToolkits, getToolsForToolkit } from '@/lib/composio-service'
+import { requireAuth } from '@/lib/auth-guard'
 
 // GET /api/integrations — list all integrations with connection status
 export async function GET() {
-  // Ensure integrations are seeded
-  const count = await db.integration.count()
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+
+  // Ensure integrations are seeded for this user
+  const count = await db.integration.count({ where: { userId: auth.user.id } })
   if (count === 0) {
     const { seedIntegrations } = await import('@/lib/composio-service')
-    await seedIntegrations()
+    await seedIntegrations(auth.user.id)
   }
 
   const integrations = await db.integration.findMany({
+    where: { userId: auth.user.id },
     include: {
       _count: { select: { executions: true } },
     },
