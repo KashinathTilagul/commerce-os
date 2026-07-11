@@ -154,6 +154,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const { open: openWindow, activeId, windows } = useWindowStore()
   const [expanded, setExpanded] = useState(false)
   const [messages, setMessages] = useState<Msg[]>([])
+  const [speakingCaption, setSpeakingCaption] = useState('')
   const [inputText, setInputText] = useState('')
   const [transcript, setTranscript] = useState('')
   const [muted, setMuted] = useState(false)
@@ -240,6 +241,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     if (audioStopRef.current) { audioStopRef.current(); audioStopRef.current = null }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
     speakingRef.current = false
+    setSpeakingCaption('')
   }, [])
 
   // ── Stop mic/recording ───────────────────────────────────────────────────
@@ -283,6 +285,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
     setGlobal('talking')
     speakingRef.current = true
+    setSpeakingCaption(clean)
 
     const u = new SpeechSynthesisUtterance(clean)
     u.voice = bestVoiceRef.current
@@ -302,6 +305,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     })
 
     speakingRef.current = false
+    setSpeakingCaption('')
     setGlobal('idle')
     // Push-to-talk only — no auto-restart. Auto-restarting the mic after
     // speaking caused it to pick up Krishna's own voice through speakers,
@@ -665,6 +669,18 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
             <div ref={messagesEndRef} />
           </MessageScroller>
+
+          {/* ── Live captions — always visible while Krishna is speaking ─── */}
+          {speakingCaption && (
+            <div className="px-4 py-2.5 border-t"
+              style={{ borderColor: 'rgba(52,199,89,0.2)', background: 'rgba(52,199,89,0.08)' }}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#34C759' }} />
+                <span className="text-[9px] font-mono text-white/40 uppercase tracking-widest">Speaking</span>
+              </div>
+              <p className="text-[13px] leading-relaxed text-white/95">{speakingCaption}</p>
+            </div>
+          )}
 
           {/* ── Input row ────────────────────────────────────────────────── */}
           <div className="px-3 pb-3 pt-2 flex items-end gap-2 border-t"
