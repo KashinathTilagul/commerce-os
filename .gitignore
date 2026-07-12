@@ -70,7 +70,9 @@ __pycache__/
 *.pyc
 .venv/
 
-# Database files (local only)
+# Database files
+*.db
+*.db-journal (local only)
 *.db
 *.db-journal
 
