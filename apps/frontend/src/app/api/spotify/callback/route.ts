@@ -30,10 +30,12 @@ export async function GET(req: NextRequest) {
     const data = await response.json()
     
     if (data.error) {
-      return NextResponse.redirect(new URL('/?spotify_error=1', req.url))
+      const errorBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
+      return NextResponse.redirect(new URL('/?spotify_error=1', errorBaseUrl))
     }
 
-    const redirectUrl = new URL('/', req.url)
+    const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
+    const redirectUrl = new URL('/', baseUrl)
     redirectUrl.searchParams.set('spotify_access_token', data.access_token)
     redirectUrl.searchParams.set('spotify_refresh_token', data.refresh_token)
     redirectUrl.searchParams.set('spotify_expires', data.expires_in)
@@ -41,6 +43,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   } catch (error) {
     console.error('Spotify callback error:', error)
-    return NextResponse.redirect(new URL('/?spotify_error=1', req.url))
+    const errorBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
+    return NextResponse.redirect(new URL('/?spotify_error=1', errorBaseUrl))
   }
 }

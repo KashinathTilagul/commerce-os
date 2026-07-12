@@ -7,7 +7,8 @@ import { requireAuth } from '@/lib/auth-guard'
 export async function GET(req: NextRequest) {
   const auth = await requireAuth()
   if (!auth.success) {
-    return NextResponse.redirect(new URL('/login', req.url))
+    const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
+    return NextResponse.redirect(new URL('/login', baseUrl))
   }
 
   const { searchParams } = new URL(req.url)
@@ -17,7 +18,8 @@ export async function GET(req: NextRequest) {
   
   if (status !== 'SUCCESS' || !connectedAccountId || !toolkitSlug) {
     console.error('[Composio] Callback failed or missing data:', Object.fromEntries(searchParams.entries()))
-    return NextResponse.redirect(new URL('/desktop?error=integration_failed', req.url))
+    const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
+    return NextResponse.redirect(new URL('/desktop?error=integration_failed', baseUrl))
   }
 
   try {
@@ -53,9 +55,11 @@ export async function GET(req: NextRequest) {
     }
 
     // Redirect back to desktop
-    return NextResponse.redirect(new URL('/desktop?success=integration_connected', req.url))
+    const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
+    return NextResponse.redirect(new URL('/desktop?success=integration_connected', baseUrl))
   } catch (err: any) {
     console.error('[Composio] Callback processing error:', err)
-    return NextResponse.redirect(new URL('/desktop?error=integration_failed', req.url))
+    const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
+    return NextResponse.redirect(new URL('/desktop?error=integration_failed', baseUrl))
   }
 }
