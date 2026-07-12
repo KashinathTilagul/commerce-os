@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from core.database import db_run
-from core.workforce_engine.event_bus import workforce_event_bus
+from core.events.bus import event_bus
 from core.workforce_engine.delegation import WorkforceDelegationEngine
 from core.workforce_engine.governance import WorkforceGovernanceEngine
 
@@ -28,7 +28,7 @@ class WorkforceExchangeEngine:
             [exp_id, task_id, employee_id, content, "PENDING_HR_REVIEW", created_at]
         )
 
-        await workforce_event_bus.publish("ExperienceCreated", {
+        await event_bus.emit("ExperienceCreated", payload={
             "experience_id": exp_id,
             "task_id": task_id,
             "employee_id": employee_id
@@ -96,7 +96,7 @@ class WorkforceExchangeEngine:
         )
 
         if decision == "APPROVED":
-            await workforce_event_bus.publish("KnowledgeApproved", {
+            await event_bus.emit("KnowledgeApproved", payload={
                 "knowledge_id": knowledge_id
             })
             # Event listeners in memory_service will pick this up and store it permanently.

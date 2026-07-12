@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
 from core.database import db_run, db_get, db_all
-from core.workforce_engine.event_bus import workforce_event_bus
+from core.events.bus import event_bus
 from core.workforce_engine.state_manager import WorkforceStateManager
 
 class WorkforceDelegationEngine:
@@ -43,7 +43,7 @@ class WorkforceDelegationEngine:
             active_tasks=state["active_tasks"] + 1
         )
 
-        await workforce_event_bus.publish("TaskCreated", {
+        await event_bus.emit("TaskCreated", payload={
             "task_id": task_id,
             "parent_id": parent_id,
             "owner": owner,
@@ -83,7 +83,7 @@ class WorkforceDelegationEngine:
             active_tasks=max(0, state["active_tasks"] - 1)
         )
 
-        await workforce_event_bus.publish("TaskCompleted", {
+        await event_bus.emit("TaskCompleted", payload={
             "task_id": task_id,
             "owner": task["owner"],
             "parent_id": task["parent_id"],

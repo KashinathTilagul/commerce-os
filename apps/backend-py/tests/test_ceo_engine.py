@@ -4,9 +4,6 @@ from core.database import init_db, db_all, db_run
 from core.ceo_engine.decision_engine import CEODecisionEngine
 from core.ceo_engine.priority_engine import CEOPriorityEngine
 from core.ceo_engine.simulation import CEOSimulationEngine
-from core.ceo_engine.decision_memory import CEODecisionMemoryService
-from core.ceo_engine.decision_audit import CEODecisionAuditService
-from core.ceo_engine.decision_review import CEODecisionReviewEngine
 from core.workforce_engine.routing import WorkforceRouter
 from core.workforce_engine.governance import WorkforceGovernanceEngine
 
@@ -75,7 +72,7 @@ async def run_ceo_tests():
         "founder_twin_constraints": ["no high-risk marketing"],
         "llm_recommendation": "Option A"
     }
-    audit_id = await CEODecisionAuditService.log_trace(
+    audit_id = await CEODecisionEngine.log_trace(
         decision_id=decision_id,
         who="ceo_engine",
         trace_data=trace_data,
@@ -91,7 +88,7 @@ async def run_ceo_tests():
 
     # TEST 4: Historical Learning Loop
     print("\n[TEST 4] Historical Learning Loop")
-    mem_id = await CEODecisionMemoryService.store_outcome(
+    mem_id = await CEODecisionEngine.store_outcome(
         decision_id=decision_id,
         outcome_actual="Market entered, but customer acquisition cost was 2x expected.",
         success_score=40.0,
@@ -99,7 +96,7 @@ async def run_ceo_tests():
     )
     
     # 30 days later, review executes
-    rev_id = await CEODecisionReviewEngine.execute_review(
+    rev_id = await CEODecisionEngine.execute_review(
         decision_id=decision_id,
         is_correct=False,
         prediction_accurate=False,

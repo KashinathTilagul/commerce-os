@@ -1,8 +1,9 @@
 import uuid
+import json
 from datetime import datetime
 from typing import Dict, Any
 from core.database import db_run
-from core.events.dispatcher import dispatcher
+from core.events.bus import event_bus
 
 async def handle_escalation(event: Dict[str, Any]):
     """
@@ -17,7 +18,6 @@ async def handle_escalation(event: Dict[str, Any]):
     # In a real engine, we'd check if an agent can auto-resolve.
     # For now, we assume events dispatched here are explicitly escalated.
 
-    inbox_id = str(uuid.uuid4())
     payload_json = json.dumps(event.get("payload", {}))
     
     await db_run(
@@ -44,6 +44,5 @@ async def handle_escalation(event: Dict[str, Any]):
         ]
     )
 
-import json
 # Register the escalation handler
-dispatcher.on("escalation_required", handle_escalation)
+event_bus.subscribe("escalation_required", handle_escalation)

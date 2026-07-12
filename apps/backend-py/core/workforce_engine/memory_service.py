@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 
 from core.database import db_run, db_get
-from core.workforce_engine.event_bus import workforce_event_bus
+from core.events.bus import event_bus
 
 class OrganizationalMemoryService:
     @staticmethod
@@ -53,4 +53,4 @@ async def on_knowledge_approved(payload: dict):
         )
 
 # Register listener
-workforce_event_bus.subscribe("KnowledgeApproved", on_knowledge_approved)
+event_bus.subscribe("KnowledgeApproved", on_knowledge_approved)

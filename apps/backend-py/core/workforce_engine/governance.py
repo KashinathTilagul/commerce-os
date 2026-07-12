@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 from core.database import db_run, db_get
-from core.workforce_engine.event_bus import workforce_event_bus
+from core.events.bus import event_bus
 
 class WorkforceGovernanceEngine:
     @staticmethod
@@ -31,7 +31,7 @@ class WorkforceGovernanceEngine:
             [approval_id, task_id, requester, approver, reason, impact, risk, "PENDING", None, timestamp]
         )
 
-        await workforce_event_bus.publish("ApprovalRequested", {
+        await event_bus.emit("ApprovalRequested", payload={
             "approval_id": approval_id,
             "task_id": task_id,
             "requester": requester,
@@ -55,7 +55,7 @@ class WorkforceGovernanceEngine:
 
         approval = await db_get("SELECT * FROM workforce_approvals WHERE id = ?", [approval_id])
         if approval and decision == "APPROVED":
-            await workforce_event_bus.publish("ApprovalGranted", {
+            await event_bus.emit("ApprovalGranted", payload={
                 "approval_id": approval_id,
                 "task_id": approval["task_id"]
             })
@@ -79,7 +79,7 @@ class WorkforceGovernanceEngine:
             [escalation_id, source_id, level, reason, "OPEN", created_at]
         )
 
-        await workforce_event_bus.publish("EscalationCreated", {
+        await event_bus.emit("EscalationCreated", payload={
             "escalation_id": escalation_id,
             "level": level,
             "source_id": source_id

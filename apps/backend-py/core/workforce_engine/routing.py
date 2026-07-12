@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 from core.database import db_run, db_get
-from core.workforce_engine.event_bus import workforce_event_bus
+from core.events.bus import event_bus
 from core.workforce_engine.state_manager import WorkforceStateManager
 
 class WorkforceRouter:
@@ -40,7 +40,7 @@ class WorkforceRouter:
         )
 
         # Emit event
-        await workforce_event_bus.publish("MessageSent", {
+        await event_bus.emit("MessageSent", payload={
             "message_id": message_id,
             "sender": sender,
             "receiver": receiver,

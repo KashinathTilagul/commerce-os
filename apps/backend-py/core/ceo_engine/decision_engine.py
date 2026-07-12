@@ -86,3 +86,22 @@ class CEODecisionEngine:
         # Triggers for Escalation would hook in here if requires_founder is True
 
         return payload
+
+    @staticmethod
+    async def log_trace(decision_id: str, who: str, trace_data: dict, outcome: str) -> str:
+        audit_id = f"aud_{uuid.uuid4().hex}"
+        await db_run("INSERT INTO ceo_decision_audits (id, decision_id, trace_data_json, who, outcome, created_at) VALUES (?, ?, ?, ?, ?, ?)", [audit_id, decision_id, json.dumps(trace_data), who, outcome, datetime.now(timezone.utc).isoformat()])
+        return audit_id
+
+    @staticmethod
+    async def store_outcome(decision_id: str, outcome_actual: str, success_score: float, lessons_learned: str) -> str:
+        memory_id = f"mem_{uuid.uuid4().hex}"
+        await db_run("INSERT INTO ceo_decision_memory (id, decision_id, outcome_actual, success_score, lessons_learned, created_at) VALUES (?, ?, ?, ?, ?, ?)", [memory_id, decision_id, outcome_actual, success_score, lessons_learned, datetime.now(timezone.utc).isoformat()])
+        return memory_id
+
+    @staticmethod
+    async def execute_review(decision_id: str, is_correct: bool, prediction_accurate: bool, would_repeat: bool, lessons: str) -> str:
+        review_id = f"rev_{uuid.uuid4().hex}"
+        created_at = datetime.now(timezone.utc).isoformat()
+        await db_run("INSERT INTO ceo_decision_reviews (id, decision_id, review_date, is_correct, prediction_accurate, would_repeat, lessons, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [review_id, decision_id, created_at, 1 if is_correct else 0, 1 if prediction_accurate else 0, 1 if would_repeat else 0, lessons, created_at])
+        return review_id
