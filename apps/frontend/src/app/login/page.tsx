@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,13 +17,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [hasUsers, setHasUsers] = useState(true)
+  const [mounted, setMounted] = useState(false)
+  const [isDark, setIsDark] = useState(true)
+
+  useEffect(() => {
+    setMounted(true)
+    const checkTheme = () => {
+      const dark = document.documentElement.classList.contains('dark')
+      setIsDark(dark)
+    }
+    checkTheme()
+    const observer = new MutationObserver(checkTheme)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     fetch('/api/auth/setup')
       .then(r => r.json())
-      .then(data => setHasUsers(data.hasUsers !== false))
-      .catch(() => setHasUsers(true))
+      .then(data => {})
+      .catch(() => {})
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,12 +64,23 @@ export default function LoginPage() {
     }
   }
 
+  const logoSrc = mounted && isDark ? '/branding/logo-white.png' : '/branding/logo-black.png'
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
       <Card className="w-full max-w-md border-border/50 shadow-2xl">
         <CardHeader className="space-y-3 text-center pb-2">
-          <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-[#C8302A] to-[#8B1E1A] flex items-center justify-center mb-2">
-            <span className="text-2xl font-bold text-white">E</span>
+          <div className="mx-auto w-32 h-16 relative flex items-center justify-center mb-2">
+            {mounted && (
+              <Image
+                src={logoSrc}
+                alt="EKVAAR"
+                width={128}
+                height={64}
+                className="object-contain"
+                priority
+              />
+            )}
           </div>
           <CardTitle className="text-2xl font-bold">EKVAAR OS</CardTitle>
           <CardDescription>

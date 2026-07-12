@@ -403,6 +403,11 @@ export function Settings() {
                         try {
                           const res = await fetch('/api/account/delete', { method: 'POST' })
                           if (res.ok) {
+                            if (typeof window !== 'undefined') {
+                              localStorage.removeItem('ekvaar_krishna_history')
+                              localStorage.removeItem('krishna_voice')
+                              localStorage.clear()
+                            }
                             toast.success('Account deleted', 'Goodbye, Founder.')
                             signOut({ callbackUrl: '/login' })
                           } else {
