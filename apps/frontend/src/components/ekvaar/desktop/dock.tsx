@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LayoutGrid, X, Check, Edit3, RotateCcw } from 'lucide-react'
 import { useWindowStore, type AppId } from '@/lib/window-store'
+import { useMusicStore } from '@/lib/music-store'
 import { APPS, CORE_APP_IDS, UTILITY_APP_IDS, BUSINESS_APP_IDS } from './app-registry'
 import { AppIcon } from './app-icon'
 import { DockContextMenu } from './dock-context-menu'
@@ -19,6 +20,7 @@ const DEFAULT_DOCK_ORDER: string[] = [
   'launchpad',
   ...CORE_APP_IDS,
   ...UTILITY_APP_IDS,
+  'music',
   ...BUSINESS_APP_IDS,
   'brand-book',
 ]
@@ -98,6 +100,12 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
       gradient: 'linear-gradient(135deg, #F5F1EA 0%, #C8B89F 100%)',
       glyphColor: '#0A0A0A', component: null, menuItems: [],
     }
+    m['music'] = {
+      id: 'music', name: 'Music', shortName: 'Music',
+      icon: null, iconVariant: 'music',
+      gradient: 'linear-gradient(135deg, #FA2D48 0%, #E00028 100%)',
+      glyphColor: '#F5F1EA', component: null, menuItems: [],
+    }
     return m
   }, [])
 
@@ -127,13 +135,17 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   }
 
   const handleClick = (id: string) => {
-    if (editMode) return // No clicks in edit mode except remove/rename
+    if (editMode) return
     if (id === 'launchpad') {
       onLaunchpad?.()
       return
     }
     if (id === 'brand-book') {
       open('guardian', customNames['guardian'] || 'Brand Guardian')
+      return
+    }
+    if (id === 'music') {
+      useMusicStore.getState().open()
       return
     }
     const existing = windows.find((w) => w.id === id)

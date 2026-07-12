@@ -3,7 +3,7 @@
 import {
   LayoutDashboard, Inbox, Users, GitBranch, Terminal as TerminalIcon,
   Activity, Settings as SettingsIcon, FolderOpen, Plug,
-  Calculator as CalcIcon, StickyNote, Calendar as CalIcon, Music,
+  Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
   AlertTriangle, Code2,
 } from 'lucide-react'
@@ -20,7 +20,6 @@ import { Integrations } from '@/components/ekvaar/modules/integrations'
 import { Calculator } from '@/components/ekvaar/modules/calculator'
 import { Notes } from '@/components/ekvaar/modules/notes'
 import { CalendarApp } from '@/components/ekvaar/modules/calendar'
-import { MusicPlayer } from '@/components/ekvaar/modules/music'
 import { HouseOfOriginals } from '@/components/ekvaar/modules/house-of-originals'
 import { SalesOrders } from '@/components/ekvaar/modules/sales-orders'
 import { FinanceModule } from '@/components/ekvaar/modules/finance'
@@ -226,21 +225,6 @@ export const APPS: AppDef[] = [
       { label: 'Go', items: ['Today', 'Next Month', 'Prev Month'] },
     ],
   },
-  {
-    id: 'music',
-    name: 'Music',
-    shortName: 'Music',
-    icon: Music,
-    iconVariant: 'music',
-    gradient: 'linear-gradient(135deg, #FA2D48 0%, #E00028 100%)',
-    glyphColor: '#F5F1EA',
-    component: MusicPlayer,
-    menuItems: [
-      { label: 'File', items: ['New Playlist', 'Import', 'Close Window'] },
-      { label: 'Controls', items: ['Play', 'Pause', 'Next', 'Previous', 'Shuffle', 'Repeat'] },
-      { label: 'View', items: ['Library', 'Now Playing'] },
-    ],
-  },
   // Business apps (right of dock divider)
   {
     id: 'house',
@@ -400,6 +384,6 @@ export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
 
 // IDs that belong to the "core OS" group (left of dock divider)
 export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'activity', 'settings', 'files', 'integrations']
-export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar', 'music', 'opencode']
+export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar', 'opencode']
 export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai', 'risk']
 
