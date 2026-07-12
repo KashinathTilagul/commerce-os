@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 import { QueryProvider } from "@/components/ekvaar/query-provider";
 import { AuthProvider } from "@/components/ekvaar/auth-provider";
 import { Suspense } from "react";
@@ -63,7 +62,6 @@ export default function RootLayout({
             <Suspense fallback={<LoadingFallback />}>
               {children}
             </Suspense>
-            <Toaster />
           </QueryProvider>
         </AuthProvider>
       </body>

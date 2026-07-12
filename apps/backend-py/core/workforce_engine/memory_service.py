@@ -37,8 +37,9 @@ class OrganizationalMemoryService:
 
 # Event Listeners to auto-populate Memory Service
 
-async def on_knowledge_approved(payload: dict):
+async def on_knowledge_approved(event: dict):
     """When CEO approves knowledge, permanently store it in Organizational Memory."""
+    payload = event.get("payload", {})
     knowledge_id = payload.get("knowledge_id")
     knowledge = await db_get("SELECT * FROM workforce_knowledge WHERE id = ?", [knowledge_id])
     if knowledge:

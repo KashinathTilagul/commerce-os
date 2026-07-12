@@ -39,6 +39,9 @@ jobs:
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             AWS_REGION=us-east-1
             BEDROCK_MODEL_ID=amazon.nova-pro-v1:0
+            SPOTIFY_CLIENT_ID=${{ secrets.SPOTIFY_CLIENT_ID }}
+            SPOTIFY_CLIENT_SECRET=${{ secrets.SPOTIFY_CLIENT_SECRET }}
+            SPOTIFY_REDIRECT_URI=${{ secrets.SPOTIFY_REDIRECT_URI }}
             ENVEOF
             
             echo "[i] Disk before cleanup:"; df -h / || true

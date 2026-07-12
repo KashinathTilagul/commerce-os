@@ -1,7 +1,6 @@
 import logging
 from typing import List, Dict, Any
 from .action_schema import ToolRequest, ExecutionResult
-from .adapter_interface import ToolAdapterInterface
 
 from .audit_logger import AuditLogger
 from core.automation.risk_registry import RiskRegistry, RiskLevel
@@ -17,7 +16,7 @@ class ExecutionManager:
     """
     def __init__(self):
         # Register adapters
-        self.adapters: List[ToolAdapterInterface] = []
+        self.adapters: List[Any] = []
 
     async def get_tools_for_agent(self, agent_id: str) -> List[Dict[str, Any]]:
         """

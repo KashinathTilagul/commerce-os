@@ -502,19 +502,16 @@ function CalendarIcon({ size }: { size: number }) {
   )
 }
 
-// Music — red/pink gradient with white music note (macOS Music)
+// Music — Spotify themed dark gradient with green Spotify waves
 function MusicIcon({ size }: { size: number }) {
   const s = size * 0.58
   return (
     <>
-      <Bg gradient="linear-gradient(180deg, #FA2D48 0%, #E00028 100%)" />
-      <Highlight opacity={0.25} stop={45} />
+      <Bg gradient="linear-gradient(180deg, #222222 0%, #121212 100%)" />
+      <Highlight opacity={0.15} stop={45} />
       <Glyph size={size}>
-        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.30))' }}>
-          {/* Music note */}
-          <path d="M9 17V5l10-2v12" stroke="#FFFFFF" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <ellipse cx="7" cy="17" rx="2.5" ry="2" fill="#FFFFFF" />
-          <ellipse cx="17" cy="15" rx="2.5" ry="2" fill="#FFFFFF" />
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.50))' }}>
+          <path fill="#1DB954" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424c-.18.295-.565.387-.86.207-2.377-1.454-5.37-1.783-8.894-.982-.336.076-.67-.135-.746-.472-.076-.336.135-.67.472-.746 3.854-.88 7.15-.502 9.82 1.136.295.18.387.565.208.857zm1.22-2.72c-.226.367-.707.487-1.074.26-2.72-1.672-6.87-2.157-10.082-1.182-.413.125-.847-.107-.972-.52-.125-.413.107-.847.52-.972 3.676-1.115 8.243-.57 11.348 1.343.367.226.487.707.26 1.074zm.106-2.834C14.692 8.98 9.3 8.8 6.13 9.762c-.488.148-.996-.13-1.144-.61-.148-.487.13-.996.61-1.144 3.637-1.103 9.58-.893 13.435 1.397.44.262.585.826.324 1.266-.26.44-.825.585-1.265.324z" />
         </svg>
       </Glyph>
     </>

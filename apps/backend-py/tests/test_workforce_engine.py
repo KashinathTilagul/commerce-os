@@ -116,5 +116,12 @@ async def run_tests():
 
     print("\n--- ALL VERIFICATIONS PASSED ---")
 
+async def main():
+    try:
+        await run_tests()
+    finally:
+        from core.database import get_pool
+        await get_pool().close_all()
+
 if __name__ == "__main__":
-    asyncio.run(run_tests())
+    asyncio.run(main())

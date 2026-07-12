@@ -3,7 +3,6 @@ from core.database import db_run, db_all
 from core.services.task_service import task_service
 from core.services.approval_service import approval_service
 from core.services.objective_service import objective_service
-from core.services.comms_service import comms_service
 
 class MigrationService:
     @staticmethod
@@ -143,15 +142,29 @@ class MigrationService:
 
         # 1. workforce_escalations
         try:
+            import uuid
+            from datetime import datetime, timezone
             we = await db_all("SELECT * FROM workforce_escalations")
             for w in we:
                 old_count += 1
-                await comms_service.escalate_issue(
-                    title=w.get("issue_type", "Escalation"),
-                    description=w.get("context_json", ""),
-                    sender=w.get("agent_id", "system"),
-                    recipient="founder",
-                    severity="HIGH"
+                comms_id = str(uuid.uuid4())
+                await db_run(
+                    """
+                    INSERT INTO system_communications (id, type, title, description, sender, recipient, severity, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    [
+                        comms_id,
+                        "ESCALATION",
+                        w.get("issue_type", "Escalation"),
+                        w.get("context_json", ""),
+                        w.get("agent_id", "system"),
+                        "founder",
+                        "HIGH",
+                        "OPEN",
+                        datetime.now(timezone.utc).isoformat(),
+                        datetime.now(timezone.utc).isoformat()
+                    ]
                 )
                 new_count += 1
         except Exception: pass
@@ -177,3 +190,5 @@ class MigrationService:
             "Objectives": {"Old Count": o_old, "New Count": o_new},
             "Communications": {"Old Count": c_old, "New Count": c_new}
         }
+
+migration_service = MigrationService()
