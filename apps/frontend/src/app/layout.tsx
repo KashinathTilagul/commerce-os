@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   keywords: ["EKVAAR", "fashion house", "operating system", "all-time fashion", "India"],
   authors: [{ name: "EKVAAR" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/branding/monogram.png",
   },
 };
 
