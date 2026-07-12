@@ -12,15 +12,16 @@ export const MessageScroller = React.forwardRef<HTMLDivElement, React.HTMLAttrib
 ))
 MessageScroller.displayName = "MessageScroller"
 
-export const Message = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { isKrishna?: boolean }>(({ className, isKrishna, ...props }, ref) => (
+export const Message = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { isKrishna?: boolean }>(({ className, isKrishna, children }, ref) => (
   <motion.div
     ref={ref}
     initial={{ opacity: 0, y: 6, scale: 0.97 }}
     animate={{ opacity: 1, y: 0, scale: 1 }}
     transition={{ type: 'spring', stiffness: 400, damping: 28, delay: 0.03 }}
     className={cn("flex items-end gap-2", isKrishna ? "justify-start" : "justify-end", className)}
-    {...props}
-  />
+  >
+    {children}
+  </motion.div>
 ))
 Message.displayName = "Message"
 
