@@ -35,6 +35,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/branding/monogram.png",
   },
+  verification: {
+    google: "oJ4HPFEsh4WS_xVfuy616putgA6xDHw_rDh_Z_Agshw",
+  },
 };
 
 function LoadingFallback() {
