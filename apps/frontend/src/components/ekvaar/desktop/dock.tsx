@@ -101,10 +101,10 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
       glyphColor: '#0A0A0A', component: null, menuItems: [],
     }
     m['music'] = {
-      id: 'music', name: 'Music', shortName: 'Music',
+      id: 'music', name: 'Spotify', shortName: 'Spotify',
       icon: null, iconVariant: 'music',
-      gradient: 'linear-gradient(135deg, #FA2D48 0%, #E00028 100%)',
-      glyphColor: '#F5F1EA', component: null, menuItems: [],
+      gradient: 'linear-gradient(135deg, #1DB954 0%, #191414 100%)',
+      glyphColor: '#1DB954', component: null, menuItems: [],
     }
     return m
   }, [])
