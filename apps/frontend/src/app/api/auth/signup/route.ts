@@ -3,7 +3,7 @@ import { createApiResponse, createApiError } from '@/lib/security'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { hash } from 'bcryptjs'
-import { seedDatabase } from '@/app/api/seed/route'
+import { seedDatabase } from '@/lib/seed'
 
 const SignupSchema = z.object({
   name: z.string().min(1).max(100),

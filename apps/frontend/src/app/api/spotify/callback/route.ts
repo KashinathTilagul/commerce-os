@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || ''
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || ''
-const REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'https://os.ekvaar.com/api/spotify/callback'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -11,6 +10,8 @@ export async function GET(req: NextRequest) {
   if (!code) {
     return NextResponse.json({ error: 'No code provided' }, { status: 400 })
   }
+
+  const redirectUri = process.env.SPOTIFY_REDIRECT_URI || `${new URL(req.url).origin}/api/spotify/callback`
 
   try {
     const response = await fetch('https://accounts.spotify.com/api/token', {
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code: code,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: redirectUri,
       }),
     })
 
