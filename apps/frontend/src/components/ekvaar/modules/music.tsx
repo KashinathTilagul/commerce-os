@@ -19,8 +19,6 @@ export function MusicPlayer() {
   const [currentIdx, setCurrentIdx] = useState(0)
   const [liked, setLiked] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Track[]>([])
-  const [searching, setSearching] = useState(false)
   const [tab, setTab] = useState('playlist')
 
   const current = tracks[currentIdx]
@@ -32,10 +30,15 @@ export function MusicPlayer() {
     if (tracks[idx]) setHistory(p => [tracks[idx], ...p.filter(t => t.id !== tracks[idx].id).slice(0, 49)])
   }
   
-  const addToPlaylist = (track: Track) => {
-    if (!tracks.find(t => t.videoId === track.videoId)) {
-      setTracks(p => [...p, track])
+  const addAndPlay = (videoId: string, title: string, artist: string) => {
+    const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+    const existing = tracks.find(t => t.videoId === videoId)
+    if (existing) {
+      playTrack(tracks.indexOf(existing))
+      return
     }
+    const track: Track = { id: videoId, title, artist, videoId, thumbnail }
+    setTracks(p => [...p, track])
     playTrack(tracks.length)
   }
   
@@ -44,28 +47,19 @@ export function MusicPlayer() {
     if (idx === currentIdx) setCurrentIdx(0)
   }
 
-  const searchYouTube = async () => {
-    if (!searchQuery.trim()) return
-    setSearching(true)
-    try {
-      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(searchQuery)}&type=video&maxResults=10&key=AIzaSyAOygJ5VyR3pDaXIqPzSlN4v5BUh7iNLho`)
-      const data = await res.json()
-      if (data.items) {
-        setSearchResults(data.items.map((item: any) => ({
-          id: item.id.videoId,
-          title: item.snippet.title,
-          artist: item.snippet.channelTitle,
-          videoId: item.id.videoId,
-          thumbnail: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url
-        })))
-      }
-    } catch (e) {
-      console.error('YouTube search failed', e)
+  const embedUrl = current ? `https://www.youtube.com/embed/${current.videoId}?autoplay=1&controls=1&modestbranding=1` : ''
+
+  const handleAddManual = () => {
+    const match = searchQuery.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/)
+    if (match) {
+      addAndPlay(match[1], 'YouTube Track', 'YouTube')
+      setSearchQuery('')
     }
-    setSearching(false)
   }
 
-  const embedUrl = current ? `https://www.youtube.com/embed/${current.videoId}?autoplay=1&controls=1&modestbranding=1` : ''
+  const openYouTubeSearch = () => {
+    window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`, '_blank')
+  }
 
   return (
     <div>
@@ -89,12 +83,12 @@ export function MusicPlayer() {
               )}
             </div>
             <div className="flex items-center justify-between">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="font-medium truncate text-lg">{current?.title || 'Select a track'}</div>
                 <div className="text-sm text-muted-foreground">{current?.artist}</div>
               </div>
               {current && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-4">
                   <a href={`https://youtube.com/watch?v=${current.videoId}`} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-muted rounded-full"><ExternalLink className="h-4 w-4" /></a>
                   <button onClick={() => toggleLike(current.id)}><Heart className={`h-5 w-5 ${liked.has(current.id) ? 'fill-agni text-agni' : 'text-muted-foreground'}`} /></button>
                 </div>
@@ -108,7 +102,7 @@ export function MusicPlayer() {
               <div className="p-4 border-b border-border">
                 <TabsList className="grid grid-cols-3 w-full">
                   <TabsTrigger value="playlist"><ListMusic className="h-4 w-4 mr-1" />Playlist</TabsTrigger>
-                  <TabsTrigger value="search"><Search className="h-4 w-4 mr-1" />Search</TabsTrigger>
+                  <TabsTrigger value="search"><Search className="h-4 w-4 mr-1" />Add</TabsTrigger>
                   <TabsTrigger value="history"><Clock className="h-4 w-4 mr-1" />History</TabsTrigger>
                 </TabsList>
               </div>
@@ -124,20 +118,24 @@ export function MusicPlayer() {
                   ))}
                 </div>
               </TabsContent>
-              <TabsContent value="search" className="m-0 p-4">
-                <div className="flex gap-2 mb-4">
-                  <input type="text" placeholder="Search YouTube..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchYouTube()} className="flex-1 px-4 py-2 text-sm rounded-md border border-input bg-transparent" />
-                  <button onClick={searchYouTube} disabled={searching} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"><Search className="h-4 w-4" /></button>
-                </div>
-                <div className="max-h-[350px] overflow-y-auto">
-                  {searching ? <div className="p-8 text-center text-muted-foreground">Searching...</div> : searchResults.map(t => (
-                    <div key={t.id} className="flex items-center gap-3 p-3 border-b border-border/60 hover:bg-muted/40 cursor-pointer" onClick={() => addToPlaylist(t)}>
-                      <img src={t.thumbnail} alt="" className="w-12 h-12 rounded-md object-cover flex-shrink-0" />
-                      <div className="flex-1 min-w-0"><div className="text-sm font-medium truncate">{t.title}</div><div className="text-xs text-muted-foreground truncate">{t.artist}</div></div>
-                      <Play className="h-4 w-4 text-muted-foreground" />
+              <TabsContent value="search" className="m-0 p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Paste YouTube URL</label>
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="https://youtube.com/watch?v=..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="flex-1 px-4 py-2 text-sm rounded-md border border-input bg-transparent" />
+                      <button onClick={handleAddManual} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90">Add</button>
                     </div>
-                  ))}
-                  {!searching && searchResults.length === 0 && <div className="p-8 text-center text-muted-foreground text-sm">Search for songs on YouTube</div>}
+                  </div>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or search on YouTube</span></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input type="text" placeholder="Search for songs..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="flex-1 px-4 py-2 text-sm rounded-md border border-input bg-transparent" />
+                    <button onClick={openYouTubeSearch} className="px-4 py-2 text-sm bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"><Youtube className="h-4 w-4 inline mr-1" />Open YouTube</button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Click a video on YouTube, copy the URL from address bar, paste above and click Add.</p>
                 </div>
               </TabsContent>
               <TabsContent value="history" className="m-0">
