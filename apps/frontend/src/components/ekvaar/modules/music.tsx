@@ -7,7 +7,7 @@ import { PageHeader } from '../shared'
 import { Card, CardContent } from '@/components/ui/card'
 
 export function MusicPlayer() {
-  const { tracks, currentIdx, history, liked, addTrack, playTrack, toggleLike, toggleMinimize, stop } = useMusicStore()
+  const { tracks, currentIdx, history, liked, addTrack, playTrack, toggleLike, open } = useMusicStore()
   const [searchQuery, setSearchQuery] = useState('')
 
   const current = tracks[currentIdx]
@@ -25,7 +25,7 @@ export function MusicPlayer() {
 
   return (
     <div>
-      <PageHeader eyebrow="Music" title="EKVAAR Sound" description="YouTube music player. Mini player at top-left." />
+      <PageHeader eyebrow="Music" title="EKVAAR Sound" description="Add tracks and minimize window for mini player." />
       <div className="px-4 lg:px-8 py-6">
         <Card>
           <CardContent className="p-6">
@@ -52,7 +52,7 @@ export function MusicPlayer() {
                   {tracks.map((t, i) => (
                     <div
                       key={t.id}
-                      onClick={() => playTrack(i)}
+                      onClick={() => { playTrack(i); open(); }}
                       className={`flex items-center gap-3 p-2 rounded cursor-pointer ${i === currentIdx ? 'bg-muted' : 'hover:bg-muted/50'}`}
                     >
                       <img src={t.thumbnail} alt="" className="w-12 h-12 rounded object-cover" />
@@ -75,7 +75,7 @@ export function MusicPlayer() {
                     {history.slice(0, 5).map(t => (
                       <div
                         key={t.id + '-hist'}
-                        onClick={() => { const idx = tracks.findIndex(tr => tr.videoId === t.videoId); if (idx >= 0) playTrack(idx) }}
+                        onClick={() => { const idx = tracks.findIndex(tr => tr.videoId === t.videoId); if (idx >= 0) { playTrack(idx); open(); } }}
                         className="flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted/50"
                       >
                         <img src={t.thumbnail} alt="" className="w-8 h-8 rounded object-cover" />

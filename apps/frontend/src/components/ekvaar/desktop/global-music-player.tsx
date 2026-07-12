@@ -3,7 +3,6 @@
 import { useMusicStore } from '@/lib/music-store'
 import { useEffect, useRef, useState } from 'react'
 import { Search, Youtube, X, ChevronUp, ChevronDown } from 'lucide-react'
-import { useWindowStore } from '@/lib/window-store'
 
 const extractVideoId = (url: string): string | null => {
   const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/)
@@ -11,10 +10,8 @@ const extractVideoId = (url: string): string | null => {
 }
 
 export function GlobalMusicPlayer() {
-  const { tracks, currentIdx, playing, volume, minimized, position, addTrack, playTrack, toggleMinimize, move, stop } = useMusicStore()
-  const { windows } = useWindowStore()
+  const { tracks, currentIdx, playing, volume, minimized, position, isOpen, addTrack, playTrack, toggleMinimize, move, close } = useMusicStore()
   const current = tracks[currentIdx]
-  const playerRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const ytPlayer = useRef<any>(null)
   const [playerReady, setPlayerReady] = useState(false)
@@ -22,46 +19,50 @@ export function GlobalMusicPlayer() {
   const [showSearch, setShowSearch] = useState(false)
   const [dragging, setDragging] = useState(false)
   const dragOffset = useRef({ x: 0, y: 0 })
-
-  const musicWindow = windows.find(w => w.id === 'music')
-  const showMiniPlayer = current && (!musicWindow || musicWindow.isMinimized)
+  const lastVideoId = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!current) return
-    const playerId = 'yt-global-player'
-    if (!document.getElementById(playerId) && containerRef.current) {
-      containerRef.current.innerHTML = `<div id="${playerId}" class="w-full h-full"></div>`
-    }
+    if (!isOpen || !current) return
     
-    const loadYT = () => {
-      if ((window as any).YT && (window as any).YT.Player) {
-        const el = document.getElementById(playerId)
-        if (!el) return
-        ytPlayer.current = new (window as any).YT.Player(playerId, {
-          videoId: current.videoId,
-          height: '100%',
-          width: '100%',
-          playerVars: { autoplay: 0, controls: 1, modestbranding: 1 },
-          events: {
-            onReady: () => {
-              setPlayerReady(true)
-              ytPlayer.current.setVolume(volume)
-              if (playing) ytPlayer.current.playVideo()
-            },
-            onStateChange: (e: any) => {
-              if (e.data === (window as any).YT.PlayerState.PLAYING) {
-                useMusicStore.setState({ playing: true })
-              } else if (e.data === (window as any).YT.PlayerState.PAUSED) {
-                useMusicStore.setState({ playing: false })
-              }
+    const playerId = 'yt-global-player'
+    const loadPlayer = () => {
+      if (!(window as any).YT || !(window as any).YT.Player) {
+        setTimeout(loadPlayer, 100)
+        return
+      }
+      
+      const existing = document.getElementById(playerId)
+      if (existing && lastVideoId.current === current.videoId && ytPlayer.current) {
+        return
+      }
+      
+      if (existing) existing.remove()
+      
+      if (!containerRef.current) return
+      containerRef.current.innerHTML = `<div id="${playerId}" class="w-full h-full"></div>`
+      
+      ytPlayer.current = new (window as any).YT.Player(playerId, {
+        videoId: current.videoId,
+        height: '100%',
+        width: '100%',
+        playerVars: { autoplay: playing ? 1 : 0, controls: 1, modestbranding: 1 },
+        events: {
+          onReady: () => {
+            setPlayerReady(true)
+            ytPlayer.current.setVolume(volume)
+          },
+          onStateChange: (e: any) => {
+            if (e.data === (window as any).YT.PlayerState.PLAYING) {
+              useMusicStore.setState({ playing: true })
+            } else if (e.data === (window as any).YT.PlayerState.PAUSED) {
+              useMusicStore.setState({ playing: false })
             }
           }
-        })
-      } else {
-        setTimeout(loadYT, 100)
-      }
+        }
+      })
+      lastVideoId.current = current.videoId
     }
-    
+
     if (!(window as any).YT) {
       const tag = document.createElement('script')
       tag.src = 'https://www.youtube.com/iframe_api'
@@ -69,9 +70,17 @@ export function GlobalMusicPlayer() {
       if (!document.getElementById('yt-api-script')) {
         document.body.appendChild(tag)
       }
-      ;(window as any).onYouTubeIframeAPIReady = loadYT
+      ;(window as any).onYouTubeIframeAPIReady = loadPlayer
     } else {
-      loadYT()
+      loadPlayer()
+    }
+  }, [isOpen, current?.videoId])
+
+  useEffect(() => {
+    if (!ytPlayer.current?.loadVideoById || !current) return
+    if (lastVideoId.current !== current.videoId) {
+      ytPlayer.current.loadVideoById(current.videoId)
+      lastVideoId.current = current.videoId
     }
   }, [current?.videoId])
 
@@ -116,11 +125,10 @@ export function GlobalMusicPlayer() {
     setShowSearch(false)
   }
 
-  if (!showMiniPlayer) return null
+  if (!isOpen || !current) return null
 
   return (
     <div
-      ref={playerRef}
       onMouseDown={handleMouseDown}
       className={`fixed bg-popover border border-border shadow-2xl rounded-lg overflow-hidden ${dragging ? 'cursor-grabbing' : ''}`}
       style={{
@@ -137,7 +145,7 @@ export function GlobalMusicPlayer() {
         </div>
         <div className="flex items-center gap-1">
           <button onClick={toggleMinimize} className="p-1 hover:bg-muted rounded">{minimized ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}</button>
-          <button onClick={stop} className="p-1 hover:bg-muted rounded"><X className="h-3 w-3" /></button>
+          <button onClick={close} className="p-1 hover:bg-muted rounded"><X className="h-3 w-3" /></button>
         </div>
       </div>
 
