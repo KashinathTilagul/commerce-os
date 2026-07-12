@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireRole } from '@/lib/auth-guard'
 
 export async function GET() {
+  const auth = await requireRole(['ADMIN'])
+  if (!auth.success) return auth.response
+  
   try {
     const count = await db.user.count()
     return NextResponse.json({ userCount: count, canReset: count === 0 })
@@ -12,6 +16,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireRole(['ADMIN'])
+  if (!auth.success) return auth.response
+  
   try {
     const { confirm } = await req.json()
     
@@ -22,22 +29,11 @@ export async function POST(req: NextRequest) {
     console.log('[RESET] Wiping all user accounts...')
     
     const sessionCount = await db.session.deleteMany()
-    console.log(`[RESET] Deleted ${sessionCount.count} sessions`)
-    
     const accountCount = await db.account.deleteMany()
-    console.log(`[RESET] Deleted ${accountCount.count} accounts`)
-    
     const auditCount = await db.auditLog.deleteMany()
-    console.log(`[RESET] Deleted ${auditCount.count} audit logs`)
-    
     const prefCount = await db.userPreference.deleteMany()
-    console.log(`[RESET] Deleted ${prefCount.count} user preferences`)
-    
     const userCount = await db.user.deleteMany()
-    console.log(`[RESET] Deleted ${userCount.count} users`)
-    
     const tokenCount = await db.verificationToken.deleteMany()
-    console.log(`[RESET] Deleted ${tokenCount.count} verification tokens`)
     
     try {
       await db.systemSetting.deleteMany()

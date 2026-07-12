@@ -8,11 +8,12 @@ from dotenv import load_dotenv
 # Load environment variables from parent directory .env file
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
-from fastapi import FastAPI, WebSocket, Request
+from fastapi import FastAPI, WebSocket, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import asyncio
+import hashlib
 
 from core.database import init_db, get_pool
 from core.automation.scheduler import scheduler
@@ -165,8 +166,18 @@ from core.llm.router import router as llm_router
 
 import select, signal, struct, fcntl, termios, json
 
+async def verify_ws_token(token: str) -> bool:
+    """Verify WebSocket auth token. In production, use JWT or session validation."""
+    jwt_secret = os.getenv("JWT_SECRET", "")
+    if not jwt_secret:
+        return True
+    return token == jwt_secret
+
 @app.websocket("/ws/opencode")
-async def ws_opencode(websocket: WebSocket):
+async def ws_opencode(websocket: WebSocket, token: str = Query(None)):
+    if not token or not await verify_ws_token(token):
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
     await websocket.accept()
     try:
         import pty
@@ -235,7 +246,10 @@ async def ws_opencode(websocket: WebSocket):
 
 
 @app.websocket("/ws/agent")
-async def websocket_agent(websocket: WebSocket):
+async def websocket_agent(websocket: WebSocket, token: str = Query(None)):
+    if not token or not await verify_ws_token(token):
+        await websocket.close(code=4001, reason="Unauthorized")
+        return
     await websocket.accept()
     
     from core.llm.router import MODEL_ID

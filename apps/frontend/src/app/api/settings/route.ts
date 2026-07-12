@@ -28,7 +28,10 @@ export async function GET() {
     preference = await db.userPreference.create({ data: { userId: auth.user.id } })
   }
 
-  return NextResponse.json({ ...settings, ...preference })
+  // Never expose API keys in response
+  const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, ...safeSettings } = settings as any
+  
+  return NextResponse.json({ ...safeSettings, ...preference })
 }
 
 export async function PATCH(req: Request) {
@@ -69,7 +72,10 @@ export async function PATCH(req: Request) {
       },
     }).catch(() => {})
 
-    return NextResponse.json({ ...settings, ...preference })
+    // Never expose API keys in response
+    const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, ...safeSettings } = (settings || {}) as any
+    
+    return NextResponse.json({ ...safeSettings, ...preference })
   } catch (e: any) {
     console.error('[Settings PATCH]', e.message)
     return NextResponse.json({ error: e.message }, { status: 500 })
