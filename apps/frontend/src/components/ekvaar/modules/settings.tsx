@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play } from 'lucide-react'
+import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -13,10 +13,25 @@ import { Badge } from '@/components/ui/badge'
 import { useThemeStore } from '@/lib/theme-store'
 import { toast } from '@/components/ekvaar/desktop/toast'
 import { useEffect, useState } from 'react'
+import { signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 export function Settings() {
   const { mode, accent, setMode, setAccent } = useThemeStore()
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const [deleting, setDeleting] = useState(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
     try { return localStorage.getItem('krishna_voice') || 'en-IN-NeerjaNeural' } catch { return 'en-IN-NeerjaNeural' }
@@ -342,6 +357,80 @@ export function Settings() {
                 </div>
               </div>
             ))}
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone */}
+        <Card className="border-agni/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2 text-agni">
+              <AlertTriangle className="h-4 w-4" /> Danger Zone
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium">Delete Account</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Permanently delete your account and all data. This cannot be undone.
+                </div>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="gap-1.5">
+                    <Trash2 className="h-3.5 w-3.5" /> Delete Account
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete your account along with all your data including:
+                      <ul className="mt-2 ml-4 list-disc text-sm">
+                        <li>All digital agents and AI systems</li>
+                        <li>Products, orders, and customers</li>
+                        <li>Issues, approvals, and events</li>
+                        <li>All settings and preferences</li>
+                      </ul>
+                      <p className="mt-3 font-medium text-agni">This action cannot be undone.</p>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        setDeleting(true)
+                        try {
+                          const res = await fetch('/api/account/delete', { method: 'POST' })
+                          if (res.ok) {
+                            toast.success('Account deleted', 'Goodbye, Founder.')
+                            signOut({ callbackUrl: '/login' })
+                          } else {
+                            const data = await res.json().catch(() => ({}))
+                            toast.error('Failed', data.error || 'Could not delete account')
+                          }
+                        } catch {
+                          toast.error('Failed', 'Could not delete account')
+                        } finally {
+                          setDeleting(false)
+                        }
+                      }}
+                      disabled={deleting}
+                      className="bg-agni hover:bg-agni/90"
+                    >
+                      {deleting ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        'Yes, delete my account'
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </CardContent>
         </Card>
 

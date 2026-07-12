@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { useWindowStore } from '@/lib/window-store'
 import { useThemeStore } from '@/lib/theme-store'
 import { useLockStore } from '@/lib/lock-store'
@@ -18,6 +19,7 @@ import { DesktopWidgets } from '@/components/ekvaar/desktop/desktop-widgets'
 
 export default function Desktop() {
   const { status } = useSession()
+  const router = useRouter()
   const { locked, lock } = useLockStore()
   const { windows, open } = useWindowStore()
   const { mode, accent } = useThemeStore()
@@ -36,18 +38,22 @@ export default function Desktop() {
   }, [mode, accent])
 
   useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.replace('/login')
+    }
+  }, [status, router])
+
+  useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
         e.preventDefault()
         const active = useWindowStore.getState().activeId
         if (active) useWindowStore.getState().close(active)
       }
-      // Ctrl/Cmd + Space → Spotlight
       if ((e.metaKey || e.ctrlKey) && e.key === ' ') {
         e.preventDefault()
         setSpotlightOpen((v) => !v)
       }
-      // Ctrl/Cmd + K → Krishna (Jarvis)
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setJarvisTrigger((v) => v + 1)
@@ -66,7 +72,12 @@ export default function Desktop() {
   }, [launchpadOpen, spotlightOpen])
 
   if (status === 'loading') return <BootScreen />
-  if (status === 'unauthenticated' || locked) {
+  
+  if (status === 'unauthenticated') {
+    return <BootScreen />
+  }
+
+  if (locked) {
     return (
       <div className="relative h-screen w-screen overflow-hidden">
         <DesktopWallpaper />
@@ -83,7 +94,7 @@ export default function Desktop() {
         onSpotlight={() => setSpotlightOpen(true)}
         onKrishna={() => setJarvisTrigger(t => t + 1)}
         onLock={() => lock()}
-        onSignOut={() => signOut({ redirect: false })}
+        onSignOut={() => signOut({ callbackUrl: '/login' })}
         onRestart={() => window.location.reload()}
       />
       <div className="absolute inset-0 pointer-events-none">
