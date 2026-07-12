@@ -8,13 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useMusicStore } from '@/lib/music-store'
 
 export function MusicPlayer() {
-  const { tracks, currentIdx, history, liked, playing, addTrack, removeTrack, playTrack, toggleLike } = useMusicStore()
+  const { tracks, currentIdx, history, liked, playing, addTrack, removeTrack, playTrack, toggleLike, togglePlay, next, prev } = useMusicStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [tab, setTab] = useState('playlist')
 
   const current = tracks[currentIdx]
-
-  const embedUrl = current ? `https://www.youtube.com/embed/${current.videoId}?autoplay=1&controls=1&modestbranding=1` : ''
 
   const handleAddManual = () => {
     const match = searchQuery.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/)
@@ -37,22 +35,21 @@ export function MusicPlayer() {
       <div className="px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="lg:col-span-1">
           <CardContent className="p-6">
-            <div className="aspect-video rounded-lg bg-black mb-4 overflow-hidden">
+            <div className="aspect-video rounded-lg bg-black mb-4 overflow-hidden flex items-center justify-center relative">
               {current ? (
-                <iframe
-                  key={current.id + playing}
-                  src={embedUrl}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
+                <>
+                  <img src={current.thumbnail} alt="" className="w-full h-full object-cover absolute inset-0" />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <button onClick={togglePlay} className="h-16 w-16 rounded-full bg-white/20 backdrop-blur flex items-center justify-center hover:bg-white/30 transition">
+                      {playing ? <span className="text-white text-2xl">❚❚</span> : <span className="text-white text-2xl ml-1">▶</span>}
+                    </button>
+                  </div>
+                </>
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Youtube className="h-16 w-16 text-muted-foreground" />
-                </div>
+                <Youtube className="h-16 w-16 text-muted-foreground" />
               )}
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div className="min-w-0 flex-1">
                 <div className="font-medium truncate text-lg">{current?.title || 'Select a track'}</div>
                 <div className="text-sm text-muted-foreground">{current?.artist}</div>
@@ -63,6 +60,11 @@ export function MusicPlayer() {
                   <button onClick={() => toggleLike(current.id)}><Heart className={`h-5 w-5 ${liked.has(current.id) ? 'fill-agni text-agni' : 'text-muted-foreground'}`} /></button>
                 </div>
               )}
+            </div>
+            <div className="flex items-center justify-center gap-4">
+              <button onClick={prev} className="p-2 hover:bg-muted rounded-full"><span className="text-xl">⏮</span></button>
+              <button onClick={togglePlay} className="h-12 w-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center">{playing ? <span className="text-xl">❚❚</span> : <span className="text-xl ml-1">▶</span>}</button>
+              <button onClick={next} className="p-2 hover:bg-muted rounded-full"><span className="text-xl">⏭</span></button>
             </div>
           </CardContent>
         </Card>
