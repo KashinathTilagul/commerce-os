@@ -21,7 +21,16 @@ const CATEGORY_META: Record<string, { label: string; color: string; icon: string
   productivity: { label: 'Productivity', color: '#D4859B', icon: '📝' },
   social: { label: 'Social', color: '#8B7355', icon: '📷' },
   devops: { label: 'DevOps', color: '#1F3A5F', icon: '☁️' },
-  crm: { label: 'CRM', color: '#FF9500', icon: '🎯' },
+  crm: { label: 'CRM & Sales', color: '#FF9500', icon: '🎯' },
+  marketing: { label: 'Marketing', color: '#34C759', icon: '📧' },
+  finance: { label: 'Finance', color: '#C8302A', icon: '📒' },
+  hr: { label: 'HR & People', color: '#1F3A5F', icon: '👥' },
+  design: { label: 'Design', color: '#AF52DE', icon: '🎨' },
+  ai: { label: 'AI & ML', color: '#5856D6', icon: '🤖' },
+  storage: { label: 'Storage & Files', color: '#FF9500', icon: '📁' },
+  database: { label: 'Databases', color: '#2F4F3A', icon: '🗄️' },
+  support: { label: 'Support & Feedback', color: '#D4859B', icon: '💡' },
+  docs: { label: 'Documentation', color: '#8B7355', icon: '📚' },
 }
 
 import { useRealtime } from '@/hooks/use-realtime'
@@ -112,8 +121,8 @@ export function Integrations() {
   const stats = data?.stats
   const grouped = data?.grouped || {}
 
-  // Flatten for search
   const allIntegrations = Object.values(grouped).flat()
+  const connectedIntegrations = allIntegrations.filter((i: any) => i.isConnected)
   const filtered = search
     ? allIntegrations.filter((i: any) =>
         i.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -175,21 +184,19 @@ export function Integrations() {
             </div>
           </div>
         ) : (
-          Object.entries(grouped).map(([category, items]) => {
-            const meta = CATEGORY_META[category] || { label: category, color: '#888', icon: '📦' }
-            return (
-              <div key={category}>
+          <>
+            {/* Connected integrations first */}
+            {connectedIntegrations.length > 0 && (
+              <div>
                 <div className="flex items-baseline justify-between mb-3">
                   <h2 className="font-display text-base tracking-tight flex items-center gap-2">
-                    <span className="text-lg">{meta.icon}</span>
-                    {meta.label}
+                    <CheckCircle2 className="h-4 w-4 text-arav" />
+                    Connected
                   </h2>
-                  <span className="text-[10px] text-muted-foreground">
-                    {(items as any[]).filter((i: any) => i.isConnected).length}/{(items as any[]).length} connected
-                  </span>
+                  <span className="text-[10px] text-muted-foreground">{connectedIntegrations.length} active</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {(items as any[]).map((i: any) => (
+                  {connectedIntegrations.map((i: any) => (
                     <IntegrationCard
                       key={i.id}
                       integration={i}
@@ -200,8 +207,39 @@ export function Integrations() {
                   ))}
                 </div>
               </div>
-            )
-          })
+            )}
+            
+            {/* All integrations by category */}
+            {Object.entries(grouped).map(([category, items]) => {
+              const meta = CATEGORY_META[category] || { label: category, color: '#888', icon: '📦' }
+              const categoryItems = (items as any[]).filter((i: any) => !i.isConnected)
+              if (categoryItems.length === 0) return null
+              return (
+                <div key={category}>
+                  <div className="flex items-baseline justify-between mb-3">
+                    <h2 className="font-display text-base tracking-tight flex items-center gap-2">
+                      <span className="text-lg">{meta.icon}</span>
+                      {meta.label}
+                    </h2>
+                    <span className="text-[10px] text-muted-foreground">
+                      {categoryItems.length} available
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {categoryItems.map((i: any) => (
+                      <IntegrationCard
+                        key={i.id}
+                        integration={i}
+                        onConnect={handleConnect}
+                        onSelect={setSelected}
+                        connecting={connecting}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </>
         )}
 
         {/* Integration detail dialog */}
@@ -319,30 +357,6 @@ export function Integrations() {
             )}
           </DialogContent>
         </Dialog>
-
-        {/* Alternatives note */}
-        <Card className="bg-muted/30">
-          <CardContent className="p-5">
-            <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Integration Alternatives</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div>
-                <div className="font-medium mb-1">n8n (Self-Hosted)</div>
-                <div className="text-muted-foreground">Open-source, 400+ nodes, full data control. Deploy locally with Docker. No vendor lock-in.</div>
-              </div>
-              <div>
-                <div className="font-medium mb-1">Pipedream</div>
-                <div className="text-muted-foreground">Developer-focused, 2,000+ apps, serverless functions. Code-level control over workflows.</div>
-              </div>
-              <div>
-                <div className="font-medium mb-1">Zapier</div>
-                <div className="text-muted-foreground">6,000+ apps, simplest setup. No agent SDK — manual triggers only. Best for non-technical users.</div>
-              </div>
-            </div>
-            <div className="mt-3 text-[10px] text-muted-foreground">
-              EKVAAR OS uses Composio as the primary integration layer (agent-native, 800+ tools). To switch to an alternative, replace the adapter in <code className="px-1 bg-muted rounded">src/lib/composio-service.ts</code>.
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   )
