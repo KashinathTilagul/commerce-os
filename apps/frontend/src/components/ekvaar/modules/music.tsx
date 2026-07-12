@@ -1,21 +1,17 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-// @ts-ignore
-import ReactPlayer from 'react-player'
-import { Play, Pause, SkipBack, SkipForward, Volume2, Heart, Youtube, Upload, Clock, X, ListMusic } from 'lucide-react'
+import { useState } from 'react'
+import { Play, Pause, SkipBack, SkipForward, Volume2, Heart, Youtube, Clock, X, ListMusic, ExternalLink } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent } from '@/components/ui/card'
-import { Slider } from '@/components/ui/slider'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-type Track = { id: string; title: string; artist: string; duration?: number; type: 'youtube' | 'upload'; url: string; color?: string }
+type Track = { id: string; title: string; artist: string; type: 'youtube' | 'spotify'; url: string }
 
 const DEFAULT_TRACKS: Track[] = [
-  { id: 'yt1', title: 'Permanence', artist: 'EKVAAR Sound', type: 'youtube', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', color: '#0A0A0A' },
-  { id: 'yt2', title: 'House of Originals', artist: 'EKVAAR Sound', type: 'youtube', url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw', color: '#1F3A5F' },
+  { id: '1', title: 'Lo-Fi Beats', artist: 'Lofi Girl', type: 'youtube', url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk' },
+  { id: '2', title: 'Jazz Vibes', artist: 'Cafe Music BGM', type: 'youtube', url: 'https://www.youtube.com/watch?v=Dx5qFachdM8' },
 ]
 
 export function MusicPlayer() {
@@ -23,57 +19,58 @@ export function MusicPlayer() {
   const [history, setHistory] = useState<Track[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [volume, setVolume] = useState([70])
   const [liked, setLiked] = useState<Set<string>>(new Set())
-  const [duration, setDuration] = useState(0)
   const [ytUrl, setYtUrl] = useState('')
+  const [spotifyUrl, setSpotifyUrl] = useState('')
   const [tab, setTab] = useState('playlist')
-  const playerRef = useRef<ReactPlayer>(null)
 
   const current = tracks[currentIdx]
-  const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
-  const playTrack = (idx: number) => { setCurrentIdx(idx); setPlaying(true) }
   const toggleLike = (id: string) => setLiked(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const playTrack = (idx: number) => { setCurrentIdx(idx); setPlaying(true); if (tracks[idx]) setHistory(p => [tracks[idx], ...p.filter(t => t.id !== tracks[idx].id).slice(0, 49)]) }
+  const removeTrack = (idx: number) => { setTracks(p => p.filter((_, i) => i !== idx)); if (idx === currentIdx) { setPlaying(false); setCurrentIdx(0) } }
 
   const addYtTrack = () => {
-    if (!ytUrl || !ReactPlayer.canPlay(ytUrl)) return
+    if (!ytUrl.includes('youtube.com/watch') && !ytUrl.includes('youtu.be')) return
     const id = `yt-${Date.now()}`
-    const track: Track = { id, title: 'YouTube Track', artist: 'Unknown', type: 'youtube', url: ytUrl }
-    setTracks(p => [...p, track])
-    setYtUrl('')
+    const track: Track = { id, title: 'YouTube Track', artist: 'YouTube', type: 'youtube', url: ytUrl }
+    setTracks(p => [...p, track]); setYtUrl('')
   }
 
-  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return
-    const url = URL.createObjectURL(file)
-    const track: Track = { id: `up-${Date.now()}`, title: file.name, artist: 'Local', type: 'upload', url }
-    setTracks(p => [...p, track])
+  const addSpotifyTrack = () => {
+    if (!spotifyUrl.includes('spotify.com')) return
+    const id = `sp-${Date.now()}`
+    const track: Track = { id, title: 'Spotify Track', artist: 'Spotify', type: 'spotify', url: spotifyUrl }
+    setTracks(p => [...p, track]); setSpotifyUrl('')
   }
 
-  const removeTrack = (idx: number) => { setTracks(p => p.filter((_, i) => i !== idx)); if (idx === currentIdx) setPlaying(false) }
-
-  const onEnd = () => {
-    if (current) setHistory(p => [current, ...p.slice(0, 49)])
-    setCurrentIdx(i => (i + 1) % tracks.length)
+  const getYtEmbedUrl = (url: string) => {
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)
+    return match ? `https://www.youtube.com/embed/${match[1]}?autoplay=1` : url
   }
 
-  useEffect(() => { if (playing && history[0]?.id !== current?.id && current) setHistory(p => [current, ...p.filter(t => t.id !== current.id).slice(0, 49)]) }, [playing, current])
+  const getSpotifyEmbedUrl = (url: string) => {
+    const match = url.match(/spotify\.com\/(track|album|playlist)\/([a-zA-Z0-9]+)/)
+    return match ? `https://open.spotify.com/embed/${match[1]}/${match[2]}` : url
+  }
 
   return (
     <div>
-      <PageHeader eyebrow="Music" title="EKVAAR Sound" description="Play YouTube, upload tracks, build your playlist." />
+      <PageHeader eyebrow="Music" title="EKVAAR Sound" description="Stream YouTube & Spotify directly." />
       <div className="px-4 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1">
           <CardContent className="p-6">
             <div className="aspect-video rounded-lg bg-muted/30 mb-4 overflow-hidden flex items-center justify-center">
-              {current?.type === 'youtube' && playing ? (
-                <ReactPlayer ref={playerRef} url={current.url} playing={playing} volume={volume[0] / 100} width="100%" height="100%" onDuration={setDuration} onProgress={p => setProgress(p.playedSeconds)} onEnded={onEnd} controls={false} />
+              {current ? (
+                current.type === 'youtube' ? (
+                  <iframe key={current.id + playing} src={playing ? getYtEmbedUrl(current.url) : ''} className="w-full h-full" allow="autoplay; encrypted-media" allowFullScreen />
+                ) : (
+                  <iframe key={current.id} src={getSpotifyEmbedUrl(current.url)} className="w-full h-full" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" />
+                )
               ) : (
                 <div className="text-center p-4">
                   <Youtube className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">{current?.title || 'Select a track'}</p>
+                  <p className="text-sm text-muted-foreground">Select a track</p>
                 </div>
               )}
             </div>
@@ -81,13 +78,14 @@ export function MusicPlayer() {
               <div className="min-w-0"><div className="font-medium truncate">{current?.title || 'No track'}</div><div className="text-xs text-muted-foreground">{current?.artist}</div></div>
               {current && <button onClick={() => toggleLike(current.id)}><Heart className={`h-5 w-5 ${liked.has(current.id) ? 'fill-agni text-agni' : 'text-muted-foreground'}`} /></button>}
             </div>
-            <div className="mb-4"><Slider value={[progress]} onValueChange={v => setProgress(v[0])} max={duration || 100} step={1} className="mb-2" /><div className="flex justify-between text-xs text-muted-foreground font-mono"><span>{fmtTime(progress)}</span><span>{fmtTime(duration)}</span></div></div>
             <div className="flex items-center justify-center gap-4 mb-4">
-              <Button variant="ghost" size="icon" onClick={() => setCurrentIdx(i => (i - 1 + tracks.length) % tracks.length)}><SkipBack className="h-5 w-5" fill="currentColor" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => playTrack((currentIdx - 1 + tracks.length) % tracks.length)}><SkipBack className="h-5 w-5" fill="currentColor" /></Button>
               <Button size="icon" className="h-12 w-12 rounded-full" onClick={() => setPlaying(p => !p)}>{playing ? <Pause className="h-5 w-5" fill="currentColor" /> : <Play className="h-5 w-5 ml-0.5" fill="currentColor" />}</Button>
-              <Button variant="ghost" size="icon" onClick={() => setCurrentIdx(i => (i + 1) % tracks.length)}><SkipForward className="h-5 w-5" fill="currentColor" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => playTrack((currentIdx + 1) % tracks.length)}><SkipForward className="h-5 w-5" fill="currentColor" /></Button>
             </div>
-            <div className="flex items-center gap-2"><Volume2 className="h-4 w-4 text-muted-foreground" /><Slider value={volume} onValueChange={setVolume} max={100} step={1} className="flex-1" /></div>
+            <div className="text-xs text-center text-muted-foreground">
+              {current?.type === 'spotify' && <a href={current.url} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center justify-center gap-1"><ExternalLink className="h-3 w-3" /> Open in Spotify</a>}
+            </div>
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
@@ -97,7 +95,7 @@ export function MusicPlayer() {
               <TabsContent value="playlist" className="m-0">
                 <div className="max-h-[400px] overflow-y-auto">{tracks.map((t, i) => (
                   <div key={t.id} className={`flex items-center gap-3 p-3 border-b border-border/60 hover:bg-muted/40 cursor-pointer ${i === currentIdx ? 'bg-muted/60' : ''}`} onClick={() => playTrack(i)}>
-                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-muted"><span className="text-xs font-mono">{i + 1}</span></div>
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-muted">{t.type === 'youtube' ? <Youtube className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}</div>
                     <div className="flex-1 min-w-0"><div className="text-sm truncate">{t.title}</div><div className="text-xs text-muted-foreground">{t.artist}</div></div>
                     <button onClick={e => { e.stopPropagation(); toggleLike(t.id) }}><Heart className={`h-4 w-4 ${liked.has(t.id) ? 'fill-agni text-agni' : 'text-muted-foreground/40'}`} /></button>
                     <button onClick={e => { e.stopPropagation(); removeTrack(i) }}><X className="h-4 w-4 text-muted-foreground hover:text-agni" /></button>
@@ -105,8 +103,8 @@ export function MusicPlayer() {
                 ))}</div>
               </TabsContent>
               <TabsContent value="add" className="m-0 p-6 space-y-4">
-                <div className="space-y-2"><label className="text-sm font-medium">YouTube URL</label><div className="flex gap-2"><Input placeholder="https://youtube.com/watch?v=..." value={ytUrl} onChange={e => setYtUrl(e.target.value)} className="flex-1" /><Button onClick={addYtTrack}>Add</Button></div></div>
-                <div className="space-y-2"><label className="text-sm font-medium">Upload Audio</label><div className="flex items-center gap-2"><Upload className="h-4 w-4 text-muted-foreground" /><input type="file" accept="audio/*" onChange={handleUpload} className="text-sm" /></div></div>
+                <div className="space-y-2"><label className="text-sm font-medium">YouTube URL</label><div className="flex gap-2"><input type="text" placeholder="https://youtube.com/watch?v=..." value={ytUrl} onChange={e => setYtUrl(e.target.value)} className="flex-1 px-3 py-2 text-sm rounded-md border border-input bg-transparent" /><button onClick={addYtTrack} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90">Add</button></div></div>
+                <div className="space-y-2"><label className="text-sm font-medium">Spotify URL</label><div className="flex gap-2"><input type="text" placeholder="https://open.spotify.com/track/..." value={spotifyUrl} onChange={e => setSpotifyUrl(e.target.value)} className="flex-1 px-3 py-2 text-sm rounded-md border border-input bg-transparent" /><button onClick={addSpotifyTrack} className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90">Add</button></div></div>
               </TabsContent>
               <TabsContent value="history" className="m-0">
                 <div className="max-h-[400px] overflow-y-auto">{history.length === 0 ? <div className="p-8 text-center text-muted-foreground text-sm">No history yet</div> : history.map(t => (
