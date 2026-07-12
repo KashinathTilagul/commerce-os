@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, Sparkles, Cpu, ShieldCheck, BatteryMedium, BatteryFull, BatteryCharging, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react'
+import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, Sparkles, Cpu, ShieldCheck, BatteryMedium, BatteryFull, BatteryCharging } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
 import { useMusicStore } from '@/lib/music-store'
 import { APP_MAP, APPS } from './app-registry'
@@ -148,21 +148,6 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
 
       {/* Right cluster */}
       <div className="ml-auto flex items-center gap-0.5">
-        {/* Music controls */}
-        {music.tracks.length > 0 && (
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/5">
-            <button onClick={music.prev} className="p-1 hover:bg-white/10 rounded"><SkipBack className="h-3 w-3" fill="currentColor" /></button>
-            <button onClick={music.togglePlay} className="p-1 hover:bg-white/10 rounded">{music.playing ? <Pause className="h-3 w-3" fill="currentColor" /> : <Play className="h-3 w-3" fill="currentColor" />}</button>
-            <button onClick={music.next} className="p-1 hover:bg-white/10 rounded"><SkipForward className="h-3 w-3" fill="currentColor" /></button>
-            <div className="h-3 w-px bg-white/20 mx-1" />
-            <button onClick={() => open('music' as any, 'Music')} className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/10 max-w-[100px]">
-              <Music className="h-3 w-3 shrink-0" />
-              <span className="text-[10px] truncate">{music.tracks[music.currentIdx]?.title || 'No track'}</span>
-            </button>
-          </div>
-        )}
-
-        <div className="h-3 w-px bg-white/20 mx-1" />
         {/* Brand health */}
         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors">
           <ShieldCheck className="h-3 w-3" style={{ color: '#7CB089' }} />

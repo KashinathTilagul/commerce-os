@@ -9,6 +9,8 @@ interface MusicState {
   liked: Set<string>
   playing: boolean
   volume: number
+  minimized: boolean
+  position: { x: number; y: number }
   addTrack: (track: Track) => void
   removeTrack: (idx: number) => void
   playTrack: (idx: number) => void
@@ -17,12 +19,13 @@ interface MusicState {
   togglePlay: () => void
   setVolume: (v: number) => void
   toggleLike: (id: string) => void
-  addToHistory: (track: Track) => void
+  toggleMinimize: () => void
+  move: (pos: { x: number; y: number }) => void
+  stop: () => void
 }
 
 const DEFAULT_TRACKS: Track[] = [
-  { id: '1', title: 'Lo-Fi Hip Hop Radio', artist: 'Lofi Girl', videoId: 'jfKfPfyJRdk', thumbnail: 'https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg' },
-  { id: '2', title: 'Jazz Relaxing Music', artist: 'Cafe Music BGM', videoId: 'Dx5qFachdM8', thumbnail: 'https://img.youtube.com/vi/Dx5qFachdM8/hqdefault.jpg' },
+  { id: 'jfKfPfyJRdk', title: 'Lo-Fi Hip Hop Radio', artist: 'Lofi Girl', videoId: 'jfKfPfyJRdk', thumbnail: 'https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg' },
 ]
 
 export const useMusicStore = create<MusicState>((set) => ({
@@ -32,13 +35,15 @@ export const useMusicStore = create<MusicState>((set) => ({
   liked: new Set(),
   playing: false,
   volume: 80,
+  minimized: true,
+  position: { x: 20, y: 80 },
   addTrack: (track: Track) => set((s) => ({ tracks: [...s.tracks, track] })),
   removeTrack: (idx: number) => set((s) => ({ tracks: s.tracks.filter((_, i) => i !== idx), currentIdx: idx === s.currentIdx ? 0 : s.currentIdx })),
   playTrack: (idx: number) => set((s) => {
     const track = s.tracks[idx]
     if (!track) return {}
     const history = [track, ...s.history.filter((t) => t.id !== track.id)].slice(0, 50)
-    return { currentIdx: idx, playing: true, history }
+    return { currentIdx: idx, playing: true, history, minimized: false }
   }),
   next: () => set((s) => ({ currentIdx: (s.currentIdx + 1) % s.tracks.length })),
   prev: () => set((s) => ({ currentIdx: (s.currentIdx - 1 + s.tracks.length) % s.tracks.length })),
@@ -49,5 +54,7 @@ export const useMusicStore = create<MusicState>((set) => ({
     if (n.has(id)) { n.delete(id) } else { n.add(id) }
     return { liked: n }
   }),
-  addToHistory: (track: Track) => set((s) => ({ history: [track, ...s.history.filter((t) => t.id !== track.id)].slice(0, 50) })),
+  toggleMinimize: () => set((s) => ({ minimized: !s.minimized })),
+  move: (pos) => set({ position: pos }),
+  stop: () => set({ playing: false, minimized: true }),
 }))
