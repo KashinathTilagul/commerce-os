@@ -34,12 +34,13 @@ export function MusicPlayer() {
     const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
     const existing = tracks.find(t => t.videoId === videoId)
     if (existing) {
-      playTrack(tracks.indexOf(existing))
+      setCurrentIdx(tracks.indexOf(existing))
       return
     }
     const track: Track = { id: videoId, title, artist, videoId, thumbnail }
-    setTracks(p => [...p, track])
-    playTrack(tracks.length)
+    const newTracks = [...tracks, track]
+    setTracks(newTracks)
+    setCurrentIdx(newTracks.length - 1)
   }
   
   const removeTrack = (idx: number) => {
