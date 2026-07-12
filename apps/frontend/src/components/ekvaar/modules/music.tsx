@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+// @ts-ignore
 import ReactPlayer from 'react-player/youtube'
 import { Play, Pause, SkipBack, SkipForward, Volume2, Heart, Youtube, Upload, Clock, X, ListMusic } from 'lucide-react'
 import { PageHeader } from '../shared'
