@@ -167,11 +167,20 @@ from core.llm.router import router as llm_router
 import select, signal, struct, fcntl, termios, json
 
 async def verify_ws_token(token: str) -> bool:
-    """Verify WebSocket auth token. In production, use JWT or session validation."""
-    jwt_secret = os.getenv("JWT_SECRET", "")
+    """Verify WebSocket auth token. Requires JWT_SECRET to be set."""
+    jwt_secret = os.getenv("JWT_SECRET", os.getenv("NEXTAUTH_SECRET", ""))
     if not jwt_secret:
+        print("[SECURITY WARNING] JWT_SECRET not set - rejecting WebSocket connection")
+        return False
+    if not token:
+        return False
+    try:
+        import jwt
+        jwt.decode(token, jwt_secret, algorithms=["HS256"])
         return True
-    return token == jwt_secret
+    except Exception as e:
+        print(f"[SECURITY] WebSocket auth failed: {e}")
+        return False
 
 @app.websocket("/ws/opencode")
 async def ws_opencode(websocket: WebSocket, token: str = Query(None)):
