@@ -20,8 +20,10 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [isDark, setIsDark] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     const checkTheme = () => setIsDark(document.documentElement.classList.contains('dark'))
     checkTheme()
     const observer = new MutationObserver(checkTheme)
@@ -82,15 +84,19 @@ export default function SignupPage() {
       <Card className="w-full max-w-md border-border/50 shadow-2xl">
         <CardHeader className="space-y-3 text-center pb-2">
           <div className="mx-auto w-32 h-16 relative flex items-center justify-center mb-2">
-            <Image
-              src={logoSrc}
-              alt="EKVAAR"
-              width={128}
-              height={64}
-              className="object-contain"
-              priority
-              unoptimized
-            />
+            {mounted ? (
+              <Image
+                src={logoSrc}
+                alt="EKVAAR"
+                width={128}
+                height={64}
+                className="object-contain"
+                priority
+                unoptimized
+              />
+            ) : (
+              <div className="w-32 h-16" />
+            )}
           </div>
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>

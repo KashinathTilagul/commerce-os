@@ -91,6 +91,7 @@ export default function Desktop() {
     <div className="relative h-screen w-screen overflow-hidden">
       <DesktopWallpaper />
       <DesktopWidgets />
+      <BootScreen />
       <MenuBar
         onSpotlight={() => setSpotlightOpen(true)}
         onKrishna={() => setJarvisTrigger(t => t + 1)}
