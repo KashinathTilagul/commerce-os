@@ -337,8 +337,11 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
   }
 
   try {
-    const entity = await composio.getEntity(entityId || 'default')
-    const connection = await entity.initiateConnection(toolkitSlug)
+    const connection = await composio.connectedAccounts.link(
+      entityId || 'default',
+      toolkitSlug,
+      { redirectUri: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/integrations/callback?toolkit=${toolkitSlug}` }
+    )
     return { redirectUrl: connection.redirectUrl }
   } catch (error: any) {
     return { redirectUrl: null, error: error.message }

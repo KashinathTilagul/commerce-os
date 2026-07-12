@@ -42,6 +42,7 @@ jobs:
             SPOTIFY_CLIENT_ID=${{ secrets.SPOTIFY_CLIENT_ID }}
             SPOTIFY_CLIENT_SECRET=${{ secrets.SPOTIFY_CLIENT_SECRET }}
             SPOTIFY_REDIRECT_URI=${{ secrets.SPOTIFY_REDIRECT_URI }}
+            COMPOSIO_API_KEY=${{ secrets.COMPOSIO_API_KEY }}
             ENVEOF
             
             echo "[i] Disk before cleanup:"; df -h / || true
