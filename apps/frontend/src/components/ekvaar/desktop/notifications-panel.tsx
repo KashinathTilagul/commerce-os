@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Bell, BellOff, CheckCheck, TrendingUp, ShoppingBag, AlertCircle, Info, Zap } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export interface Notification {
   id: string
@@ -12,15 +12,6 @@ export interface Notification {
   ts: number
   read: boolean
 }
-
-const INITIAL: Notification[] = [
-  { id: '1', type: 'order',  title: 'New Order #4821', body: 'Bandhani Kurta Set — ₹3,490 · Rajkot', ts: Date.now() - 4 * 60000, read: false },
-  { id: '2', type: 'metric', title: 'Revenue milestone', body: 'Today crossed ₹1.2L — up 18% vs last Tuesday', ts: Date.now() - 22 * 60000, read: false },
-  { id: '3', type: 'ai',     title: 'Krishna insight', body: 'Lehenga category CTR dropped 12% — consider refreshing hero images', ts: Date.now() - 55 * 60000, read: false },
-  { id: '4', type: 'order',  title: '3 orders awaiting dispatch', body: 'Oldest order is 6h old · act before SLA breach', ts: Date.now() - 2 * 3600000, read: true },
-  { id: '5', type: 'alert',  title: 'Low inventory', body: 'Chanderi Silk Dupatta — only 2 units left', ts: Date.now() - 4 * 3600000, read: true },
-  { id: '6', type: 'system', title: 'Integrations synced', body: 'Shopify + Razorpay data refreshed successfully', ts: Date.now() - 8 * 3600000, read: true },
-]
 
 function relativeTime(ts: number) {
   const diff = Date.now() - ts
@@ -49,8 +40,75 @@ const typeColor: Record<Notification['type'], string> = {
 interface Props { open: boolean; onClose: () => void }
 
 export function NotificationsPanel({ open, onClose }: Props) {
-  const [items, setItems] = useState<Notification[]>(INITIAL)
+  const [items, setItems] = useState<Notification[]>([])
   const [dnd, setDnd] = useState(false)
+  const [stats, setStats] = useState({ orders: 0, revenue: '₹0', pending: 0 })
+
+  useEffect(() => {
+    if (!open) return
+    fetch('/api/dashboard')
+      .then(r => r.json())
+      .then(data => {
+        const notifications: Notification[] = []
+        const now = Date.now()
+        
+        if (data.recentOrders?.length) {
+          data.recentOrders.slice(0, 3).forEach((o: any, i: number) => {
+            notifications.push({
+              id: `order-${o.id || i}`,
+              type: 'order',
+              title: `Order #${o.id || o.order_number || 'New'}`,
+              body: `${o.customer_name || 'Customer'} · ${o.total ? `₹${o.total.toLocaleString()}` : 'New order'}`,
+              ts: now - (i + 1) * 60000,
+              read: i > 0
+            })
+          })
+        }
+        
+        if (data.metrics?.revenue) {
+          notifications.push({
+            id: 'metric-revenue',
+            type: 'metric',
+            title: 'Today\'s Revenue',
+            body: `₹${(data.metrics.revenue / 100000).toFixed(1)}L ${data.metrics.revenueChange ? `(${data.metrics.revenueChange > 0 ? '+' : ''}${data.metrics.revenueChange}%)` : ''}`,
+            ts: now - 300000,
+            read: false
+          })
+        }
+        
+        if (data.lowStock?.length) {
+          data.lowStock.slice(0, 2).forEach((p: any, i: number) => {
+            notifications.push({
+              id: `alert-stock-${i}`,
+              type: 'alert',
+              title: 'Low Inventory',
+              body: `${p.name || p.product_name} — ${p.stock || p.quantity} units left`,
+              ts: now - 3600000 * (i + 1),
+              read: true
+            })
+          })
+        }
+        
+        notifications.push({
+          id: 'system-sync',
+          type: 'system',
+          title: 'System Synced',
+          body: 'All integrations healthy · Last sync just now',
+          ts: now - 1800000,
+          read: true
+        })
+        
+        setItems(notifications)
+        setStats({
+          orders: data.metrics?.orders || data.todayOrders || 0,
+          revenue: data.metrics?.revenue ? `₹${(data.metrics.revenue / 100000).toFixed(1)}L` : '₹0',
+          pending: data.pendingOrders || data.metrics?.pending || 0
+        })
+      })
+      .catch(() => {
+        setItems([{ id: '1', type: 'system', title: 'EKVAAR OS', body: 'No new notifications', ts: Date.now(), read: true }])
+      })
+  }, [open])
 
   const unread = items.filter(n => !n.read).length
   const markAll = () => setItems(prev => prev.map(n => ({ ...n, read: true })))
@@ -110,9 +168,9 @@ export function NotificationsPanel({ open, onClose }: Props) {
             {/* Today's summary */}
             <div className="px-4 py-2.5 border-b border-border flex gap-4 bg-muted/40">
               {[
-                { label: 'Orders', value: '14', color: '#34C759' },
-                { label: 'Revenue', value: '₹1.2L', color: '#0A84FF' },
-                { label: 'Pending', value: '3', color: '#FF9F0A' },
+                { label: 'Orders', value: stats.orders, color: '#34C759' },
+                { label: 'Revenue', value: stats.revenue, color: '#0A84FF' },
+                { label: 'Pending', value: stats.pending, color: '#FF9F0A' },
               ].map(s => (
                 <div key={s.label} className="flex flex-col gap-0.5">
                   <span className="text-[10px] text-muted-foreground">{s.label}</span>

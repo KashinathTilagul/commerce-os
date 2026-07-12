@@ -1,59 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, Heart, Youtube, Clock, X, ListMusic, Play, ExternalLink } from 'lucide-react'
+import { Search, Heart, Youtube, Clock, X, ListMusic, ExternalLink } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-
-type Track = { id: string; title: string; artist: string; videoId: string; thumbnail?: string }
-
-const DEFAULT_TRACKS: Track[] = [
-  { id: '1', title: 'Lo-Fi Hip Hop Radio', artist: 'Lofi Girl', videoId: 'jfKfPfyJRdk', thumbnail: 'https://img.youtube.com/vi/jfKfPfyJRdk/hqdefault.jpg' },
-  { id: '2', title: 'Jazz Relaxing Music', artist: 'Cafe Music BGM', videoId: 'Dx5qFachdM8', thumbnail: 'https://img.youtube.com/vi/Dx5qFachdM8/hqdefault.jpg' },
-]
+import { useMusicStore } from '@/lib/music-store'
 
 export function MusicPlayer() {
-  const [tracks, setTracks] = useState<Track[]>(DEFAULT_TRACKS)
-  const [history, setHistory] = useState<Track[]>([])
-  const [currentIdx, setCurrentIdx] = useState(0)
-  const [liked, setLiked] = useState<Set<string>>(new Set())
+  const { tracks, currentIdx, history, liked, playing, addTrack, removeTrack, playTrack, toggleLike } = useMusicStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [tab, setTab] = useState('playlist')
 
   const current = tracks[currentIdx]
-
-  const toggleLike = (id: string) => setLiked(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
-  
-  const playTrack = (idx: number) => {
-    setCurrentIdx(idx)
-    if (tracks[idx]) setHistory(p => [tracks[idx], ...p.filter(t => t.id !== tracks[idx].id).slice(0, 49)])
-  }
-  
-  const addAndPlay = (videoId: string, title: string, artist: string) => {
-    const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-    const existing = tracks.find(t => t.videoId === videoId)
-    if (existing) {
-      setCurrentIdx(tracks.indexOf(existing))
-      return
-    }
-    const track: Track = { id: videoId, title, artist, videoId, thumbnail }
-    const newTracks = [...tracks, track]
-    setTracks(newTracks)
-    setCurrentIdx(newTracks.length - 1)
-  }
-  
-  const removeTrack = (idx: number) => {
-    setTracks(p => p.filter((_, i) => i !== idx))
-    if (idx === currentIdx) setCurrentIdx(0)
-  }
 
   const embedUrl = current ? `https://www.youtube.com/embed/${current.videoId}?autoplay=1&controls=1&modestbranding=1` : ''
 
   const handleAddManual = () => {
     const match = searchQuery.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/)
     if (match) {
-      addAndPlay(match[1], 'YouTube Track', 'YouTube')
+      const videoId = match[1]
+      const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      addTrack({ id: videoId, title: 'YouTube Track', artist: 'YouTube', videoId, thumbnail })
+      playTrack(tracks.length)
       setSearchQuery('')
     }
   }
@@ -71,7 +40,7 @@ export function MusicPlayer() {
             <div className="aspect-video rounded-lg bg-black mb-4 overflow-hidden">
               {current ? (
                 <iframe
-                  key={current.id}
+                  key={current.id + playing}
                   src={embedUrl}
                   className="w-full h-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

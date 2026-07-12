@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, Sparkles, Cpu, ShieldCheck, BatteryMedium, BatteryFull, BatteryCharging } from 'lucide-react'
+import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, Sparkles, Cpu, ShieldCheck, BatteryMedium, BatteryFull, BatteryCharging, Play, Pause, SkipBack, SkipForward, Music } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
+import { useMusicStore } from '@/lib/music-store'
 import { APP_MAP, APPS } from './app-registry'
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationsPanel } from './notifications-panel'
@@ -17,12 +18,11 @@ interface MenuBarProps {
 
 export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }: MenuBarProps) {
   const { activeId, windows, open, close, minimize } = useWindowStore()
+  const music = useMusicStore()
   const [now, setNow] = useState<Date | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [online, setOnline] = useState(true)
   const [battery, setBattery] = useState<{ level: number; charging: boolean } | null>(null)
-  const [volume, setVolume] = useState(80)
-  const [muted, setMuted] = useState(false)
   const [showVolume, setShowVolume] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
 
@@ -148,6 +148,21 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
 
       {/* Right cluster */}
       <div className="ml-auto flex items-center gap-0.5">
+        {/* Music controls */}
+        {music.tracks.length > 0 && (
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/5">
+            <button onClick={music.prev} className="p-1 hover:bg-white/10 rounded"><SkipBack className="h-3 w-3" fill="currentColor" /></button>
+            <button onClick={music.togglePlay} className="p-1 hover:bg-white/10 rounded">{music.playing ? <Pause className="h-3 w-3" fill="currentColor" /> : <Play className="h-3 w-3" fill="currentColor" />}</button>
+            <button onClick={music.next} className="p-1 hover:bg-white/10 rounded"><SkipForward className="h-3 w-3" fill="currentColor" /></button>
+            <div className="h-3 w-px bg-white/20 mx-1" />
+            <button onClick={() => open('music' as any, 'Music')} className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/10 max-w-[100px]">
+              <Music className="h-3 w-3 shrink-0" />
+              <span className="text-[10px] truncate">{music.tracks[music.currentIdx]?.title || 'No track'}</span>
+            </button>
+          </div>
+        )}
+
+        <div className="h-3 w-px bg-white/20 mx-1" />
         {/* Brand health */}
         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors">
           <ShieldCheck className="h-3 w-3" style={{ color: '#7CB089' }} />
@@ -172,11 +187,12 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
         {/* Volume */}
         <div className="relative">
           <button
-            title={muted ? 'Unmute' : 'Mute'}
-            onClick={() => { setMuted(m => !m); setShowVolume(v => !v) }}
+            title={music.volume === 0 ? 'Unmute' : 'Mute'}
+            onClick={() => music.setVolume(music.volume === 0 ? 80 : 0)}
+            onMouseEnter={() => setShowVolume(true)}
             className="p-1 rounded hover:bg-white/15 transition-colors"
           >
-            {muted ? <VolumeX className="h-3 w-3 text-white/50" /> : <Volume2 className="h-3 w-3" />}
+            {music.volume === 0 ? <VolumeX className="h-3 w-3 text-white/50" /> : <Volume2 className="h-3 w-3" />}
           </button>
           <AnimatePresence>
             {showVolume && (
@@ -184,14 +200,15 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
                 initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
                 className="absolute top-full right-0 mt-1 px-3 py-2 rounded-lg border border-white/10 shadow-xl z-[9100]"
                 style={{ background: 'rgba(28,28,28,0.92)', backdropFilter: 'blur(20px)', width: 120 }}
+                onMouseLeave={() => setShowVolume(false)}
               >
                 <div className="text-[10px] text-white/40 mb-1.5 text-center">Volume</div>
                 <input
-                  type="range" min={0} max={100} value={volume}
-                  onChange={e => { setVolume(+e.target.value); setMuted(false) }}
+                  type="range" min={0} max={100} value={music.volume}
+                  onChange={e => music.setVolume(+e.target.value)}
                   className="w-full accent-purple-400 h-1"
                 />
-                <div className="text-[10px] text-white/40 text-center mt-1">{muted ? 'Muted' : `${volume}%`}</div>
+                <div className="text-[10px] text-white/40 text-center mt-1">{music.volume === 0 ? 'Muted' : `${music.volume}%`}</div>
               </motion.div>
             )}
           </AnimatePresence>
