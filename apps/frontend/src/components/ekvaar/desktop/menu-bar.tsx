@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, Sparkles, Cpu, ShieldCheck, BatteryMedium, BatteryFull, BatteryCharging } from 'lucide-react'
+import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, Sparkles, BatteryMedium, BatteryFull, BatteryCharging } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
 import { useMusicStore } from '@/lib/music-store'
 import { APP_MAP, APPS } from './app-registry'
@@ -148,18 +148,6 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
 
       {/* Right cluster */}
       <div className="ml-auto flex items-center gap-0.5">
-        {/* Brand health */}
-        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors">
-          <ShieldCheck className="h-3 w-3" style={{ color: '#7CB089' }} />
-          <span className="text-[10px]">96%</span>
-        </div>
-        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors">
-          <Cpu className="h-3 w-3" style={{ color: '#D4859B' }} />
-          <span className="text-[10px]">94%</span>
-        </div>
-
-        <div className="h-3 w-px bg-white/20 mx-1" />
-
         {/* Krishna trigger */}
         <button
           title="Krishna AI"

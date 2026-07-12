@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Heart } from 'lucide-react'
 import { useMusicStore } from '@/lib/music-store'
 import { PageHeader } from '../shared'
 import { Card, CardContent } from '@/components/ui/card'
