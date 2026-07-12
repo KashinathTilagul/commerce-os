@@ -28,8 +28,9 @@ export function CommunityModule() {
     queryKey: ['customers'],
     queryFn: async () => {
       const r = await fetch('/api/customers')
-      if (!r.ok) throw new Error('Failed to fetch customers')
-      return r.json()
+      if (!r.ok) return []
+      const data = await r.json()
+      return Array.isArray(data) ? data : []
     },
   })
 
@@ -59,6 +60,7 @@ export function CommunityModule() {
 
   const tierCounts = useMemo(() => {
     const m: Record<string, number> = {}
+    if (!Array.isArray(customers)) return m
     for (const c of customers) m[c.tier] = (m[c.tier] || 0) + 1
     return m
   }, [customers])
