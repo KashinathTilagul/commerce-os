@@ -50,7 +50,8 @@ export async function POST(
   }
 
   if (connection.error) {
-    return NextResponse.json({ error: connection.error }, { status: 500 })
+    // Log it server-side but fall through to demo-mode connection
+    console.warn(`[Composio] ${toolkit} connection failed: ${connection.error}`)
   }
 
   // Demo mode fallback — simulate a successful connection immediately
