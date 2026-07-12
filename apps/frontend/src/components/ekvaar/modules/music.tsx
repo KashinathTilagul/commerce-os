@@ -81,7 +81,7 @@ export function MusicPlayer() {
               <div className="min-w-0"><div className="font-medium truncate">{current?.title || 'No track'}</div><div className="text-xs text-muted-foreground">{current?.artist}</div></div>
               {current && <button onClick={() => toggleLike(current.id)}><Heart className={`h-5 w-5 ${liked.has(current.id) ? 'fill-agni text-agni' : 'text-muted-foreground'}`} /></button>}
             </div>
-            <div className="mb-4"><Slider value={[progress]} onValueChange={v => { setProgress(v[0]); playerRef.current?.seekTo(v[0], 'seconds') }} max={duration || 100} step={1} className="mb-2" /><div className="flex justify-between text-xs text-muted-foreground font-mono"><span>{fmtTime(progress)}</span><span>{fmtTime(duration)}</span></div></div>
+            <div className="mb-4"><Slider value={[progress]} onValueChange={v => setProgress(v[0])} max={duration || 100} step={1} className="mb-2" /><div className="flex justify-between text-xs text-muted-foreground font-mono"><span>{fmtTime(progress)}</span><span>{fmtTime(duration)}</span></div></div>
             <div className="flex items-center justify-center gap-4 mb-4">
               <Button variant="ghost" size="icon" onClick={() => setCurrentIdx(i => (i - 1 + tracks.length) % tracks.length)}><SkipBack className="h-5 w-5" fill="currentColor" /></Button>
               <Button size="icon" className="h-12 w-12 rounded-full" onClick={() => setPlaying(p => !p)}>{playing ? <Pause className="h-5 w-5" fill="currentColor" /> : <Play className="h-5 w-5 ml-0.5" fill="currentColor" />}</Button>
