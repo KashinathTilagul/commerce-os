@@ -33,16 +33,8 @@ export function TerminalModule() {
   const [filter, setFilter] = useState<string>('ALL')
   const logRef = useRef<HTMLDivElement>(null)
 
-  // Periodically generate new heartbeat events to simulate live agent activity
-  useEffect(() => {
-    const t = setInterval(async () => {
-      try {
-        await fetch('/api/events/generate', { method: 'POST' })
-        queryClient.invalidateQueries({ queryKey: ['events'] })
-      } catch {}
-    }, 12000) // every 12 seconds
-    return () => clearInterval(t)
-  }, [queryClient])
+  // Real-time events are now driven solely by actual system activity via the Event Bus.
+  // Removed simulated heartbeat generation.
 
   const wakeAgent = async () => {
     try {

@@ -15,11 +15,14 @@ async function getComposio() {
     const { Composio } = await import('@composio/core')
     const apiKey = process.env.COMPOSIO_API_KEY
     if (!apiKey || apiKey.includes('replace_with_real')) {
+      console.warn('COMPOSIO: No valid API key found. API Key is:', apiKey)
       return null // No real key — fall back to demo mode
     }
     composioClient = new Composio({ apiKey })
+    console.log('COMPOSIO: Successfully initialized Composio client')
     return composioClient
-  } catch {
+  } catch (error) {
+    console.error('COMPOSIO: Error initializing Composio client:', error)
     return null
   }
 }
@@ -402,13 +405,7 @@ export async function executeTool(params: {
         duration: Date.now() - startTime,
       }
     } else {
-      // DEMO MODE — simulate a successful execution
-      await new Promise((r) => setTimeout(r, 300 + Math.random() * 700))
-      return {
-        success: true,
-        output: simulateToolOutput(params.toolSlug, params.input),
-        duration: Date.now() - startTime,
-      }
+      throw new Error('Composio client is not initialized. Check API key.')
     }
   } catch (e: any) {
     return {

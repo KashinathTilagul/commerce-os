@@ -39,45 +39,25 @@ export async function POST(
 
   // Connect — attempt real Composio connection
   const connection = await initiateConnection(toolkit, auth.user.id)
-  
+
   if (connection.redirectUrl) {
     // We have a real Composio API key and an OAuth flow is needed
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       action: 'redirect',
-      redirectUrl: connection.redirectUrl 
+      redirectUrl: connection.redirectUrl
     })
   }
 
   if (connection.error) {
-    // Log it server-side but fall through to demo-mode connection
-    console.warn(`[Composio] ${toolkit} connection failed: ${connection.error}`)
+    return NextResponse.json({ error: connection.error }, { status: 500 })
   }
 
-  // Demo mode fallback — simulate a successful connection immediately
-  const updated = await db.integration.update({
-    where: { id: integration.id },
-    data: {
-      isConnected: true,
-      connectedAt: new Date(),
-      connectedAccountId: `ca_${toolkit}_${Date.now()}`,
-    },
-  })
-
-  // Log the connection event
-  await db.event.create({
-    data: {
-      userId: auth.user.id,
-      type: 'INTEGRATION_CONNECTED',
-      actorName: 'Founder',
-      summary: `Connected ${integration.name} to EKVAAR OS (Demo Mode)`,
-      payload: JSON.stringify({ toolkit, connectedAccountId: updated.connectedAccountId }),
-      severity: 'INFO',
-    },
-  })
-
-  eventBus.emit('integration_updated', { toolkit, action: 'connected' })
-  return NextResponse.json({ success: true, integration: updated, action: 'connected' })
+  // If we reach here, we neither redirected nor encountered a Composio error,
+  // which means Composio is likely unconfigured or returned an empty response.
+  return NextResponse.json({ 
+    error: 'Composio connection could not be initiated. Please verify your API key.' 
+  }, { status: 500 })
 }
 
 // PATCH /api/integrations/[toolkit]/connect — update agent permissions
