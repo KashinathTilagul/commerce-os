@@ -329,25 +329,30 @@ export function getToolsForToolkit(toolkitSlug: string) {
 }
 
 /**
- * Initiate a connection for a specific toolkit (returns an OAuth redirect URL or null for demo mode)
+ * Initiate a connection for a specific toolkit (returns an OAuth redirect URL or error)
  */
 export async function initiateConnection(toolkitSlug: string, entityId?: string): Promise<{ redirectUrl: string | null; error?: string }> {
   const composio = await getComposio()
   
   if (!composio) {
-    // Demo mode — no real connection needed
-    return { redirectUrl: null }
+    const key = process.env.COMPOSIO_API_KEY
+    const reason = !key ? 'COMPOSIO_API_KEY is not set in environment' : 'Composio SDK failed to initialize (check server logs)'
+    console.error(`[initiateConnection] Composio client is null. Key present: ${!!key}, Key prefix: ${key?.slice(0, 6) || 'N/A'}`)
+    return { redirectUrl: null, error: reason }
   }
 
   try {
+    const redirectUri = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/integrations/callback?toolkit=${toolkitSlug}`
+    console.log(`[initiateConnection] Calling composio.connectedAccounts.link for ${toolkitSlug}, entity=${entityId || 'default'}, redirect=${redirectUri}`)
     const connection = await composio.connectedAccounts.link(
       entityId || 'default',
       toolkitSlug,
-      { redirectUri: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/integrations/callback?toolkit=${toolkitSlug}` }
+      { redirectUri }
     )
     return { redirectUrl: connection.redirectUrl }
   } catch (error: any) {
-    return { redirectUrl: null, error: error.message }
+    console.error(`[initiateConnection] Composio link error for ${toolkitSlug}:`, error.message)
+    return { redirectUrl: null, error: `Composio: ${error.message}` }
   }
 }
 

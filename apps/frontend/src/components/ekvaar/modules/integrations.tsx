@@ -64,8 +64,8 @@ export function Integrations() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       })
-      if (!r.ok) throw new Error('Failed')
       const result = await r.json()
+      if (!r.ok) throw new Error(result.error || 'Failed')
 
       if (result.action === 'redirect') {
         window.location.href = result.redirectUrl
@@ -78,8 +78,8 @@ export function Integrations() {
       )
       queryClient.invalidateQueries({ queryKey: ['integrations'] })
       queryClient.invalidateQueries({ queryKey: ['events'] })
-    } catch {
-      toast.error('Failed', `Could not ${action} ${name}`)
+    } catch (e: any) {
+      toast.error('Failed', e.message || `Could not ${action} ${name}`)
     } finally {
       setConnecting(null)
     }

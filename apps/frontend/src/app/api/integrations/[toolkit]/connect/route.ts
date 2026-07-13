@@ -53,10 +53,9 @@ export async function POST(
     return NextResponse.json({ error: connection.error }, { status: 500 })
   }
 
-  // If we reach here, we neither redirected nor encountered a Composio error,
-  // which means Composio is likely unconfigured or returned an empty response.
+  // No redirect URL and no error — shouldn't happen but handle it
   return NextResponse.json({ 
-    error: 'Composio connection could not be initiated. Please verify your API key.' 
+    error: 'Composio returned no redirect URL. The integration may not support OAuth or is not configured on the Composio dashboard.' 
   }, { status: 500 })
 }
 
