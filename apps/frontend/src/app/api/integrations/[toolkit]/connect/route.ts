@@ -56,22 +56,23 @@ export async function POST(
   const connection = await initiateConnection(toolkit, auth.user.id)
 
   if (connection.redirectUrl) {
-    // We have a real Composio API key and an OAuth flow is needed
-    return NextResponse.json({
-      success: true,
-      action: 'redirect',
-      redirectUrl: connection.redirectUrl
+    return NextResponse.json({ success: true, action: 'redirect', redirectUrl: connection.redirectUrl })
+  }
+
+  if (connection.connectedAccountId) {
+    // Already connected in Composio — sync state to local DB
+    const updated = await db.integration.update({
+      where: { id: integration.id },
+      data: { isConnected: true, connectedAt: new Date(), connectedAccountId: connection.connectedAccountId },
     })
+    return NextResponse.json({ success: true, action: 'connected', integration: updated })
   }
 
   if (connection.error) {
     return NextResponse.json({ error: connection.error }, { status: 500 })
   }
 
-  // No redirect URL and no error — shouldn't happen but handle it
-  return NextResponse.json({ 
-    error: 'Composio returned no redirect URL. The integration may not support OAuth or is not configured on the Composio dashboard.' 
-  }, { status: 500 })
+  return NextResponse.json({ error: 'Composio returned no redirect URL. The integration may not support OAuth or is not configured on the Composio dashboard.' }, { status: 500 })
 }
 
 // PATCH /api/integrations/[toolkit]/connect — update agent permissions

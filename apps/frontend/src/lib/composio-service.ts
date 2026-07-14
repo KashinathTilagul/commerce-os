@@ -333,7 +333,7 @@ export function getToolsForToolkit(toolkitSlug: string) {
  * The Composio SDK `link()` method requires an auth config ID (ac_xxx), not a toolkit slug.
  * We first look up the default auth config for the toolkit, then create the link.
  */
-export async function initiateConnection(toolkitSlug: string, entityId?: string): Promise<{ redirectUrl: string | null; error?: string }> {
+export async function initiateConnection(toolkitSlug: string, entityId?: string): Promise<{ redirectUrl: string | null; connectedAccountId?: string; error?: string }> {
   const composio = await getComposio()
   
   if (!composio) {
@@ -344,7 +344,27 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
   }
 
   try {
-    // Step 1: Resolve the auth config ID for this toolkit
+    const entity = entityId || 'default'
+
+    // Step 1: Check if already connected — skip OAuth if so
+    try {
+      const existing = await composio.connectedAccounts.list({ entityId: entity })
+      const active = existing?.items?.find((acc: any) =>
+        (acc.appName || acc.toolkitSlug || acc.toolkit || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '') ===
+        toolkitSlug.toLowerCase().replace(/[^a-z0-9]/g, '') &&
+        acc.status === 'ACTIVE'
+      )
+      if (active) {
+        console.log(`[initiateConnection] Already connected for ${toolkitSlug}, entityId ${entity}: ${active.id}`)
+        return { redirectUrl: null, connectedAccountId: active.id }
+      }
+    } catch (listErr: any) {
+      console.warn(`[initiateConnection] Could not list existing connections: ${listErr.message}`)
+    }
+
+    // Step 2: Resolve the auth config ID for this toolkit
     const authConfigs = await composio.authConfigs.list({ toolkit: toolkitSlug })
     if (!authConfigs.items || authConfigs.items.length === 0) {
       return { redirectUrl: null, error: `No auth config found for "${toolkitSlug}" on Composio. Please add this integration on your Composio dashboard first.` }
@@ -352,10 +372,10 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
     const authConfigId = authConfigs.items[0].id
     console.log(`[initiateConnection] Resolved auth config for ${toolkitSlug}: ${authConfigId}`)
 
-    // Step 2: Create the connection link
+    // Step 3: Create the connection link (OAuth redirect)
     const callbackUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/integrations/callback?toolkit=${toolkitSlug}`
     const connection = await composio.connectedAccounts.link(
-      entityId || 'default',
+      entity,
       authConfigId,
       { callbackUrl, allowMultiple: true }
     )

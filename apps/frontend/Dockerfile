@@ -1,25 +1,27 @@
-FROM oven/bun:1 AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# better-sqlite3 requires Python + make to compile its native addon
-RUN apt-get update && apt-get install -y python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y python3 make g++ curl unzip && rm -rf /var/lib/apt/lists/*
+
+# Install bun CLI to honour bun.lock
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:$PATH"
 
 COPY package.json bun.lock ./
 RUN bun install
 COPY . .
 ENV DATABASE_URL="file:///app/db/custom.db"
 RUN mkdir -p /app/db && touch /app/db/custom.db
-RUN bun run prisma generate
-RUN bun run prisma db push --accept-data-loss
+RUN node node_modules/.bin/prisma generate
+RUN node node_modules/.bin/prisma db push --accept-data-loss
 RUN node node_modules/next/dist/bin/next build
 
-FROM oven/bun:1 AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
 
-# Runtime also needs better-sqlite3 native addon — copy compiled node_modules from builder
 COPY --from=builder /app ./
 
-CMD ["sh", "-c", "touch /app/db/custom.db && bun run prisma db push --accept-data-loss && bun run start"]
+CMD ["sh", "-c", "touch /app/db/custom.db && node node_modules/.bin/prisma db push --accept-data-loss && node node_modules/.bin/next start"]
