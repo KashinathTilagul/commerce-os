@@ -38,9 +38,9 @@ jobs:
             git pull origin main
             echo "[i] Now at commit: $(git rev-parse --short HEAD) — $(git log -1 --format=%s)"
 
-            # Write .env — secrets forwarded as env vars by appleboy/ssh-action via envs:
+            # Write .env — secrets forwarded as real env vars via appleboy envs:
             cat > .env <<ENVEOF
-DATABASE_URL="file:///app/db/custom.db"
+DATABASE_URL=file:///app/db/custom.db
 NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
 NEXTAUTH_URL=https://os.ekvaar.com
 GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -58,18 +58,19 @@ ENVEOF
 
             echo "[i] Disk before cleanup:"; df -h / || true
             docker builder prune -af || true
-            docker system prune -af || true
+            docker system prune -af --volumes=false || true
             sudo apt-get clean || true
             sudo journalctl --vacuum-size=100M || true
             echo "[i] Disk after cleanup:"; df -h / || true
 
+            # Build and deploy — compose handles dependency order (fastapi before frontend)
             sudo docker compose build fastapi
             sudo docker compose build frontend
-            sudo docker compose up -d fastapi frontend
-            sudo docker compose restart nginx
+            sudo docker compose up -d
             docker image prune -f || true
 
-            sleep 8
+            # Give services time to fully start
+            sleep 15
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://os.ekvaar.com)
             [ "$STATUS" -lt 500 ] || { echo "[✗] Health check failed: HTTP $STATUS"; exit 1; }
             echo "[✓] Deployed OK (HTTP $STATUS)"

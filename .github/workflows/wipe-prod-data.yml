@@ -53,6 +53,7 @@ jobs:
                 DELETE FROM AISystem;
                 DELETE FROM BrandCheck;
                 DELETE FROM Integration;
+                DELETE FROM UserPreference;
               '
             "
             echo "[✓] Production business data wiped"
