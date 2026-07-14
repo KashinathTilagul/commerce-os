@@ -1,5 +1,6 @@
 FROM oven/bun:1 AS builder
 WORKDIR /app
+RUN apt-get update && apt-get install -y python3 build-essential && rm -rf /var/lib/apt/lists/*
 COPY package.json bun.lock ./
 RUN bun install
 COPY . .

@@ -98,7 +98,15 @@ jobs:
             # Cleanup old unused images
             docker image prune -f || true
             
-            sleep 8
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://os.ekvaar.com)
-            [ "$STATUS" -lt 500 ] || { echo "[✗] Health check failed: HTTP $STATUS"; exit 1; }
-            echo "[✓] Deployed OK (HTTP $STATUS)"
+            echo "[i] Waiting for services to become healthy..."
+            for i in {1..15}; do
+              sleep 5
+              STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 https://os.ekvaar.com)
+              if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ] || [ "$STATUS" = "401" ] || [ "$STATUS" = "404" ]; then
+                echo "[✓] Deployed OK (HTTP $STATUS)"
+                exit 0
+              fi
+              echo "  - Attempt $i: HTTP $STATUS (waiting...)"
+            done
+            echo "[✗] Health check failed or timed out"
+            exit 1
