@@ -357,7 +357,7 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
     const connection = await composio.connectedAccounts.link(
       entityId || 'default',
       authConfigId,
-      { callbackUrl }
+      { callbackUrl, allowMultiple: true }
     )
     return { redirectUrl: connection.redirectUrl }
   } catch (error: any) {

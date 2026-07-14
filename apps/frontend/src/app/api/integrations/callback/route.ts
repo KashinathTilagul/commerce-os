@@ -16,10 +16,13 @@ export async function GET(req: NextRequest) {
   const connectedAccountId = searchParams.get('connected_account_id')
   const toolkitSlug = searchParams.get('toolkit')
   
-  if (status !== 'SUCCESS' || !connectedAccountId || !toolkitSlug) {
+  const isSuccess = status?.toUpperCase() === 'SUCCESS' || status?.toLowerCase() === 'success'
+  
+  if (!isSuccess || !connectedAccountId || !toolkitSlug) {
+    const errorDetails = searchParams.toString()
     console.error('[Composio] Callback failed or missing data:', Object.fromEntries(searchParams.entries()))
     const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
-    return NextResponse.redirect(new URL('/desktop?error=integration_failed', baseUrl))
+    return NextResponse.redirect(new URL(`/?error=integration_failed&details=${encodeURIComponent(errorDetails)}`, baseUrl))
   }
 
   try {
@@ -56,10 +59,10 @@ export async function GET(req: NextRequest) {
 
     // Redirect back to desktop
     const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
-    return NextResponse.redirect(new URL('/desktop?success=integration_connected', baseUrl))
+    return NextResponse.redirect(new URL('/?success=integration_connected', baseUrl))
   } catch (err: any) {
     console.error('[Composio] Callback processing error:', err)
     const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
-    return NextResponse.redirect(new URL('/desktop?error=integration_failed', baseUrl))
+    return NextResponse.redirect(new URL(`/?error=integration_failed&details=${encodeURIComponent(err.message || 'unknown')}`, baseUrl))
   }
 }
