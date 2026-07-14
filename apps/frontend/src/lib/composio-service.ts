@@ -329,7 +329,9 @@ export function getToolsForToolkit(toolkitSlug: string) {
 }
 
 /**
- * Initiate a connection for a specific toolkit (returns an OAuth redirect URL or error)
+ * Initiate a connection for a specific toolkit (returns an OAuth redirect URL or error).
+ * The Composio SDK `link()` method requires an auth config ID (ac_xxx), not a toolkit slug.
+ * We first look up the default auth config for the toolkit, then create the link.
  */
 export async function initiateConnection(toolkitSlug: string, entityId?: string): Promise<{ redirectUrl: string | null; error?: string }> {
   const composio = await getComposio()
@@ -342,16 +344,24 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
   }
 
   try {
-    const redirectUri = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/integrations/callback?toolkit=${toolkitSlug}`
-    console.log(`[initiateConnection] Calling composio.connectedAccounts.link for ${toolkitSlug}, entity=${entityId || 'default'}, redirect=${redirectUri}`)
+    // Step 1: Resolve the auth config ID for this toolkit
+    const authConfigs = await composio.authConfigs.list({ toolkit: toolkitSlug })
+    if (!authConfigs.items || authConfigs.items.length === 0) {
+      return { redirectUrl: null, error: `No auth config found for "${toolkitSlug}" on Composio. Please add this integration on your Composio dashboard first.` }
+    }
+    const authConfigId = authConfigs.items[0].id
+    console.log(`[initiateConnection] Resolved auth config for ${toolkitSlug}: ${authConfigId}`)
+
+    // Step 2: Create the connection link
+    const callbackUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/integrations/callback?toolkit=${toolkitSlug}`
     const connection = await composio.connectedAccounts.link(
       entityId || 'default',
-      toolkitSlug,
-      { redirectUri }
+      authConfigId,
+      { callbackUrl }
     )
     return { redirectUrl: connection.redirectUrl }
   } catch (error: any) {
-    console.error(`[initiateConnection] Composio link error for ${toolkitSlug}:`, error.message)
+    console.error(`[initiateConnection] Composio error for ${toolkitSlug}:`, error.message)
     return { redirectUrl: null, error: `Composio: ${error.message}` }
   }
 }
