@@ -33,28 +33,27 @@ jobs:
           envs: NEXTAUTH_SECRET,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,COMPOSIO_API_KEY,OPENROUTER_API_KEY,GROQ_API_KEY,JWT_SECRET,SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET,SPOTIFY_REDIRECT_URI
           script: |
             set -e -o pipefail
-            cd ~/Ekvaar || cd ~/EKVAAR || { echo "[✗] Repo directory not found"; exit 1; }
+            cd ~/Ekvaar || cd ~/EKVAAR || { echo "[x] Repo directory not found"; exit 1; }
             echo "[i] Deploying from: $(pwd)"
             git pull origin main
-            echo "[i] Now at commit: $(git rev-parse --short HEAD) — $(git log -1 --format=%s)"
+            echo "[i] Now at commit: $(git rev-parse --short HEAD)"
 
-            # Write .env — secrets forwarded as real env vars via appleboy envs:
-            cat > .env <<ENVEOF
-DATABASE_URL=file:///app/db/custom.db
-NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-NEXTAUTH_URL=https://os.ekvaar.com
-GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-COMPOSIO_API_KEY=${COMPOSIO_API_KEY}
-OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-GROQ_API_KEY=${GROQ_API_KEY}
-JWT_SECRET=${JWT_SECRET}
-AWS_REGION=us-east-1
-BEDROCK_MODEL_ID=amazon.nova-pro-v1:0
-SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
-SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
-SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}
-ENVEOF
+            printf '%s\n' \
+              "DATABASE_URL=file:///app/db/custom.db" \
+              "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
+              "NEXTAUTH_URL=https://os.ekvaar.com" \
+              "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
+              "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
+              "COMPOSIO_API_KEY=${COMPOSIO_API_KEY}" \
+              "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" \
+              "GROQ_API_KEY=${GROQ_API_KEY}" \
+              "JWT_SECRET=${JWT_SECRET}" \
+              "AWS_REGION=us-east-1" \
+              "BEDROCK_MODEL_ID=amazon.nova-pro-v1:0" \
+              "SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}" \
+              "SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}" \
+              "SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}" \
+              > .env
 
             echo "[i] Disk before cleanup:"; df -h / || true
             docker builder prune -af || true
@@ -63,14 +62,12 @@ ENVEOF
             sudo journalctl --vacuum-size=100M || true
             echo "[i] Disk after cleanup:"; df -h / || true
 
-            # Build and deploy — compose handles dependency order (fastapi before frontend)
             sudo docker compose build fastapi
             sudo docker compose build frontend
             sudo docker compose up -d
             docker image prune -f || true
 
-            # Give services time to fully start
             sleep 15
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://os.ekvaar.com)
-            [ "$STATUS" -lt 500 ] || { echo "[✗] Health check failed: HTTP $STATUS"; exit 1; }
-            echo "[✓] Deployed OK (HTTP $STATUS)"
+            [ "$STATUS" -lt 500 ] || { echo "[x] Health check failed: HTTP $STATUS"; exit 1; }
+            echo "[ok] Deployed OK (HTTP $STATUS)"
