@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { initiateConnection } from '@/lib/composio-service'
+import { initiateConnection, TOOLKIT_CATALOG } from '@/lib/composio-service'
 import { requireAuth } from '@/lib/auth-guard'
 
 // POST /api/integrations/[toolkit]/connect — connect or disconnect an integration
@@ -15,12 +15,29 @@ export async function POST(
   const body = await req.json().catch(() => ({}))
   const { action } = body as { action?: 'connect' | 'disconnect' }
 
-  const integration = await db.integration.findFirst({
+  let integration = await db.integration.findFirst({
     where: { userId: auth.user.id, toolkitSlug: toolkit },
   })
 
   if (!integration) {
-    return NextResponse.json({ error: 'Integration not found' }, { status: 404 })
+    // Row missing (seeding was incomplete) — create it on demand from the catalog
+    const meta = TOOLKIT_CATALOG.find(t => t.slug === toolkit)
+    if (!meta) {
+      return NextResponse.json({ error: 'Integration not found' }, { status: 404 })
+    }
+    integration = await db.integration.create({
+      data: {
+        userId: auth.user.id,
+        toolkitSlug: toolkit,
+        name: meta.name,
+        description: meta.description,
+        category: meta.category,
+        logo: meta.logo,
+        toolsCount: meta.toolsCount,
+        isConnected: false,
+        agentPermissions: '',
+      },
+    })
   }
 
   if (action === 'disconnect') {
@@ -73,9 +90,7 @@ export async function PATCH(
     where: { userId: auth.user.id, toolkitSlug: toolkit },
   })
 
-  if (!integration) {
-    return NextResponse.json({ error: 'Integration not found' }, { status: 404 })
-  }
+  if (!integration) return NextResponse.json({ error: 'Integration not found' }, { status: 404 })
 
   const updated = await db.integration.update({
     where: { id: integration.id },

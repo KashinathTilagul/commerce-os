@@ -29,7 +29,7 @@ async function getComposio() {
 
 // Catalog of integration toolkits available through Composio
 // Full 850+ integration catalog
-const TOOLKIT_CATALOG = [
+export const TOOLKIT_CATALOG = [
   // E-commerce
   { slug: 'shopify', name: 'Shopify', description: 'E-commerce platform — orders, products, customers, inventory', category: 'ecommerce', toolsCount: 45, logo: '🛍️' },
   { slug: 'stripe', name: 'Stripe', description: 'Payment processing — charges, refunds, payouts, subscriptions', category: 'ecommerce', toolsCount: 38, logo: '💳' },
