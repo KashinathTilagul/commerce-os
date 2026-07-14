@@ -3,7 +3,6 @@ import { createApiResponse, createApiError, sanitizeObject } from '@/lib/securit
 import { requireAuth } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { executeTool, AGENT_TOOLKIT_ACCESS } from '@/lib/composio-service'
-import { eventBus } from '@/lib/event-bus'
 import { z } from 'zod'
 
 const ExecuteSchema = z.object({
@@ -88,13 +87,6 @@ export async function POST(req: NextRequest) {
         }),
         severity: result.success ? 'INFO' : 'WARN',
       },
-    })
-
-    eventBus.emit('tool_executed', {
-      toolkit: toolkitSlug,
-      tool: toolSlug,
-      agent: agentName || agentCode,
-      success: result.success
     })
 
     return createApiResponse({

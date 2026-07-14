@@ -120,10 +120,6 @@
     "js-yaml": "$js-yaml",
     "postcss": "$postcss",
     "prismjs": "$prismjs",
-    "uuid": "$uuid",
-    "@hono/node-server": "^1.19.13"
-  },
-  "resolutions": {
-    "@hono/node-server": "^1.19.13"
+    "uuid": "$uuid"
   }
 }

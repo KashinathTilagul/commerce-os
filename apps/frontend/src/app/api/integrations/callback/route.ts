@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { eventBus } from '@/lib/event-bus'
 import { requireAuth } from '@/lib/auth-guard'
 
 // GET /api/integrations/callback — OAuth callback from Composio
@@ -54,7 +53,6 @@ export async function GET(req: NextRequest) {
         },
       })
 
-      eventBus.emit('integration_updated', { toolkit: toolkitSlug, action: 'connected' })
     }
 
     // Redirect back to desktop

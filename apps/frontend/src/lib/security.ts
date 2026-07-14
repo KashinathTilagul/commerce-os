@@ -16,7 +16,6 @@ export const RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
   authLogin: { windowMs: 900000, maxRequests: 10 },
   authSession: { windowMs: 60000, maxRequests: 60 },
   chat: { windowMs: 60000, maxRequests: 20 },
-  seed: { windowMs: 3600000, maxRequests: 2 },
 }
 
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
@@ -25,7 +24,6 @@ export function checkRateLimit(ip: string, path: string): { allowed: boolean; re
   const bucket = path.includes("/api/auth/callback") ? "authLogin"
     : path.includes("/api/auth") ? "authSession"
     : path.includes("/api/jarvis/chat") ? "chat"
-    : path.includes("/api/seed") ? "seed"
     : path.startsWith("/api/") ? "api"
     : "default"
   const config = RATE_LIMIT_CONFIG[bucket]

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { eventBus } from '@/lib/event-bus'
 import { initiateConnection } from '@/lib/composio-service'
 import { requireAuth } from '@/lib/auth-guard'
 
@@ -33,7 +32,6 @@ export async function POST(
         connectedAccountId: null,
       },
     })
-    eventBus.emit('integration_updated', { toolkit, action: 'disconnected' })
     return NextResponse.json({ success: true, integration: updated, action: 'disconnected' })
   }
 

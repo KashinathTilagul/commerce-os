@@ -16,6 +16,13 @@ from core.llm.router import router
 
 async def test_llm():
     print("Testing LLM connection...")
+    print(f"Provider: {router.provider}")
+    print(f"Client: {router.client is not None}")
+    print(f"API Key: {bool(router.api_key)}")
+    
+    if not router.client:
+        print("ERROR: No LLM client available")
+        return
     
     try:
         response = await router.route_request(
