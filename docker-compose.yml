@@ -2,7 +2,6 @@ version: '3.8'
 
 services:
   frontend:
-    image: ghcr.io/kashinathtilagul/ekvaar-frontend:latest
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
@@ -11,7 +10,7 @@ services:
     volumes:
       - ./apps/frontend/db:/app/db
     environment:
-      - DATABASE_URL=file:/app/db/custom.db
+      - DATABASE_URL="file:///app/db/custom.db"
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -43,7 +42,6 @@ services:
     restart: unless-stopped
 
   fastapi:
-    image: ghcr.io/kashinathtilagul/ekvaar-fastapi:latest
     build:
       context: ./apps/backend-py
       dockerfile: Dockerfile
