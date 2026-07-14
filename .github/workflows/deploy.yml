@@ -52,7 +52,9 @@ jobs:
             sudo journalctl --vacuum-size=100M || true
             echo "[i] Disk after cleanup:"; df -h / || true
             
-            sudo docker compose up -d --build fastapi frontend
+            sudo docker compose build fastapi
+            sudo docker compose build frontend
+            sudo docker compose up -d fastapi frontend
             sudo docker compose restart nginx
             docker image prune -f || true
             
