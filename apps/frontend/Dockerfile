@@ -10,7 +10,7 @@ COPY . .
 ENV DATABASE_URL="file:///app/db/custom.db"
 RUN mkdir -p /app/db && touch /app/db/custom.db
 RUN bun run prisma generate
-RUN bun run prisma db push --skip-generate --accept-data-loss
+RUN bun run prisma db push --accept-data-loss
 RUN node node_modules/next/dist/bin/next build
 
 FROM oven/bun:1 AS runner
@@ -22,4 +22,4 @@ EXPOSE 3000
 # Runtime also needs better-sqlite3 native addon — copy compiled node_modules from builder
 COPY --from=builder /app ./
 
-CMD ["sh", "-c", "touch /app/db/custom.db && bun run prisma db push --skip-generate --accept-data-loss && bun run start"]
+CMD ["sh", "-c", "touch /app/db/custom.db && bun run prisma db push --accept-data-loss && bun run start"]
