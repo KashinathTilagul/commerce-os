@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   frontend:
+    image: ghcr.io/kashinathtilagul/ekvaar-frontend:latest
     build:
       context: ./apps/frontend
       dockerfile: Dockerfile
@@ -42,6 +43,7 @@ services:
     restart: unless-stopped
 
   fastapi:
+    image: ghcr.io/kashinathtilagul/ekvaar-fastapi:latest
     build:
       context: ./apps/backend-py
       dockerfile: Dockerfile
