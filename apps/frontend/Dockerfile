@@ -1,4 +1,4 @@
-FROM node:20-slim AS builder
+FROM node:20.18.0-slim AS builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y python3 make g++ curl unzip && rm -rf /var/lib/apt/lists/*
@@ -16,7 +16,7 @@ RUN node node_modules/.bin/prisma generate
 RUN node node_modules/.bin/prisma db push --accept-data-loss
 RUN node node_modules/next/dist/bin/next build
 
-FROM node:20-slim AS runner
+FROM node:20.18.0-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
