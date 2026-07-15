@@ -29,7 +29,7 @@ jobs:
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
           port: 22
-          command_timeout: 30m
+          command_timeout: 60m
           envs: NEXTAUTH_SECRET,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,COMPOSIO_API_KEY,OPENROUTER_API_KEY,GROQ_API_KEY,JWT_SECRET,SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET,SPOTIFY_REDIRECT_URI
           script: |
             set -e -o pipefail
@@ -62,8 +62,7 @@ jobs:
             sudo journalctl --vacuum-size=100M || true
             echo "[i] Disk after cleanup:"; df -h / || true
 
-            sudo docker compose build fastapi
-            sudo docker compose build frontend
+            sudo docker compose build --progress=plain 2>&1 || sudo docker compose build --no-cache 2>&1
             sudo docker compose up -d
             docker image prune -f || true
 
