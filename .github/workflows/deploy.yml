@@ -33,7 +33,7 @@ jobs:
           envs: NEXTAUTH_SECRET,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,COMPOSIO_API_KEY,OPENROUTER_API_KEY,GROQ_API_KEY,JWT_SECRET,SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET,SPOTIFY_REDIRECT_URI
           script: |
             set -e -o pipefail
-            cd ~/Ekvaar || cd ~/EKVAAR || { echo "[x] Repo directory not found"; exit 1; }
+            cd ~/Ekvaar 2>/dev/null || cd ~/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
             echo "[i] Deploying from: $(pwd)"
             git pull origin main
             echo "[i] Now at commit: $(git rev-parse --short HEAD)"

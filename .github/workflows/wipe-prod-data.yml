@@ -28,7 +28,7 @@ jobs:
           command_timeout: 5m
           script: |
             set -e -o pipefail
-            cd ~/Ekvaar || cd ~/EKVAAR || { echo "[✗] Repo directory not found"; exit 1; }
+            cd ~/Ekvaar 2>/dev/null || cd ~/EKVAAR 2>/dev/null || { echo "[✗] Repo directory not found"; exit 1; }
             DB_DIR="$(pwd)/apps/frontend/db"
             [ -f "$DB_DIR/custom.db" ] || { echo "[✗] custom.db not found at $DB_DIR"; exit 1; }
             echo "[i] Wiping business tables in $DB_DIR/custom.db"
