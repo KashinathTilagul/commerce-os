@@ -1159,6 +1159,7 @@ CREATE TABLE IF NOT EXISTS daily_orders (
     orders INTEGER,
     notes TEXT,
     data_source TEXT,
+    created_by TEXT,
     created_at TEXT
 );
 
