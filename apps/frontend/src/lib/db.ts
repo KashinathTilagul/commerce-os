@@ -18,8 +18,7 @@ if (dbDir && !fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true })
 }
 
-const sqlite = new Database(dbUrl)
-const adapter = new PrismaBetterSqlite3(sqlite)
+const adapter = new PrismaBetterSqlite3({ url: dbUrl })
 
 export const db =
   globalForPrisma.prisma ??

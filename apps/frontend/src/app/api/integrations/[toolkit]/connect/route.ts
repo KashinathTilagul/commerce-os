@@ -32,7 +32,7 @@ export async function POST(
         name: meta.name,
         description: meta.description,
         category: meta.category,
-        logo: meta.logo,
+        logoUrl: meta.logo,
         toolsCount: meta.toolsCount,
         isConnected: false,
         agentPermissions: '',
