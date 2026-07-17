@@ -7,6 +7,7 @@ import { useWindowStore } from '@/lib/window-store'
 import { APPS } from './app-registry'
 import { toast } from './toast'
 import { MessageScroller, Message, Bubble } from '@/components/ui/chat'
+import { KrishnaOrb } from './krishna-orb'
 
 type KrishnaState = 'idle' | 'listening' | 'thinking' | 'talking'
 interface Msg { role: 'user' | 'krishna'; text: string; ts: number }
@@ -85,9 +86,17 @@ function saveHistory(messages: Msg[]) {
 }
 
 // ─── Wallpaper orb ──────────────────────────────────────────────────────────
+const GLOW_SHADOWS: Record<KrishnaState, string> = {
+  idle:      '0 0 22px rgba(88,86,214,0.55),  0 0 44px rgba(88,86,214,0.2)',
+  listening: '0 0 22px rgba(255,59,48,0.65),  0 0 44px rgba(255,59,48,0.25)',
+  thinking:  '0 0 22px rgba(10,132,255,0.65), 0 0 44px rgba(10,132,255,0.25)',
+  talking:   '0 0 22px rgba(52,199,89,0.65),  0 0 44px rgba(52,199,89,0.25)',
+}
+
 export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; hidden: boolean }) {
   const [state, setState] = useState<KrishnaState>('idle')
   const [mounted, setMounted] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setMounted(true))
@@ -100,16 +109,22 @@ export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; h
     }
   }, [])
 
-  if (!mounted) return null
+  // Hand gesture tracker — single-hand pinch triggers onClick (same as tapping the orb)
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video) return
+    let tracker: { stop(): void } | undefined
+    import('@/lib/hand-tracker')
+      .then(({ KrishnaPinchTracker }) => {
+        tracker = new KrishnaPinchTracker(video, onClick)
+        tracker.start()
+      })
+      .catch(() => {}) // silently degrade if MediaPipe or camera is unavailable
+    return () => { tracker?.stop() }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const colors: Record<KrishnaState, { core: string; glow: string }> = {
-    idle:      { core: '#5856D6', glow: 'rgba(88,86,214,0.25)' },
-    listening: { core: '#FF3B30', glow: 'rgba(255,59,48,0.35)' },
-    thinking:  { core: '#0A84FF', glow: 'rgba(10,132,255,0.35)' },
-    talking:   { core: '#34C759', glow: 'rgba(52,199,89,0.35)' },
-  }
-  const c = colors[state]
-  const size = hidden ? 40 : 80
+  if (!mounted) return null
 
   return (
     <motion.div
@@ -118,53 +133,32 @@ export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; h
       animate={{ opacity: hidden ? 0.4 : 1 }}
       transition={{ duration: 0.3 }}
     >
+      {/* Hidden webcam feed for MediaPipe hand tracking */}
+      <video
+        ref={videoRef}
+        playsInline muted
+        style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
+      />
+
       <motion.button
         onClick={onClick}
         className="relative pointer-events-auto cursor-pointer"
-        style={{ width: size, height: size }}
+        style={{
+          width: 80, height: 80,
+          borderRadius: '50%',
+          overflow: 'hidden',
+          border: 'none',
+          padding: 0,
+          background: 'transparent',
+          boxShadow: GLOW_SHADOWS[state],
+          transition: 'box-shadow 0.4s ease',
+        }}
         animate={{ scale: hidden ? 0.5 : 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
         whileHover={{ scale: hidden ? 0.6 : 1.1 }}
         whileTap={{ scale: 0.9 }}
       >
-        <motion.div className="absolute inset-0 rounded-full"
-          animate={{ scale: [1, 1.2, 1], opacity: [0.2, 0.4, 0.2] }}
-          transition={{ duration: state === 'talking' ? 0.9 : state === 'idle' ? 4 : 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ background: `radial-gradient(circle, ${c.glow} 0%, transparent 70%)` }} />
-
-        {state === 'listening' && [0, 0.7, 1.4].map(d => (
-          <motion.div key={d} className="absolute inset-0 rounded-full border-2" style={{ borderColor: c.core }}
-            animate={{ scale: [1, 2], opacity: [0.5, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, delay: d }} />
-        ))}
-
-        {state === 'talking' && (
-          <motion.div className="absolute inset-0 rounded-full" style={{ background: c.glow }}
-            animate={{ scale: [1, 1.25, 1, 1.15, 1], opacity: [0.3, 0.6, 0.3, 0.5, 0.3] }}
-            transition={{ duration: 0.9, repeat: Infinity, times: [0, 0.15, 0.35, 0.55, 1] }} />
-        )}
-
-        {state === 'thinking' && (
-          <motion.div className="absolute inset-0 rounded-full border-2 border-t-transparent"
-            style={{ borderColor: c.core }}
-            animate={{ rotate: 360 }}
-            transition={{ duration: 0.8, repeat: Infinity }} />
-        )}
-
-        <motion.div className="absolute rounded-full flex items-center justify-center overflow-hidden"
-          style={{
-            inset: '20%',
-            background: `linear-gradient(135deg, ${c.core} 0%, ${c.core}CC 100%)`,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 12px ${c.glow}`,
-          }}
-          animate={{ scale: state === 'idle' ? [1, 1.04, 1] : state === 'talking' ? [1, 1.12, 1, 1.08, 1] : 1 }}
-          transition={{ duration: state === 'idle' ? 4 : state === 'talking' ? 0.9 : 1, repeat: Infinity }}
-        >
-          <motion.div className="absolute inset-0 opacity-30" animate={{ rotate: 360 }}
-            transition={{ duration: state === 'idle' ? 15 : 4, repeat: Infinity }}
-            style={{ background: `conic-gradient(from 0deg, transparent, ${c.core}, transparent 60%, ${c.core}80, transparent)` }} />
-          <span className="relative font-display text-white/95" style={{ fontSize: size * 0.22 }}>K</span>
-        </motion.div>
+        <KrishnaOrb state={state} />
       </motion.button>
     </motion.div>
   )
@@ -296,12 +290,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setVolume(0)
   }, [stopTTS, stopListening])
 
-  // ── TTS: browser Web Speech API — simple, stable, zero server dependency ──
+  // ── TTS: server Edge TTS first (en-IN-NeerjaNeural), browser fallback ───────
   const speakText = useCallback(async (text: string) => {
-    if (muted || typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      setGlobal('idle')
-      return
-    }
+    if (muted) { setGlobal('idle'); return }
 
     stopTTS()
     const clean = toSpeech(text)
@@ -310,37 +301,64 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setGlobal('talking')
     speakingRef.current = true
 
-    // Speak sentence-by-sentence with tiny natural pauses and slight rate/pitch
-    // variance between sentences — a single flat utterance reads as robotic.
-    const sentences = toSentences(clean)
-    for (const sentence of sentences) {
-      if (!speakingRef.current) break
-      await new Promise<void>((resolve) => {
-        const u = new SpeechSynthesisUtterance(sentence)
-        u.voice = bestVoiceRef.current
-        u.rate  = 1.12 + Math.random() * 0.08   // 1.12–1.20, avoids metronome cadence
-        u.pitch = 0.97 + Math.random() * 0.08   // 0.97–1.05
-        u.volume = 1.0
-        let done = false
-        const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
-        audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
-        u.onend = finish
-        u.onerror = finish
-        setTimeout(finish, sentence.length * 80 + 2000)
-        window.speechSynthesis.speak(u)
+    // ── Try backend TTS (FastAPI → Edge TTS / Pocket TTS) ────────────────
+    let usedServer = false
+    try {
+      const res = await fetch('/api/jarvis/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text:      clean.slice(0, 2000),
+          voice:     ttsVoiceRef.current,     // en-IN-NeerjaNeural by default
+          speed:     ttsSpeedRef.current,
+          stability: ttsStabilityRef.current,
+          volume:    ttsVolumeRef.current,
+        }),
+        signal: AbortSignal.timeout(15000),
       })
-      // Natural breath/pause between sentences — longer after a question or pause marker
-      if (speakingRef.current && sentences.indexOf(sentence) < sentences.length - 1) {
-        const pause = /[?…]$/.test(sentence.trim()) ? 260 : 140
-        await new Promise(r => setTimeout(r, pause))
+      if (res.ok) {
+        usedServer = true
+        const blob = await res.blob()
+        const url  = URL.createObjectURL(blob)
+        const audio = new Audio(url)
+        await new Promise<void>((resolve) => {
+          let done = false
+          const finish = () => { if (!done) { done = true; URL.revokeObjectURL(url); audioStopRef.current = null; resolve() } }
+          audioStopRef.current = () => { audio.pause(); audio.src = ''; finish() }
+          audio.onended = finish
+          audio.onerror = finish
+          audio.play().catch(finish)
+        })
+      }
+    } catch { /* network error — fall through to browser TTS */ }
+
+    // ── Fallback: browser Web Speech API ─────────────────────────────────
+    if (!usedServer && speakingRef.current && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const sentences = toSentences(clean)
+      for (const sentence of sentences) {
+        if (!speakingRef.current) break
+        await new Promise<void>((resolve) => {
+          const u = new SpeechSynthesisUtterance(sentence)
+          u.voice  = bestVoiceRef.current
+          u.rate   = 1.12 + Math.random() * 0.08
+          u.pitch  = 0.97 + Math.random() * 0.08
+          u.volume = 1.0
+          let done = false
+          const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
+          audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
+          u.onend = finish; u.onerror = finish
+          setTimeout(finish, sentence.length * 80 + 2000)
+          window.speechSynthesis.speak(u)
+        })
+        if (speakingRef.current && sentences.indexOf(sentence) < sentences.length - 1) {
+          await new Promise(r => setTimeout(r, /[?…]$/.test(sentence.trim()) ? 260 : 140))
+        }
       }
     }
 
     speakingRef.current = false
     setGlobal('idle')
 
-    // Continue the conversation — mic uses echoCancellation so it won't
-    // re-hear this reply through the speakers and loop.
     if (voiceSessionRef.current && !listeningRef.current) {
       setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 400)
     }
