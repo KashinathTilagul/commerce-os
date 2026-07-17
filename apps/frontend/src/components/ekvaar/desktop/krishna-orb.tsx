@@ -24,9 +24,6 @@ export function KrishnaOrb({ state }: { state: KrishnaState }) {
 
     ;(async () => {
       const THREE = await import('three')
-      const { EffectComposer } = await import('three/examples/jsm/postprocessing/EffectComposer.js')
-      const { RenderPass }     = await import('three/examples/jsm/postprocessing/RenderPass.js')
-      const { UnrealBloomPass } = await import('three/examples/jsm/postprocessing/UnrealBloomPass.js')
       if (disposed) return
 
       const W = el.clientWidth  || 80
@@ -36,28 +33,24 @@ export function KrishnaOrb({ state }: { state: KrishnaState }) {
       const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100)
       camera.position.z = 3.2
 
+      // alpha:true keeps the canvas background transparent — no EffectComposer
+      // so the button's boxShadow glow shows through correctly
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
       renderer.setSize(W, H)
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
       renderer.setClearColor(0x000000, 0)
-      renderer.toneMapping = THREE.ACESFilmicToneMapping
       el.appendChild(renderer.domElement)
-
-      const composer = new EffectComposer(renderer)
-      composer.addPass(new RenderPass(scene, camera))
-      const bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 1.4, 0.5, 0.1)
-      composer.addPass(bloom)
 
       // Wireframe line material — additive blending for the holographic look
       const lm = (opacity: number) => new THREE.LineBasicMaterial({
         color: COLORS.idle, transparent: true, opacity,
         blending: THREE.AdditiveBlending, depthWrite: false,
       })
-      const matOuter = lm(0.28)
-      const matMid   = lm(0.48)
-      const matInner = lm(0.70)
-      const scanMat  = new THREE.MeshBasicMaterial({ color: COLORS.idle, transparent: true, opacity: 0.5 })
-      const coreMat  = new THREE.MeshBasicMaterial({ color: COLORS.idle, transparent: true, opacity: 0.9 })
+      const matOuter = lm(0.55)
+      const matMid   = lm(0.75)
+      const matInner = lm(0.95)
+      const scanMat  = new THREE.MeshBasicMaterial({ color: COLORS.idle, transparent: true, opacity: 0.7 })
+      const coreMat  = new THREE.MeshBasicMaterial({ color: COLORS.idle, transparent: true, opacity: 1.0 })
 
       // Three nested wireframe icosahedron shells — different sizes + rotation axes
       const shell1 = new THREE.LineSegments(new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(1.0, 1)), matOuter)
@@ -66,7 +59,7 @@ export function KrishnaOrb({ state }: { state: KrishnaState }) {
       // Bright core sphere
       const core     = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 16), coreMat)
       // Scan ring that sweeps up and down like the Ultron HUD
-      const scanRing = new THREE.Mesh(new THREE.TorusGeometry(0.88, 0.006, 4, 64), scanMat)
+      const scanRing = new THREE.Mesh(new THREE.TorusGeometry(0.88, 0.008, 4, 64), scanMat)
       scanRing.rotation.x = Math.PI / 2
 
       scene.add(shell1, shell2, shell3, core, scanRing)
@@ -97,7 +90,7 @@ export function KrishnaOrb({ state }: { state: KrishnaState }) {
         scanRing.position.y = Math.sin(t * freq) * 0.8
         const ss = Math.sqrt(Math.max(0, 1 - (scanRing.position.y / 0.88) ** 2))
         scanRing.scale.set(ss, ss, 1)
-        scanMat.opacity = 0.5 * ss
+        scanMat.opacity = 0.7 * ss
 
         // Core breathes: fast pulse when talking, gentle when idle
         core.scale.setScalar(
@@ -107,14 +100,7 @@ export function KrishnaOrb({ state }: { state: KrishnaState }) {
           :                     1 + Math.sin(t * 1.5) * 0.04
         )
 
-        // Bloom strength varies — listening and talking get brighter
-        bloom.strength =
-          s === 'idle'      ? 1.2 + Math.sin(t * 0.6) * 0.2
-          : s === 'listening' ? 1.8 + Math.sin(t * 4)   * 0.3
-          : s === 'thinking'  ? 1.5 + Math.sin(t * 6)   * 0.2
-          :                     1.6 + Math.sin(t * 2.5)  * 0.4
-
-        composer.render()
+        renderer.render(scene, camera)
       }
 
       animate()
