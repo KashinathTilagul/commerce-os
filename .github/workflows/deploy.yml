@@ -56,15 +56,19 @@ jobs:
               > .env
 
             echo "[i] Disk before cleanup:"; df -h / || true
+
+            # Stop running containers so their image layers are no longer pinned
+            # and docker system prune can actually reclaim the space
+            sudo docker compose down || true
+
             docker builder prune -af || true
-            docker system prune -af --volumes=false || true
+            docker system prune -af || true
             sudo apt-get clean || true
             sudo journalctl --vacuum-size=100M || true
             echo "[i] Disk after cleanup:"; df -h / || true
 
-            sudo docker compose build --progress=plain 2>&1 || sudo docker compose build --no-cache 2>&1
+            sudo docker compose build --no-cache --progress=plain 2>&1
             sudo docker compose up -d
-            docker image prune -f || true
 
             sleep 15
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://os.ekvaar.com)
