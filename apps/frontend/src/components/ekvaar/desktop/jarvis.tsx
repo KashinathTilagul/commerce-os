@@ -96,6 +96,7 @@ const GLOW_SHADOWS: Record<KrishnaState, string> = {
 export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; hidden: boolean }) {
   const [state, setState] = useState<KrishnaState>('idle')
   const [mounted, setMounted] = useState(false)
+  const [gestureActive, setGestureActive] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
 
   useEffect(() => {
@@ -116,10 +117,10 @@ export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; h
     let tracker: { stop(): void } | undefined
     import('@/lib/hand-tracker')
       .then(({ KrishnaPinchTracker }) => {
-        tracker = new KrishnaPinchTracker(video, onClick)
+        tracker = new KrishnaPinchTracker(video, onClick, () => setGestureActive(true))
         tracker.start()
       })
-      .catch(() => {}) // silently degrade if MediaPipe or camera is unavailable
+      .catch(() => {})
     return () => { tracker?.stop() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -139,6 +140,31 @@ export function JarvisWallpaperOrb({ onClick, hidden }: { onClick: () => void; h
         playsInline muted
         style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
       />
+
+      {/* Camera active badge */}
+      {gestureActive && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          style={{
+            position: 'absolute', top: -8, right: -4,
+            display: 'flex', alignItems: 'center', gap: 4,
+            background: 'rgba(0,0,0,0.7)',
+            border: '1px solid rgba(52,199,89,0.4)',
+            borderRadius: 8, padding: '2px 6px',
+            pointerEvents: 'none', zIndex: 1,
+          }}
+        >
+          <motion.div
+            style={{ width: 5, height: 5, borderRadius: '50%', background: '#34C759' }}
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 1.6, repeat: Infinity }}
+          />
+          <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.6)', fontFamily: 'monospace', letterSpacing: '0.1em' }}>
+            CAM
+          </span>
+        </motion.div>
+      )}
 
       <motion.button
         onClick={onClick}

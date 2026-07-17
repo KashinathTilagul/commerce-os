@@ -34,9 +34,12 @@ export class KrishnaPinchTracker {
   private pinching = false
   private nextAllowed = 0
 
-  constructor(video: HTMLVideoElement, onPinch: () => void) {
+  private onReady: (() => void) | undefined
+
+  constructor(video: HTMLVideoElement, onPinch: () => void, onReady?: () => void) {
     this.video   = video
     this.onPinch = onPinch
+    this.onReady = onReady
   }
 
   async start(): Promise<void> {
@@ -67,6 +70,7 @@ export class KrishnaPinchTracker {
       }
 
       this.running = true
+      this.onReady?.()
       this.loop()
     } catch (e) {
       console.warn('[KrishnaPinchTracker] Could not start (camera denied or MediaPipe unavailable):', e)
