@@ -13,7 +13,7 @@ import { Dock } from '@/components/ekvaar/desktop/dock'
 import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
 import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
-import { Jarvis, JarvisWallpaperOrb } from '@/components/ekvaar/desktop/jarvis'
+import { Jarvis, GestureControl } from '@/components/ekvaar/desktop/jarvis'
 import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
 import { DesktopWidgets } from '@/components/ekvaar/desktop/desktop-widgets'
 import { GlobalMusicPlayer } from '@/components/ekvaar/desktop/global-music-player'
@@ -88,8 +88,13 @@ export default function Desktop() {
   }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden">
-      <DesktopWallpaper />
+    <div
+      className="relative h-screen w-screen overflow-hidden"
+      style={{ transform: 'scale(var(--gesture-zoom, 1))', transformOrigin: 'center center' }}
+    >
+      <div data-desktop-bg="true" className="absolute inset-0">
+        <DesktopWallpaper />
+      </div>
       <DesktopWidgets />
       <BootScreen />
       <MenuBar
@@ -112,7 +117,7 @@ export default function Desktop() {
       <ToastContainer />
       <Launchpad open={launchpadOpen} onClose={() => setLaunchpadOpen(false)} />
       <Spotlight open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
-      <JarvisWallpaperOrb onClick={() => setJarvisTrigger(t => t + 1)} hidden={windows.length > 0} />
+      <GestureControl onBackgroundPinch={() => setJarvisTrigger(t => t + 1)} />
       <Jarvis trigger={jarvisTrigger} hasOpenWindows={windows.length > 0} />
       <GlobalMusicPlayer />
     </div>

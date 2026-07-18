@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, Sparkles, BatteryMedium, BatteryFull, BatteryCharging } from 'lucide-react'
+import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, BatteryMedium, BatteryFull, BatteryCharging } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
 import { useMusicStore } from '@/lib/music-store'
 import { APP_MAP, APPS } from './app-registry'
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationsPanel } from './notifications-panel'
+import { KrishnaMenuBarIcon } from './jarvis'
 
 interface MenuBarProps {
   onSpotlight?: () => void
@@ -149,13 +150,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
       {/* Right cluster */}
       <div className="ml-auto flex items-center gap-0.5">
         {/* Krishna trigger */}
-        <button
-          title="Krishna AI"
-          onClick={onKrishna}
-          className="p-1 rounded hover:bg-white/15 transition-colors"
-        >
-          <Sparkles className="h-3 w-3 text-purple-300" />
-        </button>
+        <KrishnaMenuBarIcon onClick={() => onKrishna?.()} />
 
         {/* Volume */}
         <div className="relative">
