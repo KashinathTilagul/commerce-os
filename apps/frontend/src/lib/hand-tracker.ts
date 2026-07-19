@@ -5,7 +5,7 @@ const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmark
 
 const WRIST = 0
 const THUMB_TIP = 4
-const INDEX_TIP = 8, INDEX_PIP = 6
+const INDEX_TIP = 8, INDEX_MCP = 5
 const MIDDLE_TIP = 12, MIDDLE_PIP = 10, MIDDLE_MCP = 9
 const RING_TIP = 16, RING_PIP = 14
 const PINKY_TIP = 20, PINKY_PIP = 18
@@ -13,11 +13,10 @@ const PINKY_TIP = 20, PINKY_PIP = 18
 export const PINCH_ON  = 0.30  // exported so debug panel can show threshold
 export const PINCH_OFF = 0.44
 
-const CURSOR_SMOOTHING     = 0.22  // 0=frozen, 1=no smoothing — lower = smoother but more lag
-const SCROLL_PIXEL_GAIN    = 2.2   // scroll px per px of vertical finger travel while pinch-holding
-const SCROLL_MOVE_THRESHOLD = 8    // px — total vertical travel during a pinch before it counts as "scrolled"
-const FIST_HOLD_MS         = 500
-const FIST_COOLDOWN_MS     = 1200
+const SCROLL_PIXEL_GAIN    = 3.0   // scroll sensitivity
+const SCROLL_MOVE_THRESHOLD = 20    // px — must scroll this much before Krishna activation is blocked
+const FIST_HOLD_MS         = 600
+const FIST_COOLDOWN_MS     = 1500
 
 type Lm = { x: number; y: number }
 function dist(a: Lm, b: Lm) { return Math.hypot(a.x - b.x, a.y - b.y) }
@@ -57,16 +56,8 @@ export type FrameDebug = {
 
 export type TrackerStatus = 'requesting-camera' | 'loading-model' | 'ready' | 'error'
 
-// Full mouse/trackpad replacement via one hand:
-//  - index fingertip moves a smoothed cursor (shown as a hand emoji matching
-//    the detected pose, so you can see exactly what's being recognized)
-//  - pinch tap = left click; pinch + drag = left-drag; two pinch taps close
-//    together = right click
-//  - pinch, hold, and move vertically over scrollable content = scroll
-//  - fist held = close the active window
 export class OSGestureController {
   private video: HTMLVideoElement
-  private cursorEl: HTMLDivElement | null
   private onFrame: ((d: FrameDebug) => void) | undefined
   private onStatus: ((s: TrackerStatus, detail?: string) => void) | undefined
   private onBackgroundPinch: (() => void) | undefined
@@ -78,7 +69,6 @@ export class OSGestureController {
   private lastVideoTime = -1
 
   private pinching = false
-  private pinchStartY = 0
   private pinchLastY = 0
   private scrollTarget: HTMLElement | null = null
   private scrolledDistance = 0
@@ -87,19 +77,13 @@ export class OSGestureController {
   private fistSince = 0
   private lastFistActionAt = 0
 
-  private smoothX = 0
-  private smoothY = 0
-  private smoothInit = false
-
   constructor(
     video: HTMLVideoElement,
-    cursorEl: HTMLDivElement | null,
     onFrame?: (d: FrameDebug) => void,
     onStatus?: (s: TrackerStatus, detail?: string) => void,
     onBackgroundPinch?: () => void,
   ) {
     this.video    = video
-    this.cursorEl = cursorEl
     this.onFrame  = onFrame
     this.onStatus = onStatus
     this.onBackgroundPinch = onBackgroundPinch
@@ -152,8 +136,6 @@ export class OSGestureController {
     this.stream?.getTracks().forEach(t => t.stop())
     this.stream = null
     this.video.srcObject = null
-    if (this.cursorEl) this.cursorEl.style.opacity = '0'
-    this.smoothInit = false
   }
 
   private loop = () => {
@@ -171,8 +153,6 @@ export class OSGestureController {
       this.pinching = false
       this.scrollTarget = null
       this.fistSince = 0
-      this.smoothInit = false
-      if (this.cursorEl) this.cursorEl.style.opacity = '0'
       this.onFrame?.({ landmarks: [], ratio: 1, pinching: false, handDetected: false, pose: 'none' })
       return
     }
@@ -187,57 +167,35 @@ export class OSGestureController {
     const wasPinching = this.pinching
     this.pinching = ratio < pinchThresh
 
-    const idxExt   = fingerExtended(lm[INDEX_TIP], lm[INDEX_PIP], wrist)
+    const idxExt   = fingerExtended(lm[INDEX_TIP], lm[INDEX_MCP], wrist)
     const midExt   = fingerExtended(lm[MIDDLE_TIP], lm[MIDDLE_PIP], wrist)
     const ringExt  = fingerExtended(lm[RING_TIP], lm[RING_PIP], wrist)
     const pinkyExt = fingerExtended(lm[PINKY_TIP], lm[PINKY_PIP], wrist)
     const extCount = [idxExt, midExt, ringExt, pinkyExt].filter(Boolean).length
     const isFist   = extCount === 0 && !this.pinching
-    const isOpen   = extCount >= 3 && !this.pinching
 
     let pose: Pose = 'none'
     if (this.pinching) pose = 'pinch'
     else if (isFist) pose = 'fist'
-    else if (isOpen) pose = 'open'
-    else if (idxExt) pose = 'point'
-
-    // Cursor: raw index fingertip, mirrored, then exponentially smoothed.
-    const rawX = (1 - lm[INDEX_TIP].x) * window.innerWidth
-    const rawY = lm[INDEX_TIP].y * window.innerHeight
-    if (!this.smoothInit) { this.smoothX = rawX; this.smoothY = rawY; this.smoothInit = true }
-    else {
-      this.smoothX += (rawX - this.smoothX) * CURSOR_SMOOTHING
-      this.smoothY += (rawY - this.smoothY) * CURSOR_SMOOTHING
-    }
-    const cx = this.smoothX, cy = this.smoothY
-
-    // Cursor visual = hand emoji matching the detected pose, so it's obvious
-    // what's being recognized and how it maps to your real hand.
-    if (this.cursorEl) {
-      this.cursorEl.style.opacity = '1'
-      this.cursorEl.style.transform = `translate(${cx}px, ${cy}px)`
-      this.cursorEl.textContent = POSE_EMOJI[pose]
-    }
 
     // ── Pinch: scroll only ──────────────────────────────────────────────────
-    const el = document.elementFromPoint(cx, cy)
+    const fingerY = lm[INDEX_TIP].y * window.innerHeight
+    const el = document.elementFromPoint(window.innerWidth / 2, fingerY)
     const onDesktop = !el || !!el?.closest('[data-desktop-bg]')
 
     if (this.pinching && !wasPinching) {
-      this.pinchStartY  = cy
-      this.pinchLastY   = cy
+      this.pinchLastY   = fingerY
       this.scrolledDistance = 0
       this.wasOnDesktop = onDesktop
       if (!onDesktop) this.scrollTarget = findScrollable(el)
     } else if (this.pinching && wasPinching) {
       if (this.scrollTarget) {
-        const dyPix = cy - this.pinchLastY
+        const dyPix = fingerY - this.pinchLastY
         this.scrollTarget.scrollTop += dyPix * SCROLL_PIXEL_GAIN
         this.scrolledDistance += Math.abs(dyPix)
-        this.pinchLastY = cy
+        this.pinchLastY = fingerY
       }
     } else if (!this.pinching && wasPinching) {
-      // Pinch released — trigger Krishna only if on desktop with no scroll
       if (this.wasOnDesktop && this.scrolledDistance < SCROLL_MOVE_THRESHOLD) {
         this.onBackgroundPinch?.()
       }
