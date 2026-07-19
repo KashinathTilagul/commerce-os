@@ -234,7 +234,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
                     <span className="font-mono text-[10px] flex-shrink-0 w-32 truncate" style={{ color: sevColor }}>
                       [{e.type}]
                     </span>
-                    <span className="text-muted-foreground flex-shrink-0">{e.actorName}:</span>
+                    <span className="text-muted-foreground flex-shrink-0">{e.actorName || 'system'}:</span>
                     <span className="flex-1 truncate">{e.summary}</span>
                   </div>
                 )
@@ -281,7 +281,8 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
                           initial={{ width: 0 }}
                           animate={{ width: `${pct}%` }}
                           transition={{ duration: 0.6, ease: 'easeOut' }}
-                          className={`h-full ${houseColor(house)}`}
+                          className="h-full rounded-full"
+                          style={{ backgroundColor: houseColor(house) }}
                         />
                       </div>
                     </div>
@@ -456,13 +457,13 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
 
 function houseColor(house: string): string {
   const map: Record<string, string> = {
-    Solids: 'bg-foreground/70',
-    Layers: 'bg-neel',
-    Street: 'bg-agni',
-    Luxe: 'bg-noor dark:bg-rui',
-    Origins: 'bg-arav',
+    Solids: '#1C1C1E',
+    Layers: '#1F3A5F',
+    Street: '#C8302A',
+    Luxe: '#F5F1EA',
+    Origins: '#D4859B',
   }
-  return map[house] || 'bg-muted-foreground'
+  return map[house] || '#8E8E93'
 }
 
 function RevenueTrendChart({ data }: { data: { date: string; revenue: number; orders: number }[] }) {

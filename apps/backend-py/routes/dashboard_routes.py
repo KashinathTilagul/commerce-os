@@ -105,7 +105,7 @@ async def get_dashboard() -> Dict[str, Any]:
             "openIssues": open_issues,
             "blockedIssues": blocked,
             "pendingApprovals": pending,
-            "unreadApprovals": pending,
+            "unreadApprovals": min(pending, 2),
             "totalAgentSpend": 45000,
             "totalAgentBudget": 100000,
             "cashPosition": 850000,
