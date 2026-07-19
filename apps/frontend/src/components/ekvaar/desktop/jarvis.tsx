@@ -656,19 +656,19 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setGlobal('thinking')
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch('/api/jarvis/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: text,
+          message: text,
           context: `Active: ${activeWindowName || 'none'}. Windows open: ${windows.length}.`,
           activeWindow: activeWindowName,
         }),
       })
       if (!res.ok) throw new Error('API error')
       const data = await res.json()
-      const reply = data.reply || data.spoken || "I'm here."
-      const spoken = data.spoken || reply
+      const reply = data.spoken || "I'm here."
+      const spoken = reply
       setMessages(prev => [...prev, { role: 'krishna', text: reply, ts: Date.now() }])
       setIsProcessing(false)
 
