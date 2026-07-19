@@ -10,7 +10,7 @@ ENV DATABASE_URL="file:///app/db/custom.db"
 RUN mkdir -p /app/db && touch /app/db/custom.db
 RUN node node_modules/.bin/prisma generate
 RUN node node_modules/.bin/prisma db push --accept-data-loss
-RUN node node_modules/next/dist/bin/next build
+RUN node node_modules/next/dist/bin/next build --webpack
 
 FROM node:22-slim AS runner
 WORKDIR /app
