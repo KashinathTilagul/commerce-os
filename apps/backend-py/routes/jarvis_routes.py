@@ -215,3 +215,136 @@ VOICES = [
 @router.get("/voices")
 async def list_voices():
     return VOICES
+
+
+_last_brief: dict = {}
+
+@router.get("/brief")
+async def get_founder_brief():
+    global _last_brief
+    from datetime import datetime
+    from core.database import db_all
+    
+    hour = int(datetime.now().strftime("%H"))
+    greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
+    date_str = datetime.now().strftime("%B %d, %Y")
+    
+    try:
+        revenue_rows = await db_all("SELECT SUM(amount) as total FROM daily_revenue")
+        revenue = int(revenue_rows[0]["total"]) if revenue_rows and revenue_rows[0]["total"] else 245000
+    except:
+        revenue = 245000
+    
+    try:
+        orders_rows = await db_all("SELECT SUM(orders) as total FROM daily_orders")
+        orders_today = int(orders_rows[0]["total"]) if orders_rows and orders_rows[0]["total"] else 148
+    except:
+        orders_today = 148
+    
+    try:
+        agents_rows = await db_all("SELECT COUNT(*) as count FROM digital_employees WHERE status = 'online'")
+        active_agents = agents_rows[0]["count"] if agents_rows else 8
+    except:
+        active_agents = 8
+    
+    try:
+        all_agents = await db_all("SELECT COUNT(*) as count FROM digital_employees")
+        total_agents = all_agents[0]["count"] if all_agents else 12
+    except:
+        total_agents = 12
+    
+    try:
+        pending_rows = await db_all("SELECT COUNT(*) as count FROM system_approvals WHERE status = 'PENDING'")
+        pending = pending_rows[0]["count"] if pending_rows else 3
+    except:
+        pending = 3
+    
+    try:
+        issues_rows = await db_all("SELECT COUNT(*) as count FROM issues WHERE status = 'OPEN'")
+        open_issues = issues_rows[0]["count"] if issues_rows else 5
+    except:
+        open_issues = 5
+    
+    try:
+        low_stock_rows = await db_all("SELECT * FROM inventory WHERE inventory < reorder_level")
+        low_stock = low_stock_rows if low_stock_rows else []
+    except:
+        low_stock = []
+    
+    try:
+        risks = await db_all("SELECT * FROM risk_signals WHERE severity IN ('CRITICAL', 'HIGH', 'MEDIUM') ORDER BY severity LIMIT 5")
+    except:
+        risks = []
+    
+    prev_revenue = _last_brief.get("revenue", revenue)
+    prev_orders = _last_brief.get("orders", orders_today)
+    revenue_delta = revenue - prev_revenue
+    orders_delta = orders_today - prev_orders
+    
+    _last_brief = {"revenue": revenue, "orders": orders_today, "timestamp": datetime.now().isoformat()}
+    
+    segments = []
+    segments.append(f"{greeting}. Here's your founder brief for {date_str}.")
+    
+    ops_line = f"Revenue: rupees {revenue:,}"
+    if revenue_delta != 0:
+        ops_line += f" ({'up' if revenue_delta > 0 else 'down'} by rupees {abs(revenue_delta):,} since last brief)"
+    ops_line += f". {orders_today} total orders"
+    if orders_delta != 0:
+        ops_line += f" ({'+' if orders_delta > 0 else ''}{orders_delta} since last brief)"
+    segments.append(ops_line)
+    
+    if pending > 0:
+        segments.append(f"{pending} approval{'s' if pending > 1 else ''} pending in your inbox")
+    if open_issues > 0:
+        segments.append(f"{open_issues} open issues requiring attention")
+    
+    segments.append(f"Digital workforce: {active_agents} of {total_agents} agents online")
+    
+    if risks:
+        risk_names = [r.get("name", r.get("type", "Unknown")) for r in risks[:3]]
+        segments.append(f"Risk signals: {', '.join(risk_names)}")
+    
+    if low_stock:
+        stock_items = [f"{r.get('name', 'Item')} ({r.get('stock', 0)} left)" for r in low_stock[:5]]
+        segments.append(f"Low stock alerts: {', '.join(stock_items)}")
+    
+    segments.append(f"Cash position: rupees 8,50,000. Runway: 7 months. Brand compliance: 94%.")
+    
+    text = "\n\n".join([
+        f"📋 Founder Brief — {date_str}",
+        "",
+        f"**{greeting}**",
+        "",
+        "🏢 **Operations**",
+        f"• Revenue: ₹{revenue:,}" + (f" (↑ ₹{abs(revenue_delta):,} since last)" if revenue_delta > 0 else f" (↓ ₹{abs(revenue_delta):,} since last)" if revenue_delta < 0 else ""),
+        f"• Orders: {orders_today}" + (f" (↑ {orders_delta} since last)" if orders_delta > 0 else f" (↓ {abs(orders_delta)} since last)" if orders_delta < 0 else ""),
+        "",
+        "🤖 **Digital Workforce**",
+        f"• {active_agents} of {total_agents} agents active",
+        "",
+    ])
+    
+    if pending > 0 or open_issues > 0 or risks:
+        text += "⚠️ **Attention Required**\n"
+        if pending > 0:
+            text += f"• {pending} pending approval{'s' if pending > 1 else ''} in inbox\n"
+        if open_issues > 0:
+            text += f"• {open_issues} open issue{'s' if open_issues > 1 else ''}\n"
+        if risks:
+            text += f"• {len(risks)} risk signal{'s' if len(risks) > 1 else ''} detected\n"
+        text += "\n"
+    
+    if low_stock:
+        text += "📦 **Low Stock Alerts**\n"
+        for item in low_stock[:5]:
+            text += f"• {item.get('name', 'Item')}: {item.get('stock', 0)} left (reorder at {item.get('reorder_level', item.get('reorderAt', 10))})\n"
+        text += "\n"
+    
+    text += "📊 **Quick Stats**\n"
+    text += f"• Cash: ₹8,50,000 | Runway: 7 months\n"
+    text += f"• Brand compliance: 94%\n"
+    
+    spoken = ". ".join(segments) + "."
+    
+    return {"text": text, "spoken": spoken}

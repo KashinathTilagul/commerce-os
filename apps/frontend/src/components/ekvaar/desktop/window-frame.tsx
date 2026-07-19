@@ -5,9 +5,30 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useWindowStore, type WindowState } from '@/lib/window-store'
 import { APP_MAP } from './app-registry'
 
-const TOP_BAR_H = 28 // menu bar height
+const TOP_BAR_H = 28
 const MIN_W = 720
 const MIN_H = 480
+
+let _krishnaTrigger = 0
+const _krishnaListeners: ((v: number) => void)[] = []
+
+export function triggerKrishna() {
+  _krishnaTrigger++
+  _krishnaListeners.forEach(fn => fn(_krishnaTrigger))
+}
+
+export function useKrishnaTrigger() {
+  const [trigger, setTrigger] = useState(_krishnaTrigger)
+  useEffect(() => {
+    const fn = (v: number) => setTrigger(v)
+    _krishnaListeners.push(fn)
+    return () => {
+      const i = _krishnaListeners.indexOf(fn)
+      if (i >= 0) _krishnaListeners.splice(i, 1)
+    }
+  }, [])
+  return trigger
+}
 
 export function WindowFrame({ win }: { win: WindowState }) {
   const { focus, close, minimize, toggleMaximize, move, resize, activeId } = useWindowStore()
@@ -276,7 +297,6 @@ function AppComponentWrapper({
   Component: React.ComponentType<any>
   appId: string
 }) {
-  // Components that accept onNavigate
   const props: any = {}
   if (appId === 'command') {
     props.onNavigate = (id: any) => {
@@ -284,6 +304,9 @@ function AppComponentWrapper({
       if (targetApp) {
         useWindowStore.getState().open(id, targetApp.name)
       }
+    }
+    props.onFounderBrief = () => {
+      triggerKrishna()
     }
   }
   return <Component {...props} />

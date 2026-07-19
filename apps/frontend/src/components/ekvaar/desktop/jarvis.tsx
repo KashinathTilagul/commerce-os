@@ -698,11 +698,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       })
       if (!res.ok) throw new Error('API error')
       const data = await res.json()
-      const reply = data.spoken || "I'm here."
+      const reply = data.reply || data.spoken || "I'm here."
+      const spoken = data.spoken || reply
       setMessages(prev => [...prev, { role: 'krishna', text: reply, ts: Date.now() }])
-      setIsProcessing(false) // unlock mic before TTS — user can interrupt
+      setIsProcessing(false)
 
-      // OS actions
       if (data.action?.type === 'open_app') {
         const app = APPS.find(a =>
           a.id === data.action.app ||
@@ -715,7 +715,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         if (active) useWindowStore.getState().close(active)
       }
 
-      await speakText(reply)
+      await speakText(spoken)
     } catch {
       const fallback = "I'm here. How can I help?"
       setMessages(prev => [...prev, { role: 'krishna', text: fallback, ts: Date.now() }])

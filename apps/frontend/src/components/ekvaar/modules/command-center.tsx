@@ -60,7 +60,7 @@ interface DashboardData {
   recentEvents: any[]
 }
 
-export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => void }) {
+export function CommandCenter({ onNavigate, onFounderBrief }: { onNavigate: (m: ModuleId) => void; onFounderBrief?: () => void }) {
   const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: async () => {
@@ -90,7 +90,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
                 {k.unreadApprovals} pending
               </Button>
             )}
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={onFounderBrief}>
               <Sparkles className="h-3.5 w-3.5" />
               Founder Brief
             </Button>

@@ -11,6 +11,14 @@ from core.services import (
 
 router = APIRouter()
 
+BRIEF_INTENTS = {
+    "brief", "give me my brief", "what's my brief", "whats my brief",
+    "founder brief", "brief me", "what's the status", "whats the status",
+    "give me a summary", "status report", "daily brief", "morning brief",
+    "tell me the status", "what's happening", "whats happening",
+    "give me an update", "update me", "what's the situation"
+}
+
 class ChatRequest(BaseModel):
     prompt: str
     context: Optional[Dict[str, Any]] = None
@@ -19,6 +27,17 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     """Centralized chat endpoint — all agent UIs route through here."""
+    prompt_lower = request.prompt.lower().strip()
+    
+    if prompt_lower in BRIEF_INTENTS or any(intent in prompt_lower for intent in ["brief", "status", "update", "summary"]):
+        from routes.jarvis_routes import get_founder_brief
+        brief_data = await get_founder_brief()
+        return {
+            "reply": brief_data["text"],
+            "spoken": brief_data["spoken"],
+            "action": {"type": "brief"}
+        }
+    
     try:
         # Gather live system state from shared services
         tasks = await task_service.get_all_tasks(10)
