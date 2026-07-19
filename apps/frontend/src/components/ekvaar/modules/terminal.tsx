@@ -1,19 +1,19 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
-import { Terminal, Activity, Zap, AlertCircle, Info, Cpu } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Terminal, Activity, Zap, AlertCircle, Info } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageHeader, KpiCard } from '../shared'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAppSubscription } from '@/lib/cpu-websocket'
 
-const SEVERITY_META: Record<string, { color: string; icon: any; prefix: string }> = {
-  INFO: { color: '#1F3A5F', icon: Info, prefix: '›' },
-  WARN: { color: '#D4859B', icon: AlertCircle, prefix: '!' },
-  ERROR: { color: '#C8302A', icon: AlertCircle, prefix: '✕' },
-  CRITICAL: { color: '#C8302A', icon: Zap, prefix: '⚡' },
+const SEVERITY_META: Record<string, { color: string; icon: any }> = {
+  INFO: { color: '#1F3A5F', icon: Info },
+  WARN: { color: '#D4859B', icon: AlertCircle },
+  ERROR: { color: '#C8302A', icon: AlertCircle },
+  CRITICAL: { color: '#C8302A', icon: Zap },
 }
 
 export function TerminalModule() {
@@ -40,12 +40,6 @@ export function TerminalModule() {
     ERROR: events.filter((e) => e.severity === 'ERROR').length,
     CRITICAL: events.filter((e) => e.severity === 'CRITICAL').length,
   }
-
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight
-    }
-  }, [events])
 
   return (
     <div>
@@ -120,8 +114,8 @@ export function TerminalModule() {
             {isLoading ? (
               <div className="h-[560px] p-4 font-mono text-xs space-y-1.5" style={{ background: '#0A0A0A' }}>
                 <div className="text-rui/40 mb-3">
-                  <div>$ ekvaar-os --start-event-ledger</div>
-                  <div className="text-rui/30">Connecting...</div>
+                  <div>$ ekvaar-os --event-ledger</div>
+                  <div className="text-rui/30">Loading...</div>
                 </div>
                 {[1, 2, 3, 4, 5].map(i => (
                   <div key={i} className="flex items-center gap-2 px-2 py-1">
@@ -137,16 +131,14 @@ export function TerminalModule() {
               className="h-[560px] overflow-y-auto p-4 font-mono text-xs space-y-1.5"
               style={{ background: '#0A0A0A' }}
             >
-              {/* Boot line */}
-              <div className="text-rui/40 mb-3">
-                <div>$ ekvaar-os --start-event-ledger</div>
-                <div className="text-arav">✓ Connected to Heartbeat Engine · 12 agents registered</div>
-                <div className="text-rui/40">→ Streaming live events…</div>
-                <div className="text-rui/30">─────────────────────────────────────────────</div>
-              </div>
-
+              {events.length === 0 && (
+                <div className="text-rui/40">
+                  <div>$ ekvaar-os --event-ledger</div>
+                  <div className="text-rui/30">No events recorded yet. Events will appear here when agents complete tasks, budgets change, or approvals are requested.</div>
+                </div>
+              )}
               <AnimatePresence initial={false}>
-                {filtered.map((e, i) => {
+                {filtered.map((e) => {
                   const meta = SEVERITY_META[e.severity] || SEVERITY_META.INFO
                   const Icon = meta.icon
                   return (
@@ -157,7 +149,7 @@ export function TerminalModule() {
                       className="flex items-start gap-2 group hover:bg-rui/5 px-2 py-1 rounded"
                     >
                       <span className="text-rui/30 flex-shrink-0 w-20">
-                        {new Date(e.timestamp).toLocaleTimeString('en-US', { hour12: false })}
+                        {new Date(e.timestamp || e.createdAt).toLocaleTimeString('en-US', { hour12: false })}
                       </span>
                       <Icon className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: meta.color }} />
                       <span
@@ -174,82 +166,11 @@ export function TerminalModule() {
                   )
                 }).reverse()}
               </AnimatePresence>
-
-              {/* Live cursor */}
-              <div className="text-rui/40 mt-2 flex items-center gap-1">
-                <span>$</span>
-                <span className="inline-block w-2 h-3.5 bg-rui/60 animate-pulse-soft" />
-              </div>
             </div>
             )}
           </CardContent>
         </Card>
-
-        {/* CPU context window */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
-              <Cpu className="h-4 w-4" /> Agent CPU Context
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Live token consumption across the digital C-suite
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              <AgentCpuGrid />
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
-  )
-}
-
-// Client-only CPU grid — uses useState to avoid SSR hydration mismatch from Math.random
-function AgentCpuGrid() {
-  const [loads, setLoads] = useState<number[] | null>(null)
-
-  useEffect(() => {
-    // Generate on client only — defers to next tick to avoid lint warning
-    const raf = requestAnimationFrame(() => {
-      const initial = Array.from({ length: 6 }, () => 20 + Math.floor(Math.random() * 70))
-      setLoads(initial)
-    })
-    const t = setInterval(() => {
-      setLoads((prev) => {
-        if (!prev) return prev
-        return prev.map((l) => {
-          const delta = Math.floor(Math.random() * 20) - 10
-          return Math.max(15, Math.min(95, l + delta))
-        })
-      })
-    }, 3000)
-    return () => {
-      cancelAnimationFrame(raf)
-      clearInterval(t)
-    }
-  }, [])
-
-  // Stable placeholder during SSR and first paint — 6 zeros
-  const display = loads ?? [0, 0, 0, 0, 0, 0]
-
-  return (
-    <>
-      {display.map((load, i) => (
-        <div key={i} className="p-3 border border-border rounded-md">
-          <div className="text-[10px] tracking-wider uppercase text-muted-foreground">
-            Agent {i + 1}
-          </div>
-          <div className="font-display text-lg mt-1">{loads ? `${load}%` : '—'}</div>
-          <div className="h-1 bg-muted rounded-full overflow-hidden mt-2">
-            <div
-              className={`h-full transition-all duration-700 ${load > 80 ? 'bg-agni' : load > 60 ? 'bg-gulabi' : 'bg-arav'}`}
-              style={{ width: `${load}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </>
   )
 }
