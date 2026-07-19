@@ -20,14 +20,16 @@ BRIEF_INTENTS = {
 }
 
 class ChatRequest(BaseModel):
-    prompt: str
+    prompt: str = ""
+    message: str = ""
     context: Optional[Dict[str, Any]] = None
     history: Optional[list] = None
 
 @router.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     """Centralized chat endpoint — all agent UIs route through here."""
-    prompt_lower = request.prompt.lower().strip()
+    prompt_text = request.prompt or request.message or ""
+    prompt_lower = prompt_text.lower().strip()
     
     if prompt_lower in BRIEF_INTENTS or any(intent in prompt_lower for intent in ["brief", "status", "update", "summary"]):
         from routes.jarvis_routes import get_founder_brief
@@ -62,7 +64,7 @@ async def chat_endpoint(request: ChatRequest):
             history_str = "Recent Conversation History:\n"
             for msg in request.history:
                 # Exclude the current prompt which is added at the end
-                if msg.get('text') == request.prompt and msg == request.history[-1]:
+                if msg.get('text') == prompt_text and msg == request.history[-1]:
                     continue
                 role = "User" if msg.get("role") == "user" else "Krishna"
                 history_str += f"{role}: {msg.get('text')}\n"
@@ -70,7 +72,7 @@ async def chat_endpoint(request: ChatRequest):
         
         llm = LLMRouter()
         response = await llm.route_request(
-            prompt=f"{history_str}User: {request.prompt}",
+            prompt=f"{history_str}User: {prompt_text}",
             system_prompt=system_prompt,
             task_type="ceo"
         )

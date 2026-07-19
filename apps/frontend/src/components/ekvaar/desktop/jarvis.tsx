@@ -687,11 +687,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setGlobal('thinking')
 
     try {
-      const res = await fetch('/api/jarvis/chat', {
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: text,
+          prompt: text,
           context: `Active: ${activeWindowName || 'none'}. Windows open: ${windows.length}.`,
           activeWindow: activeWindowName,
         }),
