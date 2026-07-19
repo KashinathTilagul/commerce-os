@@ -27,14 +27,7 @@ export function FounderInbox() {
   const [acting, setActing] = useState(false)
   const queryClient = useQueryClient()
 
-  const { data: approvals = [] } = useQuery<any[]>({
-    queryKey: ['approvals', tab],
-    queryFn: async () => {
-      const r = await fetch(`/api/approvals?inbox=${tab}`)
-      if (!r.ok) throw new Error('Failed to fetch approvals')
-      return r.json()
-    },
-  })
+  // Removed separate tab fetch in favor of local filtering on allApprovals
 
   const { data: allApprovals = [] } = useQuery<any[]>({
     queryKey: ['approvals', 'ALL'],
@@ -76,6 +69,11 @@ export function FounderInbox() {
   const unread = allApprovals.filter((a) => !a.isRead && a.status === 'PENDING')
   const blocked = allApprovals.filter((a) => a.inbox === 'BLOCKED' || a.status === 'REVISION_REQUESTED')
   const totalAmount = pending.reduce((s, a) => s + a.amount, 0)
+
+  const approvals = tab === 'MINE' ? pending 
+    : tab === 'UNREAD' ? unread 
+    : tab === 'BLOCKED' ? blocked 
+    : allApprovals
 
   return (
     <div>
