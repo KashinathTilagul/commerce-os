@@ -2,17 +2,17 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plus, GitBranch, MessageSquare, Clock, ArrowRight, AlertTriangle } from 'lucide-react'
+import { Plus, GitBranch, MessageSquare, AlertTriangle, ArrowRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill } from '../shared'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
+import { useAppSubscription } from '@/lib/cpu-websocket'
 
 const STATUS_META: Record<string, { color: string; bg: string; label: string }> = {
   BACKLOG: { color: 'text-muted-foreground', bg: 'bg-muted', label: 'Backlog' },
@@ -38,6 +38,25 @@ const TYPE_META: Record<string, string> = {
   RESEARCH: 'Research',
 }
 
+function IssueSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="h-4 w-8 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-12 bg-muted rounded animate-pulse" />
+        </div>
+        <div className="h-3 w-20 bg-muted rounded animate-pulse mb-1" />
+        <div className="h-4 w-full bg-muted rounded animate-pulse mb-2" />
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/60">
+          <div className="h-5 w-20 bg-muted rounded-full animate-pulse" />
+          <div className="h-4 w-8 bg-muted rounded animate-pulse" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function IssuesModule() {
   const [view, setView] = useState<'BOARD' | 'LIST'>('BOARD')
   const [selected, setSelected] = useState<any | null>(null)
@@ -48,30 +67,47 @@ export function IssuesModule() {
   const [creating, setCreating] = useState(false)
   const queryClient = useQueryClient()
 
-  const { data: issues = [] } = useQuery<any[]>({
+  const { data: issues = [], isLoading, error } = useQuery<any[]>({
     queryKey: ['issues'],
     queryFn: async () => {
       const r = await fetch('/api/issues')
       if (!r.ok) throw new Error('Failed to fetch issues')
       return r.json()
     },
+    staleTime: 30000,
   })
 
+  useAppSubscription('issues')
+
   const handleStatusChange = async (issue: any, newStatus: string) => {
+    const oldStatus = issue.status
+
+    queryClient.setQueryData<any[]>(['issues'], (old = []) =>
+      old.map(i => i.id === issue.id ? { ...i, status: newStatus } : i)
+    )
+
+    if (selected?.id === issue.id) {
+      setSelected({ ...issue, status: newStatus })
+    }
+
     try {
       const r = await fetch(`/api/issues/${issue.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       })
-      if (!r.ok) throw new Error('Failed')
+      if (!r.ok) {
+        queryClient.setQueryData<any[]>(['issues'], (old = []) =>
+          old.map(i => i.id === issue.id ? { ...i, status: oldStatus } : i)
+        )
+        if (selected?.id === issue.id) {
+          setSelected({ ...issue, status: oldStatus })
+        }
+        throw new Error('Failed')
+      }
       toast.success('Status updated', `${issue.code} → ${newStatus.replace(/_/g, ' ')}`)
       queryClient.invalidateQueries({ queryKey: ['issues'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      // Update selected locally
-      if (selected?.id === issue.id) {
-        setSelected({ ...issue, status: newStatus })
-      }
     } catch {
       toast.error('Update failed', 'Could not change issue status')
     }
@@ -149,12 +185,24 @@ export function IssuesModule() {
       />
 
       <div className="px-4 lg:px-8 py-8 space-y-6">
+        {error && (
+          <Card className="border-agni/40 bg-agni/5">
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-agni" />
+              <div>
+                <div className="font-medium text-sm">Unable to load issues</div>
+                <div className="text-xs text-muted-foreground">Check your connection and try again.</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Total Issues" value={String(issues.length)} accent="#1F3A5F" icon={<GitBranch className="h-4 w-4" />} />
-          <KpiCard label="In Progress" value={String(byStatus.IN_PROGRESS.length)} accent="#1F3A5F" />
-          <KpiCard label="In Review" value={String(byStatus.IN_REVIEW.length)} accent="#D4859B" />
-          <KpiCard label="Blocked" value={String(byStatus.BLOCKED.length)} accent="#C8302A" icon={<AlertTriangle className="h-4 w-4" />} />
+          <KpiCard label="Total Issues" value={isLoading ? '—' : String(issues.length)} accent="#1F3A5F" icon={<GitBranch className="h-4 w-4" />} />
+          <KpiCard label="In Progress" value={isLoading ? '—' : String(byStatus.IN_PROGRESS.length)} accent="#1F3A5F" />
+          <KpiCard label="In Review" value={isLoading ? '—' : String(byStatus.IN_REVIEW.length)} accent="#D4859B" />
+          <KpiCard label="Blocked" value={isLoading ? '—' : String(byStatus.BLOCKED.length)} accent="#C8302A" icon={<AlertTriangle className="h-4 w-4" />} />
         </div>
 
         {/* View toggle */}
@@ -171,6 +219,16 @@ export function IssuesModule() {
         </div>
 
         {view === 'BOARD' ? (
+          isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+              {['BACKLOG', 'IN_PROGRESS', 'IN_REVIEW', 'BLOCKED', 'DONE'].map(status => (
+                <div key={status} className="space-y-2">
+                  <div className="h-6 w-20 bg-muted rounded animate-pulse mb-3" />
+                  {[1, 2].map(i => <IssueSkeleton key={i} />)}
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
             {Object.entries(byStatus).map(([status, items]) => {
               const meta = STATUS_META[status]
@@ -259,7 +317,27 @@ export function IssuesModule() {
               )
             })}
           </div>
+          )
         ) : (
+          isLoading ? (
+            <Card>
+              <CardContent className="p-0">
+                <div className="space-y-0">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="flex items-center gap-4 p-3 border-b border-border/60">
+                      <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                      <div className="h-4 w-40 bg-muted rounded animate-pulse flex-1" />
+                      <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                      <div className="h-4 w-10 bg-muted rounded animate-pulse" />
+                      <div className="h-5 w-24 bg-muted rounded animate-pulse" />
+                      <div className="h-5 w-20 bg-muted rounded-full animate-pulse" />
+                      <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
           <Card>
             <CardContent className="p-0">
               <div className="max-h-[700px] overflow-y-auto">
@@ -305,6 +383,7 @@ export function IssuesModule() {
               </div>
             </CardContent>
           </Card>
+          )
         )}
       </div>
 

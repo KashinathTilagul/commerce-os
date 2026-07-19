@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ekvaar/desktop/toast'
 import { Badge } from '@/components/ui/badge'
-import { timeAgo } from '@/lib/ekvaar'
+import { useAppSubscription } from '@/lib/cpu-websocket'
 
 const SEVERITY_META: Record<string, { color: string; icon: any; prefix: string }> = {
   INFO: { color: '#1F3A5F', icon: Info, prefix: '›' },
@@ -20,15 +20,17 @@ const SEVERITY_META: Record<string, { color: string; icon: any; prefix: string }
 
 export function TerminalModule() {
   const queryClient = useQueryClient()
-  const { data: events = [] } = useQuery<any[]>({
+  const { data: events = [], isLoading, error } = useQuery<any[]>({
     queryKey: ['events'],
     queryFn: async () => {
       const r = await fetch('/api/events')
       if (!r.ok) throw new Error('Failed to fetch events')
       return r.json()
     },
-    refetchInterval: 5000, // live refresh
+    staleTime: 30000,
   })
+
+  useAppSubscription('events')
 
   const [filter, setFilter] = useState<string>('ALL')
   const logRef = useRef<HTMLDivElement>(null)
@@ -39,12 +41,13 @@ export function TerminalModule() {
   const wakeAgent = async () => {
     try {
       const r = await fetch('/api/events/generate', { method: 'POST' })
+      if (!r.ok) throw new Error('Failed')
       const event = await r.json()
       queryClient.invalidateQueries({ queryKey: ['events'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      toast.info('Agent heartbeat', event.summary)
+      toast.info('Agent heartbeat', event.summary || 'Event generated')
     } catch {
-      toast.error('Failed to wake agent')
+      toast.error('Failed to wake agent', 'Could not generate event')
     }
   }
 
@@ -73,7 +76,7 @@ export function TerminalModule() {
           <>
             <Badge variant="outline" className="gap-1.5">
               <span className="h-1.5 w-1.5 bg-arav rounded-full animate-pulse-soft" />
-              Live · refreshes every 5s
+              Live
             </Badge>
             <Button size="sm" className="gap-1.5" onClick={wakeAgent}>
               <Sparkles className="h-3.5 w-3.5" /> Wake Agent
@@ -83,12 +86,24 @@ export function TerminalModule() {
       />
 
       <div className="px-4 lg:px-8 py-8 space-y-6">
+        {error && (
+          <Card className="border-agni/40 bg-agni/5">
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-agni" />
+              <div>
+                <div className="font-medium text-sm">Unable to load event stream</div>
+                <div className="text-xs text-muted-foreground">Check your connection and try again.</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Total Events" value={String(events.length)} accent="#1F3A5F" icon={<Activity className="h-4 w-4" />} />
-          <KpiCard label="Info" value={String(counts.INFO)} accent="#1F3A5F" icon={<Info className="h-4 w-4" />} />
-          <KpiCard label="Warnings" value={String(counts.WARN)} accent="#D4859B" icon={<AlertCircle className="h-4 w-4" />} />
-          <KpiCard label="Critical" value={String(counts.CRITICAL + counts.ERROR)} accent="#C8302A" icon={<Zap className="h-4 w-4" />} />
+          <KpiCard label="Total Events" value={isLoading ? '—' : String(events.length)} accent="#1F3A5F" icon={<Activity className="h-4 w-4" />} />
+          <KpiCard label="Info" value={isLoading ? '—' : String(counts.INFO)} accent="#1F3A5F" icon={<Info className="h-4 w-4" />} />
+          <KpiCard label="Warnings" value={isLoading ? '—' : String(counts.WARN)} accent="#D4859B" icon={<AlertCircle className="h-4 w-4" />} />
+          <KpiCard label="Critical" value={isLoading ? '—' : String(counts.CRITICAL + counts.ERROR)} accent="#C8302A" icon={<Zap className="h-4 w-4" />} />
         </div>
 
         {/* Filter pills */}
@@ -126,6 +141,21 @@ export function TerminalModule() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            {isLoading ? (
+              <div className="h-[560px] p-4 font-mono text-xs space-y-1.5" style={{ background: '#0A0A0A' }}>
+                <div className="text-rui/40 mb-3">
+                  <div>$ ekvaar-os --start-event-ledger</div>
+                  <div className="text-rui/30">Connecting...</div>
+                </div>
+                {[1, 2, 3, 4, 5].map(i => (
+                  <div key={i} className="flex items-center gap-2 px-2 py-1">
+                    <div className="h-3 w-20 bg-rui/20 rounded animate-pulse" />
+                    <div className="h-3 w-32 bg-rui/20 rounded animate-pulse" />
+                    <div className="h-3 w-48 bg-rui/20 rounded animate-pulse flex-1" />
+                  </div>
+                ))}
+              </div>
+            ) : (
             <div
               ref={logRef}
               className="h-[560px] overflow-y-auto p-4 font-mono text-xs space-y-1.5"
@@ -175,6 +205,7 @@ export function TerminalModule() {
                 <span className="inline-block w-2 h-3.5 bg-rui/60 animate-pulse-soft" />
               </div>
             </div>
+            )}
           </CardContent>
         </Card>
 

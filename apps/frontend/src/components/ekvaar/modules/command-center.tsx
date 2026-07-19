@@ -1,20 +1,49 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  TrendingUp, TrendingDown, ShoppingBag, Users, Package, Cpu,
-  ShieldCheck, AlertTriangle, ArrowUpRight, Sparkles, Clock, Bell, GitBranch, Inbox, Wallet,
+  TrendingUp, ShoppingBag, Users, Package, Cpu,
+  ShieldCheck, AlertTriangle, ArrowUpRight, Sparkles, Bell, GitBranch, Inbox, Wallet,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { PageHeader, KpiCard, SectionTitle, HouseBadge, ColorDot, StatusPill } from '../shared'
+import { PageHeader, KpiCard, SectionTitle, HouseBadge, ColorDot } from '../shared'
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { formatINR, formatINRFull, timeAgo, EKVAAR_HOUSES, type ModuleId } from '@/lib/ekvaar'
+import { formatINR, formatINRFull, EKVAAR_HOUSES, type ModuleId } from '@/lib/ekvaar'
+import { useAppSubscription } from '@/lib/cpu-websocket'
+
+function KpiSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="h-4 w-20 bg-muted rounded animate-pulse mb-2" />
+        <div className="h-7 w-24 bg-muted rounded animate-pulse" />
+      </CardContent>
+    </Card>
+  )
+}
+
+function EventsSkeleton() {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="h-5 w-40 bg-muted rounded animate-pulse" />
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="flex items-center gap-3 py-1.5">
+            <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-4 flex-1 bg-muted rounded animate-pulse" />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
 
 interface DashboardData {
   kpis: {
@@ -61,16 +90,42 @@ interface DashboardData {
 }
 
 export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => void }) {
-  const { data, isLoading } = useQuery<DashboardData>({
+  const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: async () => {
       const r = await fetch('/api/dashboard')
       if (!r.ok) throw new Error('Failed to fetch dashboard')
       return r.json()
     },
+    staleTime: 30000,
   })
 
+  useAppSubscription('dashboard')
+
   const k = data?.kpis
+
+  const safeDiv = (a: number, b: number) => b > 0 ? a / b : 0
+
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader
+          eyebrow="Board Room · Reality Layer"
+          title="All-Time Operations"
+          description="Loading dashboard data..."
+        />
+        <div className="px-4 lg:px-8 py-8 space-y-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map(i => <KpiSkeleton key={i} />)}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => <Card key={i}><CardContent className="p-5"><div className="h-20 bg-muted rounded animate-pulse" /></CardContent></Card>)}
+          </div>
+          <EventsSkeleton />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -99,37 +154,47 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
       />
 
       <div className="px-4 lg:px-8 py-8 space-y-10">
+        {error && (
+          <Card className="border-agni/40 bg-agni/5">
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-agni" />
+              <div>
+                <div className="font-medium text-sm">Unable to load dashboard</div>
+                <div className="text-xs text-muted-foreground">Data may be stale. Check your connection.</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
             label="Revenue (Lifetime)"
             value={k ? formatINR(k.revenue) : '—'}
-            delta={12.4}
-            deltaLabel="vs last 30d"
+            delta={k && k.revenueLast30 && k.revenue > 0 ? Math.round((safeDiv(k.revenueLast30, 30) / safeDiv(k.revenue, 365)) * 100 - 100) : undefined}
+            deltaLabel="vs daily avg"
             accent="#2F4F3A"
             icon={<TrendingUp className="h-4 w-4" />}
           />
           <KpiCard
             label="Net Profit (30d)"
             value={k ? formatINR(k.netProfitLast30) : '—'}
-            delta={8.1}
-            deltaLabel="margin expanding"
+            delta={k && k.revenueLast30 > 0 ? Math.round(safeDiv(k.netProfitLast30, k.revenueLast30) * 100) : undefined}
+            deltaLabel="% margin"
             accent="#C8302A"
             icon={<TrendingUp className="h-4 w-4" />}
           />
           <KpiCard
             label="Orders (30d)"
             value={k ? String(k.ordersLast30) : '—'}
-            delta={5.2}
-            deltaLabel="14d rolling"
+            delta={k && k.ordersLast7 > 0 ? Math.round((safeDiv(k.ordersLast7, 7) / safeDiv(k.ordersLast30, 30)) * 100 - 100) : undefined}
+            deltaLabel="7d vs 30d avg"
             accent="#1F3A5F"
             icon={<ShoppingBag className="h-4 w-4" />}
           />
           <KpiCard
             label="Avg Order Value"
             value={k ? formatINR(k.avgOrderValue) : '—'}
-            delta={3.4}
-            deltaLabel="premium holding"
             accent="#D4859B"
             icon={<ArrowUpRight className="h-4 w-4" />}
           />
@@ -267,7 +332,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
                 .sort((a, b) => b[1] - a[1])
                 .map(([house, val]) => {
                   const total = Object.values(data?.salesByHouse ?? {}).reduce((s, v) => s + v, 0)
-                  const pct = total > 0 ? (val / total) * 100 : 0
+                  const pct = safeDiv(val, total) * 100
                   return (
                     <div key={house}>
                       <div className="flex items-center justify-between text-xs mb-1.5">
@@ -304,7 +369,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
                 .sort((a, b) => b[1] - a[1])
                 .map(([color, val]) => {
                   const total = Object.values(data?.salesByColor ?? {}).reduce((s, v) => s + v, 0)
-                  const pct = total > 0 ? (val / total) * 100 : 0
+                  const pct = safeDiv(val, total) * 100
                   return (
                     <div key={color} className="flex items-center gap-3">
                       <ColorDot color={color} size={14} />

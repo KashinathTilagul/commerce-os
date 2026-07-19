@@ -2,23 +2,48 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Inbox, CheckCircle2, XCircle, RotateCcw, Clock, AlertTriangle, Sparkles, ArrowUpRight } from 'lucide-react'
+import { Inbox, CheckCircle2, XCircle, RotateCcw, Clock, AlertTriangle, Sparkles, ArrowUpRight, type LucideIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill } from '../shared'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
+import { useAppSubscription } from '@/lib/cpu-websocket'
 
-const TYPE_META: Record<string, { color: string; icon: any }> = {
+const TYPE_META: Record<string, { color: string; icon: LucideIcon }> = {
   BUDGET: { color: '#C8302A', icon: AlertTriangle },
   STRATEGIC: { color: '#1F3A5F', icon: Sparkles },
   HIRING: { color: '#2F4F3A', icon: Inbox },
   CAMPAIGN: { color: '#D4859B', icon: ArrowUpRight },
   VENDOR: { color: '#8B7355', icon: Inbox },
+}
+
+function ApprovalSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-start gap-4">
+          <div className="h-10 w-10 rounded-md bg-muted animate-pulse flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-20 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+            </div>
+            <div className="h-5 w-48 bg-muted rounded animate-pulse" />
+            <div className="h-4 w-full bg-muted rounded animate-pulse" />
+            <div className="flex items-center gap-4 mt-2">
+              <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+              <div className="h-4 w-16 bg-muted rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 export function FounderInbox() {
@@ -27,19 +52,33 @@ export function FounderInbox() {
   const [acting, setActing] = useState(false)
   const queryClient = useQueryClient()
 
-  // Removed separate tab fetch in favor of local filtering on allApprovals
-
-  const { data: allApprovals = [] } = useQuery<any[]>({
+  const { data: allApprovals = [], isLoading, error } = useQuery<any[]>({
     queryKey: ['approvals', 'ALL'],
     queryFn: async () => {
       const r = await fetch('/api/approvals?inbox=ALL')
       if (!r.ok) throw new Error('Failed to fetch approvals')
       return r.json()
     },
+    staleTime: 30000,
   })
+
+  useAppSubscription('inbox')
 
   const handleAction = async (action: 'approve' | 'reject' | 'revision') => {
     if (!selected) return
+
+    const statusMap: Record<string, string> = {
+      approve: 'APPROVED',
+      reject: 'REJECTED',
+      revision: 'REVISION_REQUESTED',
+    }
+    const newStatus = statusMap[action]
+    const previousStatus = selected.status
+
+    queryClient.setQueryData<any[]>(['approvals', 'ALL'], (old = []) =>
+      old.map(a => a.id === selected.id ? { ...a, status: newStatus } : a)
+    )
+
     setActing(true)
     try {
       const r = await fetch(`/api/approvals/${selected.id}`, {
@@ -47,13 +86,17 @@ export function FounderInbox() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
       })
-      if (!r.ok) throw new Error('Failed')
+      if (!r.ok) {
+        queryClient.setQueryData<any[]>(['approvals', 'ALL'], (old = []) =>
+          old.map(a => a.id === selected.id ? { ...a, status: previousStatus } : a)
+        )
+        throw new Error('Failed')
+      }
       const updated = await r.json()
       toast.success(
         action === 'approve' ? 'Approved' : action === 'reject' ? 'Rejected' : 'Revision requested',
         `${selected.code} · ${selected.title}`
       )
-      // Invalidate queries to refresh
       queryClient.invalidateQueries({ queryKey: ['approvals'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['events'] })
@@ -90,27 +133,43 @@ export function FounderInbox() {
       />
 
       <div className="px-4 lg:px-8 py-8 space-y-6">
+        {error && (
+          <Card className="border-agni/40 bg-agni/5">
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-agni" />
+              <div>
+                <div className="font-medium text-sm">Unable to load approvals</div>
+                <div className="text-xs text-muted-foreground">Check your connection and try again.</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Pending Decisions" value={String(pending.length)} accent="#C8302A" icon={<Clock className="h-4 w-4" />} />
-          <KpiCard label="Unread" value={String(unread.length)} accent="#D4859B" />
-          <KpiCard label="Blocked / Revision" value={String(blocked.length)} accent="#1F3A5F" icon={<AlertTriangle className="h-4 w-4" />} />
-          <KpiCard label="Capital at Stake" value={formatINR(totalAmount)} accent="#2F4F3A" />
+          <KpiCard label="Pending Decisions" value={isLoading ? '—' : String(pending.length)} accent="#C8302A" icon={<Clock className="h-4 w-4" />} />
+          <KpiCard label="Unread" value={isLoading ? '—' : String(unread.length)} accent="#D4859B" />
+          <KpiCard label="Blocked / Revision" value={isLoading ? '—' : String(blocked.length)} accent="#1F3A5F" icon={<AlertTriangle className="h-4 w-4" />} />
+          <KpiCard label="Capital at Stake" value={isLoading ? '—' : formatINR(totalAmount)} accent="#2F4F3A" />
         </div>
 
         {/* Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className="grid w-full grid-cols-4 max-w-md">
-            <TabsTrigger value="MINE">Mine <span className="ml-1 text-[10px] text-muted-foreground">{pending.length}</span></TabsTrigger>
-            <TabsTrigger value="UNREAD">Unread <span className="ml-1 text-[10px] text-muted-foreground">{unread.length}</span></TabsTrigger>
+            <TabsTrigger value="MINE">Mine {isLoading ? '' : <span className="ml-1 text-[10px] text-muted-foreground">{pending.length}</span>}</TabsTrigger>
+            <TabsTrigger value="UNREAD">Unread {isLoading ? '' : <span className="ml-1 text-[10px] text-muted-foreground">{unread.length}</span>}</TabsTrigger>
             <TabsTrigger value="RECENT">Recent</TabsTrigger>
-            <TabsTrigger value="BLOCKED">Blocked <span className="ml-1 text-[10px] text-muted-foreground">{blocked.length}</span></TabsTrigger>
+            <TabsTrigger value="BLOCKED">Blocked {isLoading ? '' : <span className="ml-1 text-[10px] text-muted-foreground">{blocked.length}</span>}</TabsTrigger>
           </TabsList>
         </Tabs>
 
         {/* Approval list */}
         <div className="space-y-3">
-          {approvals.length === 0 ? (
+          {isLoading ? (
+            <>
+              {[1, 2, 3].map(i => <ApprovalSkeleton key={i} />)}
+            </>
+          ) : approvals.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center text-sm text-muted-foreground">
                 <Inbox className="h-8 w-8 mx-auto mb-3 opacity-40" />

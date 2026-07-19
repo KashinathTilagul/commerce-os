@@ -2,10 +2,10 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useRef, useEffect } from 'react'
-import { Cpu, Activity, Brain, Send, Zap, Clock, TrendingUp, Sparkles, Edit3, Save, X, Loader2 } from 'lucide-react'
+import { Cpu, Activity, Send, Zap, TrendingUp, Sparkles, Edit3, Save, X, Loader2, AlertTriangle } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill } from '../shared'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,7 @@ import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
+import { useAppSubscription } from '@/lib/cpu-websocket'
 
 interface ChatMessage {
   id: string
@@ -23,7 +24,30 @@ interface ChatMessage {
   ts: number
 }
 
-// Real-time chat is now handled via /api/agents/[id]/chat using AWS Bedrock
+function AgentSkeleton() {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="h-11 w-11 rounded-full bg-muted animate-pulse" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+            <div className="h-5 w-16 bg-muted rounded animate-pulse mt-2" />
+          </div>
+        </div>
+        <div className="mt-3 pt-3 border-t border-border space-y-2">
+          <div className="h-3 w-20 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-full bg-muted rounded animate-pulse" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function safeDiv(a: number, b: number): number {
+  return b > 0 ? a / b : 0
+}
 
 export function DigitalEmployeesHub() {
   const [selected, setSelected] = useState<any | null>(null)
@@ -36,20 +60,22 @@ export function DigitalEmployeesHub() {
   const chatEndRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
 
-  const { data: agents = [] } = useQuery<any[]>({
+  const { data: agents = [], isLoading, error } = useQuery<any[]>({
     queryKey: ['agents'],
     queryFn: async () => {
       const r = await fetch('/api/agents')
       if (!r.ok) throw new Error('Failed')
       return r.json()
     },
-    refetchInterval: 5000,
+    staleTime: 30000,
   })
+
+  useAppSubscription('agents')
 
   const activeCount = agents.filter((a) => a.status === 'ACTIVE' || a.status === 'RUNNING').length
   const totalSpend = agents.reduce((s, a) => s + a.tokenSpend, 0)
   const totalBudget = agents.reduce((s, a) => s + a.tokenBudget, 0)
-  const avgUtilization = totalBudget > 0 ? Math.round((totalSpend / totalBudget) * 100) : 0
+  const avgUtilization = Math.round(safeDiv(totalSpend, totalBudget) * 100)
   const humanCount = agents.filter((a) => a.isHuman).length
 
   // Scroll chat to bottom when new messages arrive
@@ -80,6 +106,13 @@ export function DigitalEmployeesHub() {
 
   const handleSaveEdit = async () => {
     if (!selected || !editData) return
+    const previousData = { ...selected }
+    
+    queryClient.setQueryData<any[]>(['agents'], (old = []) =>
+      old.map(a => a.id === selected.id ? { ...a, ...editData } : a)
+    )
+    setSelected({ ...selected, ...editData })
+    
     setSaving(true)
     try {
       const r = await fetch(`/api/agents/${selected.id}`, {
@@ -87,7 +120,13 @@ export function DigitalEmployeesHub() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editData),
       })
-      if (!r.ok) throw new Error('Failed')
+      if (!r.ok) {
+        queryClient.setQueryData<any[]>(['agents'], (old = []) =>
+          old.map(a => a.id === selected.id ? previousData : a)
+        )
+        setSelected(previousData)
+        throw new Error('Failed')
+      }
       const updated = await r.json()
       toast.success('Agent updated', `${updated.name} profile saved`)
       queryClient.invalidateQueries({ queryKey: ['agents'] })
@@ -158,16 +197,32 @@ export function DigitalEmployeesHub() {
       />
 
       <div className="px-4 lg:px-8 py-8 space-y-6">
+        {error && (
+          <Card className="border-agni/40 bg-agni/5">
+            <CardContent className="p-4 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-agni" />
+              <div>
+                <div className="font-medium text-sm">Unable to load agents</div>
+                <div className="text-xs text-muted-foreground">Check your connection and try again.</div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Total Agents" value={`${agents.length - humanCount} AI · ${humanCount} Human`} accent="#1F3A5F" icon={<Cpu className="h-4 w-4" />} />
-          <KpiCard label="Active Now" value={String(activeCount)} accent="#2F4F3A" icon={<Activity className="h-4 w-4" />} />
-          <KpiCard label="Token Spend" value={formatINR(totalSpend)} delta={avgUtilization} deltaLabel="of budget used" accent="#C8302A" icon={<Zap className="h-4 w-4" />} />
-          <KpiCard label="Avg Success Rate" value={`${agents.length > 0 ? (agents.reduce((s, a) => s + a.successRate, 0) / agents.length).toFixed(1) : 0}%`} accent="#D4859B" icon={<TrendingUp className="h-4 w-4" />} />
+          <KpiCard label="Total Agents" value={isLoading ? '—' : `${agents.length - humanCount} AI · ${humanCount} Human`} accent="#1F3A5F" icon={<Cpu className="h-4 w-4" />} />
+          <KpiCard label="Active Now" value={isLoading ? '—' : String(activeCount)} accent="#2F4F3A" icon={<Activity className="h-4 w-4" />} />
+          <KpiCard label="Token Spend" value={isLoading ? '—' : formatINR(totalSpend)} delta={avgUtilization} deltaLabel="of budget used" accent="#C8302A" icon={<Zap className="h-4 w-4" />} />
+          <KpiCard label="Avg Success Rate" value={isLoading ? '—' : `${agents.length > 0 ? (agents.reduce((s, a) => s + a.successRate, 0) / agents.length).toFixed(1) : 0}%`} accent="#D4859B" icon={<TrendingUp className="h-4 w-4" />} />
         </div>
 
         {/* Departments */}
-        {Object.entries(departments).map(([dept, deptAgents]) => (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {[1, 2, 3, 4, 5, 6].map(i => <AgentSkeleton key={i} />)}
+          </div>
+        ) : Object.entries(departments).map(([dept, deptAgents]) => (
           <div key={dept}>
             <div className="flex items-baseline justify-between mb-3">
               <h2 className="font-display text-base tracking-tight">{dept}</h2>
@@ -233,10 +288,10 @@ export function DigitalEmployeesHub() {
                         <div className="mt-3">
                           <div className="flex items-center justify-between text-[10px] mb-1">
                             <span className="text-muted-foreground">Budget</span>
-                            <span className="font-mono">{Math.round((a.tokenSpend / a.tokenBudget) * 100)}%</span>
+                            <span className="font-mono">{Math.round(safeDiv(a.tokenSpend, a.tokenBudget) * 100)}%</span>
                           </div>
                           <Progress
-                            value={(a.tokenSpend / a.tokenBudget) * 100}
+                            value={safeDiv(a.tokenSpend, a.tokenBudget) * 100}
                             className="h-1"
                           />
                         </div>
@@ -426,9 +481,9 @@ export function DigitalEmployeesHub() {
                       <span className="text-muted-foreground">Token Budget</span>
                       <span className="font-mono">{formatINRFull(selected.tokenSpend)} / {formatINRFull(selected.tokenBudget)}</span>
                     </div>
-                    <Progress value={(selected.tokenSpend / selected.tokenBudget) * 100} className="h-1.5" />
+                    <Progress value={safeDiv(selected.tokenSpend, selected.tokenBudget) * 100} className="h-1.5" />
                     <div className="text-[10px] text-muted-foreground mt-1">
-                      {Math.round((selected.tokenSpend / selected.tokenBudget) * 100)}% utilized · {selected.tokenSpend / selected.tokenBudget >= 0.8 ? '⚠ Approaching threshold' : 'Within bounds'}
+                      {Math.round(safeDiv(selected.tokenSpend, selected.tokenBudget) * 100)}% utilized · {safeDiv(selected.tokenSpend, selected.tokenBudget) >= 0.8 ? 'Approaching threshold' : 'Within bounds'}
                     </div>
                   </div>
                 )}

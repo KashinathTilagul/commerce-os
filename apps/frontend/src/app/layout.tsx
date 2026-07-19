@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/ekvaar/query-provider";
 import { AuthProvider } from "@/components/ekvaar/auth-provider";
+import { ErrorBoundary } from "@/components/ekvaar/error-boundary";
 import { Suspense } from "react";
 
 const geistSans = Inter({
@@ -59,9 +60,11 @@ export default function RootLayout({
       >
         <AuthProvider>
           <QueryProvider>
-            <Suspense fallback={<LoadingFallback />}>
-              {children}
-            </Suspense>
+            <ErrorBoundary>
+              <Suspense fallback={<LoadingFallback />}>
+                {children}
+              </Suspense>
+            </ErrorBoundary>
           </QueryProvider>
         </AuthProvider>
       </body>
