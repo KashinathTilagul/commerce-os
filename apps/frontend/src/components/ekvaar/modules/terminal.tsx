@@ -1,13 +1,11 @@
 'use client'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Terminal, Activity, Zap, AlertCircle, Info, Cpu, Sparkles } from 'lucide-react'
+import { Terminal, Activity, Zap, AlertCircle, Info, Cpu } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageHeader, KpiCard } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { toast } from '@/components/ekvaar/desktop/toast'
 import { Badge } from '@/components/ui/badge'
 import { useAppSubscription } from '@/lib/cpu-websocket'
 
@@ -19,7 +17,6 @@ const SEVERITY_META: Record<string, { color: string; icon: any; prefix: string }
 }
 
 export function TerminalModule() {
-  const queryClient = useQueryClient()
   const { data: events = [], isLoading, error } = useQuery<any[]>({
     queryKey: ['events'],
     queryFn: async () => {
@@ -34,22 +31,6 @@ export function TerminalModule() {
 
   const [filter, setFilter] = useState<string>('ALL')
   const logRef = useRef<HTMLDivElement>(null)
-
-  // Real-time events are now driven solely by actual system activity via the Event Bus.
-  // Removed simulated heartbeat generation.
-
-  const wakeAgent = async () => {
-    try {
-      const r = await fetch('/api/events/generate', { method: 'POST' })
-      if (!r.ok) throw new Error('Failed')
-      const event = await r.json()
-      queryClient.invalidateQueries({ queryKey: ['events'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      toast.info('Agent heartbeat', event.summary || 'Event generated')
-    } catch {
-      toast.error('Failed to wake agent', 'Could not generate event')
-    }
-  }
 
   const filtered = filter === 'ALL' ? events : events.filter((e) => e.severity === filter)
 
@@ -73,15 +54,10 @@ export function TerminalModule() {
         title="Heartbeat & Event Ledger"
         description="Every action — issue status changes, budget thresholds, agent heartbeats, approval requests — is published to the Event Bus. This is the append-only audit trail. Watch the digital C-suite think and communicate in real-time."
         actions={
-          <>
-            <Badge variant="outline" className="gap-1.5">
-              <span className="h-1.5 w-1.5 bg-arav rounded-full animate-pulse-soft" />
-              Live
-            </Badge>
-            <Button size="sm" className="gap-1.5" onClick={wakeAgent}>
-              <Sparkles className="h-3.5 w-3.5" /> Wake Agent
-            </Button>
-          </>
+          <Badge variant="outline" className="gap-1.5">
+            <span className="h-1.5 w-1.5 bg-arav rounded-full animate-pulse-soft" />
+            Live
+          </Badge>
         }
       />
 
