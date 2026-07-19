@@ -732,14 +732,20 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setExpanded(true)
     voiceSessionRef.current = true
 
+    console.log('[Krishna] openPanel called, checking for brief data')
     const briefData = (window as any).__krishnaBrief
     if (briefData) {
-      (window as any).__krishnaBrief = null
+      console.log('[Krishna] Found brief data, displaying')
+      ;(window as any).__krishnaBrief = null
       setMessages(prev => [...prev, { role: 'krishna', text: briefData.text, ts: Date.now() }])
-      setTimeout(() => speakText(briefData.spoken || briefData.text), 100)
+      setTimeout(() => {
+        console.log('[Krishna] Speaking brief')
+        speakText(briefData.spoken || briefData.text)
+      }, 100)
       return
     }
 
+    console.log('[Krishna] No brief data, showing greeting')
     let hasHistory = false
     setMessages(m => {
       if (m.length > 0) { hasHistory = true; return m }
@@ -753,7 +759,10 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         `${g}. I'm listening.`,
       ]
       const msg = greets[Math.floor(Math.random() * greets.length)]
-      setTimeout(() => speakText(msg), 120)
+      setTimeout(() => {
+        console.log('[Krishna] Speaking greeting')
+        speakText(msg)
+      }, 120)
       return [...m, { role: 'krishna', text: msg, ts: Date.now() }]
     })
     if (hasHistory) {
