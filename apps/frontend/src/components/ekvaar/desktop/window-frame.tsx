@@ -305,8 +305,17 @@ function AppComponentWrapper({
         useWindowStore.getState().open(id, targetApp.name)
       }
     }
-    props.onFounderBrief = () => {
-      triggerKrishna()
+    props.onFounderBrief = async () => {
+      try {
+        const res = await fetch('/api/jarvis/brief')
+        if (res.ok) {
+          const data = await res.json()
+          ;(window as any).__krishnaBrief = data
+          triggerKrishna()
+        }
+      } catch {
+        triggerKrishna()
+      }
     }
   }
   return <Component {...props} />

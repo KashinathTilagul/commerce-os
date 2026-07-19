@@ -730,11 +730,16 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const openPanel = useCallback(() => {
     setExpanded(true)
-    // Mic listens automatically from the moment the panel opens — no manual
-    // click needed on the first turn or any turn after.
     voiceSessionRef.current = true
 
-    // Only greet on a genuinely fresh start — history now survives reloads
+    const briefData = (window as any).__krishnaBrief
+    if (briefData) {
+      (window as any).__krishnaBrief = null
+      setMessages(prev => [...prev, { role: 'krishna', text: briefData.text, ts: Date.now() }])
+      setTimeout(() => speakText(briefData.spoken || briefData.text), 100)
+      return
+    }
+
     let hasHistory = false
     setMessages(m => {
       if (m.length > 0) { hasHistory = true; return m }
@@ -751,8 +756,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       setTimeout(() => speakText(msg), 120)
       return [...m, { role: 'krishna', text: msg, ts: Date.now() }]
     })
-    // Returning to existing history — no greeting will fire speakText's
-    // post-speech auto-listen, so start listening directly.
     if (hasHistory) {
       setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 300)
     }
