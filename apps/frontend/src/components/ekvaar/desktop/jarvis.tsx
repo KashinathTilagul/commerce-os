@@ -146,7 +146,6 @@ export function GestureControl({ onBackgroundPinch }: { onBackgroundPinch: () =>
   const [trackerError, setTrackerError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const cursorRef = useRef<HTMLDivElement>(null)
 
   // Draw landmarks on canvas each frame
   useEffect(() => {
@@ -195,7 +194,7 @@ export function GestureControl({ onBackgroundPinch }: { onBackgroundPinch: () =>
       .then(({ OSGestureController }) => {
         if (cancelled) return
         tracker = new OSGestureController(
-          video, cursorRef.current,
+          video,
           setFrame,
           (s, detail) => { setTrackerStatus(s); if (detail) setTrackerError(detail) },
           onBackgroundPinch,
@@ -217,22 +216,6 @@ export function GestureControl({ onBackgroundPinch }: { onBackgroundPinch: () =>
         playsInline muted
         width={320} height={240}
         style={{ position: 'fixed', top: 0, left: 0, width: 320, height: 240, opacity: 0, pointerEvents: 'none', zIndex: -1 }}
-      />
-
-      {/* Gesture cursor — a hand emoji matching the detected pose (pinch/fist/
-          open/point), so it's obvious what's being tracked and how it maps
-          to your real hand. Text content set imperatively by the tracker. */}
-      <div
-        ref={cursorRef}
-        style={{
-          position: 'fixed', top: 0, left: 0, opacity: 0,
-          width: 34, height: 34, marginLeft: -17, marginTop: -17,
-          pointerEvents: 'none', zIndex: 9999,
-          fontSize: 28, lineHeight: '34px', textAlign: 'center',
-          filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.9))',
-          transition: 'opacity 0.15s ease',
-          userSelect: 'none',
-        }}
       />
 
       {/* Debug panel — camera feed + landmarks + ratio */}
