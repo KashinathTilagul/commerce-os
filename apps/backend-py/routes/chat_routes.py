@@ -31,17 +31,16 @@ async def chat_endpoint(request: ChatRequest):
     prompt_text = request.prompt or request.message or ""
     prompt_lower = prompt_text.lower().strip()
     
-    if prompt_lower in BRIEF_INTENTS or any(intent in prompt_lower for intent in ["brief", "status", "update", "summary"]):
-        from routes.jarvis_routes import get_founder_brief
-        brief_data = await get_founder_brief()
-        return {
-            "reply": brief_data["text"],
-            "spoken": brief_data["spoken"],
-            "action": {"type": "brief"}
-        }
-    
     try:
-        # Gather live system state from shared services
+        if "brief" in prompt_lower or "status" in prompt_lower or "summary" in prompt_lower:
+            from routes.jarvis_routes import get_founder_brief
+            brief_data = await get_founder_brief()
+            return {
+                "reply": brief_data["text"],
+                "spoken": brief_data["spoken"],
+                "action": {"type": "brief"}
+            }
+        
         tasks = await task_service.get_all_tasks(10)
         revenue = await revenue_service.get_recent_revenue(1)
         cash = await cash_service.get_current_cash()
@@ -58,12 +57,10 @@ async def chat_endpoint(request: ChatRequest):
             "Answer concisely and actionably."
         )
         
-        # Build history string from context
         history_str = ""
         if request.history:
             history_str = "Recent Conversation History:\n"
             for msg in request.history:
-                # Exclude the current prompt which is added at the end
                 if msg.get('text') == prompt_text and msg == request.history[-1]:
                     continue
                 role = "User" if msg.get("role") == "user" else "Krishna"
@@ -80,7 +77,9 @@ async def chat_endpoint(request: ChatRequest):
         if response.get("status") == "success":
             return {"reply": response["message"]}
         else:
-            return {"reply": response.get("message", "LLM unavailable. No API key configured.")}
+            return {"reply": response.get("message", "LLM unavailable. Check API key.")}
     except Exception as e:
-        return {"reply": f"Error connecting to central brain: {str(e)}"}
+        import traceback
+        traceback.print_exc()
+        return {"reply": f"Error: {str(e)}"}
 
