@@ -124,11 +124,6 @@ AVAILABLE ACTIONS:
     // Use custom prompt if set in Settings, otherwise default
     const activePrompt = cfg.krishnaPrompt?.trim() || systemPrompt
 
-    const chatMessages = [
-      { role: 'system' as const, content: activePrompt },
-      { role: 'user' as const, content: sanitizeInput(message, { maxLength: 5000 }) },
-    ]
-
     // ── Single AI Core (AWS Bedrock Native) ──────────────────────────────
     const apiKey = cfg.primaryApiKey || process.env.OPENCODE_API_KEY || ''
     // Force default to zai.glm-5 as it's the only one working perfectly
@@ -164,8 +159,8 @@ AVAILABLE ACTIONS:
       
       const { text } = await generateText({
         model: bedrock(cleanModelId),
-        system: systemPrompt,
-        prompt: message,
+        system: activePrompt,
+        prompt: sanitizeInput(message, { maxLength: 5000 }),
         temperature: 0.87,
       })
       
