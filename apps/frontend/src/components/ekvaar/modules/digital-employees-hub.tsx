@@ -23,69 +23,7 @@ interface ChatMessage {
   ts: number
 }
 
-// Pre-canned responses per agent code
-const AGENT_RESPONSES: Record<string, string[]> = {
-  CEO: [
-    'Acknowledged. I\'ll decompose this into actionable issues and assign them.',
-    'Understood. Allocating capital and coordinating with the C-suite now.',
-    'I\'ll resolve this cross-department conflict and report back within the hour.',
-  ],
-  CMO: [
-    'Analyzing Shopify data now. ROAS projection incoming.',
-    'On it. Drafting campaign brief with brand voice enforcement.',
-    'Conversion drop identified — proposing A/B test on checkout step 2.',
-  ],
-  CTO: [
-    'Deploying hotfix now. Monitoring for 24 hours.',
-    'Integration complete. API health check passing.',
-    'Investigating the webhook retry logic. Will report root cause shortly.',
-  ],
-  CFO: [
-    'Auditing expenses now. Burn rate projection in progress.',
-    'Budget reallocation drafted. Awaiting founder approval.',
-    'Flagged inefficient spend in Marketing. Recommending reallocation.',
-  ],
-  COO: [
-    'Checking inventory levels across all 5 houses.',
-    'Supplier audit scheduled. Lead time slip detected.',
-    'Restock order drafted. Awaiting budget approval.',
-  ],
-  CCO: [
-    'Generating visual assets within the six-color palette.',
-    'Brand scan complete. 0 violations found.',
-    'Creative direction locked. Submitting for review.',
-  ],
-  CSM: [
-    'Reviewing customer satisfaction scores now.',
-    'Identified 3 churn risks. Proposing retention play.',
-    'Support ticket resolved. CSAT up 4 points.',
-  ],
-  GROWTH: [
-    'Experiment launched. Measuring conversion lift.',
-    'Funnel analysis complete. Bottleneck at step 3.',
-    'New channel identified. Projecting 12% lift.',
-  ],
-  RESEARCH: [
-    'Compiling competitive intel report now.',
-    'Market scan complete. 3 trends identified.',
-    'Deep dive on Indian streetwear Q3 in progress.',
-  ],
-  HR: [
-    'Monitoring inter-agent communication. Alignment nominal.',
-    'Onboarding docs for new agent drafted.',
-    'Policy update ready for review.',
-  ],
-  LEGAL: [
-    'Reviewing content for liability. No flags.',
-    'Vendor agreement reviewed. Approved.',
-    'Compliance audit complete. All clear.',
-  ],
-  FOUNDER: [
-    'Acknowledged.',
-    'Make it so.',
-    'Approved. Proceed.',
-  ],
-}
+// Real-time chat is now handled via /api/agents/[id]/chat using AWS Bedrock
 
 export function DigitalEmployeesHub() {
   const [selected, setSelected] = useState<any | null>(null)
@@ -167,6 +105,42 @@ export function DigitalEmployeesHub() {
   const handleCancelEdit = () => {
     setEditMode(false)
     setEditData(null)
+  }
+
+  const handleSendChat = async () => {
+    if (!chatInput.trim() || agentTyping || !selected) return
+    const text = chatInput.trim()
+    setChatInput('')
+    
+    // Add founder message immediately
+    const founderMsg: ChatMessage = { id: `f-${Date.now()}`, from: 'founder', text, ts: Date.now() }
+    setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), founderMsg] }))
+    
+    setAgentTyping(true)
+    try {
+      const r = await fetch(`/api/agents/${selected.id}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      })
+      const data = await r.json()
+      
+      const reply = data.reply || data.error || 'Connection failed.'
+      const agentMsg: ChatMessage = { id: `a-${Date.now()}`, from: 'agent', text: reply, ts: Date.now() }
+      
+      setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), agentMsg] }))
+      if (data.reply) {
+        toast.info(`${selected.name} responded`, reply.slice(0, 60) + (reply.length > 60 ? '…' : ''))
+      } else {
+        toast.error('Agent offline', reply)
+      }
+    } catch (e) {
+      const errorMsg: ChatMessage = { id: `a-${Date.now()}`, from: 'agent', text: 'Error: Could not reach agent.', ts: Date.now() }
+      setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), errorMsg] }))
+      toast.error('Connection failed', 'Could not reach agent')
+    } finally {
+      setAgentTyping(false)
+    }
   }
 
   return (
@@ -514,21 +488,7 @@ export function DigitalEmployeesHub() {
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && chatInput.trim() && !agentTyping) {
-                          const text = chatInput.trim()
-                          setChatInput('')
-                          // Add founder message
-                          const founderMsg: ChatMessage = { id: `f-${Date.now()}`, from: 'founder', text, ts: Date.now() }
-                          setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), founderMsg] }))
-                          // Simulate agent response
-                          setAgentTyping(true)
-                          setTimeout(() => {
-                            const responses = AGENT_RESPONSES[selected.code] || AGENT_RESPONSES.CEO
-                            const reply = responses[Math.floor(Math.random() * responses.length)]
-                            const agentMsg: ChatMessage = { id: `a-${Date.now()}`, from: 'agent', text: reply, ts: Date.now() }
-                            setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), agentMsg] }))
-                            setAgentTyping(false)
-                            toast.info(`${selected.name} responded`, reply.slice(0, 60) + (reply.length > 60 ? '…' : ''))
-                          }, 1200 + Math.random() * 1500)
+                          handleSendChat()
                         }
                       }}
                     />
@@ -536,22 +496,7 @@ export function DigitalEmployeesHub() {
                       size="sm"
                       className="gap-1.5 h-8"
                       disabled={!chatInput.trim() || agentTyping}
-                      onClick={() => {
-                        if (!chatInput.trim() || agentTyping) return
-                        const text = chatInput.trim()
-                        setChatInput('')
-                        const founderMsg: ChatMessage = { id: `f-${Date.now()}`, from: 'founder', text, ts: Date.now() }
-                        setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), founderMsg] }))
-                        setAgentTyping(true)
-                        setTimeout(() => {
-                          const responses = AGENT_RESPONSES[selected.code] || AGENT_RESPONSES.CEO
-                          const reply = responses[Math.floor(Math.random() * responses.length)]
-                          const agentMsg: ChatMessage = { id: `a-${Date.now()}`, from: 'agent', text: reply, ts: Date.now() }
-                          setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), agentMsg] }))
-                          setAgentTyping(false)
-                          toast.info(`${selected.name} responded`, reply.slice(0, 60) + (reply.length > 60 ? '…' : ''))
-                        }, 1200 + Math.random() * 1500)
-                      }}
+                      onClick={handleSendChat}
                     >
                       <Send className="h-3 w-3" /> Send
                     </Button>
