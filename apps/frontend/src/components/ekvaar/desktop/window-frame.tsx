@@ -305,25 +305,6 @@ function AppComponentWrapper({
         useWindowStore.getState().open(id, targetApp.name)
       }
     }
-    props.onFounderBrief = async () => {
-      console.log('[Founder Brief] Button clicked')
-      try {
-        const res = await fetch('/api/jarvis/brief')
-        console.log('[Founder Brief] Response:', res.status)
-        if (res.ok) {
-          const data = await res.json()
-          console.log('[Founder Brief] Data:', data)
-          ;(window as any).__krishnaBrief = data
-          triggerKrishna()
-        } else {
-          console.error('[Founder Brief] Failed:', res.status)
-          triggerKrishna()
-        }
-      } catch (e) {
-        console.error('[Founder Brief] Error:', e)
-        triggerKrishna()
-      }
-    }
   }
   return <Component {...props} />
 }

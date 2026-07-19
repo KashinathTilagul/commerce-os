@@ -18,7 +18,7 @@ const POSE_COLOR: Record<Pose, string> = {
 }
 
 type KrishnaState = 'idle' | 'listening' | 'thinking' | 'talking'
-interface Msg { role: 'user' | 'krishna'; text: string; ts: number }
+interface Msg { role: 'user' | 'krishna'; text: string; ts: number; id?: string }
 
 // ─── Strip everything that isn't plain speakable English ────────────────────
 function toSpeech(text: string): string {
@@ -77,8 +77,8 @@ const stateListeners: ((s: KrishnaState) => void)[] = []
 function setGlobal(s: KrishnaState) { gState = s; stateListeners.forEach(f => f(s)) }
 
 // ─── Chat history persistence — survives reload/close instead of resetting ──
-const HISTORY_KEY = 'ekvaar_krishna_history'
-const HISTORY_LIMIT = 200
+const HISTORY_KEY = 'ekvaar_krishna_history_v2'
+const HISTORY_LIMIT = 50
 
 function loadHistory(): Msg[] {
   try {
@@ -452,7 +452,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setVolume(0)
   }, [stopTTS, stopListening])
 
-  // ── TTS: server Edge TTS first (en-IN-NeerjaNeural), browser fallback ───────
+  // ── TTS: browser Web Speech API (reliable cross-platform) ────────────────
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
 
@@ -463,57 +463,26 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setGlobal('talking')
     speakingRef.current = true
 
-    // ── Try backend TTS (FastAPI → Edge TTS / Pocket TTS) ────────────────
-    let usedServer = false
-    try {
-      const res = await fetch('/api/jarvis/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text:      clean.slice(0, 2000),
-          voice:     ttsVoiceRef.current,     // en-IN-NeerjaNeural by default
-          speed:     ttsSpeedRef.current,
-          stability: ttsStabilityRef.current,
-          volume:    ttsVolumeRef.current,
-        }),
-        signal: AbortSignal.timeout(15000),
-      })
-      if (res.ok) {
-        usedServer = true
-        const blob = await res.blob()
-        const url  = URL.createObjectURL(blob)
-        const audio = new Audio(url)
-        await new Promise<void>((resolve) => {
-          let done = false
-          const finish = () => { if (!done) { done = true; URL.revokeObjectURL(url); audioStopRef.current = null; resolve() } }
-          audioStopRef.current = () => { audio.pause(); audio.src = ''; finish() }
-          audio.onended = finish
-          audio.onerror = finish
-          audio.play().catch(finish)
-        })
-      }
-    } catch { /* network error — fall through to browser TTS */ }
-
-    // ── Fallback: browser Web Speech API ─────────────────────────────────
-    if (!usedServer && speakingRef.current && typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const sentences = toSentences(clean)
       for (const sentence of sentences) {
         if (!speakingRef.current) break
         await new Promise<void>((resolve) => {
           const u = new SpeechSynthesisUtterance(sentence)
-          u.voice  = bestVoiceRef.current
-          u.rate   = 1.12 + Math.random() * 0.08
-          u.pitch  = 0.97 + Math.random() * 0.08
+          u.voice = bestVoiceRef.current
+          u.rate = 1.0
+          u.pitch = 1.0
           u.volume = 1.0
           let done = false
           const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
           audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
-          u.onend = finish; u.onerror = finish
-          setTimeout(finish, sentence.length * 80 + 2000)
+          u.onend = finish
+          u.onerror = (e) => { console.error('[TTS Error]', e); finish() }
+          setTimeout(finish, sentence.length * 100 + 3000)
           window.speechSynthesis.speak(u)
         })
         if (speakingRef.current && sentences.indexOf(sentence) < sentences.length - 1) {
-          await new Promise(r => setTimeout(r, /[?…]$/.test(sentence.trim()) ? 260 : 140))
+          await new Promise(r => setTimeout(r, 200))
         }
       }
     }
@@ -732,20 +701,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setExpanded(true)
     voiceSessionRef.current = true
 
-    console.log('[Krishna] openPanel called, checking for brief data')
-    const briefData = (window as any).__krishnaBrief
-    if (briefData) {
-      console.log('[Krishna] Found brief data, displaying')
-      ;(window as any).__krishnaBrief = null
-      setMessages(prev => [...prev, { role: 'krishna', text: briefData.text, ts: Date.now() }])
-      setTimeout(() => {
-        console.log('[Krishna] Speaking brief')
-        speakText(briefData.spoken || briefData.text)
-      }, 100)
-      return
-    }
-
-    console.log('[Krishna] No brief data, showing greeting')
     let hasHistory = false
     setMessages(m => {
       if (m.length > 0) { hasHistory = true; return m }
@@ -755,15 +710,10 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         `${g}. Online and ready.`,
         `${g}. How can I help?`,
         `${g}. What do you need?`,
-        `${g}. All systems operational.`,
-        `${g}. I'm listening.`,
       ]
       const msg = greets[Math.floor(Math.random() * greets.length)]
-      setTimeout(() => {
-        console.log('[Krishna] Speaking greeting')
-        speakText(msg)
-      }, 120)
-      return [...m, { role: 'krishna', text: msg, ts: Date.now() }]
+      setTimeout(() => speakText(msg), 200)
+      return [...m, { role: 'krishna', text: msg, ts: Date.now(), id: Date.now().toString() }]
     })
     if (hasHistory) {
       setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 300)
