@@ -10,10 +10,10 @@ const MIDDLE_TIP = 12, MIDDLE_PIP = 10, MIDDLE_MCP = 9
 const RING_TIP = 16, RING_PIP = 14
 const PINKY_TIP = 20, PINKY_PIP = 18
 
-export const PINCH_ON  = 0.30  // exported so debug panel can show threshold
-export const PINCH_OFF = 0.44
+export const PINCH_ON  = 0.22  // exported so debug panel can show threshold
+export const PINCH_OFF = 0.38
 
-const SCROLL_PIXEL_GAIN    = 3.0   // scroll sensitivity
+const SCROLL_PIXEL_GAIN    = 1.8   // scroll sensitivity
 const SCROLL_MOVE_THRESHOLD = 20    // px — must scroll this much before Krishna activation is blocked
 const FIST_HOLD_MS         = 600
 const FIST_COOLDOWN_MS     = 1500

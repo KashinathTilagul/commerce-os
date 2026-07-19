@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const uid = authResult.user.id
     const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks, agents, issues, approvals, events] = await Promise.all([
       db.product.findMany({ where: { userId: uid }, select: { id: true, name: true, sku: true, price: true, stock: true, status: true } }),
-      db.order.findMany({ where: { userId: uid }, select: { id: true, orderNumber: true, total: true, status: true, createdAt: true } }),
+      db.order.findMany({ where: { userId: uid }, select: { id: true, orderNumber: true, total: true, status: true, createdAt: true, channel: true, items: { select: { quantity: true, price: true, product: { select: { house: true, color: true } } } } } }),
       db.customer.findMany({ where: { userId: uid }, select: { id: true, tier: true, totalSpent: true } }),
       db.transaction.findMany({ where: { userId: uid }, select: { type: true, amount: true, category: true, date: true } }),
       db.campaign.findMany({ where: { userId: uid }, select: { id: true, title: true, status: true, budget: true, spend: true } }),
@@ -68,6 +68,25 @@ export async function GET(req: NextRequest) {
       tierBreakdown[c.tier] = (tierBreakdown[c.tier] || 0) + 1
     }
 
+    const salesByHouse: Record<string, number> = {}
+    const salesByColor: Record<string, number> = {}
+    const channelBreakdown: Record<string, number> = {}
+
+    for (const o of orders) {
+      if (o.status !== 'CANCELLED' && o.status !== 'RETURNED') {
+        channelBreakdown[o.channel] = (channelBreakdown[o.channel] || 0) + o.total
+        if (o.items && Array.isArray(o.items)) {
+          for (const item of o.items) {
+            if (item.product) {
+              const itemTotal = item.quantity * item.price
+              salesByHouse[item.product.house] = (salesByHouse[item.product.house] || 0) + itemTotal
+              salesByColor[item.product.color] = (salesByColor[item.product.color] || 0) + itemTotal
+            }
+          }
+        }
+      }
+    }
+
     return createApiResponse({
       kpis: {
         revenue,
@@ -97,18 +116,17 @@ export async function GET(req: NextRequest) {
         totalAgentBudget: agents.reduce((s, a) => s + a.tokenBudget, 0),
         cashPosition: revenue - expenses,
         monthlyBurn: Math.round(expenses / 4),
-        runwayMonths: revenue - expenses > 0 ? Math.round((revenue - expenses) / (expenses / 4)) : 0,
+        runwayMonths: (Math.round(expenses / 4) > 0 && (revenue - expenses) > 0) ? Math.round((revenue - expenses) / (expenses / 4)) : 0,
       },
       salesTrend,
       orderStatusBreakdown,
       tierBreakdown,
-      // ponytail: real per-house/color/channel breakdowns need an OrderItem->Product
-      // join we don't do here yet; empty for now so the UI renders instead of crashing.
-      salesByHouse: {},
-      salesByColor: {},
-      channelBreakdown: {},
-      houses: [],
-      colors: [],
+      // ponytail: actual per-house/color/channel metrics calculated from order items
+      salesByHouse,
+      salesByColor,
+      channelBreakdown,
+      houses: Object.keys(salesByHouse),
+      colors: Object.keys(salesByColor),
       lowStock: lowStock.slice(0, 10),
       recentEvents: events,
     })

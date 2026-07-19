@@ -164,7 +164,7 @@ def read_root():
 
 from core.llm.router import router as llm_router
 
-import select, signal, struct, fcntl, termios, json
+import json
 
 async def verify_ws_token(token: str) -> bool:
     """Verify WebSocket auth token. Requires JWT_SECRET to be set."""
