@@ -11,10 +11,10 @@ import type { FrameDebug, TrackerStatus, Pose } from '@/lib/hand-tracker'
 import { PINCH_ON } from '@/lib/hand-tracker'
 
 const POSE_LABEL: Record<Pose, string> = {
-  pinch: 'LEFT CLICK', fist: 'CLOSING WINDOW…', open: 'RIGHT CLICK (hold)', point: 'MOVE', none: '',
+  pinch: 'SCROLL', fist: 'CLOSING WINDOW…', open: '', point: '', none: '',
 }
 const POSE_COLOR: Record<Pose, string> = {
-  pinch: '#34C759', fist: '#FF3B30', open: '#0A84FF', point: '#5856D6', none: '#5856D6',
+  pinch: '#34C759', fist: '#FF3B30', open: '#5856D6', point: '#5856D6', none: '#5856D6',
 }
 
 type KrishnaState = 'idle' | 'listening' | 'thinking' | 'talking'
@@ -190,7 +190,7 @@ export function GestureControl({ onBackgroundPinch }: { onBackgroundPinch: () =>
     const video = videoRef.current
     if (!video) return
     let cancelled = false
-    let tracker: { stop(): void } | undefined
+    let tracker: { stop(): void; start(): Promise<void> } | undefined
     import('@/lib/hand-tracker')
       .then(({ OSGestureController }) => {
         if (cancelled) return
@@ -287,7 +287,7 @@ export function GestureControl({ onBackgroundPinch }: { onBackgroundPinch: () =>
             </div>
           )}
           <div style={{ fontFamily: 'monospace', fontSize: 9, color: 'rgba(255,255,255,0.35)', lineHeight: 1.6 }}>
-            MOVE = cursor · PINCH tap = left click · PINCH+drag = drag · PINCH+hold+wave = scroll · DOUBLE PINCH = right click · FIST hold = close window · TWO-HAND PINCH = zoom · PINCH on desktop = open Krishna
+            PINCH = scroll · PINCH on desktop = open Krishna · FIST hold = close window
           </div>
         </motion.div>
       )}

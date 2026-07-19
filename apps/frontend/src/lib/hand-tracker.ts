@@ -13,18 +13,11 @@ const PINKY_TIP = 20, PINKY_PIP = 18
 export const PINCH_ON  = 0.30  // exported so debug panel can show threshold
 export const PINCH_OFF = 0.44
 
-const CLICK_MOVE_TOLERANCE = 30    // px — pinch counts as a tap only if the finger stayed within this radius
-const DOUBLE_TAP_WINDOW_MS = 380   // second pinch-tap within this window (and near the first) → right-click
-const DOUBLE_TAP_DIST      = 45    // px
 const CURSOR_SMOOTHING     = 0.22  // 0=frozen, 1=no smoothing — lower = smoother but more lag
-const MOUSEMOVE_MIN_DELTA  = 2     // px — only dispatch hover mousemove when the cursor actually moved
 const SCROLL_PIXEL_GAIN    = 2.2   // scroll px per px of vertical finger travel while pinch-holding
-const SCROLL_MOVE_THRESHOLD = 8    // px — total vertical travel during a pinch before it counts as "scrolled" (blocks an accidental click after)
+const SCROLL_MOVE_THRESHOLD = 8    // px — total vertical travel during a pinch before it counts as "scrolled"
 const FIST_HOLD_MS         = 500
 const FIST_COOLDOWN_MS     = 1200
-const ZOOM_MIN = 0.6
-const ZOOM_MAX = 1.8
-const ZOOM_GAIN = 2.4
 
 type Lm = { x: number; y: number }
 function dist(a: Lm, b: Lm) { return Math.hypot(a.x - b.x, a.y - b.y) }
@@ -71,7 +64,6 @@ export type TrackerStatus = 'requesting-camera' | 'loading-model' | 'ready' | 'e
 //    together = right click
 //  - pinch, hold, and move vertically over scrollable content = scroll
 //  - fist held = close the active window
-//  - two hands both pinching, moving apart/together = zoom the desktop
 export class OSGestureController {
   private video: HTMLVideoElement
   private cursorEl: HTMLDivElement | null
@@ -86,26 +78,14 @@ export class OSGestureController {
   private lastVideoTime = -1
 
   private pinching = false
-  private dragging = false
-  private dragTarget: Element | null = null
-  private pinchStartX = 0
   private pinchStartY = 0
   private pinchLastY = 0
   private scrollTarget: HTMLElement | null = null
   private scrolledDistance = 0
-
-  private pendingTapTimer: ReturnType<typeof setTimeout> | null = null
-  private pendingTapAt = 0
-  private pendingTapX = 0
-  private pendingTapY = 0
-  private pendingTapTarget: Element | null = null
+  private wasOnDesktop = false
 
   private fistSince = 0
   private lastFistActionAt = 0
-
-  private lastCursorX = 0
-  private lastCursorY = 0
-  private lastPinchDist: number | null = null
 
   private smoothX = 0
   private smoothY = 0
@@ -141,7 +121,7 @@ export class OSGestureController {
       const opts = {
         baseOptions:                { modelAssetPath: MODEL_URL, delegate: 'GPU' as const },
         runningMode:                'VIDEO' as const,
-        numHands:                   2,
+        numHands:                   1,
         minHandDetectionConfidence: 0.5,
         minHandPresenceConfidence:  0.5,
         minTrackingConfidence:      0.5,
@@ -172,11 +152,8 @@ export class OSGestureController {
     this.stream?.getTracks().forEach(t => t.stop())
     this.stream = null
     this.video.srcObject = null
-    if (this.pendingTapTimer) clearTimeout(this.pendingTapTimer)
-    this.pendingTapTimer = null
     if (this.cursorEl) this.cursorEl.style.opacity = '0'
     this.smoothInit = false
-    document.documentElement.style.setProperty('--gesture-zoom', '1')
   }
 
   private loop = () => {
@@ -192,36 +169,13 @@ export class OSGestureController {
 
     if (!hands.length) {
       this.pinching = false
-      this.dragging = false
       this.scrollTarget = null
       this.fistSince = 0
       this.smoothInit = false
-      this.lastPinchDist = null
       if (this.cursorEl) this.cursorEl.style.opacity = '0'
       this.onFrame?.({ landmarks: [], ratio: 1, pinching: false, handDetected: false, pose: 'none' })
       return
     }
-
-    // Two hands both pinching → zoom via a CSS custom property the desktop
-    // root reads as `transform: scale(var(--gesture-zoom, 1))`.
-    if (hands.length === 2) {
-      const [h0, h1] = hands
-      const r0 = dist(h0[THUMB_TIP], h0[INDEX_TIP]) / dist(h0[WRIST], h0[MIDDLE_MCP])
-      const r1 = dist(h1[THUMB_TIP], h1[INDEX_TIP]) / dist(h1[WRIST], h1[MIDDLE_MCP])
-      if (r0 < PINCH_ON && r1 < PINCH_ON) {
-        const d = dist(h0[INDEX_TIP], h1[INDEX_TIP])
-        if (this.lastPinchDist != null) {
-          const delta = d - this.lastPinchDist
-          const cur = parseFloat(document.documentElement.style.getPropertyValue('--gesture-zoom') || '1')
-          const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, cur + delta * ZOOM_GAIN))
-          document.documentElement.style.setProperty('--gesture-zoom', next.toFixed(3))
-        }
-        this.lastPinchDist = d
-        if (this.cursorEl) this.cursorEl.style.opacity = '0'
-        return
-      }
-    }
-    this.lastPinchDist = null
 
     const lm = hands[0]
     const wrist = lm[WRIST]
@@ -265,57 +219,32 @@ export class OSGestureController {
       this.cursorEl.textContent = POSE_EMOJI[pose]
     }
 
-    // ── Pinch: left click / drag / scroll ──────────────────────────────
+    // ── Pinch: scroll only ──────────────────────────────────────────────────
+    const el = document.elementFromPoint(cx, cy)
+    const onDesktop = !el || !!el?.closest('[data-desktop-bg]')
+
     if (this.pinching && !wasPinching) {
-      this.pinchStartX = cx
-      this.pinchStartY = cy
-      this.pinchLastY  = cy
+      this.pinchStartY  = cy
+      this.pinchLastY   = cy
       this.scrolledDistance = 0
-      this.dragTarget = document.elementFromPoint(cx, cy)
-      this.scrollTarget = this.dragTarget?.closest('[data-desktop-bg]') ? null : findScrollable(this.dragTarget)
-      if (!this.dragTarget?.closest('[data-desktop-bg]')) {
-        this.dragTarget?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: cx, clientY: cy, button: 0 }))
-      }
+      this.wasOnDesktop = onDesktop
+      if (!onDesktop) this.scrollTarget = findScrollable(el)
     } else if (this.pinching && wasPinching) {
       if (this.scrollTarget) {
-        // Pinch-hold-and-wave: scroll the container under the pinch, driven
-        // directly by the fingertip's vertical travel.
         const dyPix = cy - this.pinchLastY
         this.scrollTarget.scrollTop += dyPix * SCROLL_PIXEL_GAIN
         this.scrolledDistance += Math.abs(dyPix)
         this.pinchLastY = cy
-      } else {
-        const moved = dist({ x: cx, y: cy }, { x: this.pinchStartX, y: this.pinchStartY })
-        if (moved > CLICK_MOVE_TOLERANCE) {
-          this.dragging = true
-          document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, cancelable: true, clientX: cx, clientY: cy }))
-        }
       }
     } else if (!this.pinching && wasPinching) {
-      // Pinch released
-      const movedFromStart = dist({ x: cx, y: cy }, { x: this.pinchStartX, y: this.pinchStartY })
-      const wasScroll = this.scrolledDistance > SCROLL_MOVE_THRESHOLD
-
-      if (this.dragging) {
-        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, clientX: cx, clientY: cy }))
-      } else if (!wasScroll && movedFromStart <= CLICK_MOVE_TOLERANCE) {
-        if (this.dragTarget?.closest('[data-desktop-bg]')) {
-          this.onBackgroundPinch?.()
-        } else {
-          this.dragTarget?.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, clientX: cx, clientY: cy }))
-          this.registerTap(cx, cy, this.dragTarget)
-        }
-      } else if (this.dragTarget) {
-        // Was over scrollable content but genuinely scrolled — still pair the mousedown
-        this.dragTarget.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, clientX: cx, clientY: cy }))
+      // Pinch released — trigger Krishna only if on desktop with no scroll
+      if (this.wasOnDesktop && this.scrolledDistance < SCROLL_MOVE_THRESHOLD) {
+        this.onBackgroundPinch?.()
       }
-
-      this.dragging = false
-      this.dragTarget = null
       this.scrollTarget = null
     }
 
-    // ── Fist held → close active window ──────────────────────────────
+    // ── Fist held → close active window ────────────────────────────────────────
     if (isFist) {
       if (this.fistSince === 0) this.fistSince = now
       else if (now - this.fistSince > FIST_HOLD_MS && now - this.lastFistActionAt > FIST_COOLDOWN_MS) {
@@ -328,40 +257,6 @@ export class OSGestureController {
       this.fistSince = 0
     }
 
-    // ── Hover mousemove — lets JS-driven hover states react to the cursor ──
-    if (!this.pinching && dist({ x: cx, y: cy }, { x: this.lastCursorX, y: this.lastCursorY }) > MOUSEMOVE_MIN_DELTA) {
-      const el = document.elementFromPoint(cx, cy)
-      el?.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, cancelable: true, clientX: cx, clientY: cy }))
-    }
-    this.lastCursorX = cx
-    this.lastCursorY = cy
-
     this.onFrame?.({ landmarks: lm, ratio, pinching: this.pinching, handDetected: true, pose })
-  }
-
-  // Two pinch-taps close together in time and space → right click instead
-  // of two left clicks. The first tap's click is deferred until the window
-  // closes with no second tap.
-  private registerTap(x: number, y: number, target: Element | null) {
-    if (this.pendingTapTimer) {
-      const dt = performance.now() - this.pendingTapAt
-      const d  = dist({ x, y }, { x: this.pendingTapX, y: this.pendingTapY })
-      if (dt < DOUBLE_TAP_WINDOW_MS && d < DOUBLE_TAP_DIST) {
-        clearTimeout(this.pendingTapTimer)
-        this.pendingTapTimer = null
-        target?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }))
-        return
-      }
-      clearTimeout(this.pendingTapTimer)
-    }
-    this.pendingTapAt = performance.now()
-    this.pendingTapX = x
-    this.pendingTapY = y
-    this.pendingTapTarget = target
-    this.pendingTapTimer = setTimeout(() => {
-      this.pendingTapTimer = null
-      const opts = { bubbles: true, cancelable: true, clientX: x, clientY: y }
-      this.pendingTapTarget?.dispatchEvent(new MouseEvent('click', opts))
-    }, DOUBLE_TAP_WINDOW_MS)
   }
 }

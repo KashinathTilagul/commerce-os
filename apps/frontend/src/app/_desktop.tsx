@@ -88,10 +88,7 @@ export default function Desktop() {
   }
 
   return (
-    <div
-      className="relative h-screen w-screen overflow-hidden"
-      style={{ transform: 'scale(var(--gesture-zoom, 1))', transformOrigin: 'center center' }}
-    >
+    <div className="relative h-screen w-screen overflow-hidden">
       <div data-desktop-bg="true" className="absolute inset-0">
         <DesktopWallpaper />
       </div>
