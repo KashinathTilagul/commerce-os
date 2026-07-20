@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/ekvaar/query-provider";
-import { SessionProvider } from "next-auth/react";
+import { AuthProvider } from "@/components/ekvaar/auth-provider";
 import { ErrorBoundary } from "@/components/ekvaar/error-boundary";
 import { Suspense } from "react";
 
@@ -58,7 +58,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <SessionProvider>
+        <AuthProvider>
           <QueryProvider>
             <ErrorBoundary>
               <Suspense fallback={<LoadingFallback />}>
@@ -66,7 +66,7 @@ export default function RootLayout({
               </Suspense>
             </ErrorBoundary>
           </QueryProvider>
-        </SessionProvider>
+        </AuthProvider>
       </body>
     </html>
   );

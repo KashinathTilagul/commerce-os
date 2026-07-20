@@ -15,13 +15,6 @@ const nextConfig = {
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
-  // ponytail: disables JS minification. Works around a Terser scope-hoisting
-  // bug that reorders circular-dependency modules (recharts+React 19) into a
-  // TDZ crash in production builds. Revisit if bundle size becomes a problem.
-  webpack: (config) => {
-    config.optimization.minimize = false
-    return config
-  },
   poweredByHeader: false,
   headers: async () => [
     {
