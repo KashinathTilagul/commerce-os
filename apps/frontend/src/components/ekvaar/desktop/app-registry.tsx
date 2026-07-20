@@ -2,7 +2,7 @@
 
 import {
   LayoutDashboard, Inbox, Users, GitBranch, Terminal as TerminalIcon,
-  Activity, Settings as SettingsIcon, FolderOpen, Plug,
+  Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
   AlertTriangle, Code2,
@@ -13,7 +13,6 @@ import { FounderInbox } from '@/components/ekvaar/modules/founder-inbox'
 import { DigitalEmployeesHub } from '@/components/ekvaar/modules/digital-employees-hub'
 import { IssuesModule } from '@/components/ekvaar/modules/issues'
 import { TerminalModule } from '@/components/ekvaar/modules/terminal'
-import { ActivityMonitor } from '@/components/ekvaar/modules/activity-monitor'
 import { Settings } from '@/components/ekvaar/modules/settings'
 import { Files } from '@/components/ekvaar/modules/files'
 import { Integrations } from '@/components/ekvaar/modules/integrations'
@@ -117,21 +116,6 @@ export const APPS: AppDef[] = [
       { label: 'File', items: ['Clear Log', 'Export Stream', 'Close Window'] },
       { label: 'Stream', items: ['All Events', 'Info', 'Warnings', 'Critical'] },
       { label: 'View', items: ['Terminal', 'CPU Monitor', 'Agent Logs'] },
-    ],
-  },
-  {
-    id: 'activity',
-    name: 'Activity Monitor',
-    shortName: 'Activity',
-    icon: Activity,
-    iconVariant: 'activity',
-    gradient: 'linear-gradient(135deg, #2A2A2A 0%, #0A0A0A 100%)',
-    glyphColor: '#34C759',
-    component: ActivityMonitor,
-    menuItems: [
-      { label: 'File', items: ['Refresh', 'Export Report', 'Close Window'] },
-      { label: 'View', items: ['CPU', 'Memory', 'Disk', 'Network'] },
-      { label: 'Window', items: ['Minimize', 'Zoom'] },
     ],
   },
   {
@@ -367,7 +351,7 @@ export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
 ) as Record<AppId, AppDef>
 
 // IDs that belong to the "core OS" group (left of dock divider)
-export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'activity', 'settings', 'files', 'integrations']
+export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'settings', 'files', 'integrations']
 export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar']
 export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai', 'risk']
 

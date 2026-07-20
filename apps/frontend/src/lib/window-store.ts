@@ -9,7 +9,6 @@ export type AppId =
   | 'agents'
   | 'issues'
   | 'terminal'
-  | 'activity'
   | 'settings'
   | 'files'
   | 'integrations'
@@ -73,7 +72,6 @@ const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
   agents: { width: 1180, height: 780 },
   issues: { width: 1280, height: 760 },
   terminal: { width: 1100, height: 720 },
-  activity: { width: 1100, height: 720 },
   settings: { width: 1000, height: 680 },
   files: { width: 1000, height: 680 },
   integrations: { width: 920, height: 620 },

@@ -53,7 +53,6 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'agents':        return <ContactsIcon size={size} />
     case 'issues':        return <RemindersIcon size={size} />
     case 'terminal':      return <TerminalIcon size={size} />
-    case 'activity':      return <ActivityMonitorIcon size={size} />
     case 'settings':      return <SettingsIcon size={size} />
     case 'files':         return <FinderIcon size={size} />
     case 'browser':       return <BrowserIcon size={size} />
@@ -341,28 +340,6 @@ function LaunchpadIcon({ size }: { size: number }) {
               )
             })
           )}
-        </svg>
-      </Glyph>
-    </>
-  )
-}
-
-// Activity Monitor — dark with CPU graph (like macOS Activity Monitor)
-function ActivityMonitorIcon({ size }: { size: number }) {
-  const s = size * 0.72
-  return (
-    <>
-      <Bg gradient="linear-gradient(180deg, #2A2A2A 0%, #0A0A0A 100%)" />
-      <Highlight opacity={0.15} stop={35} />
-      <Glyph size={size}>
-        <svg width={s} height={s * 0.7} viewBox="0 0 24 17" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))' }}>
-          {/* CPU graph bars — green */}
-          <rect x="2" y="10" width="2.5" height="6" rx="0.5" fill="#34C759" opacity="0.9" />
-          <rect x="5.5" y="7" width="2.5" height="9" rx="0.5" fill="#34C759" opacity="0.95" />
-          <rect x="9" y="4" width="2.5" height="12" rx="0.5" fill="#34C759" />
-          <rect x="12.5" y="6" width="2.5" height="10" rx="0.5" fill="#34C759" opacity="0.95" />
-          <rect x="16" y="3" width="2.5" height="13" rx="0.5" fill="#34C759" />
-          <rect x="19.5" y="8" width="2.5" height="8" rx="0.5" fill="#34C759" opacity="0.9" />
         </svg>
       </Glyph>
     </>
