@@ -145,10 +145,16 @@ export function StatusPill({ status }: { status: string }) {
     PROCESSING: { color: 'text-neel', bg: 'bg-neel/10' },
     REQUESTED: { color: 'text-neel', bg: 'bg-neel/10' },
     IN_REPAIR: { color: 'text-neel', bg: 'bg-neel/10' },
+    IN_PROGRESS: { color: 'text-neel', bg: 'bg-neel/10' },
+    IN_REVIEW: { color: 'text-neel', bg: 'bg-neel/10' },
     DRAFT: { color: 'text-neel', bg: 'bg-neel/10' },
     SCHEDULED: { color: 'text-neel', bg: 'bg-neel/10' },
     TRAINING: { color: 'text-neel', bg: 'bg-neel/10' },
     IDLE: { color: 'text-neel', bg: 'bg-neel/10' },
+    RUNNING: { color: 'text-neel', bg: 'bg-neel/10' },
+    BACKLOG: { color: 'text-muted-foreground', bg: 'bg-muted' },
+    DONE: { color: 'text-arav', bg: 'bg-arav/10' },
+    BLOCKED: { color: 'text-agni', bg: 'bg-agni/10' },
 
     SHIPPED: { color: 'text-gulabi', bg: 'bg-gulabi/10' },
     WARN: { color: 'text-gulabi', bg: 'bg-gulabi/10' },
@@ -163,6 +169,9 @@ export function StatusPill({ status }: { status: string }) {
     FAIL: { color: 'text-agni', bg: 'bg-agni/10' },
     BLACKLIST: { color: 'text-agni', bg: 'bg-agni/10' },
     PAUSED: { color: 'text-agni', bg: 'bg-agni/10' },
+    REJECTED: { color: 'text-agni', bg: 'bg-agni/10' },
+    APPROVED: { color: 'text-arav', bg: 'bg-arav/10' },
+    REVISION_REQUESTED: { color: 'text-gulabi', bg: 'bg-gulabi/10' },
     ARCHIVED: { color: 'text-muted-foreground', bg: 'bg-muted' },
   }
   const s = map[status] || { color: 'text-muted-foreground', bg: 'bg-muted' }

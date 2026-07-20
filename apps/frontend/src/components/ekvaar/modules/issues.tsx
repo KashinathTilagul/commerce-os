@@ -295,10 +295,10 @@ export function IssuesModule() {
                                 ) : (
                                   <span className="text-[10px] text-muted-foreground">Unassigned</span>
                                 )}
-                                {issue.comments.length > 0 && (
+                                {(issue.comments?.length ?? 0) > 0 && (
                                   <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                                     <MessageSquare className="h-2.5 w-2.5" />
-                                    {issue.comments.length}
+                                    {issue.comments?.length ?? 0}
                                   </div>
                                 )}
                               </div>
@@ -480,7 +480,7 @@ export function IssuesModule() {
                 {/* Comment thread */}
                 <div>
                   <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2 flex items-center gap-1">
-                    <MessageSquare className="h-3 w-3" /> Comment Thread ({selected.comments.length})
+                    <MessageSquare className="h-3 w-3" /> Comment Thread ({selected.comments?.length ?? 0})
                   </div>
                   <div className="space-y-3 max-h-80 overflow-y-auto">
                     {selected.comments.map((c: any) => (

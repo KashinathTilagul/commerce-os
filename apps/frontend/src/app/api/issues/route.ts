@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { title, description, priority, type, department } = body
 
-    const code = `PAP-${Math.floor(Math.random() * 900) + 100}`
+    const code = `PAP-${Date.now().toString().slice(-6)}`
 
     const issue = await db.issue.create({
       data: {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         code,
         title,
         description,
-        priority: priority || 'MEDIUM',
+        priority: priority || 'P2',
         type: type || 'TASK',
         department: department || 'EXECUTIVE',
         status: 'BACKLOG',

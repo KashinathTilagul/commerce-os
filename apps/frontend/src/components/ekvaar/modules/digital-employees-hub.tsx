@@ -247,7 +247,7 @@ export function DigitalEmployeesHub() {
                             className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-display tracking-tight text-white"
                             style={{ background: a.avatarColor }}
                           >
-                            {a.name}
+                            {a.name?.[0]}
                           </div>
                           <div
                             className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${statusRing(a.status)}`}
@@ -440,7 +440,7 @@ export function DigitalEmployeesHub() {
                     />
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
-                      {selected.skills.split(',').map((s: string) => (
+                      {selected.skills && selected.skills.split(',').filter(Boolean).map((s: string) => (
                         <span key={s} className="inline-flex items-center px-2 py-0.5 text-[10px] tracking-wider uppercase rounded-sm bg-muted text-foreground">
                           {s.replace(/_/g, ' ').trim()}
                         </span>
@@ -569,10 +569,12 @@ export function DigitalEmployeesHub() {
 function statusRing(status: string): string {
   const map: Record<string, string> = {
     ACTIVE: 'bg-arav',
-    RUNNING: 'bg-gulabi animate-pulse-soft',
+    RUNNING: 'bg-neel animate-pulse-soft',
+    TRAINING: 'bg-gulabi animate-pulse-soft',
     IDLE: 'bg-muted-foreground/40',
     PAUSED: 'bg-agni',
     ERROR: 'bg-agni',
+    ALERT: 'bg-agni animate-pulse-soft',
   }
   return map[status] || 'bg-muted-foreground/40'
 }

@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   try {
     const uid = authResult.user.id
     const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks, agents, issues, approvals, events] = await Promise.all([
-      db.product.findMany({ where: { userId: uid }, select: { id: true, name: true, sku: true, price: true, stock: true, status: true } }),
+      db.product.findMany({ where: { userId: uid }, select: { id: true, name: true, sku: true, color: true, house: true, stock: true, reorderAt: true, status: true } }),
       db.order.findMany({ where: { userId: uid }, select: { id: true, orderNumber: true, total: true, status: true, createdAt: true, channel: true, items: { select: { quantity: true, price: true, product: { select: { house: true, color: true } } } } } }),
       db.customer.findMany({ where: { userId: uid }, select: { id: true, tier: true, totalSpent: true } }),
       db.transaction.findMany({ where: { userId: uid }, select: { type: true, amount: true, category: true, date: true } }),
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     const revenueLast30 = transactions.filter((t) => t.type === 'INCOME' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
     const expensesLast30 = transactions.filter((t) => t.type === 'EXPENSE' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
 
-    const lowStock = products.filter((p) => p.stock <= 20 && p.status !== 'DRAFT')
+    const lowStock = products.filter((p) => p.stock <= (p.reorderAt ?? 20) && p.status !== 'DRAFT')
     const aiHealth = aiSystems.length > 0 ? Math.round(aiSystems.reduce((s, a) => s + a.health, 0) / aiSystems.length) : 100
     const passCount = brandChecks.filter((c) => c.status === 'PASS').length
     const brandCompliance = brandChecks.length > 0 ? Math.round((passCount / brandChecks.length) * 100) : 100
