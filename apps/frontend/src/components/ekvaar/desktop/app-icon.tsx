@@ -69,7 +69,7 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'campaigns':     return <NewsIcon size={size} />
     case 'guardian':      return <ShieldIcon size={size} />
     case 'ai':            return <CpuIcon size={size} />
-    case 'brand-book':    return <BooksIcon size={size} />
+    case 'guardian':    return <BooksIcon size={size} />
     default:              return <GenericIcon size={size} />
   }
 }

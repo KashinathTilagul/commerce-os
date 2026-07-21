@@ -15,14 +15,14 @@ interface DockProps {
   onJarvisClick?: () => void
 }
 
-// All dockable app IDs in default order (Launchpad + all apps + Brand Book)
+// All dockable app IDs in default order (Launchpad + all apps)
 const DEFAULT_DOCK_ORDER: string[] = [
   'launchpad',
   ...CORE_APP_IDS,
   ...UTILITY_APP_IDS,
   'music',
   ...BUSINESS_APP_IDS,
-  'brand-book',
+  'guardian',
 ]
 
 export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
@@ -82,7 +82,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
     if (dockOrder && dockOrder.length > 0) {
       // Filter to only known apps, add any missing new apps at the end
       const known = DEFAULT_DOCK_ORDER.filter(id =>
-        dockOrder.includes(id) || id === 'launchpad' || id === 'brand-book'
+        dockOrder.includes(id) || id === 'launchpad' || id === 'guardian'
       )
       // Reorder based on stored order, then append any new apps
       const ordered = dockOrder.filter(id => DEFAULT_DOCK_ORDER.includes(id))
@@ -92,10 +92,10 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
     return DEFAULT_DOCK_ORDER
   }, [dockOrder])
 
-  // Filter out hidden apps (but keep Launchpad and Brand Book always visible)
+  // Filter out hidden apps (but keep Launchpad and Guardian always visible)
   const visibleOrder = useMemo(() => {
     return effectiveOrder.filter(id => {
-      if (id === 'launchpad' || id === 'brand-book') return true
+      if (id === 'launchpad' || id === 'guardian') return true
       return !hiddenApps.includes(id)
     })
   }, [effectiveOrder, hiddenApps])
@@ -110,12 +110,6 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
       icon: LayoutGrid, iconVariant: 'launchpad',
       gradient: 'linear-gradient(135deg, #6E6E76 0%, #3A3A3E 100%)',
       glyphColor: '#F5F1EA', component: null, menuItems: [],
-    }
-    m['brand-book'] = {
-      id: 'brand-book', name: 'Brand Book', shortName: 'Book',
-      icon: null, iconVariant: 'brand-book',
-      gradient: 'linear-gradient(135deg, #F5F1EA 0%, #C8B89F 100%)',
-      glyphColor: '#0A0A0A', component: null, menuItems: [],
     }
     m['music'] = {
       id: 'music', name: 'Spotify', shortName: 'Spotify',
@@ -157,10 +151,6 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
       onLaunchpad?.()
       return
     }
-    if (id === 'brand-book') {
-      open('guardian', customNames['guardian'] || 'Brand Guardian')
-      return
-    }
     if (id === 'music') {
       useMusicStore.getState().open()
       return
@@ -177,11 +167,11 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   // Right-click context menu
   const handleContextMenu = (e: React.MouseEvent, appId: string) => {
     e.preventDefault()
-    if (appId === 'launchpad' || appId === 'brand-book') return // Can't edit these
+    if (appId === 'launchpad') return // Can't edit these
     const appName = customNames[appId] || APPS.find(a => a.id === appId)?.name || appId
     const idx = effectiveOrder.indexOf(appId)
-    // Find prev/next that are also real apps (not launchpad/brand-book/dividers)
-    const realApps = effectiveOrder.filter(id => id !== 'launchpad' && id !== 'brand-book')
+    // Find prev/next that are also real apps (not launchpad/dividers)
+    const realApps = effectiveOrder.filter(id => id !== 'launchpad')
     const realIdx = realApps.indexOf(appId)
     setContextMenu({
       open: true,
@@ -197,21 +187,21 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
 
   // Drag handlers
   const handleDragStart = (e: React.DragEvent, appId: string) => {
-    if (!editMode || appId === 'launchpad' || appId === 'brand-book') return
+    if (!editMode || appId === 'launchpad') return
     setDraggingId(appId)
     e.dataTransfer.effectAllowed = 'move'
     e.dataTransfer.setData('text/plain', appId)
   }
 
   const handleDragOver = (e: React.DragEvent, appId: string) => {
-    if (!editMode || !draggingId || appId === 'launchpad' || appId === 'brand-book') return
+    if (!editMode || !draggingId || appId === 'launchpad') return
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     if (dragOverId !== appId) setDragOverId(appId)
   }
 
   const handleDrop = (e: React.DragEvent, targetId: string) => {
-    if (!editMode || !draggingId || targetId === 'launchpad' || targetId === 'brand-book') return
+    if (!editMode || !draggingId || targetId === 'launchpad') return
     e.preventDefault()
     if (draggingId === targetId) {
       setDraggingId(null)
@@ -281,7 +271,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   }
 
   // Determine section boundaries for dividers
-  // We place dividers: after launchpad, after core, after utility, before brand-book
+  // We place dividers: after launchpad, after core, after utility, before guardian
   const isDividerBefore = (id: string, idx: number) => {
     if (id === 'launchpad') return false // first, no divider
     const prev = visibleOrder[idx - 1]
@@ -292,12 +282,12 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
     if (CORE_APP_IDS.includes(prev as any) && UTILITY_APP_IDS.includes(id as any)) return true
     // Divider if transitioning from utility to business
     if (UTILITY_APP_IDS.includes(prev as any) && BUSINESS_APP_IDS.includes(id as any)) return true
-    // Divider before brand-book
-    if (id === 'brand-book') return true
+    // Divider before guardian
+    if (id === 'guardian') return true
     return false
   }
 
-  const realAppsForContext = effectiveOrder.filter(id => id !== 'launchpad' && id !== 'brand-book')
+  const realAppsForContext = effectiveOrder.filter(id => id !== 'launchpad')
 
   return (
     <>
@@ -375,7 +365,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
             const isHidden = hiddenApps.includes(appId)
             const isRenaming = renamingId === appId
             const displayName = customNames[appId] || app.name
-            const isSpecial = appId === 'launchpad' || appId === 'brand-book'
+            const isSpecial = appId === 'launchpad'
             const realIdx = realAppsForContext.indexOf(appId)
             const canMoveLeft = !isSpecial && realIdx > 0
             const canMoveRight = !isSpecial && realIdx >= 0 && realIdx < realAppsForContext.length - 1
@@ -503,7 +493,7 @@ function DockItem({
 
   const isHovered = hovered === app.id
   const showLabel = isHovered && scale > 1.1 && !editMode
-  const isSpecial = app.id === 'launchpad' || app.id === 'brand-book'
+  const isSpecial = app.id === 'launchpad'
 
   return (
     <div className="flex flex-col items-center justify-end relative">

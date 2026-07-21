@@ -70,6 +70,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
       'AI Infrastructure': 'ai', 'Digital Employees': 'agents',
       'Sales & Orders': 'sales', 'Integrations': 'integrations',
       'Inventory & Ops': 'inventory', 'Campaigns': 'campaigns',
+      'Brand Guardian': 'guardian',
     }
     if (goMap[item]) { open(goMap[item] as any, item); return }
     // Window actions
@@ -146,7 +147,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
             <MenuButton label="Window" isOpen={openMenu === 'Window'} onClick={() => handleMenuClick('Window')}
               items={['Minimize', 'Zoom', 'Bring All to Front']} onAction={handleMenuAction} onClose={() => setOpenMenu(null)} />
             <MenuButton label="Help" isOpen={openMenu === 'Help'} onClick={() => handleMenuClick('Help')}
-              items={['EKVAAR Brand Book', 'Keyboard Shortcuts']} onAction={handleMenuAction} onClose={() => setOpenMenu(null)} />
+              items={['Brand Guardian', 'Keyboard Shortcuts']} onAction={handleMenuAction} onClose={() => setOpenMenu(null)} />
           </>
         )}
       </div>
