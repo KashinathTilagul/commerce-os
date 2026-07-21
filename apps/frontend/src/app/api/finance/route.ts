@@ -38,25 +38,19 @@ export async function GET() {
     }
   }
 
-  // Monthly trend (last 6 months) — bucketed from the bounded window fetch above
   const now = new Date()
-  const monthlyTrend: { month: string; income: number; expenses: number; net: number }[] = []
-  for (let i = 5; i >= 0; i--) {
-    const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
-    const mIncome = recentWindow
-      .filter((t) => t.type === 'INCOME' && t.date >= monthStart && t.date < monthEnd)
-      .reduce((s, t) => s + t.amount, 0)
-    const mExpenses = recentWindow
-      .filter((t) => t.type === 'EXPENSE' && t.date >= monthStart && t.date < monthEnd)
-      .reduce((s, t) => s + t.amount, 0)
-    monthlyTrend.push({
-      month: monthStart.toLocaleString('en-US', { month: 'short' }),
-      income: mIncome,
-      expenses: mExpenses,
-      net: mIncome - mExpenses,
-    })
-  }
+  const byMonth = recentWindow.reduce<Record<string, { income: number; expenses: number }>>((m, t) => {
+    const key = `${t.date.getFullYear()}-${t.date.getMonth()}`
+    if (!m[key]) m[key] = { income: 0, expenses: 0 }
+    if (t.type === 'INCOME') m[key].income += t.amount
+    else if (t.type === 'EXPENSE') m[key].expenses += t.amount
+    return m
+  }, {})
+  const monthlyTrend = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
+    const { income = 0, expenses = 0 } = byMonth[`${d.getFullYear()}-${d.getMonth()}`] ?? {}
+    return { month: d.toLocaleString('en-US', { month: 'short' }), income, expenses, net: income - expenses }
+  })
 
   return NextResponse.json({
     totalIncome,

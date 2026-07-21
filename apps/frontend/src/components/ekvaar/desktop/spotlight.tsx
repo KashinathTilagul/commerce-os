@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Command } from 'lucide-react'
 import { APPS } from './app-registry'
+
+const APP_BY_ID = new Map(APPS.map(a => [a.id, a]))
 import { AppIcon } from './app-icon'
 import { useWindowStore } from '@/lib/window-store'
 
@@ -35,7 +37,7 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return QUICK_ACTIONS.map(a => ({ ...APPS.find(app => app.id === a.id)!, hint: a.hint })).filter(Boolean)
+    if (!q) return QUICK_ACTIONS.map(a => ({ ...APP_BY_ID.get(a.id as any)!, hint: a.hint })).filter(Boolean)
     return APPS
       .filter(a => a.name.toLowerCase().includes(q) || a.shortName.toLowerCase().includes(q))
       .slice(0, 8)

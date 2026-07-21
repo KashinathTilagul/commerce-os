@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect, type ReactNode } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useWindowStore, type WindowState } from '@/lib/window-store'
 import { APP_MAP } from './app-registry'
@@ -9,26 +9,6 @@ const TOP_BAR_H = 28
 const MIN_W = 720
 const MIN_H = 480
 
-let _krishnaTrigger = 0
-const _krishnaListeners: ((v: number) => void)[] = []
-
-export function triggerKrishna() {
-  _krishnaTrigger++
-  _krishnaListeners.forEach(fn => fn(_krishnaTrigger))
-}
-
-export function useKrishnaTrigger() {
-  const [trigger, setTrigger] = useState(_krishnaTrigger)
-  useEffect(() => {
-    const fn = (v: number) => setTrigger(v)
-    _krishnaListeners.push(fn)
-    return () => {
-      const i = _krishnaListeners.indexOf(fn)
-      if (i >= 0) _krishnaListeners.splice(i, 1)
-    }
-  }, [])
-  return trigger
-}
 
 export function WindowFrame({ win }: { win: WindowState }) {
   const focus = useWindowStore(s => s.focus)
@@ -223,7 +203,7 @@ export function WindowFrame({ win }: { win: WindowState }) {
 
           {/* Content */}
           <div className="flex-1 min-h-0 overflow-y-auto bg-background text-foreground">
-            <AppComponentWrapper Component={AppComponent} appId={win.id} />
+            <AppComponent {...(win.id === 'command' ? { onNavigate: (id: any) => { const t = APP_MAP[id as keyof typeof APP_MAP]; if (t) useWindowStore.getState().open(id, t.name) } } : {})} />
           </div>
 
           {/* Resize handles */}
@@ -295,22 +275,3 @@ function ResizeHandle({
   )
 }
 
-// Renders the app component, passing onNavigate only to components that accept it
-function AppComponentWrapper({
-  Component,
-  appId,
-}: {
-  Component: React.ComponentType<any>
-  appId: string
-}) {
-  const props: any = {}
-  if (appId === 'command') {
-    props.onNavigate = (id: any) => {
-      const targetApp = APP_MAP[id as keyof typeof APP_MAP]
-      if (targetApp) {
-        useWindowStore.getState().open(id, targetApp.name)
-      }
-    }
-  }
-  return <Component {...props} />
-}

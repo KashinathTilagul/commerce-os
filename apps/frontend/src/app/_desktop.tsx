@@ -10,7 +10,7 @@ import { BootScreen, DesktopWallpaper } from '@/components/ekvaar/desktop/boot-a
 import { MenuBar } from '@/components/ekvaar/desktop/menu-bar'
 import { LockScreen } from '@/components/ekvaar/desktop/lock-screen'
 import { Dock } from '@/components/ekvaar/desktop/dock'
-import { WindowFrame, useKrishnaTrigger } from '@/components/ekvaar/desktop/window-frame'
+import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
 import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
 import { Jarvis, GestureControl } from '@/components/ekvaar/desktop/jarvis'
@@ -28,13 +28,6 @@ export default function Desktop() {
   const [launchpadOpen, setLaunchpadOpen] = useState(false)
   const [spotlightOpen, setSpotlightOpen] = useState(false)
   const [jarvisTrigger, setJarvisTrigger] = useState(0)
-  const windowFrameTrigger = useKrishnaTrigger()
-
-  useEffect(() => {
-    if (windowFrameTrigger > 0) {
-      setJarvisTrigger(windowFrameTrigger)
-    }
-  }, [windowFrameTrigger])
 
   useEffect(() => {
     const root = document.documentElement
