@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LayoutGrid, X, Check, Edit3, RotateCcw } from 'lucide-react'
 import { useWindowStore, type AppId } from '@/lib/window-store'
-import { useMusicStore } from '@/lib/music-store'
 import { APPS, CORE_APP_IDS, UTILITY_APP_IDS, BUSINESS_APP_IDS } from './app-registry'
 import { AppIcon } from './app-icon'
 import { DockContextMenu } from './dock-context-menu'
@@ -20,7 +19,6 @@ const DEFAULT_DOCK_ORDER: string[] = [
   'launchpad',
   ...CORE_APP_IDS,
   ...UTILITY_APP_IDS,
-  'music',
   ...BUSINESS_APP_IDS,
   'guardian',
 ]
@@ -111,12 +109,6 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
       gradient: 'linear-gradient(135deg, #6E6E76 0%, #3A3A3E 100%)',
       glyphColor: '#F5F1EA', component: null, menuItems: [],
     }
-    m['music'] = {
-      id: 'music', name: 'Spotify', shortName: 'Spotify',
-      icon: null, iconVariant: 'music',
-      gradient: 'linear-gradient(135deg, #1DB954 0%, #191414 100%)',
-      glyphColor: '#1DB954', component: null, menuItems: [],
-    }
     return m
   }, [])
 
@@ -149,10 +141,6 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
     if (editMode) return
     if (id === 'launchpad') {
       onLaunchpad?.()
-      return
-    }
-    if (id === 'music') {
-      useMusicStore.getState().open()
       return
     }
     const existing = windows.find((w) => w.id === id)

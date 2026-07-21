@@ -16,7 +16,6 @@ import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
 import { Jarvis, GestureControl } from '@/components/ekvaar/desktop/jarvis'
 import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
 import { DesktopWidgets } from '@/components/ekvaar/desktop/desktop-widgets'
-import { GlobalMusicPlayer } from '@/components/ekvaar/desktop/global-music-player'
 
 export default function Desktop() {
   const { status } = useSession()
@@ -117,7 +116,6 @@ export default function Desktop() {
       <Spotlight open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
       <GestureControl onBackgroundPinch={() => setJarvisTrigger(t => t + 1)} />
       <Jarvis trigger={jarvisTrigger} hasOpenWindows={windows.length > 0} />
-      <GlobalMusicPlayer />
     </div>
   )
 }
