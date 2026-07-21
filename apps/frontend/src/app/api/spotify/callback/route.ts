@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || ''
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || ''
@@ -34,13 +35,26 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(new URL('/?spotify_error=1', errorBaseUrl))
     }
 
+    const cookieStore = await cookies()
+
+    cookieStore.set('spotify_refresh_token', data.refresh_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60,
+      path: '/',
+    })
+
+    cookieStore.set('spotify_access_token', data.access_token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: data.expires_in,
+      path: '/',
+    })
+
     const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
-    const redirectUrl = new URL('/', baseUrl)
-    redirectUrl.searchParams.set('spotify_access_token', data.access_token)
-    redirectUrl.searchParams.set('spotify_refresh_token', data.refresh_token)
-    redirectUrl.searchParams.set('spotify_expires', data.expires_in)
-    
-    return NextResponse.redirect(redirectUrl)
+    return NextResponse.redirect(new URL('/?spotify_connected=1', baseUrl))
   } catch (error) {
     console.error('Spotify callback error:', error)
     const errorBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin

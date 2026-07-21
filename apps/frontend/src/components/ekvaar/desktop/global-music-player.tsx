@@ -12,25 +12,25 @@ declare global {
 }
 
 export function GlobalMusicPlayer() {
-  const { tracks, currentIdx, playing, volume, minimized, position, isOpen, playTrack, toggleMinimize, move, close, togglePlay, next, prev, setVolume } = useMusicStore()
+  const { tracks, currentIdx, playing, volume, minimized, position, isOpen, playTrack, toggleMinimize, move, close, togglePlay, next, prev, setVolume, setDeviceId, setConnected, disconnect } = useMusicStore()
   const current = tracks[currentIdx]
   const playerRef = useRef<any>(null)
   const [playerReady, setPlayerReady] = useState(false)
-  const [deviceId, setDeviceId] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const dragOffset = useRef({ x: 0, y: 0 })
   const [token, setToken] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/spotify/token')
-      .then(res => res.json())
-      .then(data => {
-        if (data.access_token) {
-          setToken(data.access_token)
-        }
-      })
-      .catch(console.error)
-  }, [])
+    const accessToken = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('spotify_access_token='))
+      ?.split('=')[1]
+    
+    if (accessToken) {
+      setToken(accessToken)
+      setConnected(true)
+    }
+  }, [setConnected])
 
   useEffect(() => {
     if (!token || !isOpen) return
@@ -52,6 +52,18 @@ export function GlobalMusicPlayer() {
           if (state) {
             useMusicStore.setState({ playing: !state.paused })
           }
+        })
+
+        player.addListener('authentication_error', () => {
+          fetch('/api/spotify/token')
+            .then(r => r.json())
+            .then(data => {
+              if (data.access_token) setToken(data.access_token)
+            })
+            .catch(() => {
+              setToken(null)
+              setConnected(false)
+            })
         })
 
         player.connect()
@@ -76,7 +88,7 @@ export function GlobalMusicPlayer() {
         playerRef.current.disconnect()
       }
     }
-  }, [token, isOpen])
+  }, [token, isOpen, volume, setDeviceId, setConnected])
 
   useEffect(() => {
     if (!playerRef.current || !playerReady) return
@@ -89,8 +101,10 @@ export function GlobalMusicPlayer() {
   }, [playing, playerReady])
 
   useEffect(() => {
-    if (!current?.spotifyUri || !deviceId || !token) return
-    
+    if (!current?.spotifyUri || !token) return
+    const deviceId = useMusicStore.getState().deviceId
+    if (!deviceId) return
+
     fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
       method: 'PUT',
       headers: {
@@ -99,7 +113,14 @@ export function GlobalMusicPlayer() {
       },
       body: JSON.stringify({ uris: [current.spotifyUri] })
     }).catch(console.error)
-  }, [current?.spotifyUri, deviceId, token])
+  }, [current?.spotifyUri, token])
+
+  const handleLogout = async () => {
+    await fetch('/api/spotify/logout', { method: 'POST' })
+    disconnect()
+    setToken(null)
+    close()
+  }
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.drag-handle')) {
@@ -123,7 +144,7 @@ export function GlobalMusicPlayer() {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [dragging])
+  }, [dragging, move])
 
   if (!isOpen) return null
 

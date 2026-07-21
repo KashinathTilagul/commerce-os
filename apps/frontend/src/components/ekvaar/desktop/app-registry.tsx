@@ -5,7 +5,7 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Code2,
+  AlertTriangle, Code2, Music,
 } from 'lucide-react'
 import type { AppId } from '@/lib/window-store'
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
@@ -28,6 +28,7 @@ import { CampaignsModule } from '@/components/ekvaar/modules/campaigns'
 import { BrandGuardian } from '@/components/ekvaar/modules/brand-guardian'
 import { AIInfrastructure } from '@/components/ekvaar/modules/ai-infrastructure'
 import { RiskCenter } from '@/components/ekvaar/modules/risk-center'
+import { SpotifyApp } from '@/components/ekvaar/modules/spotify'
 
 export interface AppDef {
   id: AppId
@@ -344,6 +345,20 @@ export const APPS: AppDef[] = [
       { label: 'View', items: ['Active Risks', 'Signals', 'By Category'] },
     ],
   },
+  {
+    id: 'spotify',
+    name: 'Spotify',
+    shortName: 'Spotify',
+    icon: Music,
+    iconVariant: 'spotify',
+    gradient: 'linear-gradient(135deg, #1DB954 0%, #191414 100%)',
+    glyphColor: '#1DB954',
+    component: SpotifyApp,
+    menuItems: [
+      { label: 'File', items: ['New Playlist', 'Connect Device', 'Disconnect', 'Close Window'] },
+      { label: 'View', items: ['Home', 'Search', 'Your Library', 'Liked Songs'] },
+    ],
+  },
 ]
 
 export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
@@ -353,5 +368,5 @@ export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
 // IDs that belong to the "core OS" group (left of dock divider)
 export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'settings', 'files', 'integrations']
 export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar']
-export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai', 'risk']
+export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai', 'risk', 'spotify']
 

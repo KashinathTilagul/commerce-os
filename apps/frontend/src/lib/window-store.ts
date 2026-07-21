@@ -24,6 +24,7 @@ export type AppId =
   | 'guardian'
   | 'ai'
   | 'risk'
+  | 'spotify'
   | 'opencode'
 
 export interface WindowState {
@@ -87,6 +88,7 @@ const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
   guardian: { width: 1180, height: 760 },
   ai: { width: 1180, height: 760 },
   risk: { width: 1180, height: 760 },
+  spotify: { width: 1100, height: 750 },
   opencode: { width: 900, height: 640 },
 }
 

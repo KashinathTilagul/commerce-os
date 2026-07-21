@@ -1,19 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || ''
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || ''
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const cookieStore = await cookies()
-  const refreshToken = cookieStore.get('spotify_refresh_token')?.value || req.nextUrl.searchParams.get('refresh_token')
+  const refreshToken = cookieStore.get('spotify_refresh_token')?.value
   
   if (!refreshToken) {
-    const accessToken = req.nextUrl.searchParams.get('access_token')
-    if (accessToken) {
-      return NextResponse.json({ access_token: accessToken })
-    }
-    return NextResponse.json({ error: 'No token available' }, { status: 401 })
+    return NextResponse.json({ error: 'No refresh token' }, { status: 401 })
   }
 
   try {
@@ -35,7 +31,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: data.error }, { status: 400 })
     }
 
-    return NextResponse.json({ access_token: data.access_token })
+    cookieStore.set('spotify_access_token', data.access_token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: data.expires_in,
+      path: '/',
+    })
+
+    return NextResponse.json({ access_token: data.access_token, expires_in: data.expires_in })
   } catch (error) {
     console.error('Token refresh error:', error)
     return NextResponse.json({ error: 'Failed to refresh token' }, { status: 500 })
