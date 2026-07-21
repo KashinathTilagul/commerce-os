@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useThemeStore } from '@/lib/theme-store'
 import { toast } from '@/components/ekvaar/desktop/toast'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
@@ -32,10 +32,15 @@ export function Settings() {
   const queryClient = useQueryClient()
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
+  const [promptValue, setPromptValue] = useState('')
+  const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
     try { return localStorage.getItem('krishna_voice') || 'en-IN-NeerjaNeural' } catch { return 'en-IN-NeerjaNeural' }
   })
+  const [promptValue, setPromptValue] = useState('')
+  const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hasSyncedRef = useRef(false)
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -46,14 +51,28 @@ export function Settings() {
     },
   })
 
-  // Sync server theme + voice to local state
+  // Sync server voice + prompt to local state (one-time on load)
   useEffect(() => {
-    if (settings && !isLoading) {
-      if (settings.theme !== mode) setMode(settings.theme)
-      if (settings.accent !== accent) setAccent(settings.accent)
+    if (settings && !isLoading && !hasSyncedRef.current) {
+      hasSyncedRef.current = true
       if (settings.ttsVoice) setLocalVoice(settings.ttsVoice)
+      if (settings.krishnaPrompt !== undefined) setPromptValue(settings.krishnaPrompt)
     }
-  }, [settings, isLoading, mode, accent, setMode, setAccent])
+  }, [settings, isLoading])
+
+  // Cleanup debounce timeout
+  useEffect(() => {
+    return () => {
+      if (promptTimeoutRef.current) clearTimeout(promptTimeoutRef.current)
+    }
+  }, [])
+
+  // Cleanup debounce timeout
+  useEffect(() => {
+    return () => {
+      if (promptTimeoutRef.current) clearTimeout(promptTimeoutRef.current)
+    }
+  }, [])
 
   const mutation = useMutation({
     mutationFn: async (updates: any) => {
@@ -122,7 +141,7 @@ export function Settings() {
   const s = settings || {}
 
   return (
-    <div className="min-h-full bg-background">
+    <div>
       <PageHeader
         eyebrow="System Settings"
         title="Preferences"
@@ -180,7 +199,7 @@ export function Settings() {
                   type="password"
                   value={s.primaryApiKey || ''}
                   onChange={(e) => handleChange('primaryApiKey', e.target.value)}
-                  placeholder="Paste your AWS Bedrock Base64 key here..."
+                  placeholder={s.primaryApiKey ? '•••••••••••••••• (key set)' : 'Paste your AWS Bedrock Base64 key here...'}
                   className="h-8 text-xs font-mono"
                 />
               </div>
@@ -288,8 +307,15 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <textarea
-              value={s.krishnaPrompt || ''}
-              onChange={(e) => handleChange('krishnaPrompt', e.target.value)}
+              value={promptValue}
+              onChange={(e) => {
+                const newValue = e.target.value
+                setPromptValue(newValue)
+                if (promptTimeoutRef.current) clearTimeout(promptTimeoutRef.current)
+                promptTimeoutRef.current = setTimeout(() => {
+                  handleChange('krishnaPrompt', newValue)
+                }, 500)
+              }}
               placeholder={`You are Krishna, the central AI of EKVAAR OS...\n\nDefine personality, tone, language, restrictions (or none), and anything else you want Krishna to follow.`}
               className="w-full h-48 bg-muted/30 border border-border rounded-md px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-arav placeholder:text-muted-foreground/40"
             />

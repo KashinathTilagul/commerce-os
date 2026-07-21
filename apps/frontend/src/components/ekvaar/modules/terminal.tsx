@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Terminal, Activity, Zap, AlertCircle, Info } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageHeader, KpiCard } from '../shared'
@@ -32,7 +32,7 @@ export function TerminalModule() {
   const [filter, setFilter] = useState<string>('ALL')
   const logRef = useRef<HTMLDivElement>(null)
 
-  const filtered = filter === 'ALL' ? events : events.filter((e) => e.severity === filter)
+  const filtered = filter === 'ALL' ? events : events.filter((e) => e.severity === filter || (filter === 'CRITICAL' && e.severity === 'ERROR'))
 
   const counts = {
     INFO: events.filter((e) => e.severity === 'INFO').length,
@@ -40,6 +40,12 @@ export function TerminalModule() {
     ERROR: events.filter((e) => e.severity === 'ERROR').length,
     CRITICAL: events.filter((e) => e.severity === 'CRITICAL').length,
   }
+
+  useEffect(() => {
+    if (logRef.current && events.length > 0) {
+      logRef.current.scrollTop = 0
+    }
+  }, [events.length])
 
   return (
     <div>
@@ -78,7 +84,7 @@ export function TerminalModule() {
 
         {/* Filter pills */}
         <div className="flex items-center gap-2">
-          {['ALL', 'INFO', 'WARN', 'CRITICAL'].map((f) => (
+          {['ALL', 'INFO', 'WARN', 'ERROR', 'CRITICAL'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
