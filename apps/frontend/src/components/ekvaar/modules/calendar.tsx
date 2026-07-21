@@ -52,7 +52,8 @@ export function CalendarApp() {
       const r = await fetch('/api/integrations')
       if (!r.ok) return { connected: false }
       const data = await r.json()
-      const gc = data.grouped?.productivity?.find((i: any) => i.toolkitSlug === 'google_calendar')
+      const all: any[] = Object.values(data.grouped || {}).flat()
+      const gc = all.find((i: any) => i.toolkitSlug === 'google_calendar')
       return { connected: !!gc?.isConnected }
     },
   })
@@ -97,6 +98,9 @@ export function CalendarApp() {
       toast.success('Event created')
       setShowAdd(false)
       setNewEvent({ title: '', description: '', time: '09:00', color: '#1F3A5F' })
+      if (googleConnected?.connected) {
+        syncMutation.mutate()
+      }
     },
     onError: (e: any) => toast.error('Failed to create event', e.message),
   })

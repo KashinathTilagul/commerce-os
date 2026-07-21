@@ -20,7 +20,6 @@ const DEFAULT_DOCK_ORDER: string[] = [
   ...CORE_APP_IDS,
   ...UTILITY_APP_IDS,
   ...BUSINESS_APP_IDS,
-  'guardian',
 ]
 
 export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
