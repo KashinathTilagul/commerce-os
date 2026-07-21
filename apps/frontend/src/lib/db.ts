@@ -28,3 +28,21 @@ export const db =
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+
+// Event log retention — without this, Event rows (which can contain up to a
+// few hundred characters of chat/conversation content) grow forever; the
+// only prior cleanup path was full account deletion. This is a long-running
+// Node server (next start, not serverless), so a module-scope interval
+// persists for the process lifetime, same pattern as the rate-limit cleanup
+// in lib/security.ts.
+const EVENT_RETENTION_DAYS = 90
+const globalForCleanup = globalThis as unknown as { eventCleanupStarted?: boolean }
+if (!globalForCleanup.eventCleanupStarted) {
+  globalForCleanup.eventCleanupStarted = true
+  const runCleanup = () => {
+    const cutoff = new Date(Date.now() - EVENT_RETENTION_DAYS * 86400000)
+    db.event.deleteMany({ where: { timestamp: { lt: cutoff } } }).catch(() => {})
+  }
+  runCleanup()
+  setInterval(runCleanup, 24 * 60 * 60 * 1000)
+}

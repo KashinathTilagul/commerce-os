@@ -5,37 +5,50 @@ import { requireAuth } from '@/lib/auth-guard'
 export async function GET() {
   const auth = await requireAuth()
   if (!auth.success) return auth.response
+  const userId = auth.user.id
 
-  const transactions = await db.transaction.findMany({
-    where: { userId: auth.user.id },
-    orderBy: { date: 'desc' },
-  })
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
+  sixMonthsAgo.setDate(1)
 
-  const income = transactions.filter((t) => t.type === 'INCOME')
-  const expenses = transactions.filter((t) => t.type === 'EXPENSE')
+  // DB-side aggregation for all-time totals/category breakdown (groupBy),
+  // a narrow 6-month window for the trend chart, and a capped recent list —
+  // instead of pulling every transaction row ever into memory.
+  const [byTypeAndCategory, recentWindow, recentTransactions] = await Promise.all([
+    db.transaction.groupBy({ by: ['type', 'category'], where: { userId }, _sum: { amount: true } }),
+    db.transaction.findMany({
+      where: { userId, date: { gte: sixMonthsAgo } },
+      select: { type: true, amount: true, date: true },
+    }),
+    db.transaction.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 20 }),
+  ])
 
-  const totalIncome = income.reduce((s, t) => s + t.amount, 0)
-  const totalExpenses = expenses.reduce((s, t) => s + t.amount, 0)
-
-  // Income by category
+  let totalIncome = 0
+  let totalExpenses = 0
   const incomeByCat: Record<string, number> = {}
-  for (const t of income) incomeByCat[t.category] = (incomeByCat[t.category] || 0) + t.amount
-
-  // Expenses by category
   const expenseByCat: Record<string, number> = {}
-  for (const t of expenses) expenseByCat[t.category] = (expenseByCat[t.category] || 0) + t.amount
+  for (const row of byTypeAndCategory) {
+    const amt = row._sum.amount || 0
+    if (row.type === 'INCOME') {
+      totalIncome += amt
+      incomeByCat[row.category] = (incomeByCat[row.category] || 0) + amt
+    } else if (row.type === 'EXPENSE') {
+      totalExpenses += amt
+      expenseByCat[row.category] = (expenseByCat[row.category] || 0) + amt
+    }
+  }
 
-  // Monthly trend (last 6 months)
+  // Monthly trend (last 6 months) — bucketed from the bounded window fetch above
   const now = new Date()
   const monthlyTrend: { month: string; income: number; expenses: number; net: number }[] = []
   for (let i = 5; i >= 0; i--) {
     const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1)
     const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1)
-    const mIncome = income
-      .filter((t) => new Date(t.date) >= monthStart && new Date(t.date) < monthEnd)
+    const mIncome = recentWindow
+      .filter((t) => t.type === 'INCOME' && t.date >= monthStart && t.date < monthEnd)
       .reduce((s, t) => s + t.amount, 0)
-    const mExpenses = expenses
-      .filter((t) => new Date(t.date) >= monthStart && new Date(t.date) < monthEnd)
+    const mExpenses = recentWindow
+      .filter((t) => t.type === 'EXPENSE' && t.date >= monthStart && t.date < monthEnd)
       .reduce((s, t) => s + t.amount, 0)
     monthlyTrend.push({
       month: monthStart.toLocaleString('en-US', { month: 'short' }),
@@ -53,6 +66,6 @@ export async function GET() {
     incomeByCat,
     expenseByCat,
     monthlyTrend,
-    recentTransactions: transactions.slice(0, 20),
+    recentTransactions,
   })
 }

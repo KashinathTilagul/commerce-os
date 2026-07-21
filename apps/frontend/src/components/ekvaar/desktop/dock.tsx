@@ -26,7 +26,24 @@ const DEFAULT_DOCK_ORDER: string[] = [
 ]
 
 export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
-  const { open, windows, activeId, focus, hiddenApps: _hiddenApps, customNames: _customNames, dockOrder, hideApp, showApp, reorderDock, moveAppLeft, moveAppRight, renameApp, resetVisibility: resetAll } = useWindowStore()
+  // Per-field selectors — a single useWindowStore() destructure would
+  // subscribe to the entire store and re-render the always-mounted dock on
+  // ANY state change anywhere (window move/resize, boot state, etc.), not
+  // just the fields this component actually uses.
+  const open = useWindowStore(s => s.open)
+  const windows = useWindowStore(s => s.windows)
+  const activeId = useWindowStore(s => s.activeId)
+  const focus = useWindowStore(s => s.focus)
+  const _hiddenApps = useWindowStore(s => s.hiddenApps)
+  const _customNames = useWindowStore(s => s.customNames)
+  const dockOrder = useWindowStore(s => s.dockOrder)
+  const hideApp = useWindowStore(s => s.hideApp)
+  const showApp = useWindowStore(s => s.showApp)
+  const reorderDock = useWindowStore(s => s.reorderDock)
+  const moveAppLeft = useWindowStore(s => s.moveAppLeft)
+  const moveAppRight = useWindowStore(s => s.moveAppRight)
+  const renameApp = useWindowStore(s => s.renameApp)
+  const resetAll = useWindowStore(s => s.resetVisibility)
   const hiddenApps = _hiddenApps || []
   const customNames = _customNames || {}
 

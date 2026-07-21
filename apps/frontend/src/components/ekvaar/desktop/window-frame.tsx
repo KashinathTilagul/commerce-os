@@ -31,7 +31,13 @@ export function useKrishnaTrigger() {
 }
 
 export function WindowFrame({ win }: { win: WindowState }) {
-  const { focus, close, minimize, toggleMaximize, move, resize, activeId } = useWindowStore()
+  const focus = useWindowStore(s => s.focus)
+  const close = useWindowStore(s => s.close)
+  const minimize = useWindowStore(s => s.minimize)
+  const toggleMaximize = useWindowStore(s => s.toggleMaximize)
+  const move = useWindowStore(s => s.move)
+  const resize = useWindowStore(s => s.resize)
+  const activeId = useWindowStore(s => s.activeId)
   const isActive = activeId === win.id
   const app = APP_MAP[win.id]
   const AppComponent = app.component

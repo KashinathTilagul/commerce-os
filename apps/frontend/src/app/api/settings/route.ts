@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth-guard'
+import { encryptSecret } from '@/lib/crypto'
+
+const API_KEY_FIELDS = ['primaryApiKey', 'fallback1ApiKey', 'fallback2ApiKey'] as const
 
 // Shared AI engine config (one row for the whole app — API keys, model cascade)
 const SYSTEM_FIELDS = new Set([
@@ -43,6 +46,11 @@ export async function PATCH(req: Request) {
     const systemBody = Object.fromEntries(
       Object.entries(raw).filter(([k]) => SYSTEM_FIELDS.has(k))
     )
+    for (const field of API_KEY_FIELDS) {
+      if (typeof systemBody[field] === 'string' && systemBody[field]) {
+        systemBody[field] = encryptSecret(systemBody[field] as string)
+      }
+    }
     const preferenceBody = Object.fromEntries(
       Object.entries(raw).filter(([k]) => PREFERENCE_FIELDS.has(k))
     )

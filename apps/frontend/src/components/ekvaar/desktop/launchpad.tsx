@@ -15,7 +15,8 @@ interface LaunchpadProps {
 }
 
 export function Launchpad({ open, onClose }: LaunchpadProps) {
-  const { open: openWindow, customNames: _customNames } = useWindowStore()
+  const openWindow = useWindowStore(s => s.open)
+  const _customNames = useWindowStore(s => s.customNames)
   const customNames = _customNames || {}
   const [search, setSearch] = useState('')
   

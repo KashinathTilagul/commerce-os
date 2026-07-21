@@ -4,12 +4,32 @@ import { requireAuth } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
-import { generateText } from 'ai'
+import { generateObject } from 'ai'
+import { decryptSecret } from '@/lib/crypto'
+import { getLiveBusinessSnapshot } from '@/lib/business-snapshot'
 
 const ChatSchema = z.object({
   message: z.string().min(1).max(10000),
   context: z.union([z.string(), z.record(z.string(), z.any())]).optional(),
   activeWindow: z.string().max(200).optional().nullable(),
+})
+
+// Structured output instead of regex-parsed "SPOKEN:/ACTION:{json}" text —
+// malformed model output now fails validation loudly (caught below) rather
+// than silently falling through to a default action.
+const ActionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('open_app'), app: z.string() }),
+  z.object({ type: z.literal('approve'), query: z.string() }),
+  z.object({ type: z.literal('reject'), query: z.string() }),
+  z.object({ type: z.literal('issue_status'), query: z.string(), status: z.string() }),
+  z.object({ type: z.literal('brand_scan') }),
+  z.object({ type: z.literal('tool_execute'), toolkit: z.string(), tool: z.string(), agent: z.string().optional() }),
+  z.object({ type: z.literal('close_window') }),
+  z.object({ type: z.literal('none') }),
+])
+const KrishnaResponseSchema = z.object({
+  spoken: z.string().describe('The spoken reply — natural, human, TTS-friendly plain text, no markup.'),
+  action: ActionSchema,
 })
 
 export async function POST(req: NextRequest) {
@@ -21,43 +41,9 @@ export async function POST(req: NextRequest) {
     const validated = ChatSchema.parse(body)
     const { message, activeWindow } = validated
 
-    // ── Live system context ──────────────────────────────────────────────
+    // ── Live system context (DB-side aggregation, not raw row dumps) ────
     const uid = authResult.user.id
-    let liveContext = ''
-    try {
-      const [orders, transactions, approvals, issues, agents, aiSystems, products] = await Promise.all([
-        db.order.findMany({ where: { userId: uid }, select: { total: true, status: true, createdAt: true }, take: 200, orderBy: { createdAt: 'desc' } }),
-        db.transaction.findMany({ where: { userId: uid }, select: { type: true, amount: true, date: true }, take: 500 }),
-        db.approval.findMany({ where: { userId: uid, status: 'PENDING' }, select: { code: true, title: true, amount: true } }),
-        db.issue.findMany({ where: { userId: uid, status: { in: ['BACKLOG', 'IN_PROGRESS', 'BLOCKED'] } }, select: { code: true, title: true, status: true, priority: true } }),
-        db.agent.findMany({ where: { userId: uid }, select: { name: true, status: true, tokenSpend: true, tokenBudget: true } }),
-        db.aISystem.findMany({ where: { userId: uid }, select: { name: true, status: true, health: true } }),
-        db.product.findMany({ where: { userId: uid, stock: { lte: 10 }, status: 'ACTIVE' }, select: { name: true, sku: true, stock: true } }),
-      ])
-
-      const revenue = transactions.filter(t => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
-      const expenses = transactions.filter(t => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0)
-      const last30 = new Date(Date.now() - 30 * 86400000)
-      const recentRevenue = transactions.filter(t => t.type === 'INCOME' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
-      const pendingOrders = orders.filter(o => o.status === 'PENDING' || o.status === 'PROCESSING').length
-      const runningAgents = agents.filter(a => a.status === 'ACTIVE' || a.status === 'RUNNING')
-      const blockedIssues = issues.filter(i => i.status === 'BLOCKED')
-      const avgAiHealth = aiSystems.length ? Math.round(aiSystems.reduce((s, a) => s + a.health, 0) / aiSystems.length) : 100
-
-      liveContext = `
-LIVE SYSTEM STATUS (real-time data as of now):
-- Total Revenue: ₹${(revenue / 100000).toFixed(1)} lakh | Last 30 days: ₹${(recentRevenue / 100000).toFixed(1)} lakh
-- Net P&L: ₹${((revenue - expenses) / 100000).toFixed(1)} lakh
-- Orders pending/processing: ${pendingOrders}
-- Pending approvals: ${approvals.length}${approvals.length > 0 ? ` → [${approvals.slice(0, 3).map(a => `${a.code}: ${a.title}`).join(', ')}]` : ''}
-- Open issues: ${issues.length}${blockedIssues.length > 0 ? ` (${blockedIssues.length} BLOCKED: ${blockedIssues.slice(0, 2).map(i => i.code).join(', ')})` : ''}
-- AI agents running: ${runningAgents.length}/${agents.length}
-- AI system health: ${avgAiHealth}%
-- Critical low stock: ${products.length > 0 ? products.slice(0, 3).map(p => `${p.name} (${p.stock} left)`).join(', ') : 'None'}
-`.trim()
-    } catch (e) {
-      liveContext = 'Live system data temporarily unavailable.'
-    }
+    const liveContext = await getLiveBusinessSnapshot(uid)
 
     // ── Time & greeting ──────────────────────────────────────────────────
     const now = new Date()
@@ -96,11 +82,7 @@ ${liveContext}
 
 # OS Actions
 
-You can control the OS. When you take an action, respond conversationally and include the action JSON below.
-
-RESPONSE FORMAT — always use exactly this structure:
-SPOKEN: [Your response — natural, intelligent, human. No abbreviations: say "Chief Marketing Officer" not "CMO". Write numbers as words. This is a voice interface — keep it speakable.]
-ACTION: [JSON or {"type":"none"}]
+You can control the OS. Your spoken response should never abbreviate ("Chief Marketing Officer" not "CMO") and should read numbers as words — this is a voice interface. Pick exactly one action per turn.
 
 AVAILABLE ACTIONS:
 - Open app: {"type":"open_app","app":"<id>"} — apps: command, inbox, agents, issues, terminal, activity, settings, files, integrations, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai, opencode, risk
@@ -113,8 +95,6 @@ AVAILABLE ACTIONS:
 - Close window: {"type":"close_window"}
 - No action: {"type":"none"}`
 
-    let rawResponse = ''
-
     // ── Load config overrides from DB ────────────────────────────────────
     let cfg: any = {}
     try {
@@ -125,7 +105,7 @@ AVAILABLE ACTIONS:
     const activePrompt = cfg.krishnaPrompt?.trim() || systemPrompt
 
     // ── Single AI Core (AWS Bedrock Native) ──────────────────────────────
-    const apiKey = cfg.primaryApiKey || process.env.OPENCODE_API_KEY || ''
+    const apiKey = (cfg.primaryApiKey && decryptSecret(cfg.primaryApiKey)) || process.env.OPENCODE_API_KEY || ''
     // Force default to zai.glm-5 as it's the only one working perfectly
     const modelStr = cfg.primaryModel && cfg.primaryModel.includes('glm') ? cfg.primaryModel : 'amazon-bedrock/zai.glm-5'
 
@@ -148,60 +128,38 @@ AVAILABLE ACTIONS:
       } catch (e) {}
     }
 
+    let spoken = "I'm here, Founder. How can I assist?"
+    let action: z.infer<typeof ActionSchema> = { type: 'none' }
+
     try {
       console.log(`[Krishna] Querying Native Bedrock Core with model ${modelStr}`)
-      
+
       const bedrock = createAmazonBedrock({
         apiKey: apiKey, // The Vercel AI SDK handles the Bearer Token automatically
         region: 'us-east-1',
       })
       const cleanModelId = modelStr.replace('amazon-bedrock/', '')
-      
-      const { text } = await generateText({
+
+      const { object } = await generateObject({
         model: bedrock(cleanModelId),
+        schema: KrishnaResponseSchema,
         system: activePrompt,
         prompt: sanitizeInput(message, { maxLength: 5000 }),
         temperature: 0.87,
       })
-      
-      rawResponse = text
-      console.log(`[Krishna] Got successful response from Native Bedrock`)
+
+      spoken = object.spoken
+      action = object.action
+      console.log(`[Krishna] Got successful structured response from Native Bedrock`)
 
     } catch (e: any) {
       console.error(`[Krishna] Core error:`, e.message)
-      rawResponse = `SPOKEN: I'm having trouble reaching my intelligence core, sir. ${e.message}\nACTION: {"type":"none"}`
-    }
-
-    // ── Parse SPOKEN / ACTION ────────────────────────────────────────────
-    let spoken = "I'm here, Founder. How can I assist?"
-    let action: any = null
-
-    if (rawResponse) {
-      // Strip XML/SSML the model sometimes emits before parsing
-      const clean = rawResponse.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
-
-      const spokenMatch = clean.match(/SPOKEN:\s*([\s\S]+?)(?=\s*ACTION:|$)/i)
-      if (spokenMatch) {
-        spoken = spokenMatch[1].trim()
-      } else {
-        // Model didn't follow format — use full response minus any ACTION block
-        spoken = clean.replace(/ACTION:\s*\{[\s\S]*\}/gi, '').trim() || spoken
-      }
-
-      // Remove any residual ACTION block that leaked into spoken
-      spoken = spoken.replace(/\n?ACTION:\s*\{[\s\S]*\}/gi, '').trim()
-      // Remove any XML tags remaining
-      spoken = spoken.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-
-      const actionMatch = rawResponse.match(/ACTION:\s*(\{[\s\S]+?\})\s*$/im)
-      if (actionMatch) {
-        try { action = JSON.parse(actionMatch[1].trim()) } catch {}
-      }
+      spoken = `I'm having trouble reaching my intelligence core, sir. ${e.message}`
     }
 
     // ── Execute action ───────────────────────────────────────────────────
     let actionResult: any = null
-    if (action && action.type !== 'none') {
+    if (action.type !== 'none') {
       actionResult = await executeAction(action, uid)
     }
 

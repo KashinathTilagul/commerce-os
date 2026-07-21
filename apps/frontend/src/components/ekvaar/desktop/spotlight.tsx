@@ -20,7 +20,7 @@ const QUICK_ACTIONS = [
 ]
 
 export function Spotlight({ open, onClose }: SpotlightProps) {
-  const { open: openWindow } = useWindowStore()
+  const openWindow = useWindowStore(s => s.open)
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)

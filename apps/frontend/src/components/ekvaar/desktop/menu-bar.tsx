@@ -18,7 +18,11 @@ interface MenuBarProps {
 }
 
 export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }: MenuBarProps) {
-  const { activeId, windows, open, close, minimize } = useWindowStore()
+  const activeId = useWindowStore(s => s.activeId)
+  const windows = useWindowStore(s => s.windows)
+  const open = useWindowStore(s => s.open)
+  const close = useWindowStore(s => s.close)
+  const minimize = useWindowStore(s => s.minimize)
   const music = useMusicStore()
   const [now, setNow] = useState<Date | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)

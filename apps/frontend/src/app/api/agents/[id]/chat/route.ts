@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
 import { generateText } from 'ai'
 import { sanitizeInput } from '@/lib/security'
+import { decryptSecret } from '@/lib/crypto'
+import { getLiveBusinessSnapshot } from '@/lib/business-snapshot'
 
 const ChatSchema = z.object({
   message: z.string().min(1).max(5000),
@@ -32,7 +34,7 @@ export async function POST(
       cfg = await db.systemSetting.findUnique({ where: { id: 'global' } }) || {}
     } catch {}
 
-    const apiKey = cfg.primaryApiKey || process.env.OPENCODE_API_KEY || ''
+    const apiKey = (cfg.primaryApiKey && decryptSecret(cfg.primaryApiKey)) || process.env.OPENCODE_API_KEY || ''
     const modelStr = cfg.primaryModel && cfg.primaryModel.includes('glm') ? cfg.primaryModel : 'amazon-bedrock/zai.glm-5'
 
     if (!apiKey) {
@@ -49,6 +51,8 @@ export async function POST(
       } catch (e) {}
     }
 
+    const liveContext = await getLiveBusinessSnapshot(auth.user.id)
+
     const systemPrompt = `You are ${agent.name}, the ${agent.role} of this company.
 Your Prime Directive (Soul):
 ${agent.primeDirective}
@@ -56,8 +60,12 @@ ${agent.primeDirective}
 Your Skills:
 ${agent.skills}
 
+Your current status: ${agent.status}${agent.currentTask ? `, working on: ${agent.currentTask}` : ''}. Token spend: ₹${agent.tokenSpend.toFixed(0)}/${agent.tokenBudget.toFixed(0)}.
+
+${liveContext}
+
 Instructions:
-You are chatting directly with the Founder. Be concise, professional, and stay perfectly in character based on your role and prime directive. Do not break character. Do not use markdown unless necessary. Keep your response under 4 sentences.`
+You are chatting directly with the Founder. Use the live system status above when asked about company/operational facts — never guess or invent numbers. Be concise, professional, and stay perfectly in character based on your role and prime directive. Do not break character. Do not use markdown unless necessary. Keep your response under 4 sentences.`
 
     const bedrock = createAmazonBedrock({ apiKey: finalApiKey, region: 'us-east-1' })
     const cleanModelId = modelStr.replace('amazon-bedrock/', '')

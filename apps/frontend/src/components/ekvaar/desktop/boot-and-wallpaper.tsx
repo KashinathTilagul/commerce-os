@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react'
 import { useWindowStore } from '@/lib/window-store'
 
 export function BootScreen() {
-  const { bootDone, setBootDone } = useWindowStore()
+  const bootDone = useWindowStore(s => s.bootDone)
+  const setBootDone = useWindowStore(s => s.setBootDone)
 
   useEffect(() => {
     const t = setTimeout(() => setBootDone(true), 800)
