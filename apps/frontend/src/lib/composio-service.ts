@@ -296,6 +296,12 @@ const TOOLS_BY_TOOLKIT: Record<string, { slug: string; name: string; description
     { slug: 'twitter_post_tweet', name: 'Post Tweet', description: 'Publish a tweet' },
     { slug: 'twitter_get_mentions', name: 'Get Mentions', description: 'Fetch recent mentions' },
   ],
+  google_calendar: [
+    { slug: 'google_calendar_list_events', name: 'List Events', description: 'Fetch events from Google Calendar' },
+    { slug: 'google_calendar_create_event', name: 'Create Event', description: 'Create a new event in Google Calendar' },
+    { slug: 'google_calendar_update_event', name: 'Update Event', description: 'Update an existing event' },
+    { slug: 'google_calendar_delete_event', name: 'Delete Event', description: 'Delete an event from Google Calendar' },
+  ],
 }
 
 const ALL_TOOLKIT_SLUGS = TOOLKIT_CATALOG.map((t) => t.slug)

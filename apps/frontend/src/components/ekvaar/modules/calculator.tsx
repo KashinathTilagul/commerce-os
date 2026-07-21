@@ -62,7 +62,7 @@ export function Calculator() {
       case '+': return a + b
       case '-': return a - b
       case '×': return a * b
-      case '÷': return b === 0 ? 0 : a / b
+      case '÷': return b === 0 ? NaN : a / b
       default: return b
     }
   }
@@ -75,7 +75,6 @@ export function Calculator() {
     setDisplay(String(parseFloat(display) / 100))
   }
 
-  // Keyboard support
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const k = e.key
@@ -91,8 +90,7 @@ export function Calculator() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [display, prev, op, waiting])
 
   return (
     <div className="flex flex-col h-full text-rui" style={{ background: '#1C1C1E' }}>

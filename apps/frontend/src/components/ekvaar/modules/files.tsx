@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Folder, FileText, Image, FileCode, FileSpreadsheet, Database, ChevronRight, Home, Search, Upload, FolderPlus, X, Save, Loader2 } from 'lucide-react'
+import { Folder, FileText, FileCode, ChevronRight, Home, Search, X, Save, Loader2 } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -14,45 +14,37 @@ import { toast } from '@/components/ekvaar/desktop/toast'
 interface FileItem {
   name: string
   type: 'folder' | 'file'
-  fileType?: 'text' | 'image' | 'code' | 'sheet' | 'db'
+  fileType?: 'text' | 'code'
   size?: string
   modified?: string
   id?: string
+  content?: string
   children?: FileItem[]
 }
 
 interface Note { id: string; title: string; body: string; updatedAt: string }
+interface AgentLifecycle { agent: string; name: string; phase: string; currentTask: string | null; lastHeartbeat: string }
+interface RuntimeData { activeLifecycles: AgentLifecycle[] }
+interface EventItem { id: string; type: string; actorName: string; summary: string; timestamp: string; payload?: string }
 
-// Empty scaffold — populated dynamically from APIs
 const STATIC_TREE: FileItem[] = [
   {
     name: 'EKVAAR OS', type: 'folder', children: [
       { name: 'Founder Notes', type: 'folder', children: [] },
-      { name: 'Agent Logs', type: 'folder', children: [
-        { name: 'ceo_heartbeat.log', type: 'file', fileType: 'text', size: '2.4 KB', modified: '5m ago' },
-        { name: 'cmo_campaign.log', type: 'file', fileType: 'text', size: '1.8 KB', modified: '1h ago' },
-      ] },
+      { name: 'Agent Logs', type: 'folder', children: [] },
       { name: 'Event Ledger', type: 'folder', children: [] },
-      { name: 'Reports', type: 'folder', children: [] },
-      { name: 'Exports', type: 'folder', children: [] },
     ]
   }
 ]
 
 const FILE_ICONS = {
   text: FileText,
-  image: Image,
   code: FileCode,
-  sheet: FileSpreadsheet,
-  db: Database,
 }
 
 const FILE_COLORS = {
   text: '#5AC8FA',
-  image: '#FF2D55',
   code: '#34C759',
-  sheet: '#34C759',
-  db: '#8E8E93',
 }
 
 export function Files() {
@@ -62,7 +54,7 @@ export function Files() {
   const [editBody, setEditBody] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const { data: notes = [], isLoading: notesLoading } = useQuery<Note[]>({
+  const { data: notes = [] } = useQuery<Note[]>({
     queryKey: ['notes'],
     queryFn: async () => {
       const r = await fetch('/api/founder-notes')
@@ -70,15 +62,22 @@ export function Files() {
     },
   })
 
-  const { data: events = [] } = useQuery<any[]>({
+  const { data: runtime } = useQuery<RuntimeData>({
+    queryKey: ['runtime'],
+    queryFn: async () => {
+      const r = await fetch('/api/runtime')
+      return r.ok ? r.json() : { activeLifecycles: [] }
+    },
+  })
+
+  const { data: events = [] } = useQuery<EventItem[]>({
     queryKey: ['events'],
     queryFn: async () => {
-      const r = await fetch('/api/events?limit=20')
+      const r = await fetch('/api/events?limit=100')
       return r.ok ? r.json() : []
     },
   })
 
-  // Inject real notes into the Founder Notes folder
   const FILE_TREE: FileItem[] = STATIC_TREE.map((root) => ({
     ...root,
     children: root.children?.map((child) => {
@@ -92,6 +91,22 @@ export function Files() {
             size: `${n.body?.length || 0} chars`,
             modified: timeAgo(n.updatedAt),
             id: n.id,
+            content: n.body,
+          })),
+        }
+      }
+      if (child.name === 'Agent Logs') {
+        const lifecycles = runtime?.activeLifecycles || []
+        return {
+          ...child,
+          children: lifecycles.map((l) => ({
+            name: `${l.agent.toLowerCase()}_heartbeat.log`,
+            type: 'file' as const,
+            fileType: 'text' as const,
+            size: `${l.currentTask?.length || 0} chars`,
+            modified: timeAgo(l.lastHeartbeat),
+            id: `agent-${l.agent}`,
+            content: `[${new Date(l.lastHeartbeat).toISOString()}] ${l.agent} (${l.phase})\nTask: ${l.currentTask || 'idle'}\nLast Heartbeat: ${timeAgo(l.lastHeartbeat)}`,
           })),
         }
       }
@@ -99,7 +114,15 @@ export function Files() {
         return {
           ...child,
           children: [
-            { name: `events_${new Date().toISOString().slice(0, 7)}.json`, type: 'file' as const, fileType: 'code' as const, size: `${(events.length * 200 / 1024).toFixed(1)} KB`, modified: 'just now' },
+            {
+              name: `events_${new Date().toISOString().slice(0, 7)}.json`,
+              type: 'file' as const,
+              fileType: 'code' as const,
+              size: `${(events.length * 200 / 1024).toFixed(1)} KB`,
+              modified: 'just now',
+              id: 'events-json',
+              content: JSON.stringify(events, null, 2),
+            },
           ],
         }
       }
@@ -124,30 +147,31 @@ export function Files() {
     if (f.type === 'folder') {
       navigate(f.name)
     } else if (f.id) {
-      const note = notes.find(n => n.id === f.id)
-      if (note) {
-        setSelectedFile(f)
-        setEditBody(note.body || '')
-      }
+      setSelectedFile(f)
+      setEditBody(f.content || '')
     }
   }
 
   const handleSaveNote = async () => {
     if (!selectedFile?.id || saving) return
-    setSaving(true)
-    try {
-      const r = await fetch(`/api/founder-notes/${selectedFile.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: editBody }),
-      })
-      if (!r.ok) throw new Error('Failed')
-      toast.success('Note saved')
-      setSelectedFile(null)
-    } catch {
-      toast.error('Save failed', 'Could not update note')
-    } finally {
-      setSaving(false)
+    if (!selectedFile.id.startsWith('agent') && selectedFile.id !== 'events-json') {
+      setSaving(true)
+      try {
+        const r = await fetch(`/api/founder-notes/${selectedFile.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: editBody }),
+        })
+        if (!r.ok) throw new Error('Failed')
+        toast.success('Note saved')
+        setSelectedFile(null)
+      } catch {
+        toast.error('Save failed', 'Could not update note')
+      } finally {
+        setSaving(false)
+      }
+    } else {
+      toast.error('Read only', 'Agent logs and event ledger are read-only')
     }
   }
 
@@ -161,16 +185,6 @@ export function Files() {
         eyebrow="Files · Archive"
         title="System Explorer"
         description="Explore and manage internal data, reports, generated artifacts, agent logs, and the event ledger."
-        actions={
-          <>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <FolderPlus className="h-3.5 w-3.5" /> New Folder
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Upload className="h-3.5 w-3.5" /> Upload
-            </Button>
-          </>
-        }
       />
 
       <div className="px-4 lg:px-8 py-6 space-y-4">
@@ -262,8 +276,8 @@ export function Files() {
           <Card>
             <CardContent className="p-4">
               <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Agent Logs</div>
-              <div className="font-display text-2xl">2</div>
-              <div className="text-[10px] text-muted-foreground mt-1">recent activity</div>
+              <div className="font-display text-2xl">{runtime?.activeLifecycles?.length || 0}</div>
+              <div className="text-[10px] text-muted-foreground mt-1">active agents</div>
             </CardContent>
           </Card>
         </div>

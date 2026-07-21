@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
-import { Search, Plus, ArrowUpRight, Filter, Package2 } from 'lucide-react'
+import { Search, Filter, Package2 } from 'lucide-react'
 import { toast } from '@/components/ekvaar/desktop/toast'
 import { PageHeader, HouseBadge, ColorDot, StatusPill } from '../shared'
 import { Card, CardContent } from '@/components/ui/card'
@@ -61,9 +61,7 @@ export function HouseOfOriginals() {
         title="Catalog · Five Houses"
         description="One House with five structured categories. Categories must never blur. Each piece is built for permanence — emotionally durable, visually long-lasting, culturally intelligent, repeat wearable."
         actions={
-          <Button size="sm" className="gap-1.5" onClick={() => toast.info('New Original', 'Product creation form would open here')}>
-            <Plus className="h-3.5 w-3.5" /> New Original
-          </Button>
+          <></>
         }
       />
 
@@ -219,10 +217,6 @@ export function HouseOfOriginals() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline">Edit Piece</Button>
-                <Button className="gap-1.5">
-                  View Sales <ArrowUpRight className="h-3.5 w-3.5" />
-                </Button>
               </DialogFooter>
             </>
           )}
