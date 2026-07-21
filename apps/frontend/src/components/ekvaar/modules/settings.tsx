@@ -139,7 +139,7 @@ export function Settings() {
         description="Global configuration for system preferences, theme, intelligence endpoints, and governance thresholds."
       />
 
-      <div className="px-4 lg:px-8 py-8 space-y-6 max-w-3xl">
+      <div className="px-6 lg:px-10 py-8 space-y-6">
         {/* Appearance */}
         <Card>
           <CardHeader className="pb-3">
