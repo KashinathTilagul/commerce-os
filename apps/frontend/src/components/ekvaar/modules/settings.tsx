@@ -34,13 +34,11 @@ export function Settings() {
   const [deleting, setDeleting] = useState(false)
   const [promptValue, setPromptValue] = useState('')
   const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
     try { return localStorage.getItem('krishna_voice') || 'en-IN-NeerjaNeural' } catch { return 'en-IN-NeerjaNeural' }
   })
-  const [promptValue, setPromptValue] = useState('')
-  const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const hasSyncedRef = useRef(false)
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -55,17 +53,10 @@ export function Settings() {
   useEffect(() => {
     if (settings && !isLoading && !hasSyncedRef.current) {
       hasSyncedRef.current = true
-      if (settings.ttsVoice) setLocalVoice(settings.ttsVoice)
-      if (settings.krishnaPrompt !== undefined) setPromptValue(settings.krishnaPrompt)
+      if (settings.ttsVoice) setLocalVoice(settings.ttsVoice) // eslint-disable-line react-hooks/set-state-in-effect
+      if (settings.krishnaPrompt !== undefined) setPromptValue(settings.krishnaPrompt) // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [settings, isLoading])
-
-  // Cleanup debounce timeout
-  useEffect(() => {
-    return () => {
-      if (promptTimeoutRef.current) clearTimeout(promptTimeoutRef.current)
-    }
-  }, [])
 
   // Cleanup debounce timeout
   useEffect(() => {
