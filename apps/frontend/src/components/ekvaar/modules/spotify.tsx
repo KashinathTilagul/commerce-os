@@ -118,6 +118,18 @@ export function SpotifyApp() {
         setSdkReady(false)
       })
 
+      player.addListener('initialization_error', ({ message }: { message: string }) => {
+        toast.error('Spotify SDK error', message)
+      })
+
+      player.addListener('authentication_error', ({ message }: { message: string }) => {
+        toast.error('Spotify auth error', message)
+      })
+
+      player.addListener('account_error', ({ message }: { message: string }) => {
+        toast.error('Spotify Premium required', message)
+      })
+
       player.addListener('player_state_changed', (state: any) => {
         if (!state) return
         setIsPlaying(!state.paused)
