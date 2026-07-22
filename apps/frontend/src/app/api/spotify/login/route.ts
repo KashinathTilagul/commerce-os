@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
     response_type: 'code',
     redirect_uri: redirectUri,
     scope: scope,
+    show_dialog: 'true', // force re-consent so newly-added scopes (streaming) are granted
   })
   
   return NextResponse.redirect(`https://accounts.spotify.com/authorize?${params}`)
