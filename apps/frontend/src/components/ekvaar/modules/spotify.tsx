@@ -1,19 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { Search, Home, ListMusic, User, Play, Pause, SkipBack, SkipForward, Loader2, LogOut } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Search, Home, ListMusic, User, Play, Pause, SkipBack, SkipForward, Loader2, LogOut, Smartphone, Laptop, Speaker, Monitor, RefreshCw } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ekvaar/desktop/toast'
 
-declare global {
-  interface Window {
-    Spotify: any
-    onSpotifyWebPlaybackSDKReady: () => void
-  }
-}
 
 interface SpotifyTrack {
   id: string
@@ -27,20 +21,37 @@ interface SpotifyTrack {
   duration_ms: number
 }
 
+interface SpotifyDevice {
+  id: string
+  name: string
+  type: string
+  is_active: boolean
+  volume_percent: number
+}
+
+function getDeviceIcon(type: string) {
+  switch (type?.toLowerCase()) {
+    case 'smartphone':
+      return <Smartphone className="h-4 w-4" />
+    case 'computer':
+      return <Laptop className="h-4 w-4" />
+    case 'speaker':
+      return <Speaker className="h-4 w-4" />
+    default:
+      return <Monitor className="h-4 w-4" />
+  }
+}
+
 export function SpotifyApp() {
   const [token, setToken] = useState<string | null>(null)
-  const [player, setPlayer] = useState<any>(null)
-  const [isPaused, setIsPaused] = useState(false)
-  const [isActive, setIsActive] = useState(false)
-  const [deviceId, setDeviceId] = useState<string | null>(null)
-  const [playerInitializing, setPlayerInitializing] = useState(false)
-  const [currentTrack, setCurrentTrack] = useState<SpotifyTrack | null>(null)
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [view, setView] = useState<'home' | 'search' | 'playlists' | 'playlist'>('home')
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [user, setUser] = useState<{ displayName: string; imageUrl?: string } | null>(null)
-  const playerRef = useRef<any>(null)
-  const scriptAddedRef = useRef(false)
+  const [currentTrack, setCurrentTrack] = useState<SpotifyTrack | null>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     const accessToken = document.cookie
@@ -83,94 +94,64 @@ export function SpotifyApp() {
   useEffect(() => {
     if (!token) return
 
-    const initializePlayer = () => {
-      setPlayerInitializing(true)
-      const player = new window.Spotify.Player({
-        name: 'EKVAAR OS Player',
-        getOAuthToken: (cb: (t: string) => void) => {
-          fetch('/api/spotify/token')
-            .then(r => r.json())
-            .then(data => cb(data.token || token))
-            .catch(() => cb(token))
-        },
-        volume: 0.5,
-      })
-
-      playerRef.current = player
-      setPlayer(player)
-
-      player.addListener('ready', ({ device_id }: { device_id: string }) => {
-        console.log('Spotify player ready with device ID:', device_id)
-        setDeviceId(device_id)
-        setPlayerInitializing(false)
-      })
-
-      player.addListener('not_ready', ({ device_id }: { device_id: string }) => {
-        setDeviceId(null)
-      })
-
-      player.addListener('player_state_changed', (state: any) => {
-        if (!state) return
-
-        setCurrentTrack(state.track_window.current_track)
-        setIsPaused(state.paused)
-
-        player.getCurrentState().then((state: any) => {
-          setIsActive(!!state)
+    const pollPlayback = () => {
+      fetch('/api/spotify/token')
+        .then(r => r.json())
+        .then(data => {
+          if (data.token) {
+            return fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+              headers: { 'Authorization': `Bearer ${data.token}` },
+            })
+          }
         })
-      })
-
-      player.addListener('initialization_error', ({ message }: { message: string }) => {
-        console.error('Init error:', message)
-        toast.error('Player Error', message)
-        setPlayerInitializing(false)
-      })
-
-      player.addListener('authentication_error', ({ message }: { message: string }) => {
-        console.error('Auth error:', message)
-        toast.error('Authentication Error', 'Please reconnect Spotify')
-        setPlayerInitializing(false)
-      })
-
-      player.addListener('account_error', ({ message }: { message: string }) => {
-        console.error('Account error:', message)
-        toast.error('Spotify Premium Required', 'You need Spotify Premium to use playback')
-        setPlayerInitializing(false)
-      })
-
-      player.connect()
+        .then(r => {
+          if (!r) return null
+          if (r.status === 204) return null
+          return r.json()
+        })
+        .then(data => {
+          if (data && data.is_playing !== undefined) {
+            setIsPlaying(data.is_playing)
+            if (data.item) {
+              setCurrentTrack({
+                id: data.item.id,
+                name: data.item.name,
+                artists: data.item.artists,
+                album: data.item.album,
+                uri: data.item.uri,
+                duration_ms: data.item.duration_ms,
+              })
+            }
+          } else {
+            setIsPlaying(false)
+          }
+        })
+        .catch(() => {})
     }
 
-    if (window.Spotify) {
-      initializePlayer()
-      return
-    }
-
-    if (scriptAddedRef.current) return
-    scriptAddedRef.current = true
-
-    const script = document.createElement('script')
-    script.src = 'https://sdk.scdn.co/spotify-player.js'
-    script.async = true
-    document.body.appendChild(script)
-
-    window.onSpotifyWebPlaybackSDKReady = initializePlayer
-
-    return () => {
-      if (playerRef.current) {
-        playerRef.current.disconnect()
-      }
-    }
+    pollPlayback()
+    const interval = setInterval(pollPlayback, 5000)
+    return () => clearInterval(interval)
   }, [token])
+
+  const { data: devices, isLoading: devicesLoading, refetch: refetchDevices } = useQuery<{ devices: SpotifyDevice[] }>({
+    queryKey: ['spotify-devices'],
+    queryFn: async () => {
+      const r = await fetch('/api/spotify/devices')
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.details || data.error || 'Failed to fetch devices')
+      return data
+    },
+    enabled: !!token,
+    refetchInterval: 30000,
+  })
 
   const { data: playlists, isLoading: playlistsLoading, error: playlistsError } = useQuery({
     queryKey: ['spotify-playlists'],
     queryFn: async () => {
       const r = await fetch('/api/spotify/playlists')
       const data = await r.json()
-      if (!r.ok) {
-        throw new Error(data.details || data.error || 'Failed to load playlists')
-      }
+      if (!r.ok) throw new Error(data.details || data.error || 'Failed to load playlists')
       return data
     },
     enabled: !!token,
@@ -182,9 +163,7 @@ export function SpotifyApp() {
     queryFn: async () => {
       const r = await fetch('/api/spotify/recent')
       const data = await r.json()
-      if (!r.ok) {
-        throw new Error(data.details || data.error || 'Failed to load recent tracks')
-      }
+      if (!r.ok) throw new Error(data.details || data.error || 'Failed to load recent tracks')
       return data
     },
     enabled: !!token && view === 'home',
@@ -196,9 +175,7 @@ export function SpotifyApp() {
     queryFn: async () => {
       const r = await fetch(`/api/spotify/search?q=${encodeURIComponent(searchQuery)}`)
       const data = await r.json()
-      if (!r.ok) {
-        throw new Error(data.details || data.error || 'Search failed')
-      }
+      if (!r.ok) throw new Error(data.details || data.error || 'Search failed')
       return data
     },
     enabled: !!token && searchQuery.length > 2,
@@ -222,60 +199,98 @@ export function SpotifyApp() {
     onSuccess: () => {
       setToken(null)
       setUser(null)
-      setDeviceId(null)
-      setPlayerInitializing(false)
-      if (playerRef.current) {
-        playerRef.current.disconnect()
-      }
+      setSelectedDeviceId(null)
       toast.success('Logged out', 'Spotify disconnected')
     },
   })
 
-  const playTrack = async (trackUri: string) => {
-    if (!deviceId) {
-      toast.error('Player not ready', playerInitializing ? 'Player is initializing...' : 'Wait for player to initialize')
-      return
-    }
-    if (!token) {
-      toast.error('Not authenticated', 'Please reconnect Spotify')
-      return
-    }
-
-    try {
-      const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ uris: [trackUri] }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        toast.error('Playback failed', err.error?.message || res.statusText)
+  const playMutation = useMutation({
+    mutationFn: async ({ trackUri, playlistUri }: { trackUri?: string; playlistUri?: string }) => {
+      const deviceId = selectedDeviceId || devices?.devices?.find(d => d.is_active)?.id
+      if (!deviceId) {
+        throw new Error('No device selected. Open Spotify on a device first.')
       }
-    } catch (e: any) {
-      toast.error('Play error', e.message)
-    }
-  }
-
-  const transferPlayback = async () => {
-    if (!deviceId || !token) return
-
-    try {
-      await fetch('https://api.spotify.com/v1/me/player', {
+      
+      const r = await fetch('/api/spotify/play', {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ device_ids: [deviceId], play: false }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId, trackUri, playlistUri }),
       })
-      toast.success('Playback transferred', 'Now playing on EKVAAR OS Player')
-    } catch (e) {
-      console.error('Transfer error:', e)
-    }
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.details || data.error || 'Playback failed')
+      return data
+    },
+    onSuccess: () => {
+      toast.success('Playing', 'Started playback on device')
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ['spotify-devices'] }), 1000)
+    },
+    onError: (e: Error) => {
+      toast.error('Playback failed', e.message)
+    },
+  })
+
+  const togglePlayMutation = useMutation({
+    mutationFn: async () => {
+      const deviceId = selectedDeviceId || devices?.devices?.find(d => d.is_active)?.id
+      if (!deviceId) throw new Error('No device selected. Open Spotify on a device first.')
+      const t = token || await fetch('/api/spotify/token').then(r => r.json()).then(d => d.token)
+
+      const endpoint = isPlaying ? 'pause' : 'play'
+      const response = await fetch(`https://api.spotify.com/v1/me/player/${endpoint}?device_id=${deviceId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${t}`, 'Content-Type': 'application/json' },
+      })
+
+      if (response.status === 204) return { success: true }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.error?.message || 'Playback failed')
+      }
+      return { success: true }
+    },
+    onSuccess: () => {
+      setIsPlaying(!isPlaying)
+    },
+    onError: (e: Error) => {
+      toast.error('Failed', e.message)
+    },
+  })
+
+  const skipMutation = useMutation({
+    mutationFn: async (direction: 'next' | 'previous') => {
+      const deviceId = selectedDeviceId || devices?.devices?.find(d => d.is_active)?.id
+      if (!deviceId) throw new Error('No device selected. Open Spotify on a device first.')
+      const t = token || await fetch('/api/spotify/token').then(r => r.json()).then(d => d.token)
+
+      const response = await fetch(`https://api.spotify.com/v1/me/player/${direction}?device_id=${deviceId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${t}` },
+      })
+
+      if (response.status === 204) return { success: true }
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new Error(error.error?.message || 'Failed')
+      }
+      return { success: true }
+    },
+    onError: (e: Error) => {
+      toast.error('Failed', e.message)
+    },
+  })
+
+  const playTrack = (trackUri: string) => {
+    playMutation.mutate({ trackUri })
   }
+
+  const playPlaylist = (playlistUri: string) => {
+    playMutation.mutate({ playlistUri })
+  }
+
+  const activeDevice = devices?.devices?.find(d => d.is_active)
+  const selectedDevice = selectedDeviceId 
+    ? devices?.devices?.find(d => d.id === selectedDeviceId)
+    : activeDevice
 
   if (!token) {
     return (
@@ -284,14 +299,14 @@ export function SpotifyApp() {
           <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.899 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.381z"/>
         </svg>
         <h1 className="text-3xl font-bold text-foreground mb-2">Spotify</h1>
-        <p className="text-muted-foreground mb-6">Stream your music library</p>
+        <p className="text-muted-foreground mb-6">Remote control your Spotify playback</p>
         <a
           href="/api/spotify/login"
           className="inline-flex items-center gap-2 px-8 py-3 bg-arav hover:bg-arav/90 text-arav-foreground rounded-full font-semibold transition-colors"
         >
           Connect with Spotify
         </a>
-        <p className="text-xs text-muted-foreground mt-4">Requires Spotify Premium</p>
+        <p className="text-xs text-muted-foreground mt-4">Works with free accounts</p>
       </div>
     )
   }
@@ -301,19 +316,9 @@ export function SpotifyApp() {
       <PageHeader
         eyebrow="Spotify"
         title="Music"
-        description="Stream your Spotify library directly in EKVAAR OS"
+        description="Remote control your Spotify playback on any device"
         actions={
           <div className="flex items-center gap-2">
-            {playerInitializing && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> Initializing player...
-              </span>
-            )}
-            {deviceId && !isActive && !playerInitializing && (
-              <Button size="sm" variant="outline" onClick={transferPlayback}>
-                Transfer Playback
-              </Button>
-            )}
             <Button
               variant="ghost"
               size="sm"
@@ -330,6 +335,43 @@ export function SpotifyApp() {
       <div className="flex flex-1 min-h-0 border-t border-border">
         {/* Sidebar */}
         <div className="w-52 border-r border-border flex flex-col bg-muted/30">
+          {/* Device Selector */}
+          <div className="p-3 border-b border-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Device</span>
+              <button 
+                onClick={() => refetchDevices()} 
+                className="p-1 hover:bg-muted rounded"
+                disabled={devicesLoading}
+              >
+                <RefreshCw className={`h-3 w-3 text-muted-foreground ${devicesLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+            {devices?.devices?.length === 0 ? (
+              <div className="text-xs text-muted-foreground bg-muted rounded px-2 py-2 leading-relaxed">
+                No devices found. Open Spotify on your phone or computer first, then refresh.
+              </div>
+            ) : (
+              <select
+                value={selectedDeviceId || activeDevice?.id || ''}
+                onChange={(e) => setSelectedDeviceId(e.target.value)}
+                className="w-full text-sm bg-background border border-border rounded px-2 py-1.5"
+              >
+                {devices?.devices?.map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} {d.is_active ? '(Active)' : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+            {selectedDevice && (
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+                {getDeviceIcon(selectedDevice.type)}
+                <span className="truncate">{selectedDevice.name}</span>
+              </div>
+            )}
+          </div>
+
           <nav className="flex-1 p-2">
             <button
               onClick={() => { setView('home'); setSelectedPlaylistId(null) }}
@@ -380,20 +422,29 @@ export function SpotifyApp() {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => player?.previousTrack()}
-                  className="p-2 hover:bg-muted rounded-full text-foreground"
+                  onClick={() => skipMutation.mutate('previous')}
+                  disabled={skipMutation.isPending}
+                  className="p-2 hover:bg-muted rounded-full text-foreground disabled:opacity-50"
                 >
                   <SkipBack className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => player?.togglePlay()}
-                  className="p-3 bg-arav rounded-full hover:bg-arav/90 transition-colors"
+                  onClick={() => togglePlayMutation.mutate()}
+                  disabled={togglePlayMutation.isPending}
+                  className="p-3 bg-arav rounded-full hover:bg-arav/90 transition-colors disabled:opacity-50"
                 >
-                  {isPaused ? <Play className="h-4 w-4 text-arav-foreground" /> : <Pause className="h-4 w-4 text-arav-foreground" />}
+                  {togglePlayMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 text-arav-foreground animate-spin" />
+                  ) : isPlaying ? (
+                    <Pause className="h-4 w-4 text-arav-foreground" />
+                  ) : (
+                    <Play className="h-4 w-4 text-arav-foreground" />
+                  )}
                 </button>
                 <button
-                  onClick={() => player?.nextTrack()}
-                  className="p-2 hover:bg-muted rounded-full text-foreground"
+                  onClick={() => skipMutation.mutate('next')}
+                  disabled={skipMutation.isPending}
+                  className="p-2 hover:bg-muted rounded-full text-foreground disabled:opacity-50"
                 >
                   <SkipForward className="h-4 w-4" />
                 </button>
@@ -414,7 +465,6 @@ export function SpotifyApp() {
                   ) : recentError ? (
                     <div className="text-center py-8">
                       <p className="text-agni text-sm">{(recentError as Error).message}</p>
-                      <p className="text-muted-foreground text-xs mt-2">Try disconnecting and reconnecting Spotify</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -422,7 +472,8 @@ export function SpotifyApp() {
                         <button
                           key={i}
                           onClick={() => playTrack(item.track.uri)}
-                          className="flex items-center gap-3 p-2 rounded-md bg-card hover:bg-muted transition-colors group border border-border"
+                          disabled={playMutation.isPending}
+                          className="flex items-center gap-3 p-2 rounded-md bg-card hover:bg-muted transition-colors group border border-border disabled:opacity-50"
                         >
                           <img src={item.track.album?.images?.[0]?.url} alt="" className="h-12 w-12 rounded object-cover" />
                           <span className="text-sm text-foreground truncate">{item.track.name}</span>
@@ -491,7 +542,8 @@ export function SpotifyApp() {
                       <button
                         key={track.id}
                         onClick={() => playTrack(track.uri)}
-                        className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors group"
+                        disabled={playMutation.isPending}
+                        className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors group disabled:opacity-50"
                       >
                         <img src={track.album?.images?.[0]?.url} alt="" className="h-12 w-12 rounded object-cover" />
                         <div className="flex-1 text-left">
@@ -552,20 +604,19 @@ export function SpotifyApp() {
                       </div>
                     </div>
                     <button
-                      onClick={() => {
-                        const firstTrack = playlistDetail.tracks?.items?.[0]?.track
-                        if (firstTrack) playTrack(firstTrack.uri)
-                      }}
-                      className="mb-4 inline-flex items-center gap-2 px-6 py-2 bg-arav text-arav-foreground rounded-full font-medium hover:bg-arav/90 transition-colors"
+                      onClick={() => playPlaylist(playlistDetail.uri)}
+                      disabled={playMutation.isPending}
+                      className="mb-4 inline-flex items-center gap-2 px-6 py-2 bg-arav text-arav-foreground rounded-full font-medium hover:bg-arav/90 transition-colors disabled:opacity-50"
                     >
-                      <Play className="h-4 w-4" /> Play
+                      {playMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Play
                     </button>
                     <div className="space-y-1">
                       {playlistDetail.tracks?.items?.map((item: any, i: number) => (
                         <button
                           key={item.track?.id || i}
                           onClick={() => playTrack(item.track?.uri)}
-                          className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors group"
+                          disabled={playMutation.isPending}
+                          className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-muted transition-colors group disabled:opacity-50"
                         >
                           <span className="w-6 text-center text-xs text-muted-foreground">{i + 1}</span>
                           <img src={item.track?.album?.images?.[0]?.url} alt="" className="h-10 w-10 rounded object-cover" />
