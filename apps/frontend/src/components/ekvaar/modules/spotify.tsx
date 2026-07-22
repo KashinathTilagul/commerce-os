@@ -211,10 +211,17 @@ export function SpotifyApp() {
   })
 
   const playTrack = async (trackUri: string) => {
-    if (!deviceId || !token) return
+    if (!deviceId) {
+      toast.error('Player not ready', 'Wait for player to initialize')
+      return
+    }
+    if (!token) {
+      toast.error('Not authenticated', 'Please reconnect Spotify')
+      return
+    }
 
     try {
-      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+      const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -222,8 +229,12 @@ export function SpotifyApp() {
         },
         body: JSON.stringify({ uris: [trackUri] }),
       })
-    } catch (e) {
-      console.error('Play error:', e)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error('Playback failed', err.error?.message || res.statusText)
+      }
+    } catch (e: any) {
+      toast.error('Play error', e.message)
     }
   }
 
