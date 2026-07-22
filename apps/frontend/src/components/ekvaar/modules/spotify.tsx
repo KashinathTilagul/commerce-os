@@ -158,6 +158,13 @@ export function SpotifyApp() {
     }
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-select first available device when none is selected and SDK hasn't claimed one
+  useEffect(() => {
+    if (selectedDeviceId || sdkDeviceId) return
+    const first = devices?.devices?.[0]?.id
+    if (first) setSelectedDeviceId(first)
+  }, [devices, selectedDeviceId, sdkDeviceId])
+
   useEffect(() => {
     if (!token) return
 
@@ -288,10 +295,8 @@ export function SpotifyApp() {
 
   const playMutation = useMutation({
     mutationFn: async ({ trackUri, playlistUri }: { trackUri?: string; playlistUri?: string }) => {
-      const deviceId = selectedDeviceId || devices?.devices?.find(d => d.is_active)?.id
-      if (!deviceId) {
-        throw new Error('No device selected. Open Spotify on a device first.')
-      }
+      const deviceId = selectedDeviceId || devices?.devices?.find(d => d.is_active)?.id || devices?.devices?.[0]?.id
+      if (!deviceId) throw new Error('No device found. Open Spotify on any device first.')
       
       const r = await fetch('/api/spotify/play', {
         method: 'PUT',
@@ -313,8 +318,8 @@ export function SpotifyApp() {
 
   const togglePlayMutation = useMutation({
     mutationFn: async () => {
-      const deviceId = selectedDeviceId || devices?.devices?.find(d => d.is_active)?.id
-      if (!deviceId) throw new Error('No device selected. Open Spotify on a device first.')
+      const deviceId = selectedDeviceId || devices?.devices?.find(d => d.is_active)?.id || devices?.devices?.[0]?.id
+      if (!deviceId) throw new Error('No device found. Open Spotify on any device first.')
       const t = token || await fetch('/api/spotify/token').then(r => r.json()).then(d => d.token)
 
       const endpoint = isPlaying ? 'pause' : 'play'
@@ -340,8 +345,8 @@ export function SpotifyApp() {
 
   const skipMutation = useMutation({
     mutationFn: async (direction: 'next' | 'previous') => {
-      const deviceId = selectedDeviceId || devices?.devices?.find(d => d.is_active)?.id
-      if (!deviceId) throw new Error('No device selected. Open Spotify on a device first.')
+      const deviceId = selectedDeviceId || devices?.devices?.find(d => d.is_active)?.id || devices?.devices?.[0]?.id
+      if (!deviceId) throw new Error('No device found. Open Spotify on any device first.')
       const t = token || await fetch('/api/spotify/token').then(r => r.json()).then(d => d.token)
 
       const response = await fetch(`https://api.spotify.com/v1/me/player/${direction}?device_id=${deviceId}`, {
