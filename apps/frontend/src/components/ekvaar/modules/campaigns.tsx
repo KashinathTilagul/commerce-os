@@ -100,13 +100,17 @@ export function CampaignsModule() {
             {campaigns.map((c) => {
               const meta = PILLAR_META[c.pillar] || PILLAR_META.philosophy
               const budgetPct = c.budget > 0 ? (c.spend / c.budget) * 100 : 0
+              const isLive = c.status === 'LIVE'
+              const lowEngagement = isLive && c.impressions > 1000 && c.engagement < 1.0
+              const overspent = budgetPct > 90
+              const hasAlert = lowEngagement || overspent
               return (
                 <motion.div
                   key={c.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <Card className="h-full">
+                  <Card className={`h-full ${hasAlert ? 'border-agni/40' : ''}`}>
                     <CardContent className="p-5">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -118,6 +122,20 @@ export function CampaignsModule() {
                       <h3 className="font-display text-lg tracking-tight leading-tight">{c.title}</h3>
                       <div className="text-[10px] text-muted-foreground mt-1">{c.channel}</div>
 
+                      {/* Performance alerts */}
+                      {lowEngagement && (
+                        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-agni">
+                          <span className="h-1.5 w-1.5 rounded-full bg-agni" />
+                          Low engagement ({c.engagement.toFixed(1)}%) — consider pausing
+                        </div>
+                      )}
+                      {overspent && (
+                        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-gulabi">
+                          <span className="h-1.5 w-1.5 rounded-full bg-gulabi" />
+                          Budget {budgetPct.toFixed(0)}% used — review spend
+                        </div>
+                      )}
+
                       <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
                         <div>
                           <div className="text-[10px] tracking-wider uppercase text-muted-foreground">Impressions</div>
@@ -125,14 +143,14 @@ export function CampaignsModule() {
                         </div>
                         <div>
                           <div className="text-[10px] tracking-wider uppercase text-muted-foreground">Engagement</div>
-                          <div className="font-mono text-sm">{c.engagement.toFixed(1)}%</div>
+                          <div className={`font-mono text-sm ${lowEngagement ? 'text-agni' : ''}`}>{c.engagement.toFixed(1)}%</div>
                         </div>
                       </div>
 
                       <div className="mt-4 pt-4 border-t border-border">
                         <div className="flex items-center justify-between text-xs mb-1.5">
                           <span className="text-muted-foreground">Budget</span>
-                          <span className="font-mono">{formatINR(c.spend)} / {formatINR(c.budget)}</span>
+                          <span className={`font-mono ${overspent ? 'text-gulabi' : ''}`}>{formatINR(c.spend)} / {formatINR(c.budget)}</span>
                         </div>
                         <Progress value={budgetPct} className="h-1" />
                       </div>

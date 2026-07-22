@@ -1,17 +1,20 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import {
   TrendingUp, ShoppingBag, Users, Package, Cpu,
   ShieldCheck, AlertTriangle, ArrowUpRight, Sparkles, Bell, GitBranch, Inbox, Wallet,
+  Mail, Calendar, MessageSquare, AlertCircle, Loader2, RefreshCw, Clock,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, SectionTitle, HouseBadge, ColorDot } from '../shared'
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
 } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { formatINR, formatINRFull, EKVAAR_HOUSES, type ModuleId } from '@/lib/ekvaar'
 import { useAppSubscription } from '@/lib/cpu-websocket'
 
@@ -90,6 +93,8 @@ interface DashboardData {
 }
 
 export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => void }) {
+  const [briefingOpen, setBriefingOpen] = useState(false)
+
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: async () => {
@@ -145,7 +150,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
                 {k.unreadApprovals} pending
               </Button>
             )}
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { alert('Founder Brief coming soon!') }}>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setBriefingOpen(true)}>
               <Sparkles className="h-3.5 w-3.5" />
               Founder Brief
             </Button>
@@ -516,6 +521,180 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
           </CardContent>
         </Card>
       </div>
+
+      <BriefingModal open={briefingOpen} onClose={() => setBriefingOpen(false)} />
+    </div>
+  )
+}
+
+function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['briefing'],
+    queryFn: async () => {
+      const r = await fetch('/api/briefing')
+      if (!r.ok) throw new Error('Failed to fetch briefing')
+      return r.json()
+    },
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const db = data?.db
+  const totalUrgent = (db?.blockedIssues?.length || 0) + (db?.urgentIssues?.length || 0) +
+    (db?.pendingApprovals?.length || 0) + (db?.stuckOrders?.length || 0)
+
+  return (
+    <Dialog open={open} onOpenChange={v => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center justify-between">
+            <span className="font-display tracking-tight">Founder Brief</span>
+            <div className="flex items-center gap-2">
+              {data && (
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  {new Date(data.generatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
+              <button onClick={() => refetch()} className="text-muted-foreground hover:text-foreground transition-colors">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </DialogTitle>
+        </DialogHeader>
+
+        {isLoading && (
+          <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm">Assembling your brief…</span>
+          </div>
+        )}
+
+        {data && (
+          <div className="space-y-5 mt-1">
+            {/* Summary bar */}
+            {totalUrgent > 0 && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-agni/5 border border-agni/20">
+                <AlertCircle className="h-4 w-4 text-agni shrink-0" />
+                <span className="text-sm text-agni font-medium">{totalUrgent} item{totalUrgent > 1 ? 's' : ''} need your attention today</span>
+              </div>
+            )}
+
+            {/* Stuck Orders */}
+            {db?.stuckOrders?.length > 0 && (
+              <BriefSection icon={<ShoppingBag className="h-4 w-4" />} title="Orders Stuck in Processing" accent="text-agni">
+                {db.stuckOrders.map((o: any) => (
+                  <BriefRow key={o.id} label={`#${o.orderNumber} · ${o.customerName}`}
+                    value={`₹${o.total.toLocaleString('en-IN')} · ${Math.round((Date.now() - new Date(o.updatedAt).getTime()) / 3600000)}h stuck`}
+                    urgent />
+                ))}
+              </BriefSection>
+            )}
+
+            {/* P0 Issues */}
+            {db?.urgentIssues?.length > 0 && (
+              <BriefSection icon={<AlertTriangle className="h-4 w-4" />} title="P0 Issues Open" accent="text-agni">
+                {db.urgentIssues.map((i: any) => (
+                  <BriefRow key={i.id} label={i.code} value={i.title} urgent />
+                ))}
+              </BriefSection>
+            )}
+
+            {/* Blocked Issues */}
+            {db?.blockedIssues?.length > 0 && (
+              <BriefSection icon={<AlertTriangle className="h-4 w-4" />} title="Blocked Issues">
+                {db.blockedIssues.map((i: any) => (
+                  <BriefRow key={i.id} label={i.code} value={i.title} badge={i.priority} />
+                ))}
+              </BriefSection>
+            )}
+
+            {/* Pending Approvals */}
+            {db?.pendingApprovals?.length > 0 && (
+              <BriefSection icon={<Inbox className="h-4 w-4" />} title="Awaiting Your Approval">
+                {db.pendingApprovals.map((a: any) => (
+                  <BriefRow key={a.id} label={a.type} value={a.title}
+                    badge={a.amount > 0 ? `₹${a.amount.toLocaleString('en-IN')}` : undefined} />
+                ))}
+              </BriefSection>
+            )}
+
+            {/* Gmail */}
+            {data.gmail ? (
+              <BriefSection icon={<Mail className="h-4 w-4" />} title="Important Emails">
+                {(data.gmail.emails || data.gmail.messages || []).slice(0, 5).map((m: any, i: number) => (
+                  <BriefRow key={i} label={m.from || m.sender || 'Unknown sender'} value={m.subject || m.snippet || '—'} />
+                ))}
+                {!(data.gmail.emails || data.gmail.messages)?.length && (
+                  <p className="text-xs text-muted-foreground">No important unread emails.</p>
+                )}
+              </BriefSection>
+            ) : (
+              <NotConnected label="Gmail" icon={<Mail className="h-4 w-4" />} />
+            )}
+
+            {/* Google Calendar */}
+            {data.calendar ? (
+              <BriefSection icon={<Calendar className="h-4 w-4" />} title="Today's Meetings">
+                {(data.calendar.items || data.calendar.events || []).slice(0, 8).map((e: any, i: number) => (
+                  <BriefRow key={i}
+                    label={e.start?.dateTime ? new Date(e.start.dateTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : 'All day'}
+                    value={e.summary || e.title || '—'} />
+                ))}
+                {!(data.calendar.items || data.calendar.events)?.length && (
+                  <p className="text-xs text-muted-foreground">No meetings today.</p>
+                )}
+              </BriefSection>
+            ) : (
+              <NotConnected label="Google Calendar" icon={<Calendar className="h-4 w-4" />} />
+            )}
+
+            {/* Discord */}
+            {data.discord ? (
+              <BriefSection icon={<MessageSquare className="h-4 w-4" />} title="Discord Mentions">
+                {(data.discord.messages || []).slice(0, 5).map((m: any, i: number) => (
+                  <BriefRow key={i} label={m.author?.username || m.authorName || 'Unknown'} value={m.content || '—'} />
+                ))}
+                {!data.discord.messages?.length && (
+                  <p className="text-xs text-muted-foreground">No unread mentions.</p>
+                )}
+              </BriefSection>
+            ) : (
+              <NotConnected label="Discord" icon={<MessageSquare className="h-4 w-4" />} />
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function BriefSection({ icon, title, accent, children }: { icon: React.ReactNode; title: string; accent?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className={`flex items-center gap-2 mb-2 ${accent || 'text-foreground'}`}>
+        {icon}
+        <span className="text-sm font-medium">{title}</span>
+      </div>
+      <div className="space-y-1 pl-6">{children}</div>
+    </div>
+  )
+}
+
+function BriefRow({ label, value, badge, urgent }: { label: string; value: string; badge?: string; urgent?: boolean }) {
+  return (
+    <div className={`flex items-start justify-between gap-3 py-1.5 border-b border-border/40 last:border-0 ${urgent ? 'text-agni' : ''}`}>
+      <span className="text-xs font-mono shrink-0 text-muted-foreground w-28 truncate">{label}</span>
+      <span className="text-xs flex-1 leading-relaxed">{value}</span>
+      {badge && <Badge variant="outline" className="text-[10px] shrink-0">{badge}</Badge>}
+    </div>
+  )
+}
+
+function NotConnected({ label, icon }: { label: string; icon: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 text-muted-foreground/50">
+      {icon}
+      <span className="text-xs">{label} — not connected. Connect in Integrations.</span>
     </div>
   )
 }

@@ -48,7 +48,8 @@ export const TOOLKIT_CATALOG = [
   { slug: 'gmail', name: 'Gmail', description: 'Send and read emails — customer support, campaigns, notifications', category: 'comms', toolsCount: 15, logo: '📧' },
   { slug: 'outlook', name: 'Outlook', description: 'Microsoft email — messages, calendar, contacts', category: 'comms', toolsCount: 18, logo: '📧' },
   { slug: 'slack', name: 'Slack', description: 'Team messaging — post updates, create channels, send DMs', category: 'comms', toolsCount: 28, logo: '💬' },
-  { slug: 'discord', name: 'Discord', description: 'Community messaging — channels, messages, servers', category: 'comms', toolsCount: 22, logo: '🎮' },
+  { slug: 'discord', name: 'Discord', description: 'Internal team messaging — channels, messages, @mentions', category: 'comms', toolsCount: 22, logo: '🎮' },
+  { slug: 'google_tasks', name: 'Google Tasks', description: 'Task lists, reminders, due dates — synced with Google Calendar', category: 'productivity', toolsCount: 8, logo: '✅' },
   { slug: 'whatsapp', name: 'WhatsApp Business', description: 'Send WhatsApp messages to customers — order updates, support', category: 'comms', toolsCount: 12, logo: '📱' },
   { slug: 'telegram', name: 'Telegram', description: 'Send Telegram messages — bot notifications, alerts', category: 'comms', toolsCount: 10, logo: '✈️' },
   { slug: 'twilio', name: 'Twilio', description: 'SMS and voice — send messages, make calls, verify numbers', category: 'comms', toolsCount: 25, logo: '📞' },
@@ -301,6 +302,17 @@ const TOOLS_BY_TOOLKIT: Record<string, { slug: string; name: string; description
     { slug: 'google_calendar_create_event', name: 'Create Event', description: 'Create a new event in Google Calendar' },
     { slug: 'google_calendar_update_event', name: 'Update Event', description: 'Update an existing event' },
     { slug: 'google_calendar_delete_event', name: 'Delete Event', description: 'Delete an event from Google Calendar' },
+  ],
+  discord: [
+    { slug: 'discord_get_messages', name: 'Get Messages', description: 'Fetch recent messages from a channel, optionally filtered to @mentions' },
+    { slug: 'discord_send_message', name: 'Send Message', description: 'Post a message to a Discord channel' },
+    { slug: 'discord_get_channels', name: 'Get Channels', description: 'List channels in a server' },
+    { slug: 'discord_get_guild_members', name: 'Get Members', description: 'List members in a server' },
+  ],
+  google_tasks: [
+    { slug: 'google_tasks_list', name: 'List Tasks', description: 'Fetch task lists and their tasks, including overdue ones' },
+    { slug: 'google_tasks_create', name: 'Create Task', description: 'Create a new task in a task list' },
+    { slug: 'google_tasks_update', name: 'Update Task', description: 'Mark a task complete or update its details' },
   ],
 }
 
