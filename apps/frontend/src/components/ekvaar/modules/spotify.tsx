@@ -105,6 +105,12 @@ export function SpotifyApp() {
         setSdkDeviceId(device_id)
         setSelectedDeviceId(device_id)
         setSdkReady(true)
+        // Transfer playback to EKVAAR OS so the browser becomes the active device
+        fetch('/api/spotify/play', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deviceId: device_id }),
+        }).catch(() => {})
         queryClient.invalidateQueries({ queryKey: ['spotify-devices'] })
       })
 
