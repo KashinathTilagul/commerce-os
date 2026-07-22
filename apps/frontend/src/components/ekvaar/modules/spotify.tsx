@@ -170,13 +170,6 @@ export function SpotifyApp() {
     }
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-select first available device when none is selected and SDK hasn't claimed one
-  useEffect(() => {
-    if (selectedDeviceId || sdkDeviceId) return
-    const first = devices?.devices?.[0]?.id
-    if (first) setSelectedDeviceId(first)
-  }, [devices, selectedDeviceId, sdkDeviceId])
-
   useEffect(() => {
     if (!token) return
 
@@ -246,6 +239,13 @@ export function SpotifyApp() {
     enabled: !!token,
     refetchInterval: 30000,
   })
+
+  // Auto-select first available device when none is selected and SDK hasn't claimed one
+  useEffect(() => {
+    if (selectedDeviceId || sdkDeviceId) return
+    const first = devices?.devices?.[0]?.id
+    if (first) setSelectedDeviceId(first)
+  }, [devices, selectedDeviceId, sdkDeviceId])
 
   const { data: playlists, isLoading: playlistsLoading, error: playlistsError } = useQuery({
     queryKey: ['spotify-playlists'],
