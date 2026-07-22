@@ -133,34 +133,46 @@ export function SpotifyApp() {
     }
   }, [token])
 
-  const { data: playlists, isLoading: playlistsLoading } = useQuery({
+  const { data: playlists, isLoading: playlistsLoading, error: playlistsError } = useQuery({
     queryKey: ['spotify-playlists'],
     queryFn: async () => {
       const r = await fetch('/api/spotify/playlists')
-      if (!r.ok) throw new Error('Failed')
-      return r.json()
+      const data = await r.json()
+      if (!r.ok) {
+        throw new Error(data.details || data.error || 'Failed to load playlists')
+      }
+      return data
     },
     enabled: !!token,
+    retry: false,
   })
 
-  const { data: recentTracks, isLoading: recentLoading } = useQuery({
+  const { data: recentTracks, isLoading: recentLoading, error: recentError } = useQuery({
     queryKey: ['spotify-recent'],
     queryFn: async () => {
       const r = await fetch('/api/spotify/recent')
-      if (!r.ok) throw new Error('Failed')
-      return r.json()
+      const data = await r.json()
+      if (!r.ok) {
+        throw new Error(data.details || data.error || 'Failed to load recent tracks')
+      }
+      return data
     },
     enabled: !!token && view === 'home',
+    retry: false,
   })
 
-  const { data: searchResults, isLoading: searchLoading } = useQuery({
+  const { data: searchResults, isLoading: searchLoading, error: searchError } = useQuery({
     queryKey: ['spotify-search', searchQuery],
     queryFn: async () => {
       const r = await fetch(`/api/spotify/search?q=${encodeURIComponent(searchQuery)}`)
-      if (!r.ok) throw new Error('Failed')
-      return r.json()
+      const data = await r.json()
+      if (!r.ok) {
+        throw new Error(data.details || data.error || 'Search failed')
+      }
+      return data
     },
     enabled: !!token && searchQuery.length > 2,
+    retry: false,
   })
 
   const { data: playlistDetail, isLoading: playlistLoading } = useQuery({
@@ -353,6 +365,11 @@ export function SpotifyApp() {
                 <h3 className="text-sm uppercase tracking-wider text-white/60 mb-3">Recently Played</h3>
                 {recentLoading ? (
                   <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-white/60" /></div>
+                ) : recentError ? (
+                  <div className="text-center py-8">
+                    <p className="text-red-400 text-sm">{(recentError as Error).message}</p>
+                    <p className="text-white/40 text-xs mt-2">Try disconnecting and reconnecting Spotify</p>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {recentTracks?.items?.slice(0, 8).map((item: any, i: number) => (
@@ -372,26 +389,34 @@ export function SpotifyApp() {
 
               <div>
                 <h3 className="text-sm uppercase tracking-wider text-white/60 mb-3">Your Playlists</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {playlists?.items?.slice(0, 8).map((p: any) => (
-                    <button
-                      key={p.id}
-                      onClick={() => { setSelectedPlaylistId(p.id); setView('playlist') }}
-                      className="p-3 rounded-md bg-white/5 hover:bg-white/10 transition-colors text-left group"
-                    >
-                      <div className="relative mb-2">
-                        <img
-                          src={p.images?.[0]?.url || '/placeholder.png'}
-                          alt=""
-                          className="aspect-square rounded object-cover w-full"
-                        />
-                        <Play className="absolute bottom-2 right-2 h-10 w-10 p-2 rounded-full bg-[#1DB954] text-black opacity-0 group-hover:opacity-100 transition-opacity shadow-lg" />
-                      </div>
-                      <div className="text-sm font-medium text-white truncate">{p.name}</div>
-                      <div className="text-xs text-white/60 truncate">{p.tracks?.total || 0} tracks</div>
-                    </button>
-                  ))}
-                </div>
+                {playlistsLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-white/60" /></div>
+                ) : playlistsError ? (
+                  <div className="text-center py-8">
+                    <p className="text-red-400 text-sm">{(playlistsError as Error).message}</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {playlists?.items?.slice(0, 8).map((p: any) => (
+                      <button
+                        key={p.id}
+                        onClick={() => { setSelectedPlaylistId(p.id); setView('playlist') }}
+                        className="p-3 rounded-md bg-white/5 hover:bg-white/10 transition-colors text-left group"
+                      >
+                        <div className="relative mb-2">
+                          <img
+                            src={p.images?.[0]?.url || '/placeholder.png'}
+                            alt=""
+                            className="aspect-square rounded object-cover w-full"
+                          />
+                          <Play className="absolute bottom-2 right-2 h-10 w-10 p-2 rounded-full bg-[#1DB954] text-black opacity-0 group-hover:opacity-100 transition-opacity shadow-lg" />
+                        </div>
+                        <div className="text-sm font-medium text-white truncate">{p.name}</div>
+                        <div className="text-xs text-white/60 truncate">{p.tracks?.total || 0} tracks</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -410,6 +435,10 @@ export function SpotifyApp() {
 
               {searchLoading ? (
                 <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-white/60" /></div>
+              ) : searchError ? (
+                <div className="text-center py-8">
+                  <p className="text-red-400 text-sm">{(searchError as Error).message}</p>
+                </div>
               ) : searchResults?.tracks?.items?.length > 0 ? (
                 <div className="space-y-1">
                   {searchResults.tracks.items.map((track: SpotifyTrack) => (
