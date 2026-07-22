@@ -47,6 +47,17 @@ export function SpotifyApp() {
     
     if (accessToken) {
       setToken(accessToken)
+    } else {
+      fetch('/api/spotify/token')
+        .then(r => r.json())
+        .then(data => {
+          if (data.token) {
+            setToken(data.token)
+          } else if (data.error) {
+            console.log('Spotify token error:', data.error)
+          }
+        })
+        .catch(e => console.error('Token fetch error:', e))
     }
   }, [])
 
