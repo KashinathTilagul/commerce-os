@@ -463,6 +463,8 @@ export async function executeTool(params: {
         userId: params.userId,
         connectedAccountId: integration.connectedAccountId || undefined,
         arguments: params.input,
+        // Use the latest toolkit version instead of pinning one
+        dangerouslySkipVersionCheck: true,
       })
       return {
         success: result.successful !== false,
