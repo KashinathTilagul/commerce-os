@@ -86,6 +86,21 @@ ${liveContext}
 
 You can control the OS. Your spoken response should never abbreviate ("Chief Marketing Officer" not "CMO") and should read numbers as words — this is a voice interface. Pick exactly one action per turn.
 
+CRITICAL RULES — violating these is a failure:
+1. NEVER claim you did something unless you emit the matching action in the same turn. If you say "I've assigned…", the action MUST be assign_task. If action is "none", your spoken words must NOT claim any action was taken.
+2. If the Founder asks to assign, delegate, give, or hand a task to anyone — you MUST emit assign_task. Do not use tool_execute for this.
+3. Only use tool_execute with the exact toolkit/tool names listed below. Never invent toolkit or tool names.
+
+EXAMPLES:
+Founder: "assign the marketing campaign to the CMO"
+→ {"spoken":"Done. Mira has it.","action":{"type":"assign_task","assignee":"CMO","task":"Own the marketing campaign","priority":"P2"}}
+
+Founder: "assign CEO a task to check how many agents are active and their skill levels"
+→ {"spoken":"Assigned. Arjun will review agent count and skills.","action":{"type":"assign_task","assignee":"CEO","task":"Review total active agents and their skill levels","priority":"P2"}}
+
+Founder: "tell the team the drop launches Friday"
+→ {"spoken":"Posting that to the team now.","action":{"type":"message_team","text":"The drop launches Friday."}}
+
 AVAILABLE ACTIONS:
 - Open app: {"type":"open_app","app":"<id>"} — apps: command, inbox, agents, issues, terminal, activity, settings, files, integrations, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai, opencode, risk
 - Approve: {"type":"approve","query":"<title or code>"}
@@ -150,10 +165,43 @@ AVAILABLE ACTIONS:
       spoken = `I'm having trouble reaching my intelligence core, sir. ${e.message}`
     }
 
+    // ── Assignment safety net ────────────────────────────────────────────
+    // The model sometimes narrates "I've assigned it" while emitting action
+    // "none". When the founder clearly asked to delegate, re-ask with a tiny
+    // focused schema so the assignment actually happens.
+    if (action.type === 'none' && /\b(assign|delegate|hand (it |this )?(over|off)|give .{0,30}\btask|task .{0,30}\bto\b)/i.test(message)) {
+      try {
+        const bedrock = createAmazonBedrock({ apiKey, region: 'us-east-1' })
+        const { object: extracted } = await generateObject({
+          model: bedrock(modelStr.replace('amazon-bedrock/', '')),
+          schema: z.object({
+            isAssignment: z.boolean().describe('true only if the founder is delegating work to someone'),
+            assignee: z.string().describe('Agent code, name, role or department, e.g. CEO, CMO, Mira, marketing'),
+            task: z.string().describe('The task, phrased as an instruction'),
+            priority: z.enum(['P0', 'P1', 'P2', 'P3']).default('P2'),
+          }),
+          system: 'Extract a task assignment from the founder\'s instruction. If it is not an assignment, set isAssignment false.',
+          prompt: sanitizeInput(message, { maxLength: 2000 }),
+          temperature: 0,
+        })
+        if (extracted.isAssignment && extracted.task) {
+          action = { type: 'assign_task', assignee: extracted.assignee, task: extracted.task, priority: extracted.priority }
+          console.log('[Krishna] Assignment safety net engaged')
+        }
+      } catch (e: any) {
+        console.error('[Krishna] Safety net failed:', e.message)
+      }
+    }
+
     // ── Execute action ───────────────────────────────────────────────────
     let actionResult: any = null
     if (action.type !== 'none') {
       actionResult = await executeAction(action, uid)
+    }
+
+    // Never let Krishna claim success when the action actually failed
+    if (actionResult && actionResult.success === false) {
+      spoken = `I couldn't complete that. ${actionResult.message || actionResult.error || ''}`.trim()
     }
 
     // ── Log to event stream ──────────────────────────────────────────────
