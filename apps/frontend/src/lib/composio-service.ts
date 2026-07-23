@@ -351,6 +351,17 @@ export function getToolsForToolkit(toolkitSlug: string) {
  * The Composio SDK `link()` method requires an auth config ID (ac_xxx), not a toolkit slug.
  * We first look up the default auth config for the toolkit, then create the link.
  */
+// Internal toolkit slugs → Composio's canonical toolkit slugs
+const COMPOSIO_TOOLKIT_MAP: Record<string, string> = {
+  google_calendar: 'googlecalendar',
+  google_tasks: 'googletasks',
+  google_drive: 'googledrive',
+  google_sheets: 'googlesheets',
+}
+function composioToolkit(slug: string): string {
+  return COMPOSIO_TOOLKIT_MAP[slug] || slug
+}
+
 export async function initiateConnection(toolkitSlug: string, entityId?: string): Promise<{ redirectUrl: string | null; connectedAccountId?: string; error?: string }> {
   const composio = await getComposio()
   
@@ -382,12 +393,18 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
       console.warn(`[initiateConnection] Could not list existing connections: ${listErr.message}`)
     }
 
-    // Step 2: Resolve the auth config ID for this toolkit
-    const authConfigs = await composio.authConfigs.list({ toolkit: toolkitSlug })
-    if (!authConfigs.items || authConfigs.items.length === 0) {
-      return { redirectUrl: null, error: `No auth config found for "${toolkitSlug}" on Composio. Please add this integration on your Composio dashboard first.` }
+    // Step 2: Resolve the auth config ID for this toolkit (Composio slug, not internal)
+    const ckToolkit = composioToolkit(toolkitSlug)
+    const authConfigs = await composio.authConfigs.list({ toolkit: ckToolkit })
+    // Never trust items[0] blindly — verify it belongs to the requested toolkit,
+    // otherwise an unmatched filter returns ALL configs and we'd OAuth the wrong app
+    const match = authConfigs.items?.find((c: any) =>
+      (c.toolkit?.slug || c.toolkitSlug || c.appName || '').toLowerCase().replace(/[^a-z0-9]/g, '') === ckToolkit.replace(/[^a-z0-9]/g, '')
+    )
+    if (!match) {
+      return { redirectUrl: null, error: `No auth config found for "${ckToolkit}" on Composio. Please add this integration on your Composio dashboard first.` }
     }
-    const authConfigId = authConfigs.items[0].id
+    const authConfigId = match.id
     console.log(`[initiateConnection] Resolved auth config for ${toolkitSlug}: ${authConfigId}`)
 
     // Step 3: Create the connection link (OAuth redirect)
