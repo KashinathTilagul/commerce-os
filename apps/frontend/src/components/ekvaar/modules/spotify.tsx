@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useSyncExternalStore } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, Home, ListMusic, User, Play, Pause, SkipBack, SkipForward, Loader2, LogOut, Smartphone, Laptop, Speaker, Monitor, RefreshCw } from 'lucide-react'
 import { PageHeader } from '../shared'
@@ -48,21 +48,130 @@ function getDeviceIcon(type: string) {
   }
 }
 
+// ── Module-level SDK singleton — survives window minimize/close so music keeps
+// playing and the "EKVAAR OS" device id stays stable across remounts ──────────
+interface SdkState {
+  status: string
+  deviceId: string | null
+  ready: boolean
+  isPlaying: boolean
+  track: SpotifyTrack | null
+}
+let sdkState: SdkState = { status: '', deviceId: null, ready: false, isPlaying: false, track: null }
+let sdkPlayer: any = null
+const sdkSubs = new Set<() => void>()
+function sdkEmit(patch: Partial<SdkState>) {
+  sdkState = { ...sdkState, ...patch }
+  sdkSubs.forEach(f => f())
+}
+function useSdkState(): SdkState {
+  return useSyncExternalStore(
+    (cb) => { sdkSubs.add(cb); return () => sdkSubs.delete(cb) },
+    () => sdkState,
+    () => sdkState,
+  )
+}
+
+function initSdkPlayer(fallbackToken: string) {
+  if (sdkPlayer) return
+
+  const create = () => {
+    const player = new window.Spotify.Player({
+      name: 'EKVAAR OS',
+      getOAuthToken: (cb: (t: string) => void) => {
+        fetch('/api/spotify/token')
+          .then(r => r.json())
+          .then(d => { if (d.token) cb(d.token) })
+          .catch(() => cb(fallbackToken))
+      },
+      volume: 0.8,
+    })
+
+    player.addListener('ready', ({ device_id }: { device_id: string }) => {
+      sdkEmit({ status: 'ready', deviceId: device_id, ready: true })
+      // Transfer playback so the browser becomes the active device
+      fetch('/api/spotify/play', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: device_id }),
+      }).catch(() => {})
+    })
+
+    player.addListener('not_ready', () => {
+      sdkEmit({ ready: false, status: 'device went offline' })
+    })
+
+    player.addListener('initialization_error', ({ message }: { message: string }) => {
+      sdkEmit({ status: `init error: ${message}` })
+      toast.error('Spotify SDK error', message)
+    })
+
+    player.addListener('authentication_error', ({ message }: { message: string }) => {
+      sdkEmit({ status: `auth error: ${message}` })
+      toast.error('Spotify auth error', message)
+    })
+
+    player.addListener('account_error', ({ message }: { message: string }) => {
+      sdkEmit({ status: `account error: ${message}` })
+      toast.error('Spotify Premium required', message)
+    })
+
+    player.addListener('player_state_changed', (state: any) => {
+      if (!state) return
+      const t = state.track_window?.current_track
+      sdkEmit({
+        isPlaying: !state.paused,
+        track: t ? {
+          id: t.id,
+          name: t.name,
+          artists: t.artists,
+          album: { name: t.album.name, images: t.album.images },
+          uri: t.uri,
+          duration_ms: t.duration_ms,
+        } : sdkState.track,
+      })
+    })
+
+    sdkEmit({ status: 'connecting…' })
+    player.connect().then((ok: boolean) => {
+      if (!ok) sdkEmit({ status: 'connect() failed — SDK could not reach Spotify' })
+    })
+    sdkPlayer = player
+  }
+
+  if (window.Spotify) {
+    create()
+  } else {
+    sdkEmit({ status: 'loading SDK script…' })
+    window.onSpotifyWebPlaybackSDKReady = create
+    const script = document.createElement('script')
+    // Served through our own domain to bypass blockers that blacklist sdk.scdn.co
+    script.src = '/api/spotify/sdk'
+    script.async = true
+    script.onerror = () => sdkEmit({ status: 'SDK script failed to load — check network or blockers' })
+    document.body.appendChild(script)
+  }
+}
+
 export function SpotifyApp() {
   const [token, setToken] = useState<string | null>(null)
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
-  const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null)
-  const [sdkReady, setSdkReady] = useState(false)
-  const [sdkStatus, setSdkStatus] = useState<string>('')
   const [grantedScope, setGrantedScope] = useState<string | null>(null)
   const [view, setView] = useState<'home' | 'search' | 'playlists' | 'playlist'>('home')
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [user, setUser] = useState<{ displayName: string; imageUrl?: string } | null>(null)
-  const [currentTrack, setCurrentTrack] = useState<SpotifyTrack | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const playerRef = useRef<any>(null)
+  const [polledTrack, setPolledTrack] = useState<SpotifyTrack | null>(null)
+  const [polledPlaying, setPolledPlaying] = useState(false)
+  const sdk = useSdkState()
   const queryClient = useQueryClient()
+
+  // SDK state wins when the browser player is live; polling covers external devices
+  const sdkReady = sdk.ready
+  const sdkDeviceId = sdk.deviceId
+  const sdkStatus = sdk.status
+  const currentTrack = (sdkReady && sdk.track) || polledTrack
+  const isPlaying = sdkReady ? sdk.isPlaying : polledPlaying
 
   useEffect(() => {
     const accessToken = document.cookie
@@ -86,108 +195,23 @@ export function SpotifyApp() {
     }
   }, [])
 
-  // Web Playback SDK — registers "EKVAAR OS" as a Spotify device in the browser
+  // Web Playback SDK — module-level singleton; no cleanup so music survives
+  // window minimize/close and the device id stays stable
   useEffect(() => {
     if (!token) return
-    if (playerRef.current) return // already initialized
-
-    const initPlayer = () => {
-      const player = new window.Spotify.Player({
-        name: 'EKVAAR OS',
-        getOAuthToken: (cb: (t: string) => void) => {
-          fetch('/api/spotify/token')
-            .then(r => r.json())
-            .then(d => { if (d.token) cb(d.token) })
-            .catch(() => cb(token))
-        },
-        volume: 0.8,
-      })
-
-      player.addListener('ready', ({ device_id }: { device_id: string }) => {
-        setSdkStatus('ready')
-        setSdkDeviceId(device_id)
-        setSelectedDeviceId(device_id)
-        setSdkReady(true)
-        // Transfer playback to EKVAAR OS so the browser becomes the active device
-        fetch('/api/spotify/play', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deviceId: device_id }),
-        }).catch(() => {})
-        queryClient.invalidateQueries({ queryKey: ['spotify-devices'] })
-      })
-
-      player.addListener('not_ready', () => {
-        setSdkReady(false)
-        setSdkStatus('device went offline')
-      })
-
-      player.addListener('initialization_error', ({ message }: { message: string }) => {
-        setSdkStatus(`init error: ${message}`)
-        toast.error('Spotify SDK error', message)
-      })
-
-      player.addListener('authentication_error', ({ message }: { message: string }) => {
-        setSdkStatus(`auth error: ${message}`)
-        toast.error('Spotify auth error', message)
-      })
-
-      player.addListener('account_error', ({ message }: { message: string }) => {
-        setSdkStatus(`account error: ${message}`)
-        toast.error('Spotify Premium required', message)
-      })
-
-      player.addListener('player_state_changed', (state: any) => {
-        if (!state) return
-        setIsPlaying(!state.paused)
-        const t = state.track_window?.current_track
-        if (t) {
-          setCurrentTrack({
-            id: t.id,
-            name: t.name,
-            artists: t.artists,
-            album: { name: t.album.name, images: t.album.images },
-            uri: t.uri,
-            duration_ms: t.duration_ms,
-          })
-        }
-      })
-
-      setSdkStatus('connecting…')
-      player.connect().then((ok: boolean) => {
-        if (!ok) setSdkStatus('connect() failed — SDK could not reach Spotify')
-      })
-      playerRef.current = player
-    }
+    initSdkPlayer(token)
 
     // Surface the granted OAuth scopes so we can verify "streaming" is present
     fetch('/api/spotify/token')
       .then(r => r.json())
       .then(d => { if (d.scope !== undefined) setGrantedScope(d.scope) })
       .catch(() => {})
+  }, [token])
 
-    if (window.Spotify) {
-      initPlayer()
-    } else {
-      setSdkStatus('loading SDK script…')
-      window.onSpotifyWebPlaybackSDKReady = initPlayer
-      const script = document.createElement('script')
-      // Served through our own domain to bypass blockers that blacklist sdk.scdn.co
-      script.src = '/api/spotify/sdk'
-      script.async = true
-      script.onerror = () => setSdkStatus('SDK script failed to load — check network or blockers')
-      document.body.appendChild(script)
-    }
-
-    return () => {
-      if (playerRef.current) {
-        playerRef.current.disconnect()
-        playerRef.current = null
-        setSdkReady(false)
-        setSdkDeviceId(null)
-      }
-    }
-  }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Always prefer the live browser device when it (re)appears
+  useEffect(() => {
+    if (sdkDeviceId) setSelectedDeviceId(sdkDeviceId)
+  }, [sdkDeviceId])
 
   useEffect(() => {
     if (!token) return
@@ -224,9 +248,9 @@ export function SpotifyApp() {
         })
         .then(data => {
           if (data?.is_playing !== undefined) {
-            setIsPlaying(data.is_playing)
+            setPolledPlaying(data.is_playing)
             if (data.item) {
-              setCurrentTrack({
+              setPolledTrack({
                 id: data.item.id,
                 name: data.item.name,
                 artists: data.item.artists,
@@ -236,7 +260,7 @@ export function SpotifyApp() {
               })
             }
           } else {
-            setIsPlaying(false)
+            setPolledPlaying(false)
           }
         })
         .catch(() => {})
@@ -317,6 +341,11 @@ export function SpotifyApp() {
       await fetch('/api/spotify/logout', { method: 'POST' })
     },
     onSuccess: () => {
+      if (sdkPlayer) {
+        sdkPlayer.disconnect()
+        sdkPlayer = null
+        sdkEmit({ status: '', deviceId: null, ready: false, isPlaying: false, track: null })
+      }
       setToken(null)
       setUser(null)
       setSelectedDeviceId(null)
@@ -367,7 +396,8 @@ export function SpotifyApp() {
       return { success: true }
     },
     onSuccess: () => {
-      setIsPlaying(!isPlaying)
+      // SDK updates via player_state_changed; only flip manually for external devices
+      if (!sdkReady) setPolledPlaying(p => !p)
     },
     onError: (e: Error) => {
       toast.error('Failed', e.message)
