@@ -77,7 +77,17 @@ jobs:
             # Now that old containers are replaced, drop their images
             sudo docker image prune -af || true
 
-            sleep 15
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://os.ekvaar.com)
-            [ "$STATUS" -lt 500 ] || { echo "[x] Health check failed: HTTP $STATUS"; exit 1; }
+            # Health check the app DIRECTLY on localhost — the public URL goes
+            # through Cloudflare, whose WAF 403s curl and masks a dead origin
+            for i in $(seq 1 12); do
+              STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: os.ekvaar.com" https://localhost/api/health || echo 000)
+              [ "$STATUS" = "200" ] && break
+              echo "[i] Waiting for app... attempt $i (HTTP $STATUS)"
+              sleep 5
+            done
+            if [ "$STATUS" != "200" ]; then
+              echo "[x] App failed to start (HTTP $STATUS). Container logs:"
+              sudo docker compose logs --tail 100
+              exit 1
+            fi
             echo "[ok] Deployed OK (HTTP $STATUS)"
