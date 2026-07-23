@@ -57,18 +57,25 @@ jobs:
 
             echo "[i] Disk before cleanup:"; df -h / || true
 
-            # Stop running containers so their image layers are no longer pinned
-            # and docker system prune can actually reclaim the space
-            sudo docker compose down || true
-
-            docker builder prune -af || true
-            docker system prune -af || true
+            # Reclaim space WITHOUT stopping the running site (dangling images,
+            # stopped containers, build cache) — old containers keep serving
+            sudo docker image prune -f || true
+            sudo docker container prune -f || true
+            sudo docker builder prune -f --keep-storage 2GB || true
             sudo apt-get clean || true
             sudo journalctl --vacuum-size=100M || true
             echo "[i] Disk after cleanup:"; df -h / || true
 
-            sudo docker compose build --no-cache --progress=plain 2>&1
+            # Build while old containers still serve traffic (zero downtime
+            # during the slow part). Layer cache stays valid; git pull already
+            # invalidates changed layers.
+            sudo docker compose build --progress=plain 2>&1
+
+            # Swap: recreates only changed containers — seconds, not minutes
             sudo docker compose up -d
+
+            # Now that old containers are replaced, drop their images
+            sudo docker image prune -af || true
 
             sleep 15
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://os.ekvaar.com)
