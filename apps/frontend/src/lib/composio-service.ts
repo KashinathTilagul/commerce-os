@@ -404,6 +404,18 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
   }
 }
 
+// Internal tool slugs → canonical Composio tool slugs.
+// Unmapped slugs fall back to uppercase (Composio's convention).
+const COMPOSIO_SLUG_MAP: Record<string, string> = {
+  gmail_get_emails: 'GMAIL_FETCH_EMAILS',
+  gmail_send_email: 'GMAIL_SEND_EMAIL',
+  google_calendar_list_events: 'GOOGLECALENDAR_EVENTS_LIST',
+  google_calendar_create_event: 'GOOGLECALENDAR_CREATE_EVENT',
+  shopify_get_orders: 'SHOPIFY_GET_ORDERS',
+  google_tasks_list: 'GOOGLETASKS_LIST_TASKS',
+  google_tasks_create: 'GOOGLETASKS_INSERT_TASK',
+}
+
 /**
  * Execute a tool via Composio (or simulate in demo mode)
  */
@@ -445,17 +457,18 @@ export async function executeTool(params: {
 
   try {
     if (composio) {
-      // REAL Composio execution
-      const result = await composio.tools.execute({
-        toolkit: params.toolkitSlug,
-        tool: params.toolSlug,
-        input: params.input,
-        connectedAccountId: integration.connectedAccountId,
+      // REAL Composio execution — SDK signature is execute(TOOL_SLUG, { userId, arguments })
+      const slug = COMPOSIO_SLUG_MAP[params.toolSlug] || params.toolSlug.toUpperCase()
+      const result = await composio.tools.execute(slug, {
+        userId: params.userId,
+        connectedAccountId: integration.connectedAccountId || undefined,
+        arguments: params.input,
       })
       return {
-        success: true,
-        output: result,
+        success: result.successful !== false,
+        output: result.data ?? result,
         duration: Date.now() - startTime,
+        error: result.successful === false ? String(result.error || 'Tool reported failure') : undefined,
       }
     } else {
       throw new Error('Composio client is not initialized. Check API key.')

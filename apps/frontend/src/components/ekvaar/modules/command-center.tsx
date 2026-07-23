@@ -629,7 +629,7 @@ function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }
                 )}
               </BriefSection>
             ) : (
-              <NotConnected label="Gmail" icon={<Mail className="h-4 w-4" />} />
+              <NotConnected label="Gmail" icon={<Mail className="h-4 w-4" />} error={data.gmailError} />
             )}
 
             {/* Google Calendar */}
@@ -645,7 +645,7 @@ function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }
                 )}
               </BriefSection>
             ) : (
-              <NotConnected label="Google Calendar" icon={<Calendar className="h-4 w-4" />} />
+              <NotConnected label="Google Calendar" icon={<Calendar className="h-4 w-4" />} error={data.calendarError} />
             )}
 
             {/* Discord */}
@@ -659,7 +659,7 @@ function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }
                 )}
               </BriefSection>
             ) : (
-              <NotConnected label="Discord" icon={<MessageSquare className="h-4 w-4" />} />
+              <NotConnected label="Discord" icon={<MessageSquare className="h-4 w-4" />} error={data.discordError} />
             )}
           </div>
         )}
@@ -690,11 +690,16 @@ function BriefRow({ label, value, badge, urgent }: { label: string; value: strin
   )
 }
 
-function NotConnected({ label, icon }: { label: string; icon: React.ReactNode }) {
+function NotConnected({ label, icon, error }: { label: string; icon: React.ReactNode; error?: string | null }) {
+  const notConnected = !error || error.includes('not connected')
   return (
-    <div className="flex items-center gap-2 text-muted-foreground/50">
+    <div className="flex items-start gap-2 text-muted-foreground/50">
       {icon}
-      <span className="text-xs">{label} — not connected. Connect in Integrations.</span>
+      <span className="text-xs leading-relaxed">
+        {notConnected
+          ? `${label} — not connected. Connect in Integrations.`
+          : `${label} — ${error}`}
+      </span>
     </div>
   )
 }

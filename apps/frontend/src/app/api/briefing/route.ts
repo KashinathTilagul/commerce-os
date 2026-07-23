@@ -41,29 +41,32 @@ export async function GET() {
     }),
   ])
 
-  // Composio — gracefully skip if not connected
+  // Composio — return data or the real error so the UI never lies about why
   async function tryTool(toolkitSlug: string, toolSlug: string, input: Record<string, any>) {
     try {
       const r = await executeTool({ userId: uid, toolkitSlug, toolSlug, agentCode: 'FOUNDER', agentName: 'Founder', input })
-      return r.success ? r.output : null
-    } catch { return null }
+      return r.success ? { data: r.output, error: null } : { data: null, error: r.error || 'Tool failed' }
+    } catch (e: any) { return { data: null, error: e.message || 'Tool failed' } }
   }
 
-  const [gmailData, calendarData, discordData] = await Promise.all([
-    tryTool('gmail', 'gmail_get_emails', { query: 'is:unread is:important', maxResults: 5 }),
+  const [gmail, calendar, discord] = await Promise.all([
+    tryTool('gmail', 'gmail_get_emails', { query: 'is:unread is:important', max_results: 5 }),
     tryTool('google_calendar', 'google_calendar_list_events', {
-      timeMin: todayStart.toISOString(),
-      timeMax: todayEnd.toISOString(),
-      maxResults: 10,
+      time_min: todayStart.toISOString(),
+      time_max: todayEnd.toISOString(),
+      max_results: 10,
     }),
-    tryTool('discord', 'discord_get_messages', { limit: 10, mentionsOnly: true }),
+    tryTool('discord', 'discord_get_messages', { limit: 10 }),
   ])
 
   return NextResponse.json({
     generatedAt: now.toISOString(),
     db: { blockedIssues, urgentIssues, pendingApprovals, stuckOrders },
-    gmail: gmailData,
-    calendar: calendarData,
-    discord: discordData,
+    gmail: gmail.data,
+    gmailError: gmail.error,
+    calendar: calendar.data,
+    calendarError: calendar.error,
+    discord: discord.data,
+    discordError: discord.error,
   })
 }
