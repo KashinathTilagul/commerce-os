@@ -41,16 +41,6 @@ export async function POST(
       return NextResponse.json({ reply: 'I am offline. Please configure the Bedrock API key in Settings.' })
     }
 
-    let finalApiKey = apiKey
-    if (apiKey.length > 40 && apiKey.endsWith('=') && !apiKey.includes(' ')) {
-      try {
-        const decoded = Buffer.from(apiKey, 'base64').toString('utf8')
-        if (decoded.includes('BedrockAPIKey') || decoded.includes(':')) {
-          finalApiKey = decoded.replace(/^[^a-zA-Z0-9]+/, '')
-        }
-      } catch (e) {}
-    }
-
     const liveContext = await getLiveBusinessSnapshot(auth.user.id)
 
     const systemPrompt = `You are ${agent.name}, the ${agent.role} of this company.
@@ -67,7 +57,7 @@ ${liveContext}
 Instructions:
 You are chatting directly with the Founder. Use the live system status above when asked about company/operational facts — never guess or invent numbers. Be concise, professional, and stay perfectly in character based on your role and prime directive. Do not break character. Do not use markdown unless necessary. Keep your response under 4 sentences.`
 
-    const bedrock = createAmazonBedrock({ apiKey: finalApiKey, region: 'us-east-1' })
+    const bedrock = createAmazonBedrock({ apiKey, region: 'us-east-1' })
     const cleanModelId = modelStr.replace('amazon-bedrock/', '')
 
     const { text } = await generateText({
@@ -92,6 +82,7 @@ You are chatting directly with the Founder. Use the live system status above whe
     return NextResponse.json({ reply: text })
   } catch (e: any) {
     console.error('[Agent Chat] Error:', e)
-    return NextResponse.json({ error: 'Failed to process chat' }, { status: 500 })
+    const detail = e?.message || String(e)
+    return NextResponse.json({ error: 'Failed to process chat', detail }, { status: 500 })
   }
 }
