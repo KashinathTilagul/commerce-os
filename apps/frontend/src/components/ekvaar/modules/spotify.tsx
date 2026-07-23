@@ -172,9 +172,10 @@ export function SpotifyApp() {
       setSdkStatus('loading SDK script…')
       window.onSpotifyWebPlaybackSDKReady = initPlayer
       const script = document.createElement('script')
-      script.src = 'https://sdk.scdn.co/spotify-player.js'
+      // Served through our own domain to bypass blockers that blacklist sdk.scdn.co
+      script.src = '/api/spotify/sdk'
       script.async = true
-      script.onerror = () => setSdkStatus('SDK script blocked — disable ad/privacy blockers for this site')
+      script.onerror = () => setSdkStatus('SDK script failed to load — check network or blockers')
       document.body.appendChild(script)
     }
 
