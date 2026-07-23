@@ -53,6 +53,8 @@ export function SpotifyApp() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null)
   const [sdkDeviceId, setSdkDeviceId] = useState<string | null>(null)
   const [sdkReady, setSdkReady] = useState(false)
+  const [sdkStatus, setSdkStatus] = useState<string>('')
+  const [grantedScope, setGrantedScope] = useState<string | null>(null)
   const [view, setView] = useState<'home' | 'search' | 'playlists' | 'playlist'>('home')
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -102,6 +104,7 @@ export function SpotifyApp() {
       })
 
       player.addListener('ready', ({ device_id }: { device_id: string }) => {
+        setSdkStatus('ready')
         setSdkDeviceId(device_id)
         setSelectedDeviceId(device_id)
         setSdkReady(true)
@@ -116,17 +119,21 @@ export function SpotifyApp() {
 
       player.addListener('not_ready', () => {
         setSdkReady(false)
+        setSdkStatus('device went offline')
       })
 
       player.addListener('initialization_error', ({ message }: { message: string }) => {
+        setSdkStatus(`init error: ${message}`)
         toast.error('Spotify SDK error', message)
       })
 
       player.addListener('authentication_error', ({ message }: { message: string }) => {
+        setSdkStatus(`auth error: ${message}`)
         toast.error('Spotify auth error', message)
       })
 
       player.addListener('account_error', ({ message }: { message: string }) => {
+        setSdkStatus(`account error: ${message}`)
         toast.error('Spotify Premium required', message)
       })
 
@@ -146,17 +153,28 @@ export function SpotifyApp() {
         }
       })
 
-      player.connect()
+      setSdkStatus('connecting…')
+      player.connect().then((ok: boolean) => {
+        if (!ok) setSdkStatus('connect() failed — SDK could not reach Spotify')
+      })
       playerRef.current = player
     }
+
+    // Surface the granted OAuth scopes so we can verify "streaming" is present
+    fetch('/api/spotify/token')
+      .then(r => r.json())
+      .then(d => { if (d.scope !== undefined) setGrantedScope(d.scope) })
+      .catch(() => {})
 
     if (window.Spotify) {
       initPlayer()
     } else {
+      setSdkStatus('loading SDK script…')
       window.onSpotifyWebPlaybackSDKReady = initPlayer
       const script = document.createElement('script')
       script.src = 'https://sdk.scdn.co/spotify-player.js'
       script.async = true
+      script.onerror = () => setSdkStatus('SDK script blocked — disable ad/privacy blockers for this site')
       document.body.appendChild(script)
     }
 
@@ -450,6 +468,16 @@ export function SpotifyApp() {
               <div className="flex items-center gap-1.5 mb-2 text-xs text-arav font-medium">
                 <span className="h-1.5 w-1.5 rounded-full bg-arav animate-pulse" />
                 EKVAAR OS (this browser)
+              </div>
+            )}
+            {!sdkReady && sdkStatus && (
+              <div className="text-[10px] text-muted-foreground mb-2 leading-relaxed break-words">
+                Player: {sdkStatus}
+              </div>
+            )}
+            {grantedScope !== null && !grantedScope.includes('streaming') && (
+              <div className="text-[10px] text-agni mb-2 leading-relaxed">
+                Missing &quot;streaming&quot; permission — Disconnect and reconnect Spotify to grant it.
               </div>
             )}
             {!sdkReady && devices?.devices?.length === 0 && (

@@ -45,6 +45,14 @@ export async function GET(req: NextRequest) {
       path: '/',
     })
 
+    cookieStore.set('spotify_scope', data.scope || '', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60,
+      path: '/',
+    })
+
     cookieStore.set('spotify_access_token', data.access_token, {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',

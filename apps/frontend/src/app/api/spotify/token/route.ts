@@ -10,7 +10,7 @@ export async function GET() {
     const accessToken = cookieStore.get('spotify_access_token')?.value
     
     if (accessToken) {
-      return NextResponse.json({ token: accessToken })
+      return NextResponse.json({ token: accessToken, scope: cookieStore.get('spotify_scope')?.value || null })
     }
 
     const refreshToken = cookieStore.get('spotify_refresh_token')?.value
@@ -48,7 +48,16 @@ export async function GET() {
         maxAge: data.expires_in || 3600,
         path: '/',
       })
-      return NextResponse.json({ token: data.access_token })
+      if (data.scope) {
+        cookieStore.set('spotify_scope', data.scope, {
+          httpOnly: false,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 30 * 24 * 60 * 60,
+          path: '/',
+        })
+      }
+      return NextResponse.json({ token: data.access_token, scope: data.scope || null })
     }
 
     return NextResponse.json({ error: 'No access token in response' }, { status: 500 })

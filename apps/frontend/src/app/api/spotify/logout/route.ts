@@ -5,5 +5,6 @@ export async function POST() {
   const cookieStore = await cookies()
   cookieStore.delete('spotify_access_token')
   cookieStore.delete('spotify_refresh_token')
+  cookieStore.delete('spotify_scope')
   return NextResponse.json({ success: true })
 }
