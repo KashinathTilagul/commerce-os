@@ -24,6 +24,8 @@ const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('issue_status'), query: z.string(), status: z.string() }),
   z.object({ type: z.literal('brand_scan') }),
   z.object({ type: z.literal('tool_execute'), toolkit: z.string(), tool: z.string(), agent: z.string().optional() }),
+  z.object({ type: z.literal('assign_task'), assignee: z.string().describe('Agent code, name, role, or department, e.g. "CMO", "Mira", "marketing"'), task: z.string().describe('What the agent should do'), priority: z.string().optional().describe('P0 | P1 | P2 | P3') }),
+  z.object({ type: z.literal('message_team'), text: z.string().describe('The message to post'), channel: z.string().optional().describe('Discord channel id or name') }),
   z.object({ type: z.literal('close_window') }),
   z.object({ type: z.literal('none') }),
 ])
@@ -92,6 +94,8 @@ AVAILABLE ACTIONS:
 - Brand scan: {"type":"brand_scan"}
 - Shopify orders: {"type":"tool_execute","toolkit":"shopify","tool":"shopify_get_orders","agent":"CMO"}
 - Stripe balance: {"type":"tool_execute","toolkit":"stripe","tool":"stripe_get_balance","agent":"CFO"}
+- Assign a task to a digital employee: {"type":"assign_task","assignee":"<CMO|CTO|CFO|COO|name|department>","task":"<what to do>","priority":"P2"} — use when the Founder says to assign/delegate work. This creates a real tracked task on the agent.
+- Message the team: {"type":"message_team","text":"<message>","channel":"<optional channel>"} — posts to the team's Discord. Use when the Founder wants to inform or message the team.
 - Close window: {"type":"close_window"}
 - No action: {"type":"none"}`
 
@@ -115,17 +119,6 @@ AVAILABLE ACTIONS:
         spoken: "I'm offline, Founder. Please configure my AWS Bedrock API Key in Settings.",
         action: { type: 'open_app', app: 'settings' }
       })
-    }
-
-    let finalApiKey = apiKey
-    if (apiKey.length > 40 && apiKey.endsWith('=') && !apiKey.includes(' ')) {
-      try {
-        const decoded = Buffer.from(apiKey, 'base64').toString('utf8')
-        if (decoded.includes('BedrockAPIKey') || decoded.includes(':')) {
-          finalApiKey = decoded
-          finalApiKey = finalApiKey.replace(/^[^a-zA-Z0-9]+/, '')
-        }
-      } catch (e) {}
     }
 
     let spoken = "I'm here, Founder. How can I assist?"
@@ -262,10 +255,79 @@ async function executeAction(action: { type: string; [key: string]: any }, userI
         return { success: result.success, output: result.output, message: result.success ? 'Tool executed' : result.error }
       }
 
+      case 'assign_task': {
+        const who = sanitizeInput(action.assignee || '', { maxLength: 60 })
+        const task = sanitizeInput(action.task || '', { maxLength: 300 })
+        if (!task) return { success: false, message: 'No task described' }
+
+        const agent = await resolveAgent(userId, who)
+        if (!agent) return { success: false, message: `No digital employee matching "${who}"` }
+
+        const priority = ['P0', 'P1', 'P2', 'P3'].includes((action.priority || '').toUpperCase())
+          ? action.priority.toUpperCase() : 'P2'
+
+        // Next PAP code — count existing issues for this user
+        const count = await db.issue.count({ where: { userId } })
+        const code = `PAP-${String(count + 1).padStart(2, '0')}`
+
+        const issue = await db.issue.create({
+          data: {
+            userId, code, title: task,
+            description: `Assigned by Founder via Krishna to ${agent.name} (${agent.role}).`,
+            status: 'BACKLOG', priority, type: 'TASK',
+            assigneeId: agent.id, department: agent.department,
+          },
+        })
+        await db.agent.update({
+          where: { id: agent.id },
+          data: { currentTask: task, tasksToday: { increment: 1 }, status: 'ACTIVE' },
+        })
+        await db.event.create({
+          data: {
+            userId, type: 'ISSUE_ASSIGNED', actorName: 'Krishna',
+            summary: `Assigned ${code} "${task.slice(0, 50)}" to ${agent.name}`,
+            payload: JSON.stringify({ code, assignee: agent.code, priority }),
+            severity: 'INFO',
+          },
+        })
+        return { success: true, message: `${code} assigned to ${agent.name}`, agentName: agent.name, code }
+      }
+
+      case 'message_team': {
+        const text = sanitizeInput(action.text || '', { maxLength: 2000 })
+        if (!text) return { success: false, message: 'No message text' }
+        const integration = await db.integration.findFirst({ where: { userId, toolkitSlug: 'discord' } })
+        if (!integration || !integration.isConnected) {
+          return { success: false, message: 'Discord is not connected. Connect it in Integrations to message the team.' }
+        }
+        const { executeTool } = await import('@/lib/composio-service')
+        const input: Record<string, any> = { content: text }
+        if (action.channel) input.channel_id = sanitizeInput(action.channel, { maxLength: 100 })
+        const result = await executeTool({ userId, toolkitSlug: 'discord', toolSlug: 'discord_send_message', agentCode: 'FOUNDER', agentName: 'Founder', input })
+        return { success: result.success, message: result.success ? 'Message posted to Discord' : result.error }
+      }
+
       default:
         return null
     }
   } catch (e: any) {
     return { success: false, error: e.message }
   }
+}
+
+// Resolve a fuzzy human reference ("CMO", "Mira", "marketing", "Chief Tech…")
+// to one of the user's agents. Exact code match wins, then name/role/department substring.
+async function resolveAgent(userId: string, query: string) {
+  const q = query.toLowerCase().trim()
+  if (!q) return null
+  const agents = await db.agent.findMany({ where: { userId, isHuman: false } })
+  return (
+    agents.find(a => a.code.toLowerCase() === q) ||
+    agents.find(a => a.name.toLowerCase() === q) ||
+    agents.find(a => a.name.toLowerCase().includes(q) || q.includes(a.name.toLowerCase())) ||
+    agents.find(a => a.role.toLowerCase().includes(q)) ||
+    agents.find(a => a.department.toLowerCase().includes(q)) ||
+    agents.find(a => a.code.toLowerCase().includes(q)) ||
+    null
+  )
 }

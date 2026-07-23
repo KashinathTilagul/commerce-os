@@ -429,6 +429,8 @@ const COMPOSIO_SLUG_MAP: Record<string, string> = {
   google_calendar_list_events: 'GOOGLECALENDAR_EVENTS_LIST',
   google_calendar_create_event: 'GOOGLECALENDAR_CREATE_EVENT',
   shopify_get_orders: 'SHOPIFY_GET_ORDERS',
+  discord_send_message: 'DISCORD_SEND_MESSAGE',
+  discord_get_messages: 'DISCORD_GET_MESSAGES',
   google_tasks_list: 'GOOGLETASKS_LIST_TASKS',
   google_tasks_create: 'GOOGLETASKS_INSERT_TASK',
 }
