@@ -130,7 +130,7 @@ async function runChain<T>(
 // generateObject with tiered fallback. Same options shape as ai/generateObject.
 export async function routeObject<T>(
   tier: Tier,
-  opts: { schema: any; system: string; prompt: string; temperature?: number },
+  opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
 ): Promise<{ object: T; provider: string; model: string }> {
   const { result, provider, model } = await runChain(tier, async (m) => {
     const { object } = await generateObject({ model: m, ...opts })
@@ -142,7 +142,7 @@ export async function routeObject<T>(
 // generateText with tiered fallback.
 export async function routeText(
   tier: Tier,
-  opts: { system: string; prompt: string; temperature?: number },
+  opts: { system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
 ): Promise<{ text: string; provider: string; model: string }> {
   const { result, provider, model } = await runChain(tier, async (m) => {
     const { text } = await generateText({ model: m, ...opts })
