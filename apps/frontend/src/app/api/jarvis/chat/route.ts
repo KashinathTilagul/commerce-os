@@ -24,6 +24,7 @@ const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('tool_execute'), toolkit: z.string(), tool: z.string(), agent: z.string().optional() }),
   z.object({ type: z.literal('assign_task'), assignee: z.string().describe('Agent code, name, role, or department, e.g. "CMO", "Mira", "marketing"'), task: z.string().describe('What the agent should do'), priority: z.string().optional().describe('P0 | P1 | P2 | P3') }),
   z.object({ type: z.literal('message_team'), text: z.string().describe('The message to post'), channel: z.string().optional().describe('Discord channel id or name') }),
+  z.object({ type: z.literal('analyze'), question: z.string().describe('A data question to compute from the real business database — orders, revenue, products, customers, campaigns, issues, agents.') }),
   z.object({ type: z.literal('close_window') }),
   z.object({ type: z.literal('none') }),
 ])
@@ -109,6 +110,7 @@ AVAILABLE ACTIONS:
 - Stripe balance: {"type":"tool_execute","toolkit":"stripe","tool":"stripe_get_balance","agent":"CFO"}
 - Assign a task to a digital employee: {"type":"assign_task","assignee":"<CMO|CTO|CFO|COO|name|department>","task":"<what to do>","priority":"P2"} — use when the Founder says to assign/delegate work. This creates a real tracked task on the agent.
 - Message the team: {"type":"message_team","text":"<message>","channel":"<optional channel>"} — posts to the team's Discord. Use when the Founder wants to inform or message the team.
+- Analyze data: {"type":"analyze","question":"<the founder's data question>"} — use for ANY question about real numbers (how many orders, revenue this month, top products, sales by house, campaign spend, customers by tier). The system computes the exact answer from the database; do not guess numbers yourself.
 - Close window: {"type":"close_window"}
 - No action: {"type":"none"}`
 
@@ -180,6 +182,8 @@ AVAILABLE ACTIONS:
       spoken = `I couldn't complete that. ${actionResult.message || actionResult.error || ''}`.trim()
     } else if (netEngaged && actionResult?.success) {
       spoken = `Done. ${actionResult.code} assigned to ${actionResult.agentName}.`
+    } else if (action.type === 'analyze' && actionResult?.answer) {
+      spoken = actionResult.answer // computed from real DB rows — speak it verbatim
     }
 
     // ── Log to event stream ──────────────────────────────────────────────
@@ -320,6 +324,14 @@ async function executeAction(action: { type: string; [key: string]: any }, userI
         // Node server keeps this running after the response is sent).
         void import('@/lib/agent-worker').then(m => m.runAgentWork(userId, agent.id)).catch(() => {})
         return { success: true, message: `${code} assigned to ${agent.name}`, agentName: agent.name, code }
+      }
+
+      case 'analyze': {
+        const question = sanitizeInput(action.question || '', { maxLength: 500 })
+        if (!question) return { success: false, message: 'No question' }
+        const { analyze } = await import('@/lib/analyst')
+        const r = await analyze(userId, question)
+        return { success: true, answer: r.answer, plan: r.plan }
       }
 
       case 'message_team': {
