@@ -544,3 +544,134 @@ model UserPreference {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+// ============ COMPETITIVE INTELLIGENCE ============
+
+model Competitor {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String   // "Myntra", "Ajio", "Amazon India", "Flipkart", "Nykaa"
+  domain      String   // "myntra.com"
+  logo        String?
+  active      Boolean  @default(true)
+  color       String   @default("#1F3A5F") // for UI differentiation
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    CompetitorProduct[]
+  scrapeJobs  ScrapeJob[]
+
+  @@unique([userId, domain])
+  @@index([userId])
+}
+
+model CompetitorProduct {
+  id              String   @id @default(cuid())
+  userId          String
+  competitorId    String
+  competitor      Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  // Your SKU mapping
+  ourSku          String?
+  ourProductId    String?
+
+  // Scraped data
+  competitorSku   String?
+  name            String
+  url             String
+  imageUrl        String?
+  brand           String?
+  category        String?
+
+  // Pricing
+  price           Float    @default(0)
+  mrp             Float    @default(0)
+  discount        Float    @default(0)
+  currency        String   @default("INR")
+
+  // Availability
+  inStock         Boolean  @default(true)
+  sizes           String   @default("") // comma-separated
+  colors          String   @default("") // comma-separated
+
+  // Ratings
+  rating          Float    @default(0)
+  reviewCount     Int      @default(0)
+
+  // Tracking
+  priceHistory    PriceHistory[]
+  alerts          PriceAlert[]
+  lastScrapedAt   DateTime?
+  scrapeStatus    String   @default("pending") // pending, success, failed
+  scrapeError     String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, url])
+  @@index([userId, competitorId])
+  @@index([userId, ourSku])
+  @@index([userId, lastScrapedAt])
+}
+
+model PriceHistory {
+  id          String   @id @default(cuid())
+  productId   String
+  product     CompetitorProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  price       Float
+  mrp         Float
+  discount    Float
+  inStock     Boolean
+  scrapedAt   DateTime @default(now())
+
+  @@index([productId, scrapedAt])
+}
+
+model PriceAlert {
+  id              String   @id @default(cuid())
+  productId       String
+  product         CompetitorProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  alertType       String   // price_drop, price_increase, out_of_stock, back_in_stock
+  threshold       Float    @default(5) // percent change threshold
+
+  oldPrice        Float?
+  newPrice        Float?
+  changePercent   Float?
+  changeAbsolute  Float?
+
+  acknowledged    Boolean  @default(false)
+  acknowledgedAt  DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([acknowledged, createdAt])
+  @@index([productId])
+}
+
+model ScrapeJob {
+  id              String   @id @default(cuid())
+  userId          String
+  competitorId    String?
+  competitor      Competitor? @relation(fields: [competitorId], references: [id], onDelete: SetNull)
+
+  type            String   // daily_sync, discovery, manual, price_check
+  status          String   @default("pending") // pending, running, completed, failed
+  priority        Int      @default(5) // 1-10, 1 = highest
+
+  config          String   @default("{}") // JSON: urls, selectors, options
+  result          String   @default("{}") // JSON: stats, errors
+  error           String?
+
+  productsFound   Int      @default(0)
+  productsUpdated Int      @default(0)
+  errorsCount     Int      @default(0)
+
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([competitorId])
+}

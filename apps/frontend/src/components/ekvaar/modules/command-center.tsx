@@ -6,6 +6,7 @@ import {
   TrendingUp, ShoppingBag, Users, Package, Cpu,
   ShieldCheck, AlertTriangle, ArrowUpRight, Sparkles, Bell, GitBranch, Inbox, Wallet,
   Mail, Calendar, MessageSquare, AlertCircle, Loader2, RefreshCw, Clock,
+  TrendingDown, Target,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, SectionTitle, HouseBadge, ColorDot } from '../shared'
@@ -17,6 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { formatINR, formatINRFull, EKVAAR_HOUSES, type ModuleId } from '@/lib/ekvaar'
 import { useAppSubscription } from '@/lib/cpu-websocket'
+import { CompetitiveIntelligence } from './competitive-intelligence'
 
 function KpiSkeleton() {
   return (
@@ -418,6 +420,20 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
             </CardContent>
           </Card>
         </div>
+
+        {/* Competitive Intelligence */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display tracking-tight flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Competitive Intelligence
+            </CardTitle>
+            <CardDescription className="text-xs">Real-time competitor pricing across Indian fashion platforms</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CompetitiveIntelligence />
+          </CardContent>
+        </Card>
 
         {/* Low stock alerts + Principles */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

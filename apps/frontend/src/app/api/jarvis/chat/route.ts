@@ -24,6 +24,9 @@ const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('tool_execute'), toolkit: z.string(), tool: z.string(), agent: z.string().optional() }),
   z.object({ type: z.literal('assign_task'), assignee: z.string().describe('Agent code, name, role, or department, e.g. "CMO", "Mira", "marketing"'), task: z.string().describe('What the agent should do'), priority: z.string().optional().describe('P0 | P1 | P2 | P3') }),
   z.object({ type: z.literal('message_team'), text: z.string().describe('The message to post'), channel: z.string().optional().describe('Discord channel id or name') }),
+  z.object({ type: z.literal('price_check'), query: z.string().optional().describe('Product name, SKU, or brand to check prices for') }),
+  z.object({ type: z.literal('competitor_summary'), competitor: z.string().optional().describe('Competitor name or domain') }),
+  z.object({ type: z.literal('sync_prices'), competitor: z.string().optional().describe('Trigger immediate price sync') }),
   z.object({ type: z.literal('close_window') }),
   z.object({ type: z.literal('none') }),
 ])
@@ -109,8 +112,23 @@ AVAILABLE ACTIONS:
 - Stripe balance: {"type":"tool_execute","toolkit":"stripe","tool":"stripe_get_balance","agent":"CFO"}
 - Assign a task to a digital employee: {"type":"assign_task","assignee":"<CMO|CTO|CFO|COO|name|department>","task":"<what to do>","priority":"P2"} — use when the Founder says to assign/delegate work. This creates a real tracked task on the agent.
 - Message the team: {"type":"message_team","text":"<message>","channel":"<optional channel>"} — posts to the team's Discord. Use when the Founder wants to inform or message the team.
+- Price check: {"type":"price_check","query":"<optional product/brand>"} — query competitive pricing data. Use when the Founder asks about competitor prices, pricing situation, or specific product pricing.
+- Competitor summary: {"type":"competitor_summary","competitor":"<optional name>"} — summarize competitive intelligence. Use when Founder asks about competitors, market position, or competitive landscape.
+- Sync prices: {"type":"sync_prices","competitor":"<optional>"} — trigger immediate price sync. Use when Founder wants fresh data.
 - Close window: {"type":"close_window"}
-- No action: {"type":"none"}`
+- No action: {"type":"none"}
+
+COMPETITIVE INTELLIGENCE — You have access to real-time competitive pricing data.
+
+When the Founder asks about pricing or competitors, use these actions instead of generic answers:
+- "What's the pricing situation?" → {"type":"competitor_summary"}
+- "Check [product] price" → {"type":"price_check","query":"[product]"}
+- "Any price alerts?" → {"type":"competitor_summary"} — then you'll receive actual alerts
+- "How are we vs competitors?" → {"type":"competitor_summary"}
+- "What happened with pricing?" → {"type":"competitor_summary"} — summarize recent changes
+- "Sync prices" or "Update prices" → {"type":"sync_prices"}
+
+You can explain: which competitors are tracked (Myntra, Ajio, Amazon India, Flipkart, Nykaa), price trends, discounts, anomalies, and recommendations based on competitive data. Always give specific numbers when available.`
 
     // ── Load config overrides from DB ────────────────────────────────────
     let cfg: any = {}
@@ -180,6 +198,31 @@ AVAILABLE ACTIONS:
       spoken = `I couldn't complete that. ${actionResult.message || actionResult.error || ''}`.trim()
     } else if (netEngaged && actionResult?.success) {
       spoken = `Done. ${actionResult.code} assigned to ${actionResult.agentName}.`
+    } else if (actionResult?.success && action.type === 'competitor_summary') {
+      const data = actionResult.data
+      if (data?.stats) {
+        const { totalProducts, totalCompetitors, avgDiscount, alertsCount, topDrops, topIncreases } = data.stats
+        let summary = `We're tracking ${totalProducts} products across ${totalCompetitors} competitors. `
+        summary += `Average discount is ${avgDiscount.toFixed(1)}%. `
+        if (alertsCount > 0) {
+          summary += `${alertsCount} price alerts pending${topDrops.length > 0 ? ` — biggest drop: ${topDrops[0].product?.name?.slice(0, 30)} is down ${Math.abs(topDrops[0].changePercent).toFixed(1)}%` : ''}.`
+        }
+        spoken = summary
+      }
+    } else if (actionResult?.success && action.type === 'price_check') {
+      const products = actionResult.data?.products || []
+      if (products.length === 0) {
+        spoken = `No products found matching that query.`
+      } else if (products.length <= 3) {
+        spoken = products.map(p => 
+          `${p.name.slice(0, 40)} on ${p.competitor}: ₹${p.price}${p.discount > 0 ? ` (${p.discount}% off)` : ''}`
+        ).join('. ')
+      } else {
+        const avgP = products.reduce((s: number, p: any) => s + p.price, 0) / products.length
+        spoken = `Found ${products.length} products. Prices range from ₹${Math.min(...products.map((p: any) => p.price))} to ₹${Math.max(...products.map((p: any) => p.price))}, averaging ₹${avgP.toFixed(0)}.`
+      }
+    } else if (actionResult?.success && action.type === 'sync_prices') {
+      spoken = actionResult.message || 'Sync jobs queued. Updates in a few minutes.'
     }
 
     // ── Log to event stream ──────────────────────────────────────────────
@@ -334,6 +377,124 @@ async function executeAction(action: { type: string; [key: string]: any }, userI
         if (action.channel) input.channel_id = sanitizeInput(action.channel, { maxLength: 100 })
         const result = await executeTool({ userId, toolkitSlug: 'discord', toolSlug: 'discord_send_message', agentCode: 'FOUNDER', agentName: 'Founder', input })
         return { success: result.success, message: result.success ? 'Message posted to Discord' : result.error }
+      }
+
+      case 'price_check': {
+        const query = sanitizeInput(action.query || '', { maxLength: 100 })
+        let products: any[] = []
+        
+        if (query) {
+          products = await db.competitorProduct.findMany({
+            where: {
+              userId,
+              OR: [
+                { name: { contains: query } },
+                { brand: { contains: query } },
+                { ourSku: { contains: query } },
+              ],
+            },
+            include: { competitor: true, priceHistory: { orderBy: { scrapedAt: 'desc' }, take: 3 } },
+            take: 10,
+          })
+        } else {
+          products = await db.competitorProduct.findMany({
+            where: { userId },
+            include: { competitor: true },
+            orderBy: { lastScrapedAt: 'desc' },
+            take: 20,
+          })
+        }
+
+        if (products.length === 0) {
+          return { success: true, message: 'No products found', data: { products: [] } }
+        }
+
+        const summary = products.map(p => ({
+          name: p.name,
+          competitor: p.competitor.name,
+          price: p.price,
+          mrp: p.mrp,
+          discount: p.discount,
+          inStock: p.inStock,
+          url: p.url,
+        }))
+
+        return { success: true, message: `Found ${products.length} products`, data: { products: summary } }
+      }
+
+      case 'competitor_summary': {
+        const alerts = await db.priceAlert.findMany({
+          where: { product: { userId }, acknowledged: false },
+          include: { product: { include: { competitor: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        })
+
+        const competitors = await db.competitor.findMany({
+          where: { userId, active: true },
+          include: { _count: { select: { products: true } } },
+        })
+
+        const totalProducts = await db.competitorProduct.count({ where: { userId } })
+        const avgDiscount = await db.competitorProduct.aggregate({
+          where: { userId },
+          _avg: { discount: true },
+        })
+
+        const stats = {
+          totalProducts,
+          totalCompetitors: competitors.length,
+          avgDiscount: avgDiscount._avg.discount || 0,
+          alertsCount: alerts.length,
+          topDrops: alerts.filter(a => a.alertType === 'price_drop').slice(0, 5),
+          topIncreases: alerts.filter(a => a.alertType === 'price_increase').slice(0, 5),
+        }
+
+        return { 
+          success: true, 
+          message: `${stats.totalProducts} products tracked across ${stats.totalCompetitors} competitors. ${stats.alertsCount} unacknowledged alerts. Avg discount: ${stats.avgDiscount.toFixed(1)}%`, 
+          data: { stats, alerts, competitors } 
+        }
+      }
+
+      case 'sync_prices': {
+        const competitorName = sanitizeInput(action.competitor || '', { maxLength: 50 })
+        
+        let where: any = { userId, active: true }
+        if (competitorName) {
+          where.OR = [
+            { name: { contains: competitorName } },
+            { domain: { contains: competitorName } },
+          ]
+        }
+
+        const competitors = await db.competitor.findMany({
+          where,
+          include: { products: { where: { url: { not: '' } }, select: { url: true } } },
+        })
+
+        if (competitors.length === 0) {
+          return { success: false, message: 'No active competitors found' }
+        }
+
+        let jobsCreated = 0
+        for (const comp of competitors) {
+          if (comp.products.length === 0) continue
+          
+          await db.scrapeJob.create({
+            data: {
+              userId,
+              competitorId: comp.id,
+              type: 'manual',
+              status: 'pending',
+              priority: 1,
+              config: JSON.stringify({ urls: comp.products.map(p => p.url) }),
+            },
+          })
+          jobsCreated++
+        }
+
+        return { success: true, message: `Created ${jobsCreated} sync job${jobsCreated !== 1 ? 's' : ''}. Results will be available in a few minutes.` }
       }
 
       default:
