@@ -63,5 +63,31 @@ export async function seedDatabase(userId: string) {
   const integrationResult = await seedIntegrations(userId);
   results.integrations = typeof integrationResult === 'number' ? integrationResult : (integrationResult as any).seeded || 0;
 
+  // Seed default capabilities for agents
+  const cmoAgent = await db.agent.findFirst({ where: { userId, code: 'CMO' } })
+  if (cmoAgent) {
+    const { registerCapabilities } = await import('./capability-registry')
+    await registerCapabilities(userId, cmoAgent.id, [
+      { name: 'meta_ads_optimize', description: 'Audits Meta Ads campaigns, detects creative fatigue, and optimizes spend.', category: 'marketing', requiredPermissions: 'marketing:execute' },
+      { name: 'seo_technical_audit', description: 'Runs complete SEO technical audits for website pages and keywords.', category: 'marketing', requiredPermissions: 'web:read' },
+      { name: 'geo_ai_search_optimize', description: 'Generative Engine Optimization for ChatGPT, Perplexity, and Claude search visibility.', category: 'marketing', requiredPermissions: 'content:write' },
+    ])
+  }
+
+  // Seed default skills
+  const defaultSkills = [
+    { slug: 'seo-audit', name: 'SEO Technical Audit', category: 'seo', source: 'notfair', requiredTools: 'gsc:read', requiredPerms: 'web:read', riskLevel: 'low', skillMdContent: '# SEO Technical Audit\n1. Analyze search console metrics.\n2. Identify low CTR keywords.\n3. Recommend meta title/description changes.' },
+    { slug: 'meta-ads-roas-check', name: 'Meta Ads ROAS Optimization', category: 'meta-ads', source: 'notfair', requiredTools: 'meta_ads:read', requiredPerms: 'spend:read', riskLevel: 'medium', skillMdContent: '# Meta Ads ROAS Check\n1. Fetch campaign ROAS.\n2. Flag ad sets under target ROAS.\n3. Propose budget reallocation to founder.' },
+    { slug: 'geo-search-check', name: 'Generative Engine Optimization', category: 'geo', source: 'notfair', requiredTools: 'search:read', requiredPerms: 'content:write', riskLevel: 'low', skillMdContent: '# GEO AI Search Check\n1. Search AI query engines for brand mentions.\n2. Audit product citation rates.\n3. Optimize page schema.' },
+  ]
+  for (const s of defaultSkills) {
+    await db.skill.upsert({
+      where: { userId_slug: { userId, slug: s.slug } },
+      update: {},
+      create: { ...s, userId },
+    })
+  }
+  results.skills = defaultSkills.length;
+
   return results;
 }

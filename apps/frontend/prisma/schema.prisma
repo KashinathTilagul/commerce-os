@@ -45,6 +45,12 @@ model User {
   approvals     Approval[]
   integrations  Integration[]
   calendarEvents CalendarEvent[]
+  capabilities  Capability[]
+  skills        Skill[]
+  browseJobs    BrowseJob[]
+  goals         Goal[]
+  oauthTokens   OAuthToken[]
+  contextEntries ContextEntry[]
 }
 
 model Account {
@@ -344,6 +350,7 @@ model Agent {
   comments        IssueComment[]
   approvals       Approval[]   @relation("ApprovalRequester")
   events          Event[]
+  capabilities    Capability[]
 
   @@unique([userId, code])
   @@index([userId])
@@ -547,4 +554,175 @@ model UserPreference {
   updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============ CAPABILITY REGISTRY ============
+
+model Capability {
+  id                  String   @id @default(cuid())
+  name                String   // "competitor_price_scan", "meta_ads_optimize"
+  description         String   // Human-readable description
+  ownerId             String   // Agent ID that provides this
+  ownerType           String   @default("AGENT") // AGENT | SERVICE | INTEGRATION
+  requiredPermissions String   @default("") // "web:read,shopify:read" comma-separated
+  costEstimate        String   @default("low") // free | low | medium | high
+  latencyClass        String   @default("fast") // instant | fast | slow | async
+  dependencies        String   @default("") // "camofox,context-store" required services
+  health              Float    @default(100) // 0-100
+  availability        String   @default("ONLINE") // ONLINE | DEGRADED | OFFLINE
+  category            String   // marketing | finance | operations | intelligence | security | general
+  inputSchema         String?  // JSON schema of expected input
+  outputSchema        String?  // JSON schema of expected output
+  version             String   @default("1.0")
+  userId              String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  owner Agent @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([userId, category])
+}
+
+// ============ SKILL SYSTEM ============
+
+model Skill {
+  id              String   @id @default(cuid())
+  slug            String   // "seo-audit", "meta-ads-roas-check"
+  name            String   // "SEO Technical Audit"
+  category        String   // seo | geo | meta-ads | google-ads | finance | inventory | general
+  source          String   @default("custom") // notfair | custom | builtin
+  skillMdPath     String?  // Relative path to SKILL.md file
+  skillMdContent  String?  // Inline SKILL.md content (for UI-edited skills)
+  requiredTools   String   @default("") // "gsc:read,meta_ads:read" comma-separated
+  requiredPerms   String   @default("") // "marketing:execute,spend:read"
+  dependencies    String   @default("") // Other skill slugs this depends on
+  inputSchema     String?  // JSON schema
+  outputSchema    String?  // JSON schema
+  costEstimate    String   @default("low") // free | low | medium | high
+  riskLevel       String   @default("none") // none | low | medium | high | critical
+  version         String   @default("1.0")
+  isActive        Boolean  @default(true)
+  userId          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slug])
+  @@index([userId])
+  @@index([userId, category])
+}
+
+// ============ CAMOFOX BROWSE QUEUE ============
+
+model BrowseJob {
+  id          String   @id @default(cuid())
+  userId      String
+  agentCode   String   // Which agent requested
+  url         String
+  action      String   @default("snapshot") // snapshot | click | type | scroll | eval
+  actionData  String?  // JSON — selector, text, script etc.
+  status      String   @default("PENDING") // PENDING | RUNNING | COMPLETE | FAILED | TIMEOUT
+  result      String?  // JSON — accessibility tree, screenshot path, extracted data
+  error       String?
+  retries     Int      @default(0)
+  maxRetries  Int      @default(3)
+  priority    Int      @default(5) // 1=highest, 10=lowest
+  createdAt   DateTime @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ============ GOAL LOOP ENGINE ============
+
+model Goal {
+  id           String   @id @default(cuid())
+  userId       String
+  title        String   // "Cut Meta Ads CAC to ₹2000"
+  metric       String   // "meta_ads_cac" — machine-readable metric key
+  targetValue  Float    // 2000
+  currentValue Float    @default(0)
+  unit         String   @default("") // "INR", "%", "clicks"
+  mode         String   // ACHIEVE | MAINTAIN
+  status       String   @default("ACTIVE") // ACTIVE | PAUSED | ACHIEVED | FAILED | CANCELLED
+  deadline     DateTime? // null for MAINTAIN mode
+  agentCode    String   // Which agent owns this goal
+  skillSlug    String?  // Which skill to execute per iteration
+  interval     Int      @default(86400) // Seconds between iterations (default 24h)
+  lastRunAt    DateTime?
+  nextRunAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  iterations GoalIteration[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model GoalIteration {
+  id            String   @id @default(cuid())
+  goalId        String
+  iteration     Int      // 1, 2, 3...
+  measuredValue Float
+  delta         Float    // Change from previous iteration
+  action        String   // What the agent did this iteration
+  outcome       String   // Result summary
+  score         Float    @default(0) // -1 to 1, was this iteration helpful?
+  createdAt     DateTime @default(now())
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+}
+
+// ============ SELF-HOSTED OAUTH ============
+
+model OAuthToken {
+  id            String   @id @default(cuid())
+  userId        String
+  provider      String   // google | meta | shopify
+  accessToken   String   // Encrypted
+  refreshToken  String?  // Encrypted
+  tokenType     String   @default("Bearer")
+  scope         String   @default("")
+  expiresAt     DateTime?
+  accountId     String?  // Provider-specific account/profile ID
+  accountName   String?  // Display name
+  isValid       Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+// ============ CONTEXT STORE ============
+
+model ContextEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  handle    String   // "txn_query_8912" — unique reference for retrieval
+  source    String   // "prisma:transaction", "camofox:snapshot", "agent:cmo"
+  summary   String   // 2-3 line compact summary for LLM prompt
+  fullData  String   // Full JSON payload (never sent to LLM directly)
+  metadata  String?  // JSON — row count, categories, date range, etc.
+  ttl       Int      @default(3600) // Seconds before auto-expiry
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, handle])
+  @@index([userId])
 }

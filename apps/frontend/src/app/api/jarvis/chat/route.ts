@@ -345,12 +345,13 @@ async function executeAction(action: { type: string; [key: string]: any }, userI
 }
 
 // Resolve a fuzzy human reference ("CMO", "Mira", "marketing", "Chief Tech…")
-// to one of the user's agents. Exact code match wins, then name/role/department substring.
+// to one of the user's agents. Exact code match wins, then name/role/department substring,
+// then Capability Registry intent lookup.
 async function resolveAgent(userId: string, query: string) {
   const q = query.toLowerCase().trim()
   if (!q) return null
   const agents = await db.agent.findMany({ where: { userId, isHuman: false } })
-  return (
+  const match = (
     agents.find(a => a.code.toLowerCase() === q) ||
     agents.find(a => a.name.toLowerCase() === q) ||
     agents.find(a => a.name.toLowerCase().includes(q) || q.includes(a.name.toLowerCase())) ||
@@ -359,4 +360,17 @@ async function resolveAgent(userId: string, query: string) {
     agents.find(a => a.code.toLowerCase().includes(q)) ||
     null
   )
+
+  if (match) return match
+
+  // Fallback to Capability Registry search
+  try {
+    const { findCapabilityForIntent } = await import('@/lib/capability-registry')
+    const capMatch = await findCapabilityForIntent(userId, query)
+    if (capMatch?.owner) {
+      return capMatch.owner
+    }
+  } catch (e) {}
+
+  return null
 }
