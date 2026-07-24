@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { storeOAuthToken, getProviderConfig } from '@/lib/oauth'
-import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl
@@ -31,13 +30,13 @@ export async function GET(req: NextRequest) {
 
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/oauth/callback`
 
-  let tokenUrl: string = config.tokenUrl
+  let tokenUrl = config.tokenUrl as string
   if (provider === 'shopify') {
     const shop = url.searchParams.get('shop')
     if (!shop) {
       return NextResponse.redirect(new URL('/settings/integrations?error=missing_shop', req.url))
     }
-    tokenUrl = config.tokenUrl.replace('{shop}', shop)
+    tokenUrl = (config.tokenUrl as string).replace('{shop}', shop)
   }
 
   try {
@@ -64,7 +63,7 @@ export async function GET(req: NextRequest) {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       scope: data.scope,
-      expiresAt: expiresAt || undefined,
+      expiresAt: (expiresAt || undefined) as any,
     })
 
     return NextResponse.redirect(new URL('/settings/integrations?success=1', req.url))
