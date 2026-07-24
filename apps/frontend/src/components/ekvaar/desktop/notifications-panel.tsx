@@ -1,12 +1,12 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Bell, BellOff, CheckCheck, TrendingUp, ShoppingBag, AlertCircle, Info, Zap } from 'lucide-react'
+import { X, Bell, BellOff, CheckCheck, TrendingUp, ShoppingBag, AlertCircle, Info, Zap, ShieldAlert } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 export interface Notification {
   id: string
-  type: 'order' | 'metric' | 'alert' | 'system' | 'ai'
+  type: 'order' | 'metric' | 'alert' | 'system' | 'ai' | 'security'
   title: string
   body: string
   ts: number
@@ -22,19 +22,21 @@ function relativeTime(ts: number) {
 }
 
 const typeIcon: Record<Notification['type'], React.ReactNode> = {
-  order:  <ShoppingBag className="h-3.5 w-3.5" />,
-  metric: <TrendingUp className="h-3.5 w-3.5" />,
-  alert:  <AlertCircle className="h-3.5 w-3.5" />,
-  system: <Info className="h-3.5 w-3.5" />,
-  ai:     <Zap className="h-3.5 w-3.5" />,
+  order:    <ShoppingBag className="h-3.5 w-3.5" />,
+  metric:   <TrendingUp className="h-3.5 w-3.5" />,
+  alert:    <AlertCircle className="h-3.5 w-3.5" />,
+  system:   <Info className="h-3.5 w-3.5" />,
+  ai:       <Zap className="h-3.5 w-3.5" />,
+  security: <ShieldAlert className="h-3.5 w-3.5" />,
 }
 
 const typeColor: Record<Notification['type'], string> = {
-  order:  '#34C759',
-  metric: '#0A84FF',
-  alert:  '#FF9F0A',
-  system: '#8E8E93',
-  ai:     '#BF5AF2',
+  order:    '#34C759',
+  metric:   '#0A84FF',
+  alert:    '#FF9F0A',
+  system:   '#8E8E93',
+  ai:       '#BF5AF2',
+  security: '#FF3B30',
 }
 
 interface Props { open: boolean; onClose: () => void }
