@@ -76,6 +76,8 @@
   },
   "overrides": {
     "glob": "$glob",
-    "postcss": "$postcss"
+    "postcss": "$postcss",
+    "sharp": "^0.35.3",
+    "find-my-way": "^9.7.0"
   }
 }
