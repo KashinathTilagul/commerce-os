@@ -54,7 +54,6 @@ export const TOOLKIT_CATALOG = [
   { slug: 'telegram', name: 'Telegram', description: 'Send Telegram messages — bot notifications, alerts', category: 'comms', toolsCount: 10, logo: '✈️' },
   { slug: 'twilio', name: 'Twilio', description: 'SMS and voice — send messages, make calls, verify numbers', category: 'comms', toolsCount: 25, logo: '📞' },
   { slug: 'sendgrid', name: 'SendGrid', description: 'Email delivery — transactional emails, templates, analytics', category: 'comms', toolsCount: 20, logo: '📧' },
-  { slug: 'mailchimp', name: 'Mailchimp', description: 'Email marketing — campaigns, lists, automations', category: 'comms', toolsCount: 30, logo: '🐵' },
   { slug: 'intercom', name: 'Intercom', description: 'Customer messaging — support, bots, tickets', category: 'comms', toolsCount: 35, logo: '💬' },
   { slug: 'zendesk', name: 'Zendesk', description: 'Help desk — tickets, support, knowledge base', category: 'comms', toolsCount: 40, logo: '🎫' },
   { slug: 'front', name: 'Front', description: 'Shared inbox — emails, messages, collaboration', category: 'comms', toolsCount: 18, logo: '📥' },
@@ -502,49 +501,6 @@ export async function executeTool(params: {
       error: e.message || 'Tool execution failed',
     }
   }
-}
-
-/**
- * Simulate realistic tool output for demo mode
- */
-function simulateToolOutput(toolSlug: string, input: Record<string, any>): any {
-  const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
-
-  if (toolSlug.includes('get_orders')) {
-    return {
-      orders: Array.from({ length: rand(3, 8) }).map((_, i) => ({
-        id: `#${rand(100000, 999999)}`,
-        customer: ['Aarav Sharma', 'Diya Iyer', 'Kabir Mehta', 'Sara Reddy'][rand(0, 3)],
-        total: rand(1499, 24999),
-        status: ['PAID', 'FULFILLED', 'PENDING'][rand(0, 2)],
-        date: new Date().toISOString(),
-      })),
-      total: rand(15, 50),
-    }
-  }
-  if (toolSlug.includes('get_products')) {
-    return {
-      products: ['Heavyweight Tee', 'Premium Fleece Hoodie', 'Founder Cut Jacket', 'Restoration Kit'].map((name) => ({
-        name,
-        inventory: rand(0, 280),
-        price: rand(1499, 24999),
-        status: rand(0, 10) > 1 ? 'ACTIVE' : 'RESTOCKING',
-      })),
-    }
-  }
-  if (toolSlug.includes('get_balance') || toolSlug.includes('get_charges')) {
-    return { available: rand(500000, 5000000), pending: rand(10000, 200000), currency: 'INR' }
-  }
-  if (toolSlug.includes('send_email') || toolSlug.includes('send_message') || toolSlug.includes('post_tweet')) {
-    return { success: true, messageId: `msg_${Date.now()}`, sentAt: new Date().toISOString() }
-  }
-  if (toolSlug.includes('create_issue') || toolSlug.includes('create_pr')) {
-    return { success: true, number: rand(100, 999), url: `https://github.com/ekvaar/os/issues/${rand(100, 999)}` }
-  }
-  if (toolSlug.includes('get_traffic') || toolSlug.includes('get_roas') || toolSlug.includes('get_conversions')) {
-    return { sessions: rand(1000, 50000), conversions: rand(50, 500), conversionRate: (Math.random() * 5).toFixed(2) + '%', roas: (Math.random() * 5).toFixed(2) + 'x' }
-  }
-  return { success: true, message: 'Tool executed successfully', data: input }
 }
 
 /**
