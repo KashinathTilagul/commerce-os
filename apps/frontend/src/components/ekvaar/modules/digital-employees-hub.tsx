@@ -58,6 +58,7 @@ export function DigitalEmployeesHub() {
   const [editData, setEditData] = useState<any>(null)
   const [saving, setSaving] = useState(false)
   const [working, setWorking] = useState(false)
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const chatEndRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
 
@@ -86,11 +87,11 @@ export function DigitalEmployeesHub() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, agentTyping, selected])
 
-  // Group by department
-  const departments: Record<string, any[]> = {}
+  // Org hierarchy: top-level = Chiefs & Founder (no manager); reports grouped under their manager id
+  const topLevel = agents.filter((a: any) => !a.managerId)
+  const reportsByManager: Record<string, any[]> = {}
   for (const a of agents) {
-    if (!departments[a.department]) departments[a.department] = []
-    departments[a.department].push(a)
+    if (a.managerId) (reportsByManager[a.managerId] ??= []).push(a)
   }
 
   // Edit handlers
@@ -185,6 +186,67 @@ export function DigitalEmployeesHub() {
     }
   }
 
+  const renderAgentCard = (a: any, i: number) => (
+    <motion.div
+      key={a.id}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.04 }}
+    >
+      <Card className="cursor-pointer hover:border-foreground/40 transition-colors h-full" onClick={() => setSelected(a)}>
+        <CardContent className="p-4">
+          <div className="flex items-start gap-3">
+            <div className="relative">
+              <div className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-display tracking-tight text-white" style={{ background: a.avatarColor }}>
+                {a.name?.[0]}
+              </div>
+              <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${statusRing(a.status)}`} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-display text-sm tracking-tight truncate">{a.role}</span>
+              </div>
+              <div className="text-[10px] font-mono text-muted-foreground">{a.name}</div>
+              <div className="mt-1.5"><StatusPill status={a.status} /></div>
+            </div>
+          </div>
+
+          {a.currentTask ? (
+            <div className="mt-3 pt-3 border-t border-border">
+              <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-1">Working on</div>
+              <div className="text-xs leading-snug line-clamp-2">{a.currentTask}</div>
+            </div>
+          ) : (
+            <div className="mt-3 pt-3 border-t border-border text-[10px] text-muted-foreground">
+              Last heartbeat: {timeAgo(a.lastHeartbeat)}
+            </div>
+          )}
+
+          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
+            <div>
+              <div className="text-muted-foreground">Tasks Today</div>
+              <div className="font-mono text-sm">{a.tasksToday}</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Success</div>
+              <div className="font-mono text-sm">{a.successRate}%</div>
+            </div>
+          </div>
+
+          {!a.isHuman && (
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[10px] mb-1">
+                <span className="text-muted-foreground">Budget</span>
+                <span className="font-mono">{Math.round(safeDiv(a.tokenSpend, a.tokenBudget) * 100)}%</span>
+              </div>
+              <Progress value={safeDiv(a.tokenSpend, a.tokenBudget) * 100} className="h-1" />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+
   const handleRunWork = async () => {
     if (!selected || working) return
     setWorking(true)
@@ -250,87 +312,40 @@ export function DigitalEmployeesHub() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {[1, 2, 3, 4, 5, 6].map(i => <AgentSkeleton key={i} />)}
           </div>
-        ) : Object.entries(departments).map(([dept, deptAgents]) => (
-          <div key={dept}>
-            <div className="flex items-baseline justify-between mb-3">
-              <h2 className="font-display text-base tracking-tight">{dept}</h2>
-              <span className="text-[10px] tracking-wider uppercase text-muted-foreground">{deptAgents.length} {deptAgents.length === 1 ? 'agent' : 'agents'}</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-              {deptAgents.map((a, i) => (
-                <motion.div
-                  key={a.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                >
-                  <Card
-                    className="cursor-pointer hover:border-foreground/40 transition-colors h-full"
-                    onClick={() => setSelected(a)}
+        ) : topLevel.map((chief: any) => {
+          const reports = reportsByManager[chief.id] || []
+          const isOpen = expanded[chief.id] ?? false
+          return (
+            <div key={chief.id}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="font-display text-base tracking-tight">{chief.role}</h2>
+                  <span className="text-[10px] font-mono text-muted-foreground">{chief.name}</span>
+                </div>
+                {reports.length > 0 && (
+                  <button
+                    onClick={() => setExpanded(e => ({ ...e, [chief.id]: !isOpen }))}
+                    className="text-[10px] tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="relative">
-                          <div
-                            className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-display tracking-tight text-white"
-                            style={{ background: a.avatarColor }}
-                          >
-                            {a.name?.[0]}
-                          </div>
-                          <div
-                            className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${statusRing(a.status)}`}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-display text-sm tracking-tight truncate">{a.role}</span>
-                          </div>
-                          <div className="text-[10px] font-mono text-muted-foreground">{a.code}</div>
-                          <div className="mt-1.5"><StatusPill status={a.status} /></div>
-                        </div>
-                      </div>
-
-                      {a.currentTask ? (
-                        <div className="mt-3 pt-3 border-t border-border">
-                          <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-1">Working on</div>
-                          <div className="text-xs leading-snug line-clamp-2">{a.currentTask}</div>
-                        </div>
-                      ) : (
-                        <div className="mt-3 pt-3 border-t border-border text-[10px] text-muted-foreground">
-                          Last heartbeat: {timeAgo(a.lastHeartbeat)}
-                        </div>
-                      )}
-
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-                        <div>
-                          <div className="text-muted-foreground">Tasks Today</div>
-                          <div className="font-mono text-sm">{a.tasksToday}</div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground">Success</div>
-                          <div className="font-mono text-sm">{a.successRate}%</div>
-                        </div>
-                      </div>
-
-                      {!a.isHuman && (
-                        <div className="mt-3">
-                          <div className="flex items-center justify-between text-[10px] mb-1">
-                            <span className="text-muted-foreground">Budget</span>
-                            <span className="font-mono">{Math.round(safeDiv(a.tokenSpend, a.tokenBudget) * 100)}%</span>
-                          </div>
-                          <Progress
-                            value={safeDiv(a.tokenSpend, a.tokenBudget) * 100}
-                            className="h-1"
-                          />
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              ))}
+                    {reports.length} {reports.length === 1 ? 'report' : 'reports'} {isOpen ? '▲' : '▾'}
+                  </button>
+                )}
+              </div>
+              {/* Chief card */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                {renderAgentCard(chief, 0)}
+              </div>
+              {/* Reports (expandable) */}
+              {isOpen && reports.length > 0 && (
+                <div className="mt-3 ml-3 pl-4 border-l border-border">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {reports.map((a: any, i: number) => renderAgentCard(a, i))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
 
         {/* Architecture explainer */}
         <Card className="bg-noor text-rui border-0">

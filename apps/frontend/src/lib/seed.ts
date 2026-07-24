@@ -1,6 +1,8 @@
 import { db } from "./db";
 import { seedIntegrations } from "./composio-service";
 
+import { ROSTER } from './agent-roster'
+
 export const AGENTS = [
   { code: "FOUNDER", name: "Kashinath", role: "Founder & Visionary", department: "EXECUTIVE", primeDirective: "Define the soul and direction of EKVAAR. Every decision must serve permanence.", description: "The human founder and creative force behind EKVAAR.", skills: "vision,strategy,brand,design,culture", avatarColor: "#c084fc", isHuman: true },
   { code: "CEO", name: "Arjun", role: "Chief Executive Officer", department: "EXECUTIVE", primeDirective: "Execute the founder's vision. Coordinate all departments. Drive growth while preserving brand integrity.", description: "Digital CEO managing day-to-day operations and strategic execution.", skills: "strategy,operations,leadership,analytics,governance", avatarColor: "#f472b6" },
@@ -31,14 +33,34 @@ export const AI_SYSTEMS = [
 export async function seedDatabase(userId: string) {
   const results: Record<string, number> = {};
 
-  for (const agent of AGENTS) {
-    await db.agent.upsert({
-      where: { userId_code: { userId, code: agent.code } },
+  // Founder (human) — seeded from the base list.
+  const founder = AGENTS.find((a: any) => a.isHuman) || AGENTS[0];
+  await db.agent.upsert({
+    where: { userId_code: { userId, code: founder.code } },
+    update: {},
+    create: { ...founder, userId, tokenBudget: 50000 },
+  });
+
+  // Digital org: Chiefs first (so their ids exist), then specialists linked via managerId.
+  const chiefs = ROSTER.filter((a) => a.managerCode === null);
+  const specialists = ROSTER.filter((a) => a.managerCode !== null);
+  const codeToId: Record<string, string> = {};
+  for (const c of chiefs) {
+    const a = await db.agent.upsert({
+      where: { userId_code: { userId, code: c.code } },
       update: {},
-      create: { ...agent, userId, tokenBudget: 50000 },
+      create: { userId, code: c.code, name: c.name, role: c.role, department: c.department, primeDirective: c.primeDirective, skills: c.skills, avatarColor: c.avatarColor, description: c.role, managerId: null, tokenBudget: 50000 },
+    });
+    codeToId[c.code] = a.id;
+  }
+  for (const s of specialists) {
+    await db.agent.upsert({
+      where: { userId_code: { userId, code: s.code } },
+      update: {},
+      create: { userId, code: s.code, name: s.name, role: s.role, department: s.department, primeDirective: s.primeDirective, skills: s.skills, avatarColor: s.avatarColor, description: s.role, managerId: s.managerCode ? codeToId[s.managerCode] ?? null : null, tokenBudget: 50000 },
     });
   }
-  results.agents = AGENTS.length;
+  results.agents = 1 + ROSTER.length;
 
   const existingAI = await db.aISystem.count({ where: { userId } });
   if (existingAI === 0) {

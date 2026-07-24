@@ -331,9 +331,13 @@ model Agent {
   lastHeartbeat   DateTime @default(now())
   avatarColor     String   // hex color for avatar
   isHuman         Boolean  @default(false)
+  managerId       String?  // null = Chief/Founder (reports to founder); else the managing Chief's id
   createdAt       DateTime @default(now())
 
   user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  manager         Agent?    @relation("AgentHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
+  reports         Agent[]   @relation("AgentHierarchy")
 
   issuesAssigned  Issue[]   @relation("IssueAssignee")
   issuesCreated   Issue[]   @relation("IssueCreator")
