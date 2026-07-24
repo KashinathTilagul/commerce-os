@@ -190,7 +190,7 @@ async def websocket_agent(websocket: WebSocket, token: str = Query(None)):
         return
     await websocket.accept()
     
-    from core.llm.router import MODEL_ID
+    from core.llm.router import BEDROCK_MODEL as MODEL_ID
     boot_messages = [
         "\r\n\x1b[1;36m[EKVAAR OS]\x1b[0m Booting Hermes Intelligence Layer...\r\n",
         "\x1b[1;32m[SYSTEM]\x1b[0m Python Unified Backend v2.0.0 Online.\r\n",
