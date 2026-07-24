@@ -67,10 +67,28 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // ── 3. Agent Work Cycle ──────────────────────────────────────────────────
+  // Advance one open ticket for each agent that has assigned work, so tickets
+  // keep progressing on their own between founder assignments.
+  const busyAgents = await db.agent.findMany({
+    where: { isHuman: false, issuesAssigned: { some: { status: { in: ['BACKLOG', 'IN_PROGRESS'] } } } },
+    select: { id: true, userId: true },
+    take: 25, // bound per run
+  })
+  let agentsWorked = 0
+  const { runAgentWork } = await import('@/lib/agent-worker')
+  for (const a of busyAgents) {
+    try {
+      const r = await runAgentWork(a.userId, a.id)
+      if (r.ok && r.issueCode) agentsWorked++
+    } catch { /* keep going */ }
+  }
+
   return NextResponse.json({
     ok: true,
     stuckOrders: stuckOrders.length,
     issuesCreated,
     stalledBlockers: stalledBlockers.length,
+    agentsWorked,
   })
 }

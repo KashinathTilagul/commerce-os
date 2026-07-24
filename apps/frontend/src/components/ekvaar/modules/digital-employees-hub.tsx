@@ -57,6 +57,7 @@ export function DigitalEmployeesHub() {
   const [editMode, setEditMode] = useState(false)
   const [editData, setEditData] = useState<any>(null)
   const [saving, setSaving] = useState(false)
+  const [working, setWorking] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
 
@@ -181,6 +182,31 @@ export function DigitalEmployeesHub() {
       toast.error('Connection failed', 'Could not reach agent')
     } finally {
       setAgentTyping(false)
+    }
+  }
+
+  const handleRunWork = async () => {
+    if (!selected || working) return
+    setWorking(true)
+    try {
+      const r = await fetch(`/api/agents/${selected.id}/work`, { method: 'POST' })
+      const data = await r.json()
+      if (r.ok && data.ok) {
+        if (data.issueCode) {
+          toast.success(`${selected.name} worked ${data.issueCode}`, `Status → ${data.newStatus}. Open the Issues app to see the deliverable.`)
+        } else {
+          toast.info(data.message || 'No open tickets', `${selected.name} has nothing assigned right now.`)
+        }
+        queryClient.invalidateQueries({ queryKey: ['agents'] })
+        queryClient.invalidateQueries({ queryKey: ['issues'] })
+        queryClient.invalidateQueries({ queryKey: ['events'] })
+      } else {
+        toast.error('Agent could not work', data.message || 'Unknown error')
+      }
+    } catch {
+      toast.error('Connection failed', 'Could not reach agent')
+    } finally {
+      setWorking(false)
     }
   }
 
@@ -456,6 +482,18 @@ export function DigitalEmployeesHub() {
                     <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Currently Working On</div>
                     <div className="text-sm p-3 bg-muted/50 rounded-md">{selected.currentTask}</div>
                   </div>
+                )}
+
+                {!selected.isHuman && (
+                  <Button
+                    size="sm"
+                    className="w-full gap-1.5 bg-arav hover:bg-arav/90"
+                    onClick={handleRunWork}
+                    disabled={working}
+                  >
+                    {working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                    {working ? 'Working…' : 'Work on assigned ticket'}
+                  </Button>
                 )}
 
                 <div className="grid grid-cols-4 gap-3">

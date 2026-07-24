@@ -316,6 +316,9 @@ async function executeAction(action: { type: string; [key: string]: any }, userI
             severity: 'INFO',
           },
         })
+        // Kick the agent to start working immediately (best-effort; long-lived
+        // Node server keeps this running after the response is sent).
+        void import('@/lib/agent-worker').then(m => m.runAgentWork(userId, agent.id)).catch(() => {})
         return { success: true, message: `${code} assigned to ${agent.name}`, agentName: agent.name, code }
       }
 
