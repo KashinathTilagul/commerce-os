@@ -3,9 +3,7 @@ import { createApiResponse, createApiError, sanitizeInput } from '@/lib/security
 import { requireAuth } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { z } from 'zod'
-import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
-import { generateObject } from 'ai'
-import { decryptSecret } from '@/lib/crypto'
+import { routeObject } from '@/lib/ai-router'
 import { getLiveBusinessSnapshot } from '@/lib/business-snapshot'
 
 const ChatSchema = z.object({
@@ -123,33 +121,11 @@ AVAILABLE ACTIONS:
     // Use custom prompt if set in Settings, otherwise default
     const activePrompt = cfg.krishnaPrompt?.trim() || systemPrompt
 
-    // ── Single AI Core (AWS Bedrock Native) ──────────────────────────────
-    const apiKey = (cfg.primaryApiKey && decryptSecret(cfg.primaryApiKey)) || process.env.OPENCODE_API_KEY || ''
-    // Force default to zai.glm-5 as it's the only one working perfectly
-    const modelStr = cfg.primaryModel && cfg.primaryModel.includes('glm') ? cfg.primaryModel : 'amazon-bedrock/zai.glm-5'
-
-    if (!apiKey) {
-      console.error('[Krishna] No Bedrock API Key configured in Settings')
-      return createApiResponse({
-        spoken: "I'm offline, Founder. Please configure my AWS Bedrock API Key in Settings.",
-        action: { type: 'open_app', app: 'settings' }
-      })
-    }
-
     let spoken = "I'm here, Founder. How can I assist?"
     let action: z.infer<typeof ActionSchema> = { type: 'none' }
 
     try {
-      console.log(`[Krishna] Querying Native Bedrock Core with model ${modelStr}`)
-
-      const bedrock = createAmazonBedrock({
-        apiKey: apiKey, // The Vercel AI SDK handles the Bearer Token automatically
-        region: 'us-east-1',
-      })
-      const cleanModelId = modelStr.replace('amazon-bedrock/', '')
-
-      const { object } = await generateObject({
-        model: bedrock(cleanModelId),
+      const { object, provider, model } = await routeObject<z.infer<typeof KrishnaResponseSchema>>('reasoning', {
         schema: KrishnaResponseSchema,
         system: activePrompt,
         prompt: sanitizeInput(message, { maxLength: 5000 }),
@@ -158,7 +134,7 @@ AVAILABLE ACTIONS:
 
       spoken = object.spoken
       action = object.action
-      console.log(`[Krishna] Got successful structured response from Native Bedrock`)
+      console.log(`[Krishna] Structured response via ${provider}/${model}`)
 
     } catch (e: any) {
       console.error(`[Krishna] Core error:`, e.message)
@@ -172,9 +148,7 @@ AVAILABLE ACTIONS:
     let netEngaged = false
     if (action.type !== 'assign_task' && /\b(assign|delegate|hand (it |this )?(over|off)|give .{0,30}\btask|task .{0,30}\bto\b)/i.test(message)) {
       try {
-        const bedrock = createAmazonBedrock({ apiKey, region: 'us-east-1' })
-        const { object: extracted } = await generateObject({
-          model: bedrock(modelStr.replace('amazon-bedrock/', '')),
+        const { object: extracted } = await routeObject<{ isAssignment: boolean; assignee: string; task: string; priority: 'P0' | 'P1' | 'P2' | 'P3' }>('fast', {
           schema: z.object({
             isAssignment: z.boolean().describe('true only if the founder is delegating work to someone'),
             assignee: z.string().describe('Agent code, name, role or department, e.g. CEO, CMO, Mira, marketing'),
