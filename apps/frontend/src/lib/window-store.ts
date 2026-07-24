@@ -3,32 +3,9 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
-export type AppId =
-  | 'command'
-  | 'inbox'
-  | 'agents'
-  | 'issues'
-  | 'terminal'
-  | 'settings'
-  | 'files'
-  | 'integrations'
-  | 'calculator'
-  | 'notes'
-  | 'calendar'
-  | 'house'
-  | 'sales'
-  | 'finance'
-  | 'inventory'
-  | 'community'
-  | 'campaigns'
-  | 'guardian'
-  | 'ai'
-  | 'risk'
-  | 'spotify'
-  | 'opencode'
-
 export interface WindowState {
-  id: AppId
+  id: string // Changed from strict AppId enum to string
+  appId: string // Which registered app this window belongs to
   title: string
   isMinimized: boolean
   isMaximized: boolean
@@ -41,7 +18,7 @@ export interface WindowState {
 
 interface WindowStore {
   windows: WindowState[]
-  activeId: AppId | null
+  activeId: string | null
   topZ: number
   bootDone: boolean
   // persisted visibility / dock prefs
@@ -49,13 +26,13 @@ interface WindowStore {
   customNames: Record<string, string>
   dockOrder: string[] | null
 
-  open: (id: AppId, title: string) => void
-  close: (id: AppId) => void
-  focus: (id: AppId) => void
-  minimize: (id: AppId) => void
-  toggleMaximize: (id: AppId) => void
-  move: (id: AppId, position: { x: number; y: number }) => void
-  resize: (id: AppId, size: { width: number; height: number }) => void
+  open: (appId: string, title?: string, defaultSize?: { width: number; height: number }) => string
+  close: (id: string) => void
+  focus: (id: string) => void
+  minimize: (id: string) => void
+  toggleMaximize: (id: string) => void
+  move: (id: string, position: { x: number; y: number }) => void
+  resize: (id: string, size: { width: number; height: number }) => void
   setBootDone: (v: boolean) => void
   hideApp: (id: string) => void
   showApp: (id: string) => void
@@ -65,31 +42,6 @@ interface WindowStore {
   moveAppLeft: (id: string, currentOrder: string[]) => void
   moveAppRight: (id: string, currentOrder: string[]) => void
   resetVisibility: () => void
-}
-
-const DEFAULT_SIZES: Record<AppId, { width: number; height: number }> = {
-  command: { width: 1180, height: 760 },
-  inbox: { width: 1100, height: 720 },
-  agents: { width: 1180, height: 780 },
-  issues: { width: 1280, height: 760 },
-  terminal: { width: 1100, height: 720 },
-  settings: { width: 1000, height: 680 },
-  files: { width: 1000, height: 680 },
-  integrations: { width: 920, height: 620 },
-  calculator: { width: 360, height: 540 },
-  notes: { width: 900, height: 640 },
-  calendar: { width: 1000, height: 700 },
-  house: { width: 1200, height: 780 },
-  sales: { width: 1180, height: 720 },
-  finance: { width: 1180, height: 760 },
-  inventory: { width: 1180, height: 760 },
-  community: { width: 1180, height: 760 },
-  campaigns: { width: 1180, height: 760 },
-  guardian: { width: 1180, height: 760 },
-  ai: { width: 1180, height: 760 },
-  risk: { width: 1180, height: 760 },
-  spotify: { width: 1100, height: 750 },
-  opencode: { width: 900, height: 640 },
 }
 
 function offsetFor(idx: number): { x: number; y: number } {
@@ -105,6 +57,8 @@ const visibilityInitial = {
   dockOrder: null as string[] | null,
 }
 
+const generateId = () => Math.random().toString(36).substring(2, 9)
+
 export const useWindowStore = create<WindowStore>()(
   persist(
   (set, get) => ({
@@ -114,30 +68,35 @@ export const useWindowStore = create<WindowStore>()(
   bootDone: false,
   ...visibilityInitial,
 
-  open: (id, title) => {
+  open: (appId, title = appId, defaultSize = { width: 1100, height: 700 }) => {
     const state = get()
-    const existing = state.windows.find((w) => w.id === id)
+    // For singletons, we might want to just focus the existing one, but for now we'll support multiple instances
+    // Let's check if there's an existing one of this appId and we just want to focus it (naive approach for now)
+    const existing = state.windows.find((w) => w.appId === appId)
     if (existing) {
       // Focus + un-minimize
       const newZ = state.topZ + 1
       set({
-        activeId: id,
+        activeId: existing.id,
         topZ: newZ,
         windows: state.windows.map((w) =>
-          w.id === id ? { ...w, isMinimized: false, zIndex: newZ } : w,
+          w.id === existing.id ? { ...w, isMinimized: false, zIndex: newZ } : w,
         ),
       })
-      return
+      return existing.id
     }
+
     const newZ = state.topZ + 1
     const idx = state.windows.length
+    const id = `win_${generateId()}`
     const win: WindowState = {
       id,
+      appId,
       title,
       isMinimized: false,
       isMaximized: false,
       position: offsetFor(idx),
-      size: DEFAULT_SIZES[id] || { width: 1100, height: 700 },
+      size: defaultSize,
       zIndex: newZ,
     }
     set({
@@ -145,6 +104,7 @@ export const useWindowStore = create<WindowStore>()(
       activeId: id,
       topZ: newZ,
     })
+    return id
   },
 
   close: (id) => {

@@ -35,19 +35,65 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
     }
   }, [open])
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return QUICK_ACTIONS.map(a => ({ ...APP_BY_ID.get(a.id as any)!, hint: a.hint })).filter(Boolean)
-    return APPS
-      .filter(a => a.name.toLowerCase().includes(q) || a.shortName.toLowerCase().includes(q))
-      .slice(0, 8)
-      .map(a => ({ ...a, hint: a.menuItems?.[0]?.items?.[0] || '' }))
+  const [results, setResults] = useState<any[]>([])
+
+  useEffect(() => {
+    let active = true
+    const q = query.trim()
+    if (!q) {
+      // Fallback to quick actions if query is empty
+      const quick = QUICK_ACTIONS.map(a => {
+        const app = APP_BY_ID.get(a.id)
+        if (!app) return null
+        return { ...app, hint: a.hint }
+      }).filter(Boolean)
+      setResults(quick)
+      return
+    }
+
+    import('@/lib/os-desktop/search-service').then(({ SearchService }) => {
+      SearchService.searchGlobal(q).then(res => {
+        if (!active) return
+        // Map GlobalSearchResult back to Spotlight's expected format for now
+        const formatted = res.map(r => {
+          if (r.type === 'app') {
+            const appId = r.id.replace('app_', '')
+            const appDef = APP_BY_ID.get(appId)
+            return {
+              id: appId,
+              name: r.title,
+              shortName: r.title,
+              icon: appDef?.icon,
+              iconVariant: appDef?.iconVariant,
+              gradient: appDef?.gradient,
+              glyphColor: appDef?.glyphColor,
+              hint: r.subtitle || ''
+            }
+          }
+          return {
+            id: r.id,
+            name: r.title,
+            shortName: r.title,
+            icon: undefined,
+            hint: r.subtitle || '',
+            action: r.action
+          }
+        })
+        setResults(formatted)
+      })
+    })
+
+    return () => { active = false }
   }, [query])
 
   useEffect(() => { setSelected(0) }, [results])
 
-  const handleSelect = useCallback((id: string, name: string) => {
-    openWindow(id as any, name)
+  const handleSelect = useCallback((id: string, name: string, action?: () => void) => {
+    if (action) {
+      action()
+    } else {
+      openWindow(id, name)
+    }
     onClose()
   }, [openWindow, onClose])
 
@@ -55,7 +101,7 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(s => Math.min(s + 1, results.length - 1)) }
     if (e.key === 'ArrowUp') { e.preventDefault(); setSelected(s => Math.max(s - 1, 0)) }
     if (e.key === 'Enter' && results[selected]) {
-      handleSelect(results[selected].id, results[selected].name)
+      handleSelect(results[selected].id, results[selected].name, results[selected].action)
     }
     if (e.key === 'Escape') onClose()
   }

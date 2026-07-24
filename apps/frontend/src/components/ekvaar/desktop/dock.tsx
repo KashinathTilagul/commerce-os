@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LayoutGrid, X, Check, Edit3, RotateCcw } from 'lucide-react'
-import { useWindowStore, type AppId } from '@/lib/window-store'
+import { useWindowStore } from '@/lib/window-store'
 import { APPS, CORE_APP_IDS, UTILITY_APP_IDS, BUSINESS_APP_IDS } from './app-registry'
 import { AppIcon } from './app-icon'
 import { DockContextMenu } from './dock-context-menu'
@@ -31,6 +31,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   const windows = useWindowStore(s => s.windows)
   const activeId = useWindowStore(s => s.activeId)
   const focus = useWindowStore(s => s.focus)
+  const minimize = useWindowStore(s => s.minimize)
   const _hiddenApps = useWindowStore(s => s.hiddenApps)
   const _customNames = useWindowStore(s => s.customNames)
   const dockOrder = useWindowStore(s => s.dockOrder)
@@ -144,10 +145,14 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
     }
     const existing = windows.find((w) => w.id === id)
     const appName = customNames[id] || APPS.find(a => a.id === id)?.name || id
-    if (existing) {
-      focus(id as AppId)
+    const isOpen = !!existing
+    const isActive = activeId === id
+
+    if (isOpen) {
+      if (isActive) minimize(id)
+      else focus(id)
     } else {
-      open(id as AppId, appName)
+      open(id, appName)
     }
   }
 

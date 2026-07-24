@@ -24,33 +24,38 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  auditLogs     AuditLog[]
+  accounts  Account[]
+  sessions  Session[]
+  auditLogs AuditLog[]
 
-  preference    UserPreference?
-  products      Product[]
-  orders        Order[]
-  customers     Customer[]
-  transactions  Transaction[]
-  campaigns     Campaign[]
-  founderNotes  FounderNote[]
-  restorations  Restoration[]
-  suppliers     Supplier[]
-  aiSystems     AISystem[]
-  brandChecks   BrandCheck[]
-  agents        Agent[]
-  issues        Issue[]
-  events        Event[]
-  approvals     Approval[]
-  integrations  Integration[]
+  preference     UserPreference?
+  products       Product[]
+  orders         Order[]
+  customers      Customer[]
+  transactions   Transaction[]
+  campaigns      Campaign[]
+  founderNotes   FounderNote[]
+  restorations   Restoration[]
+  suppliers      Supplier[]
+  aiSystems      AISystem[]
+  brandChecks    BrandCheck[]
+  agents         Agent[]
+  issues         Issue[]
+  events         Event[]
+  approvals      Approval[]
+  integrations   Integration[]
   calendarEvents CalendarEvent[]
-  capabilities  Capability[]
-  skills        Skill[]
-  browseJobs    BrowseJob[]
-  goals         Goal[]
-  oauthTokens   OAuthToken[]
+  capabilities   Capability[]
+  skills         Skill[]
+  browseJobs     BrowseJob[]
+  goals          Goal[]
+  oauthTokens    OAuthToken[]
   contextEntries ContextEntry[]
+
+  // V2 Relations
+  workflows  Workflow[]
+  workspaces Workspace[]
+  artifacts  Artifact[]
 }
 
 model Account {
@@ -109,9 +114,9 @@ model Product {
   userId      String
   name        String
   sku         String
-  house       String   // Solids | Layers | Street | Luxe | Origins
-  color       String   // Noor Black | Rui White | Agni Red | Neel Blue | Arav Green | Gulabi Pink
-  category    String   // tee | hoodie | jacket | pants | accessory | object ...
+  house       String // Solids | Layers | Street | Luxe | Origins
+  color       String // Noor Black | Rui White | Agni Red | Neel Blue | Arav Green | Gulabi Pink
+  category    String // tee | hoodie | jacket | pants | accessory | object ...
   price       Float
   cost        Float
   stock       Int      @default(0)
@@ -123,8 +128,8 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderItems  OrderItem[]
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
 
   @@unique([userId, sku])
   @@index([userId])
@@ -139,7 +144,7 @@ model Order {
   customerName  String
   customerEmail String
   customerCity  String
-  channel       String   // D2C | RETAIL | WHOLESALE | POPUP
+  channel       String // D2C | RETAIL | WHOLESALE | POPUP
   itemsCount    Int
   total         Float
   status        String   @default("NEW") // NEW | PROCESSING | SHIPPED | DELIVERED | RETURNED | CANCELLED
@@ -168,18 +173,18 @@ model OrderItem {
 // ============ CUSTOMERS / ORIGINALS ============
 
 model Customer {
-  id          String   @id @default(cuid())
-  userId      String
-  name        String
-  email       String
-  phone       String
-  city        String
-  tier        String   @default("ORIGINAL") // ORIGINAL | HOUSE | ARCHIVE | FOUNDER_CIRCLE
-  totalOrders Int      @default(0)
-  totalSpent  Float    @default(0)
-  joinedAt    DateTime @default(now())
-  lastActive  DateTime @default(now())
-  restorationCount Int @default(0)
+  id               String   @id @default(cuid())
+  userId           String
+  name             String
+  email            String
+  phone            String
+  city             String
+  tier             String   @default("ORIGINAL") // ORIGINAL | HOUSE | ARCHIVE | FOUNDER_CIRCLE
+  totalOrders      Int      @default(0)
+  totalSpent       Float    @default(0)
+  joinedAt         DateTime @default(now())
+  lastActive       DateTime @default(now())
+  restorationCount Int      @default(0)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -192,8 +197,8 @@ model Customer {
 model Transaction {
   id          String   @id @default(cuid())
   userId      String
-  type        String   // INCOME | EXPENSE
-  category    String   // PRODUCT_SALES | WHOLESALE | MATERIALS | LABOR | LOGISTICS | MARKETING | OPS | AI_INFRA | RESTORATION | R&D
+  type        String // INCOME | EXPENSE
+  category    String // PRODUCT_SALES | WHOLESALE | MATERIALS | LABOR | LOGISTICS | MARKETING | OPS | AI_INFRA | RESTORATION | R&D
   amount      Float
   description String
   reference   String?
@@ -208,19 +213,19 @@ model Transaction {
 // ============ CAMPAIGNS / CONTENT ============
 
 model Campaign {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
   title       String
-  pillar      String   // philosophy | product | culture | process | founder | community
-  status      String   @default("DRAFT") // DRAFT | LIVE | SCHEDULED | ARCHIVED
-  channel     String   // INSTAGRAM | JOURNAL | EMAIL | HOUSE_ACCESS | ALL
+  pillar      String // philosophy | product | culture | process | founder | community
+  status      String    @default("DRAFT") // DRAFT | LIVE | SCHEDULED | ARCHIVED
+  channel     String // INSTAGRAM | JOURNAL | EMAIL | HOUSE_ACCESS | ALL
   startDate   DateTime
   endDate     DateTime?
-  budget      Float    @default(0)
-  spend       Float    @default(0)
-  impressions Int      @default(0)
-  engagement  Float    @default(0) // percent
-  createdAt   DateTime @default(now())
+  budget      Float     @default(0)
+  spend       Float     @default(0)
+  impressions Int       @default(0)
+  engagement  Float     @default(0) // percent
+  createdAt   DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -228,14 +233,14 @@ model Campaign {
 }
 
 model FounderNote {
-  id         String   @id @default(cuid())
-  userId     String
-  title      String
-  excerpt    String
-  body       String
-  status     String   @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  excerpt     String
+  body        String
+  status      String    @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
   publishedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -245,14 +250,14 @@ model FounderNote {
 // ============ COMMUNITY ============
 
 model Restoration {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
   customerName String
   productSku   String
   productName  String
-  reason       String   // WEAR | REPAIR | RESHAPE | RECOLOR
-  status       String   @default("REQUESTED") // REQUESTED | IN_REPAIR | COMPLETED | DECLINED
-  requestedAt  DateTime @default(now())
+  reason       String // WEAR | REPAIR | RESHAPE | RECOLOR
+  status       String    @default("REQUESTED") // REQUESTED | IN_REPAIR | COMPLETED | DECLINED
+  requestedAt  DateTime  @default(now())
   completedAt  DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -266,9 +271,9 @@ model Supplier {
   id        String   @id @default(cuid())
   userId    String
   name      String
-  material  String   // heavyweight cotton | fleece | drape fabric | thread | dye | packaging
+  material  String // heavyweight cotton | fleece | drape fabric | thread | dye | packaging
   city      String
-  leadTime  Int      // days
+  leadTime  Int // days
   rating    Float    @default(5)
   status    String   @default("ACTIVE") // ACTIVE | PAUSED | BLACKLIST
   lastOrder DateTime @default(now())
@@ -281,17 +286,18 @@ model Supplier {
 // ============ AI INFRASTRUCTURE ============
 
 model AISystem {
-  id              String   @id @default(cuid())
-  userId          String
-  name            String   // Brand Guardian | Content | Creative | Commerce | Founder | Product Intelligence | Operations
-  status          String   @default("ACTIVE") // ACTIVE | IDLE | TRAINING | ALERT
-  health          Float    @default(100) // 0-100
-  tasksToday      Int      @default(0)
-  tasksTotal      Int      @default(0)
-  accuracy        Float    @default(100) // percent
-  lastRun         DateTime @default(now())
-  description     String
-  pillar          String   // brand | content | creative | commerce | founder | product | operations
+  id         String @id @default(cuid())
+  userId     String
+  name       String // Brand Guardian | Content | Creative | Commerce | Founder | Product Intelligence | Operations
+  status     String @default("ACTIVE") // ACTIVE | IDLE | TRAINING | ALERT
+  health     Float  @default(100) // 0-100
+  tasksToday Int    @default(0)
+
+  tasksTotal  Int      @default(0)
+  accuracy    Float    @default(100) // percent
+  lastRun     DateTime @default(now())
+  description String
+  pillar      String // brand | content | creative | commerce | founder | product | operations
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -301,14 +307,14 @@ model AISystem {
 // ============ BRAND GUARDIAN CHECKS ============
 
 model BrandCheck {
-  id          String   @id @default(cuid())
-  userId      String
-  module      String   // PRODUCT | CONTENT | CAMPAIGN | PACKAGING | DIGITAL
-  asset       String
-  status      String   @default("PASS") // PASS | WARN | FAIL
-  violations  Int      @default(0)
-  notes       String
-  checkedAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String
+  module     String // PRODUCT | CONTENT | CAMPAIGN | PACKAGING | DIGITAL
+  asset      String
+  status     String   @default("PASS") // PASS | WARN | FAIL
+  violations Int      @default(0)
+  notes      String
+  checkedAt  DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -318,39 +324,45 @@ model BrandCheck {
 // ============ DIGITAL WORKFORCE (AGENTS) ============
 
 model Agent {
-  id              String   @id @default(cuid())
-  userId          String
-  code            String   // FOUNDER | CEO | CMO | CTO | CFO | COO | CCO | CSM | GROWTH | RESEARCH | HR | LEGAL
-  name            String   // Display name
-  role            String   // Chief Executive Officer, etc.
-  status          String   @default("IDLE") // ACTIVE | IDLE | RUNNING | PAUSED | ERROR
-  department      String   // EXECUTIVE | MARKETING | TECHNOLOGY | FINANCE | OPERATIONS | CREATIVE | CUSTOMER | GROWTH | RESEARCH | HR | LEGAL
-  primeDirective  String   // The agent's core mission
-  description     String
-  skills          String   // comma-separated skill codes
-  currentTask     String?
-  tokenSpend      Float    @default(0) // INR equivalent
-  tokenBudget     Float    @default(50000)
-  tasksToday      Int      @default(0)
-  tasksTotal      Int      @default(0)
-  successRate     Float    @default(100) // percent
-  lastHeartbeat   DateTime @default(now())
-  avatarColor     String   // hex color for avatar
-  isHuman         Boolean  @default(false)
-  managerId       String?  // null = Chief/Founder (reports to founder); else the managing Chief's id
-  createdAt       DateTime @default(now())
+  id             String  @id @default(cuid())
+  userId         String
+  code           String // FOUNDER | CEO | CMO | CTO | CFO | COO | CCO | CSM | GROWTH | RESEARCH | HR | LEGAL
+  name           String // Display name
+  role           String // Chief Executive Officer, etc.
+  status         String  @default("IDLE") // ACTIVE | IDLE | RUNNING | PAUSED | ERROR
+  department     String // EXECUTIVE | MARKETING | TECHNOLOGY | FINANCE | OPERATIONS | CREATIVE | CUSTOMER | GROWTH | RESEARCH | HR | LEGAL
+  primeDirective String // The agent's core mission
+  description    String
+  skills         String // comma-separated skill codes
+  currentTask    String?
+  tokenSpend     Float   @default(0) // INR equivalent
+  tokenBudget    Float   @default(50000)
+  tasksToday     Int     @default(0)
 
-  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasksTotal    Int      @default(0)
+  successRate   Float    @default(100) // percent
+  lastHeartbeat DateTime @default(now())
+  avatarColor   String // hex color for avatar
+  isHuman       Boolean  @default(false)
+  managerId     String? // null = Chief/Founder (reports to founder); else the managing Chief's id
+  createdAt     DateTime @default(now())
 
-  manager         Agent?    @relation("AgentHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
-  reports         Agent[]   @relation("AgentHierarchy")
+  // V2 Agent Identity properties
+  currentWorkflowId String?
+  memoryVectorIds   String?
 
-  issuesAssigned  Issue[]   @relation("IssueAssignee")
-  issuesCreated   Issue[]   @relation("IssueCreator")
-  comments        IssueComment[]
-  approvals       Approval[]   @relation("ApprovalRequester")
-  events          Event[]
-  capabilities    Capability[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  manager Agent?  @relation("AgentHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
+  reports Agent[] @relation("AgentHierarchy")
+
+  issuesAssigned Issue[]          @relation("IssueAssignee")
+  issuesCreated  Issue[]          @relation("IssueCreator")
+  comments       IssueComment[]
+  approvals      Approval[]       @relation("ApprovalRequester")
+  events         Event[]
+  capabilities   Capability[]
+  workspaces     AgentWorkspace[]
 
   @@unique([userId, code])
   @@index([userId])
@@ -359,25 +371,25 @@ model Agent {
 // ============ ISSUES (WORK OBJECTS) ============
 
 model Issue {
-  id            String   @id @default(cuid())
-  userId        String
-  code          String   // PAP-39
-  title         String
-  description   String
-  status        String   @default("BACKLOG") // BACKLOG | IN_PROGRESS | IN_REVIEW | DONE | BLOCKED
-  priority      String   @default("MEDIUM") // P0 | P1 | P2 | P3
-  type          String   @default("TASK") // TASK | BUG | FEATURE | CAMPAIGN | APPROVAL | RESEARCH
-  assigneeId    String?
-  createdById   String?
-  department    String?
-  blocksIds     String?  // comma-separated issue codes this blocks
-  blockedByIds  String?  // comma-separated issue codes blocking this
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  code         String // PAP-39
+  title        String
+  description  String
+  status       String   @default("BACKLOG") // BACKLOG | IN_PROGRESS | IN_REVIEW | DONE | BLOCKED
+  priority     String   @default("MEDIUM") // P0 | P1 | P2 | P3
+  type         String   @default("TASK") // TASK | BUG | FEATURE | CAMPAIGN | APPROVAL | RESEARCH
+  assigneeId   String?
+  createdById  String?
+  department   String?
+  blocksIds    String? // comma-separated issue codes this blocks
+  blockedByIds String? // comma-separated issue codes blocking this
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignee  Agent?          @relation("IssueAssignee", fields: [assigneeId], references: [id])
-  createdBy Agent?          @relation("IssueCreator", fields: [createdById], references: [id])
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignee  Agent?         @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  createdBy Agent?         @relation("IssueCreator", fields: [createdById], references: [id])
   comments  IssueComment[]
 
   @@unique([userId, code])
@@ -385,30 +397,30 @@ model Issue {
 }
 
 model IssueComment {
-  id        String   @id @default(cuid())
-  issueId   String
-  authorId  String?
+  id         String   @id @default(cuid())
+  issueId    String
+  authorId   String?
   authorName String
-  body      String
-  kind      String   @default("COMMENT") // COMMENT | HEARTBEAT | SYSTEM | APPROVAL_REQUEST
-  createdAt DateTime @default(now())
+  body       String
+  kind       String   @default("COMMENT") // COMMENT | HEARTBEAT | SYSTEM | APPROVAL_REQUEST
+  createdAt  DateTime @default(now())
 
-  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issue  Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
   author Agent? @relation(fields: [authorId], references: [id])
 }
 
 // ============ EVENT BUS (APPEND-ONLY LEDGER) ============
 
 model Event {
-  id         String   @id @default(cuid())
-  userId     String
-  type       String   // ISSUE_CREATED | ISSUE_ASSIGNED | AGENT_HEARTBEAT | BUDGET_WARNING | APPROVAL_REQUESTED | CAMPAIGN_LAUNCHED | ...
-  actorId    String?
-  actorName  String
-  summary    String
-  payload    String   // JSON string
-  severity   String   @default("INFO") // INFO | WARN | ERROR | CRITICAL
-  timestamp  DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // ISSUE_CREATED | ISSUE_ASSIGNED | AGENT_HEARTBEAT | BUDGET_WARNING | APPROVAL_REQUESTED | CAMPAIGN_LAUNCHED | ...
+  actorId   String?
+  actorName String
+  summary   String
+  payload   String // JSON string
+  severity  String   @default("INFO") // INFO | WARN | ERROR | CRITICAL
+  timestamp DateTime @default(now())
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   actor Agent? @relation(fields: [actorId], references: [id])
@@ -419,20 +431,20 @@ model Event {
 // ============ GOVERNANCE & APPROVALS ============
 
 model Approval {
-  id            String   @id @default(cuid())
-  userId        String
-  code          String   // APR-12
-  type          String   // BUDGET | STRATEGIC | HIRING | CAMPAIGN | VENDOR
-  title         String
-  description   String
-  amount        Float    @default(0)
-  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED | REVISION_REQUESTED
-  requesterId   String
-  issueCode     String?
-  inbox         String   @default("MINE") // MINE | RECENT | UNREAD | BLOCKED
-  isRead        Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  resolvedAt    DateTime?
+  id          String    @id @default(cuid())
+  userId      String
+  code        String // APR-12
+  type        String // BUDGET | STRATEGIC | HIRING | CAMPAIGN | VENDOR
+  title       String
+  description String
+  amount      Float     @default(0)
+  status      String    @default("PENDING") // PENDING | APPROVED | REJECTED | REVISION_REQUESTED
+  requesterId String
+  issueCode   String?
+  inbox       String    @default("MINE") // MINE | RECENT | UNREAD | BLOCKED
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
 
   user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   requester Agent @relation("ApprovalRequester", fields: [requesterId], references: [id])
@@ -444,17 +456,17 @@ model Approval {
 // ============ CALENDAR ============
 
 model CalendarEvent {
-  id             String   @id @default(cuid())
-  userId         String
-  title          String
-  description    String?
-  start          DateTime
-  end            DateTime
-  color          String   @default("#1F3A5F")
-  googleEventId  String?
-  source         String   @default("local")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  userId        String
+  title         String
+  description   String?
+  start         DateTime
+  end           DateTime
+  color         String   @default("#1F3A5F")
+  googleEventId String?
+  source        String   @default("local")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -465,20 +477,20 @@ model CalendarEvent {
 // ============ COMPOSIO INTEGRATIONS ============
 
 model Integration {
-  id              String   @id @default(cuid())
-  userId          String
-  toolkitSlug     String   // shopify, stripe, github, gmail, slack, etc.
-  name            String
-  description     String
-  category        String   // ecommerce, comms, analytics, productivity, social
-  logoUrl         String?
-  isConnected     Boolean  @default(false)
+  id                 String    @id @default(cuid())
+  userId             String
+  toolkitSlug        String // shopify, stripe, github, gmail, slack, etc.
+  name               String
+  description        String
+  category           String // ecommerce, comms, analytics, productivity, social
+  logoUrl            String?
+  isConnected        Boolean   @default(false)
   connectedAccountId String?
-  connectedAt     DateTime?
-  agentPermissions String  @default("") // comma-separated agent codes that can use this
-  toolsCount      Int      @default(0)
-  executionsCount Int      @default(0)
-  createdAt       DateTime @default(now())
+  connectedAt        DateTime?
+  agentPermissions   String    @default("") // comma-separated agent codes that can use this
+  toolsCount         Int       @default(0)
+  executionsCount    Int       @default(0)
+  createdAt          DateTime  @default(now())
 
   user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   executions ToolExecution[]
@@ -490,12 +502,12 @@ model Integration {
 model ToolExecution {
   id            String   @id @default(cuid())
   integrationId String
-  agentCode     String   // which agent executed
+  agentCode     String // which agent executed
   agentName     String
-  toolName      String   // e.g. "shopify_get_orders", "stripe_create_refund"
+  toolName      String // e.g. "shopify_get_orders", "stripe_create_refund"
   toolSlug      String
-  input         String   // JSON string of input params
-  output        String?  // JSON string of result
+  input         String // JSON string of input params
+  output        String? // JSON string of result
   status        String   @default("PENDING") // PENDING | SUCCESS | ERROR | TIMEOUT
   errorMessage  String?
   duration      Int      @default(0) // milliseconds
@@ -507,27 +519,27 @@ model ToolExecution {
 // ============ SETTINGS ============
 
 model SystemSetting {
-  id        String   @id @default("global") // Single row singleton — shared AI engine config, not per-user
-  theme     String   @default("dark")       // dark | light | auto
-  accent    String   @default("#C8302A")
+  id     String @id @default("global") // Single row singleton — shared AI engine config, not per-user
+  theme  String @default("dark") // dark | light | auto
+  accent String @default("#C8302A")
 
-  notifications    Boolean @default(true)
-  agentHeartbeats  Boolean @default(true)
-  approvalAlerts   Boolean @default(true)
-  budgetAlerts     Boolean @default(true)
+  notifications   Boolean @default(true)
+  agentHeartbeats Boolean @default(true)
+  approvalAlerts  Boolean @default(true)
+  budgetAlerts    Boolean @default(true)
 
-  maxTokens        Int     @default(80)     // percent
-  intelligence     String  @default("claude-sonnet")
-  autoApproveLimit Float   @default(5000)
-  escalationPolicy String  @default("standard")
+  maxTokens        Int    @default(80) // percent
+  intelligence     String @default("claude-sonnet")
+  autoApproveLimit Float  @default(5000)
+  escalationPolicy String @default("standard")
 
-  responseEagerness Float @default(0.85)  // LLM temperature
+  responseEagerness Float @default(0.85) // LLM temperature
 
   // 3-tier AI model cascade
-  primaryProvider  String  @default("openrouter")
-  primaryModel     String  @default("google/gemma-3-27b-it:free")
-  primaryApiKey    String  @default("")
-  primaryBaseUrl   String  @default("https://openrouter.ai/api/v1")
+  primaryProvider String @default("openrouter")
+  primaryModel    String @default("google/gemma-3-27b-it:free")
+  primaryApiKey   String @default("")
+  primaryBaseUrl  String @default("https://openrouter.ai/api/v1")
 
   fallback1Provider String @default("groq")
   fallback1Model    String @default("llama-3.3-70b-versatile")
@@ -545,13 +557,13 @@ model SystemSetting {
 // Per-user Krishna voice/prompt preferences — split out from SystemSetting
 // so each account has its own voice/prompt without needing its own AI engine config.
 model UserPreference {
-  userId          String   @id
-  ttsVoice        String   @default("en-IN-NeerjaNeural")
-  ttsSpeed        Float    @default(1.0)    // 0.5–2.0, maps to SSML rate
-  ttsStability    Float    @default(0.75)   // 0–1, maps to pitch offset
-  ttsVolume       Float    @default(1.0)    // 0–1.5, maps to SSML volume
-  krishnaPrompt   String   @default("")
-  updatedAt       DateTime @updatedAt
+  userId        String   @id
+  ttsVoice      String   @default("en-IN-NeerjaNeural")
+  ttsSpeed      Float    @default(1.0) // 0.5–2.0, maps to SSML rate
+  ttsStability  Float    @default(0.75) // 0–1, maps to pitch offset
+  ttsVolume     Float    @default(1.0) // 0–1.5, maps to SSML volume
+  krishnaPrompt String   @default("")
+  updatedAt     DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -560,9 +572,9 @@ model UserPreference {
 
 model Capability {
   id                  String   @id @default(cuid())
-  name                String   // "competitor_price_scan", "meta_ads_optimize"
-  description         String   // Human-readable description
-  ownerId             String   // Agent ID that provides this
+  name                String // "competitor_price_scan", "meta_ads_optimize"
+  description         String // Human-readable description
+  ownerId             String // Agent ID that provides this
   ownerType           String   @default("AGENT") // AGENT | SERVICE | INTEGRATION
   requiredPermissions String   @default("") // "web:read,shopify:read" comma-separated
   costEstimate        String   @default("low") // free | low | medium | high
@@ -570,16 +582,17 @@ model Capability {
   dependencies        String   @default("") // "camofox,context-store" required services
   health              Float    @default(100) // 0-100
   availability        String   @default("ONLINE") // ONLINE | DEGRADED | OFFLINE
-  category            String   // marketing | finance | operations | intelligence | security | general
-  inputSchema         String?  // JSON schema of expected input
-  outputSchema        String?  // JSON schema of expected output
+  category            String // marketing | finance | operations | intelligence | security | general
+  inputSchema         String? // JSON schema of expected input
+  outputSchema        String? // JSON schema of expected output
   version             String   @default("1.0")
   userId              String
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  owner Agent @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  owner          Agent          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  toolRegistries ToolRegistry[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -589,25 +602,25 @@ model Capability {
 // ============ SKILL SYSTEM ============
 
 model Skill {
-  id              String   @id @default(cuid())
-  slug            String   // "seo-audit", "meta-ads-roas-check"
-  name            String   // "SEO Technical Audit"
-  category        String   // seo | geo | meta-ads | google-ads | finance | inventory | general
-  source          String   @default("custom") // notfair | custom | builtin
-  skillMdPath     String?  // Relative path to SKILL.md file
-  skillMdContent  String?  // Inline SKILL.md content (for UI-edited skills)
-  requiredTools   String   @default("") // "gsc:read,meta_ads:read" comma-separated
-  requiredPerms   String   @default("") // "marketing:execute,spend:read"
-  dependencies    String   @default("") // Other skill slugs this depends on
-  inputSchema     String?  // JSON schema
-  outputSchema    String?  // JSON schema
-  costEstimate    String   @default("low") // free | low | medium | high
-  riskLevel       String   @default("none") // none | low | medium | high | critical
-  version         String   @default("1.0")
-  isActive        Boolean  @default(true)
-  userId          String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  slug           String // "seo-audit", "meta-ads-roas-check"
+  name           String // "SEO Technical Audit"
+  category       String // seo | geo | meta-ads | google-ads | finance | inventory | general
+  source         String   @default("custom") // notfair | custom | builtin
+  skillMdPath    String? // Relative path to SKILL.md file
+  skillMdContent String? // Inline SKILL.md content (for UI-edited skills)
+  requiredTools  String   @default("") // "gsc:read,meta_ads:read" comma-separated
+  requiredPerms  String   @default("") // "marketing:execute,spend:read"
+  dependencies   String   @default("") // Other skill slugs this depends on
+  inputSchema    String? // JSON schema
+  outputSchema   String? // JSON schema
+  costEstimate   String   @default("low") // free | low | medium | high
+  riskLevel      String   @default("none") // none | low | medium | high | critical
+  version        String   @default("1.0")
+  isActive       Boolean  @default(true)
+  userId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -619,19 +632,19 @@ model Skill {
 // ============ CAMOFOX BROWSE QUEUE ============
 
 model BrowseJob {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   userId      String
-  agentCode   String   // Which agent requested
+  agentCode   String // Which agent requested
   url         String
-  action      String   @default("snapshot") // snapshot | click | type | scroll | eval
-  actionData  String?  // JSON — selector, text, script etc.
-  status      String   @default("PENDING") // PENDING | RUNNING | COMPLETE | FAILED | TIMEOUT
-  result      String?  // JSON — accessibility tree, screenshot path, extracted data
+  action      String    @default("snapshot") // snapshot | click | type | scroll | eval
+  actionData  String? // JSON — selector, text, script etc.
+  status      String    @default("PENDING") // PENDING | RUNNING | COMPLETE | FAILED | TIMEOUT
+  result      String? // JSON — accessibility tree, screenshot path, extracted data
   error       String?
-  retries     Int      @default(0)
-  maxRetries  Int      @default(3)
-  priority    Int      @default(5) // 1=highest, 10=lowest
-  createdAt   DateTime @default(now())
+  retries     Int       @default(0)
+  maxRetries  Int       @default(3)
+  priority    Int       @default(5) // 1=highest, 10=lowest
+  createdAt   DateTime  @default(now())
   startedAt   DateTime?
   completedAt DateTime?
 
@@ -644,23 +657,23 @@ model BrowseJob {
 // ============ GOAL LOOP ENGINE ============
 
 model Goal {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  title        String   // "Cut Meta Ads CAC to ₹2000"
-  metric       String   // "meta_ads_cac" — machine-readable metric key
-  targetValue  Float    // 2000
-  currentValue Float    @default(0)
-  unit         String   @default("") // "INR", "%", "clicks"
-  mode         String   // ACHIEVE | MAINTAIN
-  status       String   @default("ACTIVE") // ACTIVE | PAUSED | ACHIEVED | FAILED | CANCELLED
+  title        String // "Cut Meta Ads CAC to ₹2000"
+  metric       String // "meta_ads_cac" — machine-readable metric key
+  targetValue  Float // 2000
+  currentValue Float     @default(0)
+  unit         String    @default("") // "INR", "%", "clicks"
+  mode         String // ACHIEVE | MAINTAIN
+  status       String    @default("ACTIVE") // ACTIVE | PAUSED | ACHIEVED | FAILED | CANCELLED
   deadline     DateTime? // null for MAINTAIN mode
-  agentCode    String   // Which agent owns this goal
-  skillSlug    String?  // Which skill to execute per iteration
-  interval     Int      @default(86400) // Seconds between iterations (default 24h)
+  agentCode    String // Which agent owns this goal
+  skillSlug    String? // Which skill to execute per iteration
+  interval     Int       @default(86400) // Seconds between iterations (default 24h)
   lastRunAt    DateTime?
   nextRunAt    DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   iterations GoalIteration[]
@@ -672,11 +685,11 @@ model Goal {
 model GoalIteration {
   id            String   @id @default(cuid())
   goalId        String
-  iteration     Int      // 1, 2, 3...
+  iteration     Int // 1, 2, 3...
   measuredValue Float
-  delta         Float    // Change from previous iteration
-  action        String   // What the agent did this iteration
-  outcome       String   // Result summary
+  delta         Float // Change from previous iteration
+  action        String // What the agent did this iteration
+  outcome       String // Result summary
   score         Float    @default(0) // -1 to 1, was this iteration helpful?
   createdAt     DateTime @default(now())
 
@@ -688,19 +701,19 @@ model GoalIteration {
 // ============ SELF-HOSTED OAUTH ============
 
 model OAuthToken {
-  id            String   @id @default(cuid())
-  userId        String
-  provider      String   // google | meta | shopify
-  accessToken   String   // Encrypted
-  refreshToken  String?  // Encrypted
-  tokenType     String   @default("Bearer")
-  scope         String   @default("")
-  expiresAt     DateTime?
-  accountId     String?  // Provider-specific account/profile ID
-  accountName   String?  // Display name
-  isValid       Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id           String    @id @default(cuid())
+  userId       String
+  provider     String // google | meta | shopify
+  accessToken  String // Encrypted
+  refreshToken String? // Encrypted
+  tokenType    String    @default("Bearer")
+  scope        String    @default("")
+  expiresAt    DateTime?
+  accountId    String? // Provider-specific account/profile ID
+  accountName  String? // Display name
+  isValid      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -713,11 +726,11 @@ model OAuthToken {
 model ContextEntry {
   id        String   @id @default(cuid())
   userId    String
-  handle    String   // "txn_query_8912" — unique reference for retrieval
-  source    String   // "prisma:transaction", "camofox:snapshot", "agent:cmo"
-  summary   String   // 2-3 line compact summary for LLM prompt
-  fullData  String   // Full JSON payload (never sent to LLM directly)
-  metadata  String?  // JSON — row count, categories, date range, etc.
+  handle    String // "txn_query_8912" — unique reference for retrieval
+  source    String // "prisma:transaction", "camofox:snapshot", "agent:cmo"
+  summary   String // 2-3 line compact summary for LLM prompt
+  fullData  String // Full JSON payload (never sent to LLM directly)
+  metadata  String? // JSON — row count, categories, date range, etc.
   ttl       Int      @default(3600) // Seconds before auto-expiry
   createdAt DateTime @default(now())
 
@@ -725,4 +738,144 @@ model ContextEntry {
 
   @@unique([userId, handle])
   @@index([userId])
+}
+
+// ============ V2 OS KERNEL & EVENT BUS ============
+
+model SystemEvent {
+  id        String   @id @default(cuid())
+  type      String // e.g. WORKSPACE_UPDATED, JOB_FAILED
+  source    String // OS_KERNEL, WORKFLOW_ENGINE, PROVIDER_MANAGER
+  payload   String // JSON string
+  timestamp DateTime @default(now())
+
+  @@index([type])
+}
+
+// ============ V2 WORKFLOW ENGINE (DAG) ============
+
+model Workflow {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  status    String   @default("PLANNING") // PLANNING | RUNNING | BLOCKED | COMPLETED | FAILED
+  graphDef  String // JSON DAG definition
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks WorkflowTask[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model WorkflowTask {
+  id           String  @id @default(cuid())
+  workflowId   String
+  assigneeType String  @default("AGENT") // AGENT | HUMAN | SYSTEM
+  assigneeId   String? // Agent ID or User ID
+  status       String  @default("PENDING") // PENDING | RUNNING | DONE | FAILED
+  dependencies String  @default("[]") // JSON array of Task IDs that must finish first
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+}
+
+// ============ V2 WORKSPACE MANAGER & REVISIONS ============
+
+model Workspace {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  status      String   @default("DRAFT")
+  permissions String   @default("{}") // JSON object
+  metadata    String? // JSON (Sync state, locks, etc)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  connections  WorkspaceConnection[]
+  revisions    WorkspaceRevision[]
+  artifacts    Artifact[]
+  participants AgentWorkspace[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AgentWorkspace {
+  agentId     String
+  workspaceId String
+  role        String @default("EDITOR") // OWNER | EDITOR | VIEWER
+
+  agent     Agent     @relation(fields: [agentId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([agentId, workspaceId])
+}
+
+model WorkspaceConnection {
+  id           String @id @default(cuid())
+  workspaceId  String
+  provider     String // google_drive, figma, canva, local
+  resourceType String
+  url          String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceRevision {
+  id          String   @id @default(cuid())
+  workspaceId String
+  authorId    String // Agent or Human ID
+  commitMsg   String
+  diffPayload String? // JSON diff or snapshot locator
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Artifact {
+  id              String   @id @default(cuid())
+  userId          String
+  workspaceId     String?
+  title           String
+  type            String // PDF, EXCEL, PNG
+  mimeType        String   @default("application/octet-stream")
+  storageLocation String
+  status          String   @default("READY")
+  createdAt       DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ============ V2 PROVIDER MANAGER ============
+
+model ToolRegistry {
+  id           String  @id @default(cuid())
+  capabilityId String
+  provider     String // google, canva, local
+  toolSlug     String
+  priority     Int     @default(1) // 1 = preferred, 2 = fallback
+  isActive     Boolean @default(true)
+
+  capability Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+}
+
+model TelemetryMetric {
+  id        String   @id @default(cuid())
+  metric    String // e.g., 'workflow_duration', 'provider_latency', 'token_usage'
+  value     Float
+  unit      String? // 'ms', 'tokens', 'usd', 'count'
+  source    String // 'OS_KERNEL', 'PROVIDER_MANAGER'
+  tags      String? // JSON string for dimensions e.g. { provider: 'google_docs', status: 'success' }
+  timestamp DateTime @default(now())
+
+  // Optional relations to tie metric directly to OS entities
+  workflowId String?
+  taskId     String?
+  userId     String?
 }

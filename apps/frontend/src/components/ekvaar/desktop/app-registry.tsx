@@ -5,9 +5,8 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Code2, Music,
+  AlertTriangle, Code2, Music, Activity, Brain
 } from 'lucide-react'
-import type { AppId } from '@/lib/window-store'
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
 import { FounderInbox } from '@/components/ekvaar/modules/founder-inbox'
 import { DigitalEmployeesHub } from '@/components/ekvaar/modules/digital-employees-hub'
@@ -30,8 +29,12 @@ import { AIInfrastructure } from '@/components/ekvaar/modules/ai-infrastructure'
 import { RiskCenter } from '@/components/ekvaar/modules/risk-center'
 import { SpotifyApp } from '@/components/ekvaar/modules/spotify'
 
+import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
+import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
+import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
+
 export interface AppDef {
-  id: AppId
+  id: string
   name: string
   shortName: string
   icon: any // lucide icon for title bar / fallback
@@ -44,6 +47,48 @@ export interface AppDef {
 
 export const APPS: AppDef[] = [
   // Core OS apps (left of dock divider)
+  {
+    id: 'health',
+    name: 'Health Monitor',
+    shortName: 'Health',
+    icon: Activity,
+    iconVariant: 'health',
+    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 50%, #4CAF50 100%)',
+    glyphColor: '#F5F1EA',
+    component: HealthMonitor,
+    menuItems: [
+      { label: 'File', items: ['Export Logs', 'Close Window'] },
+      { label: 'View', items: ['Refresh', 'Fullscreen'] },
+    ],
+  },
+  {
+    id: 'memory',
+    name: 'Memory Explorer',
+    shortName: 'Memory',
+    icon: Brain,
+    iconVariant: 'memory',
+    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #2F4F3A 50%, #1E90FF 100%)',
+    glyphColor: '#F5F1EA',
+    component: MemoryExplorer,
+    menuItems: [
+      { label: 'File', items: ['Export Graph', 'Close Window'] },
+      { label: 'View', items: ['Refresh', 'Fullscreen'] },
+    ],
+  },
+  {
+    id: 'explorer',
+    name: 'Workspace Explorer',
+    shortName: 'Explorer',
+    icon: FolderOpen,
+    iconVariant: 'explorer',
+    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #2F4F3A 50%, #1E90FF 100%)',
+    glyphColor: '#F5F1EA',
+    component: WorkspaceExplorer,
+    menuItems: [
+      { label: 'File', items: ['New Workspace...', 'Close Window'] },
+      { label: 'View', items: ['Grid View', 'List View', 'Fullscreen'] },
+    ],
+  },
   {
     id: 'command',
     name: 'Board Room',
@@ -361,12 +406,23 @@ export const APPS: AppDef[] = [
   },
 ]
 
-export const APP_MAP: Record<AppId, AppDef> = Object.fromEntries(
-  APPS.map((a) => [a.id, a]),
-) as Record<AppId, AppDef>
+export const APP_MAP: Record<string, AppDef> = Object.fromEntries(
+  APPS.map((app) => [app.id, app])
+) as Record<string, AppDef>
 
-// IDs that belong to the "core OS" group (left of dock divider)
-export const CORE_APP_IDS: AppId[] = ['command', 'inbox', 'agents', 'issues', 'terminal', 'settings', 'files', 'integrations']
-export const UTILITY_APP_IDS: AppId[] = ['calculator', 'notes', 'calendar']
-export const BUSINESS_APP_IDS: AppId[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai', 'risk', 'spotify']
+export const CORE_APP_IDS: string[] = ['memory', 'explorer', 'health', 'command', 'inbox', 'agents', 'issues', 'terminal', 'settings', 'files', 'integrations']
+export const UTILITY_APP_IDS: string[] = ['calculator', 'notes', 'calendar']
+export const BUSINESS_APP_IDS: string[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai', 'risk', 'spotify']
 
+import { AppRegistry } from '@/lib/os-desktop/registry'
+// Temporary bridge to register legacy apps into the new OS Registry paradigm
+APPS.forEach(app => {
+  AppRegistry.registerManifest({
+    id: app.id,
+    name: app.name,
+    version: '1.0.0',
+    icon: app.iconVariant, // Temporary mapping
+    entryPoint: app.component,
+    permissions: [],
+  })
+})
