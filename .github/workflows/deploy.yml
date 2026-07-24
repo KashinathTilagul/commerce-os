@@ -6,6 +6,13 @@ on:
       - main
   workflow_dispatch:
 
+# Never run two deploys at once — they race on the same Docker Compose project
+# and tear down each other's containers. Let the running one finish; a newer
+# push waits and supersedes any other queued run.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -79,7 +86,9 @@ jobs:
 
             # Health check the app DIRECTLY on localhost — the public URL goes
             # through Cloudflare, whose WAF 403s curl and masks a dead origin
-            for i in $(seq 1 12); do
+            # Up to ~3 min — a cold container on this small box can be slow to
+            # boot, and after a prior failed deploy there may be no old one serving
+            for i in $(seq 1 36); do
               STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: os.ekvaar.com" https://localhost/api/health || echo 000)
               [ "$STATUS" = "200" ] && break
               echo "[i] Waiting for app... attempt $i (HTTP $STATUS)"

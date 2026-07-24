@@ -73,7 +73,16 @@ async function chainFor(tier: Tier): Promise<Candidate[]> {
   const fb1 = slot(cfg.fallback1Provider, cfg.fallback1Model, cfg.fallback1ApiKey, cfg.fallback1BaseUrl)
   const fb2 = slot(cfg.fallback2Provider, cfg.fallback2Model, cfg.fallback2ApiKey, cfg.fallback2BaseUrl)
 
-  const openRouterFirst = [primary, fb1, fb2].filter(Boolean) as Candidate[]
+  // Env-injected keys (the deploy already sets these) — used when Settings has
+  // no explicit OpenRouter/Groq config, so routing works out of the box.
+  const envOpenRouter: Candidate | null = process.env.OPENROUTER_API_KEY
+    ? { provider: 'openrouter', model: process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet', apiKey: process.env.OPENROUTER_API_KEY, baseUrl: 'https://openrouter.ai/api/v1' }
+    : null
+  const envGroq: Candidate | null = process.env.GROQ_API_KEY
+    ? { provider: 'groq', model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile', apiKey: process.env.GROQ_API_KEY, baseUrl: 'https://api.groq.com/openai/v1' }
+    : null
+
+  const openRouterFirst = [primary, fb1, fb2, envOpenRouter, envGroq].filter(Boolean) as Candidate[]
 
   // Tier ordering:
   //  reasoning → Bedrock (proven quality) first, then configured providers
