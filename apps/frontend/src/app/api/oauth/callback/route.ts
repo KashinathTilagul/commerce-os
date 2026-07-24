@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/oauth/callback`
 
-  let tokenUrl = config.tokenUrl
+  let tokenUrl: string = config.tokenUrl
   if (provider === 'shopify') {
     const shop = url.searchParams.get('shop')
     if (!shop) {
@@ -58,13 +58,13 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await response.json()
-    const expiresAt = data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : null
+    const expiresAt = data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined
 
     await storeOAuthToken(userId, provider, {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       scope: data.scope,
-      expiresAt,
+      expiresAt: expiresAt || undefined,
     })
 
     return NextResponse.redirect(new URL('/settings/integrations?success=1', req.url))
