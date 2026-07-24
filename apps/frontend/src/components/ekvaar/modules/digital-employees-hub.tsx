@@ -67,7 +67,9 @@ export function DigitalEmployeesHub() {
       if (!r.ok) throw new Error('Failed')
       return r.json()
     },
-    staleTime: 30000,
+    staleTime: 10000,
+    refetchInterval: 15000, // keep cards live when Krishna assigns tasks elsewhere
+    refetchOnWindowFocus: true,
   })
 
   useAppSubscription('agents')
