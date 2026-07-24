@@ -38,13 +38,17 @@ async function getAccessToken(): Promise<string | null> {
   return null
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
   const token = await getAccessToken()
   if (!token) {
     return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
   }
 
-  const response = await fetch(`https://api.spotify.com/v1/playlists/${params.id}`, {
+  const response = await fetch(`https://api.spotify.com/v1/playlists/${id}`, {
     headers: { 'Authorization': `Bearer ${token}` },
   })
 
