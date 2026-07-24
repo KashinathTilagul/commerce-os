@@ -25,8 +25,9 @@ export interface WorkResult {
   newStatus?: string
 }
 
-// Run one work cycle for an agent's highest-priority open assigned issue.
-export async function runAgentWork(userId: string, agentId: string): Promise<WorkResult> {
+// Run one work cycle. Without targetIssueId: the agent's highest-priority open
+// assigned issue. With targetIssueId (direct instruction): that specific ticket.
+export async function runAgentWork(userId: string, agentId: string, targetIssueId?: string): Promise<WorkResult> {
   const agent = await db.agent.findFirst({ where: { id: agentId, userId } })
   if (!agent) return { ok: false, message: 'Agent not found' }
   if (agent.isHuman) return { ok: false, message: 'Human team member — not an executable agent' }
@@ -42,8 +43,9 @@ export async function runAgentWork(userId: string, agentId: string): Promise<Wor
     const last = i.comments[i.comments.length - 1]
     return i.status === 'IN_REVIEW' && last && last.authorId == null // last comment is the founder's
   }
-  const issue = candidates.find(i => i.status === 'BACKLOG' || i.status === 'IN_PROGRESS')
-    || candidates.find(needsFounderReply)
+  const issue = targetIssueId
+    ? candidates.find(i => i.id === targetIssueId)
+    : candidates.find(i => i.status === 'BACKLOG' || i.status === 'IN_PROGRESS') || candidates.find(needsFounderReply)
   if (!issue) {
     // Nothing to act on — settle the agent to IDLE
     await db.agent.update({ where: { id: agentId }, data: { status: 'IDLE', currentTask: null } })
@@ -145,4 +147,22 @@ Produce the COMPLETE deliverable for this ticket now. Write the actual work prod
   })
 
   return { ok: true, message: `${agent.name} worked ${issue.code} → ${work.newStatus}`, issueCode: issue.code, newStatus: work.newStatus }
+}
+
+// Advance one open ticket for every agent that has assigned work. Shared by the
+// watchdog cron and the in-process auto-scheduler (instrumentation.ts).
+export async function runAllBusyAgents(limit = 25): Promise<number> {
+  const busy = await db.agent.findMany({
+    where: { isHuman: false, issuesAssigned: { some: { status: { in: ['BACKLOG', 'IN_PROGRESS', 'IN_REVIEW'] } } } },
+    select: { id: true, userId: true },
+    take: limit,
+  })
+  let worked = 0
+  for (const a of busy) {
+    try {
+      const r = await runAgentWork(a.userId, a.id)
+      if (r.ok && r.issueCode) worked++
+    } catch { /* keep going */ }
+  }
+  return worked
 }

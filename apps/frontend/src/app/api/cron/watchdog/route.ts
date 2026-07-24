@@ -68,23 +68,8 @@ export async function POST(req: NextRequest) {
   }
 
   // ── 3. Agent Work Cycle ──────────────────────────────────────────────────
-  // Advance one open ticket for each agent that has assigned work, so tickets
-  // keep progressing on their own between founder assignments.
-  // Include IN_REVIEW so a founder push-back comment re-engages the agent
-  // (runAgentWork itself decides whether an IN_REVIEW ticket is actionable).
-  const busyAgents = await db.agent.findMany({
-    where: { isHuman: false, issuesAssigned: { some: { status: { in: ['BACKLOG', 'IN_PROGRESS', 'IN_REVIEW'] } } } },
-    select: { id: true, userId: true },
-    take: 25, // bound per run
-  })
-  let agentsWorked = 0
-  const { runAgentWork } = await import('@/lib/agent-worker')
-  for (const a of busyAgents) {
-    try {
-      const r = await runAgentWork(a.userId, a.id)
-      if (r.ok && r.issueCode) agentsWorked++
-    } catch { /* keep going */ }
-  }
+  const { runAllBusyAgents } = await import('@/lib/agent-worker')
+  const agentsWorked = await runAllBusyAgents()
 
   return NextResponse.json({
     ok: true,

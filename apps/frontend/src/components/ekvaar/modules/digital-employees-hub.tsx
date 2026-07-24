@@ -173,7 +173,13 @@ export function DigitalEmployeesHub() {
       
       setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), agentMsg] }))
       if (data.reply) {
-        toast.info(`${selected.name} responded`, reply.slice(0, 60) + (reply.length > 60 ? '…' : ''))
+        if (data.issueCode) {
+          toast.success(`${selected.name} took it on — ${data.issueCode}`, 'Deliverable is on the ticket in the Issues app.')
+          queryClient.invalidateQueries({ queryKey: ['agents'] })
+          queryClient.invalidateQueries({ queryKey: ['issues'] })
+        } else {
+          toast.info(`${selected.name} responded`, reply.slice(0, 60) + (reply.length > 60 ? '…' : ''))
+        }
       } else {
         toast.error('Agent offline', reply)
       }
@@ -277,7 +283,7 @@ export function DigitalEmployeesHub() {
       <PageHeader
         eyebrow="Digital Employees Hub"
         title="The Digital C-Suite"
-        description="A pre-configured workforce of 12 autonomous AI agents. Each has a Soul (system prompt), Playbook (SOPs), Experience (past learnings), Memory, and Metrics. They wake on routines, events, or mentions — execute heartbeats — and go back to sleep."
+        description="Your digital workforce — Chiefs who manage specialist teams beneath them. Instruct any of them directly, or let Krishna delegate. Each has a Soul (system prompt), skills, memory, and metrics, and works real tickets on demand."
         actions={
           <Badge variant="outline" className="gap-1.5">
             <span className="h-1.5 w-1.5 bg-arav rounded-full animate-pulse-soft" />

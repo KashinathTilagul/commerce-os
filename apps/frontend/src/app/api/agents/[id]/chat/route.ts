@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAuth } from '@/lib/auth-guard'
 import { z } from 'zod'
-import { routeText } from '@/lib/ai-router'
+import { routeObject } from '@/lib/ai-router'
 import { sanitizeInput } from '@/lib/security'
 import { getLiveBusinessSnapshot } from '@/lib/business-snapshot'
+import { runAgentWork } from '@/lib/agent-worker'
 
 const ChatSchema = z.object({
   message: z.string().min(1).max(5000),
+})
+
+// The agent decides: is this a question to answer, or an instruction to act on?
+const ChatDecision = z.object({
+  reply: z.string().describe('Your spoken reply to the Founder, in character, under 4 sentences, no markdown.'),
+  intent: z.enum(['answer', 'work']).describe("'work' if the Founder is instructing you to DO or produce something; 'answer' if it is a question or discussion."),
+  task: z.string().optional().describe("If intent is 'work', the task phrased as a clear instruction to yourself."),
 })
 
 export async function POST(
@@ -41,29 +49,59 @@ Your current status: ${agent.status}${agent.currentTask ? `, working on: ${agent
 ${liveContext}
 
 Instructions:
-IMPORTANT — you have NO tools and cannot take any action. You cannot create, assign, or update tasks, send messages, or change any system state. This chat is conversation only. Never claim you have done, assigned, executed, or scheduled anything. If the Founder asks you to do something actionable, say plainly that you can't act directly yet and that they should ask Krishna to assign it.
+You are chatting directly with the Founder, who can instruct you. If the Founder tells you to DO or produce something (write copy, make a plan, run an analysis, build something), set intent 'work' and put the task in 'task' — the system will open a ticket for you and you'll deliver the actual work on it. If it's a question or discussion, set intent 'answer' and just reply.
+Never claim you have already finished work in your reply — when intent is 'work', say you're on it (the deliverable lands on the ticket). Use the live status above for operational facts; never invent numbers. Stay in character, concise, no markdown.`
 
-You are chatting directly with the Founder. Use the live system status above when asked about company/operational facts — never guess or invent numbers. Be concise, professional, and stay perfectly in character based on your role and prime directive. Do not break character. Do not use markdown unless necessary. Keep your response under 4 sentences.`
-
-    const { text } = await routeText('default', {
+    const { object } = await routeObject<z.infer<typeof ChatDecision>>('default', {
+      schema: ChatDecision,
       system: systemPrompt,
       prompt: sanitizeInput(message, { maxLength: 5000 }),
       temperature: 0.7,
     })
 
-    // Log the interaction
+    let reply = object.reply
+    let issueCode: string | undefined
+
+    // Direct instruction → work a ticket now. Reuse the agent's active ticket if
+    // one is in flight (continuing a conversation must not spawn new tickets);
+    // otherwise open a fresh one.
+    if (object.intent === 'work' && object.task && !agent.isHuman) {
+      const task = sanitizeInput(object.task, { maxLength: 300 })
+      const active = await db.issue.findFirst({
+        where: { userId: auth.user.id, assigneeId: agent.id, status: { in: ['BACKLOG', 'IN_PROGRESS'] } },
+        orderBy: { createdAt: 'desc' },
+      })
+      let target
+      if (active) {
+        // Continuation — append the new instruction, then rework the same ticket.
+        await db.issueComment.create({ data: { issueId: active.id, authorName: 'Founder', body: task, kind: 'COMMENT' } })
+        target = active
+      } else {
+        const count = await db.issue.count({ where: { userId: auth.user.id } })
+        target = await db.issue.create({
+          data: {
+            userId: auth.user.id, code: `PAP-${String(count + 1).padStart(2, '0')}`, title: task,
+            description: `Instructed directly by the Founder to ${agent.name} (${agent.role}).`,
+            status: 'BACKLOG', priority: 'P2', type: 'TASK', assigneeId: agent.id, department: agent.department,
+          },
+        })
+      }
+      await db.agent.update({ where: { id: agent.id }, data: { currentTask: task, status: 'ACTIVE' } })
+      const result = await runAgentWork(auth.user.id, agent.id, target.id)
+      issueCode = target.code
+      reply = result.ok ? `On it — ${target.code}. ${reply}` : `I couldn't start that. ${result.message}`
+    }
+
     await db.event.create({
       data: {
-        userId: auth.user.id,
-        type: 'AGENT_CHAT',
-        actorName: agent.name,
-        summary: `Direct chat with ${agent.name}`,
-        payload: JSON.stringify({ message: message.slice(0, 100), reply: text.slice(0, 100) }),
+        userId: auth.user.id, type: 'AGENT_CHAT', actorName: agent.name,
+        summary: `Direct chat with ${agent.name}${issueCode ? ` → ${issueCode}` : ''}`,
+        payload: JSON.stringify({ message: message.slice(0, 100), reply: reply.slice(0, 100), issueCode }),
         severity: 'INFO',
       },
     })
 
-    return NextResponse.json({ reply: text })
+    return NextResponse.json({ reply, issueCode })
   } catch (e: any) {
     console.error('[Agent Chat] Error:', e)
     const detail = e?.message || String(e)
