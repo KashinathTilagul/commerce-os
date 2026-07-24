@@ -166,10 +166,11 @@ AVAILABLE ACTIONS:
     }
 
     // ── Assignment safety net ────────────────────────────────────────────
-    // The model sometimes narrates "I've assigned it" while emitting action
-    // "none". When the founder clearly asked to delegate, re-ask with a tiny
-    // focused schema so the assignment actually happens.
-    if (action.type === 'none' && /\b(assign|delegate|hand (it |this )?(over|off)|give .{0,30}\btask|task .{0,30}\bto\b)/i.test(message)) {
+    // The model routinely picks the wrong action for delegation (emitting
+    // 'none' or 'issue_status'). When the founder clearly asked to delegate,
+    // re-extract with a focused zero-temp schema and override the action.
+    let netEngaged = false
+    if (action.type !== 'assign_task' && /\b(assign|delegate|hand (it |this )?(over|off)|give .{0,30}\btask|task .{0,30}\bto\b)/i.test(message)) {
       try {
         const bedrock = createAmazonBedrock({ apiKey, region: 'us-east-1' })
         const { object: extracted } = await generateObject({
@@ -186,6 +187,7 @@ AVAILABLE ACTIONS:
         })
         if (extracted.isAssignment && extracted.task) {
           action = { type: 'assign_task', assignee: extracted.assignee, task: extracted.task, priority: extracted.priority }
+          netEngaged = true
           console.log('[Krishna] Assignment safety net engaged')
         }
       } catch (e: any) {
@@ -199,9 +201,11 @@ AVAILABLE ACTIONS:
       actionResult = await executeAction(action, uid)
     }
 
-    // Never let Krishna claim success when the action actually failed
+    // Keep the spoken reply honest about what actually happened
     if (actionResult && actionResult.success === false) {
       spoken = `I couldn't complete that. ${actionResult.message || actionResult.error || ''}`.trim()
+    } else if (netEngaged && actionResult?.success) {
+      spoken = `Done. ${actionResult.code} assigned to ${actionResult.agentName}.`
     }
 
     // ── Log to event stream ──────────────────────────────────────────────

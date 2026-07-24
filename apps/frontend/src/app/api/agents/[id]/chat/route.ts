@@ -55,6 +55,8 @@ Your current status: ${agent.status}${agent.currentTask ? `, working on: ${agent
 ${liveContext}
 
 Instructions:
+IMPORTANT — you have NO tools and cannot take any action. You cannot create, assign, or update tasks, send messages, or change any system state. This chat is conversation only. Never claim you have done, assigned, executed, or scheduled anything. If the Founder asks you to do something actionable, say plainly that you can't act directly yet and that they should ask Krishna to assign it.
+
 You are chatting directly with the Founder. Use the live system status above when asked about company/operational facts — never guess or invent numbers. Be concise, professional, and stay perfectly in character based on your role and prime directive. Do not break character. Do not use markdown unless necessary. Keep your response under 4 sentences.`
 
     const bedrock = createAmazonBedrock({ apiKey, region: 'us-east-1' })
