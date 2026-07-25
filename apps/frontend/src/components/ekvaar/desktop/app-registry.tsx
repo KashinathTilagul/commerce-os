@@ -1,12 +1,14 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
 import {
   LayoutDashboard, Inbox, Users, GitBranch, Terminal as TerminalIcon,
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
-  Boxes, ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Code2, Music, Activity, Brain
+  ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
+  AlertTriangle, Music, Activity, Brain
 } from 'lucide-react'
+
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
 import { FounderInbox } from '@/components/ekvaar/modules/founder-inbox'
 import { DigitalEmployeesHub } from '@/components/ekvaar/modules/digital-employees-hub'
@@ -18,411 +20,422 @@ import { Integrations } from '@/components/ekvaar/modules/integrations'
 import { Calculator } from '@/components/ekvaar/modules/calculator'
 import { Notes } from '@/components/ekvaar/modules/notes'
 import { CalendarApp } from '@/components/ekvaar/modules/calendar'
-import { HouseOfOriginals } from '@/components/ekvaar/modules/house-of-originals'
 import { SalesOrders } from '@/components/ekvaar/modules/sales-orders'
 import { FinanceModule } from '@/components/ekvaar/modules/finance'
 import { InventoryOps } from '@/components/ekvaar/modules/inventory-ops'
 import { CommunityModule } from '@/components/ekvaar/modules/community'
 import { CampaignsModule } from '@/components/ekvaar/modules/campaigns'
-import { BrandGuardian } from '@/components/ekvaar/modules/brand-guardian'
+import { BrandIntelligence } from '@/components/ekvaar/modules/brand-intelligence'
 import { AIInfrastructure } from '@/components/ekvaar/modules/ai-infrastructure'
 import { RiskCenter } from '@/components/ekvaar/modules/risk-center'
 import { SpotifyApp } from '@/components/ekvaar/modules/spotify'
-
 import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
 import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
 import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
+import { OSManifest } from '@/lib/os-desktop/manifest'
+import { AppRegistry } from '@/lib/os-desktop/registry'
 
-export interface AppDef {
-  id: string
-  name: string
+// To bridge legacy metadata that isn't in OSManifest yet
+export interface AppDef extends OSManifest {
   shortName: string
-  icon: any // lucide icon for title bar / fallback
-  iconVariant: string // macOS app-icon variant key
-  gradient: string // CSS gradient for title bar fallback
+  gradient: string
   glyphColor: string
-  component: React.ComponentType<any>
+  iconVariant?: string
   menuItems: { label: string; items: string[] }[]
 }
 
 export const APPS: AppDef[] = [
-  // Core OS apps (left of dock divider)
+  // Core OS apps
   {
     id: 'health',
     name: 'Health Monitor',
     shortName: 'Health',
-    icon: Activity,
+    version: '1.0.0',
+    icon: Activity as any,
     iconVariant: 'health',
+    category: 'core',
+    requiredCapabilities: ['health_monitor'],
+    entryPoint: HealthMonitor,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1A1A1A 50%, #4CAF50 100%)',
     glyphColor: '#F5F1EA',
-    component: HealthMonitor,
-    menuItems: [
-      { label: 'File', items: ['Export Logs', 'Close Window'] },
-      { label: 'View', items: ['Refresh', 'Fullscreen'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Export Logs', 'Close Window'] }]
   },
   {
     id: 'memory',
     name: 'Memory Explorer',
     shortName: 'Memory',
-    icon: Brain,
+    version: '1.0.0',
+    icon: Brain as any,
     iconVariant: 'memory',
+    category: 'core',
+    requiredCapabilities: ['memory_explorer'],
+    entryPoint: MemoryExplorer,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #2F4F3A 50%, #1E90FF 100%)',
     glyphColor: '#F5F1EA',
-    component: MemoryExplorer,
-    menuItems: [
-      { label: 'File', items: ['Export Graph', 'Close Window'] },
-      { label: 'View', items: ['Refresh', 'Fullscreen'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Export Graph', 'Close Window'] }]
   },
   {
     id: 'explorer',
-    name: 'Workspace Explorer',
-    shortName: 'Explorer',
-    icon: FolderOpen,
-    iconVariant: 'explorer',
+    name: 'Knowledge Drive', // Renamed from Workspace Explorer
+    shortName: 'Drive',
+    version: '1.0.0',
+    icon: FolderOpen as any,
+    category: 'core',
+    requiredCapabilities: ['knowledge_drive'],
+    entryPoint: WorkspaceExplorer,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #2F4F3A 50%, #1E90FF 100%)',
     glyphColor: '#F5F1EA',
-    component: WorkspaceExplorer,
-    menuItems: [
-      { label: 'File', items: ['New Workspace...', 'Close Window'] },
-      { label: 'View', items: ['Grid View', 'List View', 'Fullscreen'] },
-    ],
+    menuItems: [{ label: 'File', items: ['New Workspace...', 'Close Window'] }]
   },
   {
     id: 'command',
-    name: 'Board Room',
-    shortName: 'Board',
-    icon: LayoutDashboard,
+    name: 'Command Center', // Renamed from Board Room
+    shortName: 'Command',
+    version: '1.0.0',
+    icon: LayoutDashboard as any,
     iconVariant: 'board-room',
+    category: 'core',
+    requiredCapabilities: ['command_center'],
+    entryPoint: CommandCenter,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #2F4F3A 50%, #C8302A 100%)',
     glyphColor: '#F5F1EA',
-    component: CommandCenter,
-    menuItems: [
-      { label: 'File', items: ['New Brief…', 'Export Reality Report', 'Close Window'] },
-      { label: 'View', items: ['Refresh KPIs', 'Compact Mode', 'Fullscreen'] },
-      { label: 'Window', items: ['Minimize', 'Zoom', 'Bring All to Front'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Export Report', 'Close Window'] }]
   },
   {
     id: 'inbox',
     name: 'Founder Inbox',
     shortName: 'Inbox',
-    icon: Inbox,
+    version: '1.0.0',
+    icon: Inbox as any,
     iconVariant: 'inbox',
+    category: 'core',
+    requiredCapabilities: ['founder_inbox'],
+    entryPoint: FounderInbox,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #C8302A 0%, #8B1E1A 100%)',
     glyphColor: '#F5F1EA',
-    component: FounderInbox,
-    menuItems: [
-      { label: 'File', items: ['New Approval…', 'Export Inbox', 'Close Window'] },
-      { label: 'Inbox', items: ['Mine', 'Unread', 'Recent', 'Blocked'] },
-      { label: 'Action', items: ['Approve', 'Reject', 'Request Revision'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Export Inbox', 'Close Window'] }]
   },
   {
     id: 'agents',
-    name: 'Digital Employees',
-    shortName: 'Agents',
-    icon: Users,
+    name: 'AI Workforce',
+    shortName: 'Workforce',
+    version: '1.0.0',
+    icon: Users as any,
     iconVariant: 'agents',
+    category: 'core',
+    requiredCapabilities: ['ai_workforce'],
+    entryPoint: DigitalEmployeesHub,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #0A0A0A 100%)',
     glyphColor: '#F5F1EA',
-    component: DigitalEmployeesHub,
-    menuItems: [
-      { label: 'File', items: ['Onboard Agent…', 'View Logs', 'Close Window'] },
-      { label: 'Agents', items: ['CEO', 'CMO', 'CTO', 'CFO', 'COO', 'CCO', 'CSM', 'Growth', 'Research', 'HR', 'Legal'] },
-      { label: 'View', items: ['By Department', 'By Status', 'By Budget'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
   {
     id: 'issues',
     name: 'Issues',
     shortName: 'Issues',
-    icon: GitBranch,
+    version: '1.0.0',
+    icon: GitBranch as any,
     iconVariant: 'issues',
+    category: 'core',
+    requiredCapabilities: ['issues_tracker'],
+    entryPoint: IssuesModule,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #2F4F3A 0%, #1F3A5F 100%)',
     glyphColor: '#F5F1EA',
-    component: IssuesModule,
-    menuItems: [
-      { label: 'File', items: ['New Issue…', 'Export Board', 'Close Window'] },
-      { label: 'Issue', items: ['Assign', 'Change Status', 'Add Dependency'] },
-      { label: 'View', items: ['Board', 'List', 'Dependencies'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
   {
     id: 'terminal',
     name: 'Terminal',
     shortName: 'Terminal',
-    icon: TerminalIcon,
+    version: '1.0.0',
+    icon: TerminalIcon as any,
     iconVariant: 'terminal',
+    category: 'core',
+    requiredCapabilities: ['terminal'],
+    entryPoint: TerminalModule,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1F3A5F 100%)',
     glyphColor: '#D4859B',
-    component: TerminalModule,
-    menuItems: [
-      { label: 'File', items: ['Clear Log', 'Export Stream', 'Close Window'] },
-      { label: 'Stream', items: ['All Events', 'Info', 'Warnings', 'Critical'] },
-      { label: 'View', items: ['Terminal', 'CPU Monitor', 'Agent Logs'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
   {
     id: 'settings',
     name: 'Settings',
     shortName: 'Settings',
-    icon: SettingsIcon,
+    version: '1.0.0',
+    icon: SettingsIcon as any,
     iconVariant: 'settings',
+    category: 'core',
+    requiredCapabilities: ['settings'],
+    entryPoint: Settings,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #8E8E93 0%, #48484A 100%)',
     glyphColor: '#F5F1EA',
-    component: Settings,
-    menuItems: [
-      { label: 'File', items: ['Reset Defaults', 'Export Config', 'Close Window'] },
-      { label: 'View', items: ['Appearance', 'Intelligence', 'Notifications', 'Governance'] },
-      { label: 'Window', items: ['Minimize', 'Zoom'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
   {
     id: 'files',
     name: 'Files',
     shortName: 'Files',
-    icon: FolderOpen,
-    iconVariant: 'files',
+    version: '1.0.0',
+    icon: FolderOpen as any,
+    category: 'core',
+    requiredCapabilities: ['files'],
+    entryPoint: Files,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #4FB0F5 0%, #1573D6 100%)',
     glyphColor: '#F5F1EA',
-    component: Files,
-    menuItems: [
-      { label: 'File', items: ['New Folder', 'Upload', 'Close Window'] },
-      { label: 'View', items: ['Icons', 'List', 'Columns'] },
-      { label: 'Go', items: ['Recents', 'Documents', 'Agent Logs', 'Event Ledger'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
   {
     id: 'integrations',
     name: 'Integrations',
     shortName: 'Integrations',
-    icon: Plug,
+    version: '1.0.0',
+    icon: Plug as any,
     iconVariant: 'integrations',
+    category: 'core',
+    requiredCapabilities: ['integrations'],
+    entryPoint: Integrations,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)',
     glyphColor: '#F5F1EA',
-    component: Integrations,
-    menuItems: [
-      { label: 'File', items: ['Refresh', 'Export Connections', 'Close Window'] },
-      { label: 'Connect', items: ['Shopify', 'Stripe', 'Gmail', 'GitHub', 'Slack'] },
-      { label: 'View', items: ['All', 'Connected', 'By Category'] },
-    ],
+    menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
+  
   // Utilities
   {
     id: 'calculator',
     name: 'Calculator',
     shortName: 'Calc',
-    icon: CalcIcon,
+    version: '1.0.0',
+    icon: CalcIcon as any,
     iconVariant: 'calculator',
+    category: 'utility',
+    requiredCapabilities: ['calculator'],
+    entryPoint: Calculator,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #3A3A3C 0%, #1C1C1E 100%)',
     glyphColor: '#FF9500',
-    component: Calculator,
-    menuItems: [
-      { label: 'View', items: ['Basic', 'Scientific', 'Programmer'] },
-      { label: 'Edit', items: ['Copy', 'Paste', 'Clear'] },
-    ],
+    menuItems: []
   },
   {
     id: 'notes',
     name: 'Notes',
     shortName: 'Notes',
-    icon: StickyNote,
+    version: '1.0.0',
+    icon: StickyNote as any,
     iconVariant: 'notes',
+    category: 'utility',
+    requiredCapabilities: ['notes'],
+    entryPoint: Notes,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #FFCC00 0%, #F5A623 100%)',
     glyphColor: '#F5F1EA',
-    component: Notes,
-    menuItems: [
-      { label: 'File', items: ['New Note', 'Delete', 'Close Window'] },
-      { label: 'Format', items: ['Bold', 'Italic', 'Monospace'] },
-      { label: 'View', items: ['List', 'Editor'] },
-    ],
+    menuItems: []
   },
   {
     id: 'calendar',
     name: 'Calendar',
     shortName: 'Calendar',
-    icon: CalIcon,
+    version: '1.0.0',
+    icon: CalIcon as any,
     iconVariant: 'calendar',
+    category: 'utility',
+    requiredCapabilities: ['calendar'],
+    entryPoint: CalendarApp,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #FFFFFF 0%, #FF3B30 100%)',
     glyphColor: '#F5F1EA',
-    component: CalendarApp,
-    menuItems: [
-      { label: 'File', items: ['New Event', 'Close Window'] },
-      { label: 'View', items: ['Day', 'Week', 'Month', 'Year'] },
-      { label: 'Go', items: ['Today', 'Next Month', 'Prev Month'] },
-    ],
+    menuItems: []
   },
-  // Business apps (right of dock divider)
-  {
-    id: 'house',
-    name: 'House of Originals',
-    shortName: 'House',
-    icon: Boxes,
-    iconVariant: 'house',
-    gradient: 'linear-gradient(135deg, #1F3A5F 0%, #0A0A0A 100%)',
-    glyphColor: '#F5F1EA',
-    component: HouseOfOriginals,
-    menuItems: [
-      { label: 'File', items: ['New Original…', 'Import Catalog', 'Close Window'] },
-      { label: 'House', items: ['Solids', 'Layers', 'Street', 'Luxe', 'Origins'] },
-      { label: 'View', items: ['Grid', 'List', 'Filter by Color'] },
-    ],
-  },
+
+  // Business apps
   {
     id: 'sales',
     name: 'Sales & Orders',
     shortName: 'Sales',
-    icon: ShoppingBag,
+    version: '1.0.0',
+    icon: ShoppingBag as any,
     iconVariant: 'sales',
+    category: 'business',
+    requiredCapabilities: ['sales_orders'],
+    entryPoint: SalesOrders,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #C8302A 0%, #8B1E1A 100%)',
     glyphColor: '#F5F1EA',
-    component: SalesOrders,
-    menuItems: [
-      { label: 'File', items: ['New Order…', 'Export Orders', 'Close Window'] },
-      { label: 'Order', items: ['Mark Processing', 'Mark Shipped', 'Refund'] },
-      { label: 'View', items: ['By Status', 'By Channel', 'By City'] },
-    ],
+    menuItems: []
   },
   {
     id: 'finance',
     name: 'Finance',
     shortName: 'Finance',
-    icon: Wallet,
+    version: '1.0.0',
+    icon: Wallet as any,
     iconVariant: 'finance',
+    category: 'business',
+    requiredCapabilities: ['finance'],
+    entryPoint: FinanceModule,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #2F4F3A 0%, #1A2F22 100%)',
     glyphColor: '#F5F1EA',
-    component: FinanceModule,
-    menuItems: [
-      { label: 'File', items: ['New Transaction…', 'Generate P&L', 'Export Ledger'] },
-      { label: 'Reports', items: ['P&L Statement', 'Cash Flow', 'Balance Sheet'] },
-      { label: 'View', items: ['Monthly', 'Quarterly', 'Yearly'] },
-    ],
+    menuItems: []
   },
   {
     id: 'inventory',
     name: 'Inventory & Ops',
     shortName: 'Inventory',
-    icon: Package,
+    version: '1.0.0',
+    icon: Package as any,
     iconVariant: 'inventory',
+    category: 'business',
+    requiredCapabilities: ['inventory_ops'],
+    entryPoint: InventoryOps,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #2F4F3A 100%)',
     glyphColor: '#F5F1EA',
-    component: InventoryOps,
-    menuItems: [
-      { label: 'File', items: ['New SKU…', 'Add Supplier', 'Close Window'] },
-      { label: 'Ops', items: ['Restock', 'Pause Production', 'Audit Stock'] },
-      { label: 'View', items: ['By House', 'By Supplier', 'Low Stock Only'] },
-    ],
+    menuItems: []
   },
   {
     id: 'community',
-    name: 'Originals',
-    shortName: 'Originals',
-    icon: Users,
+    name: 'Customers',
+    shortName: 'Customers',
+    version: '1.0.0',
+    icon: Users as any,
     iconVariant: 'community',
+    category: 'business',
+    requiredCapabilities: ['customers'],
+    entryPoint: CommunityModule,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #D4859B 0%, #8B5468 100%)',
     glyphColor: '#F5F1EA',
-    component: CommunityModule,
-    menuItems: [
-      { label: 'File', items: ['New Member…', 'Invite to House Access', 'Close Window'] },
-      { label: 'Community', items: ['Restoration Program', 'Founder Notes', 'Archive Access'] },
-      { label: 'View', items: ['Members', 'Restorations', 'Notes'] },
-    ],
+    menuItems: []
   },
   {
     id: 'campaigns',
     name: 'Campaigns',
     shortName: 'Campaigns',
-    icon: Megaphone,
+    version: '1.0.0',
+    icon: Megaphone as any,
     iconVariant: 'campaigns',
+    category: 'business',
+    requiredCapabilities: ['campaigns'],
+    entryPoint: CampaignsModule,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #C8302A 100%)',
     glyphColor: '#F5F1EA',
-    component: CampaignsModule,
-    menuItems: [
-      { label: 'File', items: ['New Campaign…', 'Schedule Post', 'Close Window'] },
-      { label: 'Pillar', items: ['Philosophy', 'Product', 'Culture', 'Process', 'Founder', 'Community'] },
-      { label: 'View', items: ['Live', 'Drafts', 'Scheduled', 'Archived'] },
-    ],
+    menuItems: []
   },
   {
-    id: 'guardian',
-    name: 'Brand Guardian',
-    shortName: 'Guardian',
-    icon: ShieldCheck,
+    id: 'brand-intelligence',
+    name: 'Brand Intelligence',
+    shortName: 'Intelligence',
+    version: '1.0.0',
+    icon: ShieldCheck as any,
     iconVariant: 'guardian',
+    category: 'business',
+    requiredCapabilities: ['brand_intelligence'],
+    entryPoint: BrandIntelligence,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #8B7355 0%, #5A4A3A 100%)',
     glyphColor: '#F5F1EA',
-    component: BrandGuardian,
-    menuItems: [
-      { label: 'File', items: ['Run Brand Scan…', 'Export Report', 'Close Window'] },
-      { label: 'Guardian', items: ['Palette Check', 'Voice Audit', 'Visual Audit'] },
-      { label: 'View', items: ['All Checks', 'Pass', 'Warnings', 'Violations'] },
-    ],
+    menuItems: []
   },
   {
     id: 'ai',
     name: 'AI Infrastructure',
     shortName: 'AI Infra',
-    icon: Cpu,
+    version: '1.0.0',
+    icon: Cpu as any,
     iconVariant: 'ai',
+    category: 'business',
+    requiredCapabilities: ['ai_infrastructure'],
+    entryPoint: AIInfrastructure,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #D4859B 100%)',
     glyphColor: '#F5F1EA',
-    component: AIInfrastructure,
-    menuItems: [
-      { label: 'File', items: ['Train Model…', 'Run Task', 'Close Window'] },
-      { label: 'Systems', items: ['Brand Guardian', 'Content', 'Creative', 'Commerce', 'Founder', 'Product', 'Operations'] },
-      { label: 'View', items: ['Health', 'Tasks', 'Logs'] },
-    ],
+    menuItems: []
   },
   {
     id: 'risk',
     name: 'Risk Center',
     shortName: 'Risk',
-    icon: AlertTriangle,
+    version: '1.0.0',
+    icon: AlertTriangle as any,
     iconVariant: 'risk',
+    category: 'business',
+    requiredCapabilities: ['risk_center'],
+    entryPoint: RiskCenter,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #C8302A 0%, #D97706 100%)',
     glyphColor: '#F5F1EA',
-    component: RiskCenter,
-    menuItems: [
-      { label: 'File', items: ['Run Assessment', 'Export Report', 'Close Window'] },
-      { label: 'Risk', items: ['Critical', 'High', 'Medium', 'Low'] },
-      { label: 'View', items: ['Active Risks', 'Signals', 'By Category'] },
-    ],
+    menuItems: []
   },
   {
     id: 'spotify',
     name: 'Spotify',
     shortName: 'Spotify',
-    icon: Music,
+    version: '1.0.0',
+    icon: Music as any,
     iconVariant: 'spotify',
+    category: 'marketplace',
+    requiredCapabilities: ['spotify'],
+    entryPoint: SpotifyApp,
+    permissions: [],
     gradient: 'linear-gradient(135deg, #1DB954 0%, #191414 100%)',
     glyphColor: '#1DB954',
-    component: SpotifyApp,
-    menuItems: [
-      { label: 'File', items: ['New Playlist', 'Connect Device', 'Disconnect', 'Close Window'] },
-      { label: 'View', items: ['Home', 'Search', 'Your Library', 'Liked Songs'] },
-    ],
+    menuItems: []
   },
 ]
 
 export const APP_MAP: Record<string, AppDef> = Object.fromEntries(
   APPS.map((app) => [app.id, app])
-) as Record<string, AppDef>
+)
 
-export const CORE_APP_IDS: string[] = ['memory', 'explorer', 'health', 'command', 'inbox', 'agents', 'issues', 'terminal', 'settings', 'files', 'integrations']
-export const UTILITY_APP_IDS: string[] = ['calculator', 'notes', 'calendar']
-export const BUSINESS_APP_IDS: string[] = ['house', 'sales', 'finance', 'inventory', 'community', 'campaigns', 'guardian', 'ai', 'risk', 'spotify']
-
-import { AppRegistry } from '@/lib/os-desktop/registry'
-// Temporary bridge to register legacy apps into the new OS Registry paradigm
+// Register all apps to OS registry
 APPS.forEach(app => {
-  AppRegistry.registerManifest({
-    id: app.id,
-    name: app.name,
-    version: '1.0.0',
-    icon: app.iconVariant, // Temporary mapping
-    entryPoint: app.component,
-    permissions: [],
-  })
+  AppRegistry.registerManifest(app)
 })
+
+// Hook for fetching dynamically available apps based on organization capabilities
+export function useAvailableApps() {
+  const { data: capabilities = [], isLoading } = useQuery({
+    queryKey: ['capabilities'],
+    queryFn: async () => {
+      const res = await fetch('/api/organization/capabilities')
+      if (!res.ok) throw new Error('Failed to fetch capabilities')
+      return res.json()
+    }
+  })
+
+  // Filter apps that require capabilities the org doesn't have
+  const availableApps = APPS.filter(app => {
+    // If the app doesn't require any capabilities, it's available
+    if (!app.requiredCapabilities || app.requiredCapabilities.length === 0) return true
+    
+    // Otherwise, org must have ALL required capabilities
+    const capabilityNames = capabilities.map((c: any) => c.name)
+    return app.requiredCapabilities.every(req => capabilityNames.includes(req))
+  })
+
+  const coreAppIds = availableApps.filter(a => a.category === 'core').map(a => a.id)
+  const utilityAppIds = availableApps.filter(a => a.category === 'utility').map(a => a.id)
+  const businessAppIds = availableApps.filter(a => a.category === 'business').map(a => a.id)
+  const marketplaceAppIds = availableApps.filter(a => a.category === 'marketplace').map(a => a.id)
+
+  return {
+    apps: availableApps,
+    coreAppIds,
+    utilityAppIds,
+    businessAppIds,
+    marketplaceAppIds,
+    isLoading
+  }
+}

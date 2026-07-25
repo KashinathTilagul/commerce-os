@@ -7,7 +7,7 @@ import { PageHeader, KpiCard, StatusPill } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { formatINR, formatINRFull, EKVAAR_PILLARS, timeAgo } from '@/lib/ekvaar'
+import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
 
 const PILLAR_META: Record<string, { color: string; description: string }> = {
@@ -37,9 +37,11 @@ export function CampaignsModule() {
   const totalSpend = campaigns.reduce((s, c) => s + c.spend, 0)
   const totalBudget = campaigns.reduce((s, c) => s + c.budget, 0)
 
+  const allPillars = Array.from(new Set(campaigns.map(c => c.pillar).filter(Boolean))).sort()
+  
   // Campaigns by pillar
-  const byPillar = EKVAAR_PILLARS.map((p) => ({
-    pillar: p,
+  const byPillar = allPillars.map((p) => ({
+    pillar: p as string,
     count: campaigns.filter((c) => c.pillar === p).length,
     impressions: campaigns.filter((c) => c.pillar === p).reduce((s, c) => s + c.impressions, 0),
   }))
@@ -48,8 +50,8 @@ export function CampaignsModule() {
     <div>
       <PageHeader
         eyebrow="Content & Campaigns"
-        title="Story-Led · Six Pillars"
-        description="Content pillars: philosophy, product, culture, process, founder, community. Brand voice: restrained, intelligent, confident, calm, permanence-first. Avoid trend memes, hype language, overexplaining, cringe marketing."
+        title="Story-Led Campaigns"
+        description="Brand voice: restrained, intelligent, confident, calm, permanence-first. Avoid trend memes, hype language, overexplaining, cringe marketing."
         actions={
           <Button size="sm" className="gap-1.5" onClick={() => toast.info('New Campaign', 'Campaign brief form would open here')}>
             <Plus className="h-3.5 w-3.5" /> New Campaign
@@ -69,7 +71,7 @@ export function CampaignsModule() {
         {/* Content pillars */}
         <div>
           <div className="flex items-baseline justify-between mb-4">
-            <h2 className="font-display text-lg tracking-tight">Six Content Pillars</h2>
+            <h2 className="font-display text-lg tracking-tight">Content Pillars</h2>
             <span className="text-xs text-muted-foreground">Every story serves one of these</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -78,11 +80,11 @@ export function CampaignsModule() {
               return (
                 <Card key={p.pillar}>
                   <CardContent className="p-4">
-                    <div className={`h-1 w-8 ${meta.color} mb-3`} />
+                    <div className={`h-1 w-8 ${meta ? meta.color : 'bg-muted'} mb-3`} />
                     <div className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">{p.pillar}</div>
                     <div className="font-display text-xl mt-1">{p.count}</div>
                     <div className="text-[10px] text-muted-foreground mt-1">{p.impressions.toLocaleString('en-IN')} impressions</div>
-                    <div className="text-[10px] text-muted-foreground mt-2 leading-relaxed">{meta.description}</div>
+                    {meta && <div className="text-[10px] text-muted-foreground mt-2 leading-relaxed">{meta.description}</div>}
                   </CardContent>
                 </Card>
               )

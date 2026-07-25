@@ -13,22 +13,16 @@ datasource db {
 
 // ============ AUTHENTICATION ============
 
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String?
-  name          String?
-  role          String    @default("USER")
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
 
-  accounts  Account[]
-  sessions  Session[]
-  auditLogs AuditLog[]
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String?  @unique
+  tier        String   @default("STARTER") // STARTER | GROWTH | PRO | ENTERPRISE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  preference     UserPreference?
+  users          User[]
   products       Product[]
   orders         Order[]
   customers      Customer[]
@@ -51,16 +45,37 @@ model User {
   goals          Goal[]
   oauthTokens    OAuthToken[]
   contextEntries ContextEntry[]
+  workflows      Workflow[]
+  workspaces     Workspace[]
+  artifacts      Artifact[]
+  
+  context        OrganizationContext?
+}
 
-  // V2 Relations
-  workflows  Workflow[]
-  workspaces Workspace[]
-  artifacts  Artifact[]
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  organizationId String?
+  orgRole       String    @default("MEMBER") // FOUNDER | ADMIN | MEMBER
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  password      String?
+  name          String?
+  role          String    @default("USER")
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts  Account[]
+  sessions  Session[]
+  auditLogs AuditLog[]
+
+  preference     UserPreference?
 }
 
 model Account {
   id                String  @id @default(cuid())
-  userId            String
+  userId String
   type              String
   provider          String
   providerAccountId String
@@ -80,7 +95,7 @@ model Account {
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
-  userId       String
+  userId String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -95,7 +110,7 @@ model VerificationToken {
 
 model AuditLog {
   id        String   @id @default(cuid())
-  userId    String?
+  userId String?
   action    String
   entity    String
   entityId  String?
@@ -111,7 +126,7 @@ model AuditLog {
 
 model Product {
   id          String   @id @default(cuid())
-  userId      String
+  organizationId String
   name        String
   sku         String
   house       String // Solids | Layers | Street | Luxe | Origins
@@ -128,18 +143,18 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
 
-  @@unique([userId, sku])
-  @@index([userId])
+  @@unique([organizationId, sku])
+  @@index([organizationId])
 }
 
 // ============ SALES ============
 
 model Order {
   id            String   @id @default(cuid())
-  userId        String
+  organizationId String
   orderNumber   String
   customerName  String
   customerEmail String
@@ -152,11 +167,11 @@ model Order {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization  Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   items OrderItem[]
 
-  @@unique([userId, orderNumber])
-  @@index([userId])
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId])
 }
 
 model OrderItem {
@@ -174,7 +189,7 @@ model OrderItem {
 
 model Customer {
   id               String   @id @default(cuid())
-  userId           String
+  organizationId String
   name             String
   email            String
   phone            String
@@ -186,17 +201,17 @@ model Customer {
   lastActive       DateTime @default(now())
   restorationCount Int      @default(0)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, email])
-  @@index([userId])
+  @@unique([organizationId, email])
+  @@index([organizationId])
 }
 
 // ============ FINANCE ============
 
 model Transaction {
   id          String   @id @default(cuid())
-  userId      String
+  organizationId String
   type        String // INCOME | EXPENSE
   category    String // PRODUCT_SALES | WHOLESALE | MATERIALS | LABOR | LOGISTICS | MARKETING | OPS | AI_INFRA | RESTORATION | R&D
   amount      Float
@@ -205,16 +220,16 @@ model Transaction {
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 // ============ CAMPAIGNS / CONTENT ============
 
 model Campaign {
   id          String    @id @default(cuid())
-  userId      String
+  organizationId String
   title       String
   pillar      String // philosophy | product | culture | process | founder | community
   status      String    @default("DRAFT") // DRAFT | LIVE | SCHEDULED | ARCHIVED
@@ -227,14 +242,14 @@ model Campaign {
   engagement  Float     @default(0) // percent
   createdAt   DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 model FounderNote {
   id          String    @id @default(cuid())
-  userId      String
+  organizationId String
   title       String
   excerpt     String
   body        String
@@ -242,16 +257,16 @@ model FounderNote {
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 // ============ COMMUNITY ============
 
 model Restoration {
   id           String    @id @default(cuid())
-  userId       String
+  organizationId String
   customerName String
   productSku   String
   productName  String
@@ -260,16 +275,16 @@ model Restoration {
   requestedAt  DateTime  @default(now())
   completedAt  DateTime?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 // ============ OPERATIONS ============
 
 model Supplier {
   id        String   @id @default(cuid())
-  userId    String
+  organizationId String
   name      String
   material  String // heavyweight cotton | fleece | drape fabric | thread | dye | packaging
   city      String
@@ -278,16 +293,16 @@ model Supplier {
   status    String   @default("ACTIVE") // ACTIVE | PAUSED | BLACKLIST
   lastOrder DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 // ============ AI INFRASTRUCTURE ============
 
 model AISystem {
   id         String @id @default(cuid())
-  userId     String
+  organizationId String
   name       String // Brand Guardian | Content | Creative | Commerce | Founder | Product Intelligence | Operations
   status     String @default("ACTIVE") // ACTIVE | IDLE | TRAINING | ALERT
   health     Float  @default(100) // 0-100
@@ -299,16 +314,16 @@ model AISystem {
   description String
   pillar      String // brand | content | creative | commerce | founder | product | operations
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 // ============ BRAND GUARDIAN CHECKS ============
 
 model BrandCheck {
   id         String   @id @default(cuid())
-  userId     String
+  organizationId String
   module     String // PRODUCT | CONTENT | CAMPAIGN | PACKAGING | DIGITAL
   asset      String
   status     String   @default("PASS") // PASS | WARN | FAIL
@@ -316,16 +331,16 @@ model BrandCheck {
   notes      String
   checkedAt  DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 // ============ DIGITAL WORKFORCE (AGENTS) ============
 
 model Agent {
   id             String  @id @default(cuid())
-  userId         String
+  organizationId String
   code           String // FOUNDER | CEO | CMO | CTO | CFO | COO | CCO | CSM | GROWTH | RESEARCH | HR | LEGAL
   name           String // Display name
   role           String // Chief Executive Officer, etc.
@@ -351,7 +366,7 @@ model Agent {
   currentWorkflowId String?
   memoryVectorIds   String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   manager Agent?  @relation("AgentHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
   reports Agent[] @relation("AgentHierarchy")
@@ -364,15 +379,15 @@ model Agent {
   capabilities   Capability[]
   workspaces     AgentWorkspace[]
 
-  @@unique([userId, code])
-  @@index([userId])
+  @@unique([organizationId, code])
+  @@index([organizationId])
 }
 
 // ============ ISSUES (WORK OBJECTS) ============
 
 model Issue {
   id           String   @id @default(cuid())
-  userId       String
+  organizationId String
   code         String // PAP-39
   title        String
   description  String
@@ -387,13 +402,13 @@ model Issue {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignee  Agent?         @relation("IssueAssignee", fields: [assigneeId], references: [id])
   createdBy Agent?         @relation("IssueCreator", fields: [createdById], references: [id])
   comments  IssueComment[]
 
-  @@unique([userId, code])
-  @@index([userId])
+  @@unique([organizationId, code])
+  @@index([organizationId])
 }
 
 model IssueComment {
@@ -413,7 +428,7 @@ model IssueComment {
 
 model Event {
   id        String   @id @default(cuid())
-  userId    String
+  organizationId String
   type      String // ISSUE_CREATED | ISSUE_ASSIGNED | AGENT_HEARTBEAT | BUDGET_WARNING | APPROVAL_REQUESTED | CAMPAIGN_LAUNCHED | ...
   actorId   String?
   actorName String
@@ -422,17 +437,17 @@ model Event {
   severity  String   @default("INFO") // INFO | WARN | ERROR | CRITICAL
   timestamp DateTime @default(now())
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   actor Agent? @relation(fields: [actorId], references: [id])
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 // ============ GOVERNANCE & APPROVALS ============
 
 model Approval {
   id          String    @id @default(cuid())
-  userId      String
+  organizationId String
   code        String // APR-12
   type        String // BUDGET | STRATEGIC | HIRING | CAMPAIGN | VENDOR
   title       String
@@ -446,18 +461,18 @@ model Approval {
   createdAt   DateTime  @default(now())
   resolvedAt  DateTime?
 
-  user      User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   requester Agent @relation("ApprovalRequester", fields: [requesterId], references: [id])
 
-  @@unique([userId, code])
-  @@index([userId])
+  @@unique([organizationId, code])
+  @@index([organizationId])
 }
 
 // ============ CALENDAR ============
 
 model CalendarEvent {
   id            String   @id @default(cuid())
-  userId        String
+  organizationId String
   title         String
   description   String?
   start         DateTime
@@ -468,17 +483,17 @@ model CalendarEvent {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([userId, start])
+  @@index([organizationId])
+  @@index([organizationId, start])
 }
 
 // ============ COMPOSIO INTEGRATIONS ============
 
 model Integration {
   id                 String    @id @default(cuid())
-  userId             String
+  organizationId String
   toolkitSlug        String // shopify, stripe, github, gmail, slack, etc.
   name               String
   description        String
@@ -492,11 +507,11 @@ model Integration {
   executionsCount    Int       @default(0)
   createdAt          DateTime  @default(now())
 
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization       Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   executions ToolExecution[]
 
-  @@unique([userId, toolkitSlug])
-  @@index([userId])
+  @@unique([organizationId, toolkitSlug])
+  @@index([organizationId])
 }
 
 model ToolExecution {
@@ -586,17 +601,17 @@ model Capability {
   inputSchema         String? // JSON schema of expected input
   outputSchema        String? // JSON schema of expected output
   version             String   @default("1.0")
-  userId              String
+  organizationId String
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization           Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   owner          Agent          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   toolRegistries ToolRegistry[]
 
-  @@unique([userId, name])
-  @@index([userId])
-  @@index([userId, category])
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([organizationId, category])
 }
 
 // ============ SKILL SYSTEM ============
@@ -618,22 +633,22 @@ model Skill {
   riskLevel      String   @default("none") // none | low | medium | high | critical
   version        String   @default("1.0")
   isActive       Boolean  @default(true)
-  userId         String
+  organizationId String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, slug])
-  @@index([userId])
-  @@index([userId, category])
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([organizationId, category])
 }
 
 // ============ CAMOFOX BROWSE QUEUE ============
 
 model BrowseJob {
   id          String    @id @default(cuid())
-  userId      String
+  organizationId String
   agentCode   String // Which agent requested
   url         String
   action      String    @default("snapshot") // snapshot | click | type | scroll | eval
@@ -648,9 +663,9 @@ model BrowseJob {
   startedAt   DateTime?
   completedAt DateTime?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
   @@index([status])
 }
 
@@ -658,7 +673,7 @@ model BrowseJob {
 
 model Goal {
   id           String    @id @default(cuid())
-  userId       String
+  organizationId String
   title        String // "Cut Meta Ads CAC to ₹2000"
   metric       String // "meta_ads_cac" — machine-readable metric key
   targetValue  Float // 2000
@@ -675,10 +690,10 @@ model Goal {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization       Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   iterations GoalIteration[]
 
-  @@index([userId])
+  @@index([organizationId])
   @@index([status])
 }
 
@@ -702,7 +717,7 @@ model GoalIteration {
 
 model OAuthToken {
   id           String    @id @default(cuid())
-  userId       String
+  organizationId String
   provider     String // google | meta | shopify
   accessToken  String // Encrypted
   refreshToken String? // Encrypted
@@ -715,17 +730,17 @@ model OAuthToken {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, provider])
-  @@index([userId])
+  @@unique([organizationId, provider])
+  @@index([organizationId])
 }
 
 // ============ CONTEXT STORE ============
 
 model ContextEntry {
   id        String   @id @default(cuid())
-  userId    String
+  organizationId String
   handle    String // "txn_query_8912" — unique reference for retrieval
   source    String // "prisma:transaction", "camofox:snapshot", "agent:cmo"
   summary   String // 2-3 line compact summary for LLM prompt
@@ -734,10 +749,10 @@ model ContextEntry {
   ttl       Int      @default(3600) // Seconds before auto-expiry
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, handle])
-  @@index([userId])
+  @@unique([organizationId, handle])
+  @@index([organizationId])
 }
 
 // ============ V2 OS KERNEL & EVENT BUS ============
@@ -756,7 +771,7 @@ model SystemEvent {
 
 model Workflow {
   id        String   @id @default(cuid())
-  userId    String
+  organizationId String
   name      String
   status    String   @default("PLANNING") // PLANNING | RUNNING | BLOCKED | COMPLETED | FAILED
   graphDef  String // JSON DAG definition
@@ -765,9 +780,9 @@ model Workflow {
 
   tasks WorkflowTask[]
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 model WorkflowTask {
@@ -785,7 +800,7 @@ model WorkflowTask {
 
 model Workspace {
   id          String   @id @default(cuid())
-  userId      String
+  organizationId String
   title       String
   status      String   @default("DRAFT")
   permissions String   @default("{}") // JSON object
@@ -798,9 +813,9 @@ model Workspace {
   artifacts    Artifact[]
   participants AgentWorkspace[]
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 model AgentWorkspace {
@@ -837,7 +852,7 @@ model WorkspaceRevision {
 
 model Artifact {
   id              String   @id @default(cuid())
-  userId          String
+  organizationId String
   workspaceId     String?
   title           String
   type            String // PDF, EXCEL, PNG
@@ -847,9 +862,9 @@ model Artifact {
   createdAt       DateTime @default(now())
 
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
+  @@index([organizationId])
 }
 
 // ============ V2 PROVIDER MANAGER ============
@@ -877,5 +892,26 @@ model TelemetryMetric {
   // Optional relations to tie metric directly to OS entities
   workflowId String?
   taskId     String?
-  userId     String?
+  organizationId String?
+}
+
+// ============ ORGANIZATION CONTEXT ============
+
+model OrganizationContext {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  companyProfile  String   @default("") // E.g., "A modern D2C fashion brand"
+  brandDna        String   @default("") // E.g., "Minimalist, sustainable, bold"
+  industry        String   @default("") // E.g., "Fashion & Apparel"
+  products        String   @default("") // E.g., "High-end streetwear and accessories"
+  toneOfVoice     String   @default("") // E.g., "Direct, sophisticated, confident"
+  policies        String   @default("") // High-level org policies
+  workflows       String   @default("") // Overview of canonical workflows
+  goals           String   @default("") // Strategic goals
+  preferences     String   @default("") // Global preferences (JSON or text)
+  connectedSystems String  @default("") // Summary of connected tools
+  
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }

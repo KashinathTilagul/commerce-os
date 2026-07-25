@@ -8,7 +8,7 @@ import { PageHeader, KpiCard, HouseBadge, ColorDot, StatusPill } from '../shared
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Progress } from '@/components/ui/progress'
-import { formatINR, formatINRFull, EKVAAR_HOUSES, timeAgo } from '@/lib/ekvaar'
+import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
 
 export function InventoryOps() {
   const { data: products = [] } = useQuery<any[]>({
@@ -34,16 +34,22 @@ export function InventoryOps() {
     const totalValue = products.reduce((s, p) => s + p.stock * p.cost, 0)
     const lowStock = products.filter((p) => p.stock <= p.reorderAt && p.status !== 'DRAFT')
     const restocking = products.filter((p) => p.status === 'RESTOCKING')
-    const byHouse: Record<string, { stock: number; value: number; count: number; low: number }> = {}
-    for (const h of EKVAAR_HOUSES) byHouse[h.name] = { stock: 0, value: 0, count: 0, low: 0 }
+    const allCategories = new Set<string>()
     for (const p of products) {
-      if (!byHouse[p.house]) byHouse[p.house] = { stock: 0, value: 0, count: 0, low: 0 }
-      byHouse[p.house].stock += p.stock
-      byHouse[p.house].value += p.stock * p.cost
-      byHouse[p.house].count++
-      if (p.stock <= p.reorderAt && p.status !== 'DRAFT') byHouse[p.house].low++
+      allCategories.add(p.category || p.house || 'Uncategorized')
     }
-    return { totalStock, totalValue, lowStock, restocking, byHouse }
+    
+    const byHouse: Record<string, { stock: number; value: number; count: number; low: number }> = {}
+    for (const cat of allCategories) byHouse[cat] = { stock: 0, value: 0, count: 0, low: 0 }
+    
+    for (const p of products) {
+      const cat = p.category || p.house || 'Uncategorized'
+      byHouse[cat].stock += p.stock
+      byHouse[cat].value += p.stock * p.cost
+      byHouse[cat].count++
+      if (p.stock <= p.reorderAt && p.status !== 'DRAFT') byHouse[cat].low++
+    }
+    return { totalStock, totalValue, lowStock, restocking, byHouse, allCategories: Array.from(allCategories).sort() }
   }, [products])
 
   return (
@@ -70,13 +76,15 @@ export function InventoryOps() {
             <span className="text-xs text-muted-foreground">Stock value at cost</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {EKVAAR_HOUSES.map((h) => {
-              const s = stats.byHouse[h.name]
+            {stats.allCategories.map((cat) => {
+              const s = stats.byHouse[cat]
               if (!s) return null
               return (
-                <Card key={h.name}>
+                <Card key={cat}>
                   <CardContent className="p-5">
-                    <HouseBadge house={h.name} />
+                    <div className="text-[10px] tracking-wider uppercase text-muted-foreground border border-border px-1.5 py-0.5 rounded-sm inline-block mb-2">
+                      {cat}
+                    </div>
                     <div className="font-display text-2xl mt-3">{s.stock}</div>
                     <div className="text-[10px] text-muted-foreground">units · {s.count} SKUs</div>
                     <div className="mt-3 pt-3 border-t border-border">

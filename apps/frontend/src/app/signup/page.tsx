@@ -15,6 +15,7 @@ export default function SignupPage() {
   const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [companyName, setCompanyName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -51,7 +52,7 @@ export default function SignupPage() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, companyName: companyName || `${name}'s Organization` }),
       })
 
       const data = await res.json().catch(() => ({}))
@@ -112,6 +113,18 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={loading}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="companyName">Organization Name (Optional)</Label>
+              <Input
+                id="companyName"
+                type="text"
+                placeholder="My Organization"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
                 disabled={loading}
                 className="h-11"
               />

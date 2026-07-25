@@ -15,7 +15,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { formatINR, formatINRFull, EKVAAR_HOUSES, type ModuleId } from '@/lib/ekvaar'
+import { formatINR, formatINRFull } from '@/lib/ekvaar'
 import { useAppSubscription } from '@/lib/cpu-websocket'
 
 function KpiSkeleton() {
@@ -92,8 +92,17 @@ interface DashboardData {
   recentEvents: any[]
 }
 
-export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => void }) {
+export function CommandCenter({ onNavigate }: { onNavigate: (m: string) => void }) {
   const [briefingOpen, setBriefingOpen] = useState(false)
+
+  const { data: orgContext } = useQuery({
+    queryKey: ['org-context'],
+    queryFn: async () => {
+      const res = await fetch('/api/organization/context')
+      if (!res.ok) return null
+      return res.json()
+    }
+  })
 
   const { data, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
@@ -459,46 +468,41 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: ModuleId) => voi
               <CardDescription className="text-xs">Every decision must strengthen the House</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
-              {[
-                'Permanence over speed',
-                'Systems over chaos',
-                'Identity over trends',
-                'Originality over imitation',
-                'Restraint over excess',
-                'Long-term relevance over virality',
-                'Culture over algorithms',
-              ].map((p) => (
-                <div key={p} className="flex items-start gap-2">
-                  <span className="text-agni mt-0.5">—</span>
-                  <span className="text-foreground/80">{p}</span>
-                </div>
-              ))}
+              {orgContext?.policies ? (
+                orgContext.policies.split('\n').filter(Boolean).map((p: string, i: number) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <span className="text-agni mt-0.5">—</span>
+                    <span className="text-foreground/80">{p}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-muted-foreground italic">No operating principles defined for this organization yet.</div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* House of Originals cards */}
         <div>
-          <SectionTitle hint="5 categories · boundaries are the discipline">
-            House of Originals
+          <SectionTitle hint="Categorized knowledge">
+            Knowledge Assets
           </SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {EKVAAR_HOUSES.map((h) => (
+            {(data?.houses || []).map((catName: string) => (
               <button
-                key={h.name}
-                onClick={() => onNavigate('house')}
+                key={catName}
+                onClick={() => onNavigate('explorer')}
                 className="arch-card p-5 text-left hover:border-foreground/40 transition-all group"
               >
-                <HouseBadge house={h.name} />
-                <div className="mt-3 font-display text-lg tracking-tight">{h.name}</div>
-                <div className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
-                  {h.description}
-                </div>
+                <div className="mt-3 font-display text-lg tracking-tight">{catName}</div>
                 <div className="mt-4 flex items-center text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                   Enter <ArrowUpRight className="h-3 w-3 ml-1" />
                 </div>
               </button>
             ))}
+            {(data?.houses || []).length === 0 && (
+              <div className="col-span-5 text-sm text-muted-foreground">No assets found.</div>
+            )}
           </div>
         </div>
 

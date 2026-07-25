@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { EKVAAR_AI_SYSTEMS, timeAgo } from '@/lib/ekvaar'
+import { timeAgo } from '@/lib/ekvaar'
 
 const PILLAR_ICON: Record<string, any> = {
   brand: ShieldCheck,
@@ -49,8 +49,8 @@ export function AIInfrastructure() {
     <div>
       <PageHeader
         eyebrow="AI Infrastructure"
-        title="Seven AI Systems · One House"
-        description="EKVAAR is an AI-native fashion house. AI must remain restrained, culturally intelligent, premium, and permanence-oriented. AI should strengthen the House — not dilute it. Seven systems, one operating discipline."
+        title="AI Intelligence Layer"
+        description="The AI Intelligence Layer is an AI-native operating system. AI must remain restrained, culturally intelligent, premium, and permanence-oriented. AI should strengthen the organization — not dilute it."
         actions={
           <div className="flex items-center gap-2 px-3 py-1.5 border border-border rounded-md">
             <Cpu className="h-3.5 w-3.5 text-arav" />
@@ -71,8 +71,8 @@ export function AIInfrastructure() {
         {/* AI systems grid */}
         <div>
           <div className="flex items-baseline justify-between mb-4">
-            <h2 className="font-display text-lg tracking-tight">The Seven Systems</h2>
-            <span className="text-xs text-muted-foreground">Each strengthens one part of the House</span>
+            <h2 className="font-display text-lg tracking-tight">Active AI Systems</h2>
+            <span className="text-xs text-muted-foreground">Each strengthens one part of the organization</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {systems.map((s, i) => {

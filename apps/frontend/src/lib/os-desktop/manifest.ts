@@ -8,6 +8,11 @@ export interface OSManifest {
   version: string
   author?: string
   
+  category?: string
+  requiredCapabilities: string[]
+  requiredKnowledgeScopes?: string[]
+  requiredCommerceObjects?: string[]
+  
   // Lifecycle & Routing
   entryPoint: React.ComponentType<{ appId: string }>
   routes?: { path: string; component: React.ComponentType<any> }[]

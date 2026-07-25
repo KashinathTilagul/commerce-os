@@ -7,13 +7,15 @@ export async function GET(req: NextRequest) {
   if (!auth.success) return auth.response
 
   const { searchParams } = new URL(req.url)
-  const house = searchParams.get('house')
+    const category = searchParams.get('category') || searchParams.get('house')
   const status = searchParams.get('status')
 
   const products = await db.product.findMany({
     where: {
-      userId: auth.user.id,
-      ...(house && house !== 'ALL' ? { house } : {}),
+      organizationId: auth.organization.id,
+      ...(category && category !== 'ALL' ? { 
+        OR: [{ category }, { house: category }] 
+      } : {}),
       ...(status && status !== 'ALL' ? { status } : {}),
     },
     orderBy: { createdAt: 'desc' },

@@ -16,15 +16,15 @@ export async function GET() {
   const auth = await requireAuth()
   if (!auth.success) return auth.response
 
-  const userId = auth.user.id
+  const userId = auth.user.id // Kept for legacy usage if any, but queries use orgId
 
   const [systems, agents] = await Promise.all([
     db.aISystem.findMany({
-      where: { userId },
+      where: { organizationId: auth.organization.id },
       orderBy: { name: 'asc' },
     }),
     db.agent.findMany({
-      where: { userId },
+      where: { organizationId: auth.organization.id },
     }),
   ])
 

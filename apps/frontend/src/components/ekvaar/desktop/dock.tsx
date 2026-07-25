@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { LayoutGrid, X, Check, Edit3, RotateCcw } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
-import { APPS, CORE_APP_IDS, UTILITY_APP_IDS, BUSINESS_APP_IDS } from './app-registry'
+import { useAvailableApps } from './app-registry'
 import { AppIcon } from './app-icon'
 import { DockContextMenu } from './dock-context-menu'
 import { toast } from './toast'
@@ -13,14 +13,6 @@ interface DockProps {
   onLaunchpad?: () => void
   onJarvisClick?: () => void
 }
-
-// All dockable app IDs in default order (Launchpad + all apps)
-const DEFAULT_DOCK_ORDER: string[] = [
-  'launchpad',
-  ...CORE_APP_IDS,
-  ...UTILITY_APP_IDS,
-  ...BUSINESS_APP_IDS,
-]
 
 export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   // Per-field selectors — a single useWindowStore() destructure would
@@ -44,6 +36,16 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   const resetAll = useWindowStore(s => s.resetVisibility)
   const hiddenApps = _hiddenApps || []
   const customNames = _customNames || {}
+
+  const { apps: availableApps, coreAppIds, utilityAppIds, businessAppIds, marketplaceAppIds } = useAvailableApps()
+
+  const defaultDockOrder = useMemo(() => [
+    'launchpad',
+    ...coreAppIds,
+    ...utilityAppIds,
+    ...businessAppIds,
+    ...marketplaceAppIds
+  ], [coreAppIds, utilityAppIds, businessAppIds, marketplaceAppIds])
 
   // Auto-hide when any window is maximized
   const hasMaximized = windows.some((w) => w.isMaximized && !w.isMinimized)
@@ -79,21 +81,21 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   const effectiveOrder = useMemo(() => {
     if (dockOrder && dockOrder.length > 0) {
       // Filter to only known apps, add any missing new apps at the end
-      const known = DEFAULT_DOCK_ORDER.filter(id =>
-        dockOrder.includes(id) || id === 'launchpad' || id === 'guardian'
+      const known = defaultDockOrder.filter(id =>
+        dockOrder.includes(id) || id === 'launchpad' || id === 'brand-intelligence'
       )
       // Reorder based on stored order, then append any new apps
-      const ordered = dockOrder.filter(id => DEFAULT_DOCK_ORDER.includes(id))
-      const missing = DEFAULT_DOCK_ORDER.filter(id => !ordered.includes(id))
+      const ordered = dockOrder.filter(id => defaultDockOrder.includes(id))
+      const missing = defaultDockOrder.filter(id => !ordered.includes(id))
       return [...ordered, ...missing]
     }
-    return DEFAULT_DOCK_ORDER
-  }, [dockOrder])
+    return defaultDockOrder
+  }, [dockOrder, defaultDockOrder])
 
   // Filter out hidden apps (but keep Launchpad and Guardian always visible)
   const visibleOrder = useMemo(() => {
     return effectiveOrder.filter(id => {
-      if (id === 'launchpad' || id === 'guardian') return true
+      if (id === 'launchpad' || id === 'brand-intelligence') return true
       return !hiddenApps.includes(id)
     })
   }, [effectiveOrder, hiddenApps])
@@ -101,7 +103,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   // Build app definitions map for quick lookup
   const appMap = useMemo(() => {
     const m: Record<string, any> = {}
-    APPS.forEach(a => { m[a.id] = a })
+    availableApps.forEach(a => { m[a.id] = a })
     // Special entries
     m['launchpad'] = {
       id: 'launchpad', name: 'Launchpad', shortName: 'Apps',
@@ -144,7 +146,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
       return
     }
     const existing = windows.find((w) => w.id === id)
-    const appName = customNames[id] || APPS.find(a => a.id === id)?.name || id
+    const appName = customNames[id] || availableApps.find(a => a.id === id)?.name || id
     const isOpen = !!existing
     const isActive = activeId === id
 
@@ -160,7 +162,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   const handleContextMenu = (e: React.MouseEvent, appId: string) => {
     e.preventDefault()
     if (appId === 'launchpad') return // Can't edit these
-    const appName = customNames[appId] || APPS.find(a => a.id === appId)?.name || appId
+    const appName = customNames[appId] || availableApps.find(a => a.id === appId)?.name || appId
     const idx = effectiveOrder.indexOf(appId)
     // Find prev/next that are also real apps (not launchpad/dividers)
     const realApps = effectiveOrder.filter(id => id !== 'launchpad')
@@ -218,7 +220,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
 
   // Remove app from dock (hide it)
   const handleRemove = (appId: string) => {
-    const appName = customNames[appId] || APPS.find(a => a.id === appId)?.name || appId
+    const appName = customNames[appId] || availableApps.find(a => a.id === appId)?.name || appId
     hideApp(appId)
     toast.info('Removed from dock', `${appName} hidden — restore via Launchpad > Edit`)
   }
@@ -226,26 +228,26 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   // Restore app to dock
   const handleRestore = (appId: string) => {
     showApp(appId)
-    const appName = customNames[appId] || APPS.find(a => a.id === appId)?.name || appId
+    const appName = customNames[appId] || availableApps.find(a => a.id === appId)?.name || appId
     toast.success('Restored to dock', appName)
   }
 
   // Move left/right
   const handleMoveLeft = (appId: string) => {
     moveAppLeft(appId, effectiveOrder)
-    const appName = customNames[appId] || APPS.find(a => a.id === appId)?.name || appId
+    const appName = customNames[appId] || availableApps.find(a => a.id === appId)?.name || appId
     toast.info('Moved left', appName)
   }
   const handleMoveRight = (appId: string) => {
     moveAppRight(appId, effectiveOrder)
-    const appName = customNames[appId] || APPS.find(a => a.id === appId)?.name || appId
+    const appName = customNames[appId] || availableApps.find(a => a.id === appId)?.name || appId
     toast.info('Moved right', appName)
   }
 
   // Rename
   const handleRename = (appId: string) => {
     setRenamingId(appId)
-    setRenameValue(customNames[appId] || APPS.find(a => a.id === appId)?.name || appId)
+    setRenameValue(customNames[appId] || availableApps.find(a => a.id === appId)?.name || appId)
   }
   const commitRename = (appId: string) => {
     if (renameValue.trim()) {
@@ -270,12 +272,10 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
     if (!prev) return false
     // Divider if previous is launchpad (start of core)
     if (prev === 'launchpad') return true
-    // Divider if transitioning from core to utility
-    if (CORE_APP_IDS.includes(prev as any) && UTILITY_APP_IDS.includes(id as any)) return true
-    // Divider if transitioning from utility to business
-    if (UTILITY_APP_IDS.includes(prev as any) && BUSINESS_APP_IDS.includes(id as any)) return true
+    if (coreAppIds.includes(prev) && utilityAppIds.includes(id)) return true
+    if (utilityAppIds.includes(prev) && (businessAppIds.includes(id) || marketplaceAppIds.includes(id))) return true
     // Divider before guardian
-    if (id === 'guardian') return true
+    if (id === 'brand-intelligence') return true
     return false
   }
 
