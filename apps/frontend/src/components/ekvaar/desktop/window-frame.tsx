@@ -19,7 +19,8 @@ export function WindowFrame({ win }: { win: WindowState }) {
   const resize = useWindowStore(s => s.resize)
   const activeId = useWindowStore(s => s.activeId)
   const isActive = activeId === win.id
-  const app = APP_MAP[win.id]
+  const app = APP_MAP[win.appId]
+  if (!app) return null
   const AppComponent = app.component
 
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
