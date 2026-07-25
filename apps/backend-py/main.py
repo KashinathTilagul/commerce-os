@@ -23,21 +23,8 @@ from core.automation.trigger_system import ensure_triggers_registered  # Load es
 
 # Import all route modules
 from routes.graph_routes import router as graph_router
-from routes.content_routes import router as content_router
-from routes.shopify_routes import router as shopify_router
-from routes.inbox_routes import router as inbox_router
-from routes.digital_employee_routes import router as digital_employee_router
-from routes.protocols_routes import router as protocols_router
-from routes.execution import router as execution_router
-from routes.reality_routes import router as reality_router
-from routes.sync_routes import router as sync_router
-from routes.chat_routes import router as chat_router
-from routes.cpu_routes import router as cpu_router
 from routes.issues_routes import router as issues_router
-from routes.runs_routes import router as runs_router
 from routes.approvals_routes import router as approvals_router
-from routes.routines_routes import router as routines_router
-from routes.telemetry_routes import router as telemetry_router
 from routes.workflow_routes import router as workflow_router
 from routes.dashboard_routes import router as dashboard_router
 from routes.jarvis_routes import router as jarvis_router, load_whisper
@@ -126,21 +113,8 @@ async def ekvaar_exception_handler(request: Request, exc: EkvaarException):
 # ─── Mount all API routers under /api ────────────────────────────────────────
 
 app.include_router(graph_router, prefix="/api")
-app.include_router(content_router, prefix="/api")
-app.include_router(shopify_router, prefix="/api")
-app.include_router(inbox_router, prefix="/api")
-app.include_router(digital_employee_router, prefix="/api")
-app.include_router(protocols_router, prefix="/api")
-app.include_router(reality_router, prefix="/api")
-app.include_router(sync_router, prefix="/api")
-app.include_router(chat_router, prefix="/api")
-app.include_router(execution_router, prefix="/api")
-app.include_router(cpu_router, prefix="/api")
 app.include_router(issues_router, prefix="/api")
-app.include_router(runs_router, prefix="/api")
 app.include_router(approvals_router, prefix="/api")
-app.include_router(routines_router, prefix="/api")
-app.include_router(telemetry_router, prefix="/api")
 app.include_router(workflow_router, prefix="/api")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(jarvis_router)
