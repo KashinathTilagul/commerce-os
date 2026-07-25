@@ -15,15 +15,15 @@ const LEVEL_SCORE: Record<Risk['risk_level'], number> = { CRITICAL: 90, HIGH: 70
 // ponytail: risks are derived live from real tables (Agent/Issue/Order) instead of
 // a separate ingestion+signal-detection pipeline — nothing to keep in sync, add a
 // dedicated telemetry pipeline if these heuristics stop being enough signal.
-export async function computeRisks(userId: string): Promise<Risk[]> {
+export async function computeRisks(organizationId: string): Promise<Risk[]> {
   const risks: Risk[] = []
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
 
   const [agents, issues, orders] = await Promise.all([
-    db.agent.findMany({ where: { userId, isHuman: false } }),
-    db.issue.findMany({ where: { userId, status: { not: 'DONE' } } }),
-    db.order.findMany({ where: { userId, status: 'PROCESSING', createdAt: { lt: threeDaysAgo } } }),
+    db.agent.findMany({ where: { organizationId, isHuman: false } }),
+    db.issue.findMany({ where: { organizationId, status: { not: 'DONE' } } }),
+    db.order.findMany({ where: { organizationId, status: 'PROCESSING', createdAt: { lt: threeDaysAgo } } }),
   ])
 
   for (const a of agents) {
@@ -89,7 +89,7 @@ export async function computeRisks(userId: string): Promise<Risk[]> {
   }
 
   const resolved = await db.event.findMany({
-    where: { userId, type: 'RISK_RESOLVED' },
+    where: { organizationId, type: 'RISK_RESOLVED' },
     select: { payload: true },
   })
   const resolvedIds = new Set(resolved.map(r => JSON.parse(r.payload).riskId))

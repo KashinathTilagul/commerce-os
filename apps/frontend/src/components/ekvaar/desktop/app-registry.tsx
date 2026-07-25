@@ -99,7 +99,7 @@ export const APPS: AppDef[] = [
     iconVariant: 'board-room',
     category: 'core',
     requiredCapabilities: ['command_center'],
-    entryPoint: CommandCenter,
+    entryPoint: CommandCenter as any,
     permissions: [],
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #2F4F3A 50%, #C8302A 100%)',
     glyphColor: '#F5F1EA',

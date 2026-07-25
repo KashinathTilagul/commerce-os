@@ -16,7 +16,7 @@ export async function POST(
   const { action } = body as { action?: 'connect' | 'disconnect' }
 
   let integration = await db.integration.findFirst({
-    where: { userId: auth.user.id, toolkitSlug: toolkit },
+    where: { organizationId: auth.user.id, toolkitSlug: toolkit },
   })
 
   if (!integration) {
@@ -27,7 +27,7 @@ export async function POST(
     }
     integration = await db.integration.create({
       data: {
-        userId: auth.user.id,
+        organizationId: auth.user.id,
         toolkitSlug: toolkit,
         name: meta.name,
         description: meta.description,
@@ -88,7 +88,7 @@ export async function PATCH(
   const { agentPermissions } = body
 
   const integration = await db.integration.findFirst({
-    where: { userId: auth.user.id, toolkitSlug: toolkit },
+    where: { organizationId: auth.user.id, toolkitSlug: toolkit },
   })
 
   if (!integration) return NextResponse.json({ error: 'Integration not found' }, { status: 404 })

@@ -18,19 +18,19 @@ export async function POST(req: NextRequest) {
   const token = req.headers.get('x-security-token')
   const secret = process.env.SECURITY_WEBHOOK_SECRET || process.env.NEXTAUTH_SECRET || 'ekvaar-secret'
 
-  let userId: string | null = null
+  let organizationId: string | null = null
 
   if (token && token === secret) {
     // Webhook caller — get founder user ID
     const founder = await db.user.findFirst({ orderBy: { createdAt: 'asc' } })
-    userId = founder?.id || null
+    organizationId = founder?.id || null
   } else {
     const auth = await requireAuth()
     if (!auth.success) return auth.response
-    userId = auth.user.id
+    organizationId = auth.user.id
   }
 
-  if (!userId) {
+  if (!organizationId) {
     return NextResponse.json({ error: 'User context missing' }, { status: 400 })
   }
 
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required title, description, or severity' }, { status: 400 })
     }
 
-    const result = await processSecurityAlert(userId, {
+    const result = await processSecurityAlert(organizationId, {
       title,
       description,
       severity: severity === 'CRITICAL' ? 'CRITICAL' : severity === 'WARNING' ? 'WARNING' : 'INFO',

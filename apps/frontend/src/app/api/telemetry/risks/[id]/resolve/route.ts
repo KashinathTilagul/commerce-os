@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   await db.event.create({
     data: {
-      userId: auth.user.id,
+      organizationId: auth.user.id,
       type: 'RISK_RESOLVED',
       actorName: 'Founder',
       summary: `Resolved risk ${id}`,

@@ -9,20 +9,20 @@ export async function GET() {
   const auth = await requireAuth()
   if (!auth.success) return auth.response
 
-  const userId = auth.user.id
+  const organizationId = auth.user.id
   const hourAgo = new Date(Date.now() - 3600000)
 
   const [entities, relationships, totalEvents, recentEvents, events] = await Promise.all([
-    db.agent.count({ where: { userId } }).then(async n => n
-      + await db.issue.count({ where: { userId } })
-      + await db.order.count({ where: { userId } })
-      + await db.workspace.count({ where: { userId } })),
-    db.issueComment.count({ where: { issue: { userId } } }).then(async n => n
-      + await db.orderItem.count({ where: { order: { userId } } })
-      + await db.workspaceConnection.count({ where: { workspace: { userId } } })),
-    db.event.count({ where: { userId } }),
-    db.event.count({ where: { userId, timestamp: { gte: hourAgo } } }),
-    db.event.findMany({ where: { userId }, orderBy: { timestamp: 'desc' }, take: 50 }),
+    db.agent.count({ where: { organizationId } }).then(async n => n
+      + await db.issue.count({ where: { organizationId } })
+      + await db.order.count({ where: { organizationId } })
+      + await db.workspace.count({ where: { organizationId } })),
+    db.issueComment.count({ where: { issue: { organizationId } } }).then(async n => n
+      + await db.orderItem.count({ where: { order: { organizationId } } })
+      + await db.workspaceConnection.count({ where: { workspace: { organizationId } } })),
+    db.event.count({ where: { organizationId } }),
+    db.event.count({ where: { organizationId, timestamp: { gte: hourAgo } } }),
+    db.event.findMany({ where: { organizationId }, orderBy: { timestamp: 'desc' }, take: 50 }),
   ])
 
   const memories = events.map(e => ({

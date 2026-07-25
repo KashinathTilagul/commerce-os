@@ -18,15 +18,15 @@ import { CredentialManager } from './credential-manager'
 // 1. Interfaces for Kernel Subsystems
 
 export interface IRequestRouter {
-  route(input: { userId: string; intent: string; payload: any }): Promise<KernelResponse>
+  route(input: { organizationId: string; intent: string; payload: any }): Promise<KernelResponse>
 }
 
 export interface IContextManager {
-  injectContext(userId: string, intent: string): Promise<any>
+  injectContext(organizationId: string, intent: string): Promise<any>
 }
 
 export interface IPermissionManager {
-  validate(userId: string, action: string): Promise<boolean>
+  validate(organizationId: string, action: string): Promise<boolean>
 }
 
 export interface KernelResponse {
@@ -65,10 +65,10 @@ class OSKernel {
   /**
    * The single entry point for all execution in EKVAAR OS V2.
    */
-  async execute(request: { userId: string; intent: string; payload: any }): Promise<KernelResponse> {
+  async execute(request: { organizationId: string; intent: string; payload: any }): Promise<KernelResponse> {
     if (!this.isBooted) await this.boot()
     
-    console.log(`[Kernel] Received execution request for user ${request.userId}: ${request.intent}`)
+    console.log(`[Kernel] Received execution request for user ${request.organizationId}: ${request.intent}`)
 
     // 1. Dispatch Event
     const eventBus = ServiceRegistry.get<IEventDispatcher>('EventBus')
@@ -84,7 +84,7 @@ class OSKernel {
     const workflowEngine = ServiceRegistry.get<IWorkflowEngine>('WorkflowEngine')
     
     const workflowId = await workflowEngine.submitWorkflow(
-      request.userId,
+      request.organizationId,
       request.intent || 'Unnamed Task',
       {
         nodes: [

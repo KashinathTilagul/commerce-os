@@ -9,14 +9,14 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   // Ensure integrations are seeded for this user
-  const count = await db.integration.count({ where: { userId: auth.user.id } })
+  const count = await db.integration.count({ where: { organizationId: auth.user.id } })
   if (count === 0) {
     const { seedIntegrations } = await import('@/lib/composio-service')
     await seedIntegrations(auth.user.id)
   }
 
   const integrations = await db.integration.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     include: {
       _count: { select: { executions: true } },
     },

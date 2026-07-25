@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   const restorations = await db.restoration.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     orderBy: { requestedAt: 'desc' },
   })
   return NextResponse.json(restorations)

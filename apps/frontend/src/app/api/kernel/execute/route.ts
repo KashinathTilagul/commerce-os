@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   try {
     const auth = await requireAuth()
     if (!auth.success) return auth.response
-    const userId = auth.user.id
+    const organizationId = auth.user.id
     
     const body = await req.json()
     const { intent, payload } = body
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
 
     // Pass the request to the OS Kernel
     const result = await Kernel.execute({
-      userId: userId,
+      organizationId: organizationId,
       intent,
       payload: payload || {}
     })

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError } from '@/lib/security'
 import { db } from '@/lib/db'

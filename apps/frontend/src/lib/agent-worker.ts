@@ -27,15 +27,15 @@ export interface WorkResult {
 
 // Run one work cycle. Without targetIssueId: the agent's highest-priority open
 // assigned issue. With targetIssueId (direct instruction): that specific ticket.
-export async function runAgentWork(userId: string, agentId: string, targetIssueId?: string): Promise<WorkResult> {
-  const agent = await db.agent.findFirst({ where: { id: agentId, userId } })
+export async function runAgentWork(organizationId: string, agentId: string, targetIssueId?: string): Promise<WorkResult> {
+  const agent = await db.agent.findFirst({ where: { id: agentId, organizationId } })
   if (!agent) return { ok: false, message: 'Agent not found' }
   if (agent.isHuman) return { ok: false, message: 'Human team member — not an executable agent' }
 
   // Candidates: open tickets, plus IN_REVIEW tickets the founder has commented
   // on since the agent last touched them (a push-back re-engages the agent).
   const candidates = await db.issue.findMany({
-    where: { userId, assigneeId: agentId, status: { in: ['BACKLOG', 'IN_PROGRESS', 'IN_REVIEW'] } },
+    where: { organizationId, assigneeId: agentId, status: { in: ['BACKLOG', 'IN_PROGRESS', 'IN_REVIEW'] } },
     orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
     include: { comments: { orderBy: { createdAt: 'asc' }, take: 20 } },
   })
@@ -57,7 +57,7 @@ export async function runAgentWork(userId: string, agentId: string, targetIssueI
     .map(c => `- ${c.authorName}: ${c.body.slice(0, 400)}`)
     .join('\n') || '(no prior work yet)'
 
-  const liveContext = await getLiveBusinessSnapshot(userId)
+  const liveContext = await getLiveBusinessSnapshot(organizationId)
 
   const system = `You are ${agent.name}, the ${agent.role} (${agent.department}) at EKVAAR, an Indian fashion house.
 Your prime directive: ${agent.primeDirective}
@@ -122,7 +122,7 @@ Produce the COMPLETE deliverable for this ticket now. Write the actual work prod
 
   // Are there still open tickets for this agent?
   const remaining = await db.issue.count({
-    where: { userId, assigneeId: agentId, status: { in: ['BACKLOG', 'IN_PROGRESS'] } },
+    where: { organizationId, assigneeId: agentId, status: { in: ['BACKLOG', 'IN_PROGRESS'] } },
   })
   const done = work.newStatus === 'DONE' || work.newStatus === 'IN_REVIEW'
   await db.agent.update({
@@ -139,7 +139,7 @@ Produce the COMPLETE deliverable for this ticket now. Write the actual work prod
 
   await db.event.create({
     data: {
-      userId, type: 'AGENT_WORK', actorId: agentId, actorName: agent.name,
+      organizationId, type: 'AGENT_WORK', actorId: agentId, actorName: agent.name,
       summary: `${agent.name} worked ${issue.code} → ${work.newStatus}`,
       payload: JSON.stringify({ code: issue.code, status: work.newStatus }),
       severity: work.newStatus === 'BLOCKED' ? 'WARN' : 'INFO',
@@ -154,13 +154,13 @@ Produce the COMPLETE deliverable for this ticket now. Write the actual work prod
 export async function runAllBusyAgents(limit = 25): Promise<number> {
   const busy = await db.agent.findMany({
     where: { isHuman: false, issuesAssigned: { some: { status: { in: ['BACKLOG', 'IN_PROGRESS', 'IN_REVIEW'] } } } },
-    select: { id: true, userId: true },
+    select: { id: true, organizationId: true },
     take: limit,
   })
   let worked = 0
   for (const a of busy) {
     try {
-      const r = await runAgentWork(a.userId, a.id)
+      const r = await runAgentWork(a.organizationId, a.id)
       if (r.ok && r.issueCode) worked++
     } catch { /* keep going */ }
   }

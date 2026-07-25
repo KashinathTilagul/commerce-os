@@ -7,7 +7,7 @@ export async function GET() {
   const auth = await requireAuth()
   if (!auth.success) return auth.response
 
-  const agents = await db.agent.findMany({ where: { userId: auth.user.id } })
+  const agents = await db.agent.findMany({ where: { organizationId: auth.user.id } })
 
   const lifecycles = agents.filter((a) => !a.isHuman).map((a) => ({
     agent: a.code,

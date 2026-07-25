@@ -15,14 +15,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/settings/integrations?error=missing_params', req.url))
   }
 
-  let state: { provider: string; userId: string }
+  let state: { provider: string; organizationId: string }
   try {
     state = JSON.parse(decodeURIComponent(stateStr))
   } catch (e) {
     return NextResponse.redirect(new URL('/settings/integrations?error=invalid_state', req.url))
   }
 
-  const { provider, userId } = state
+  const { provider, organizationId } = state
   const config = getProviderConfig(provider)
   if (!config) {
     return NextResponse.redirect(new URL('/settings/integrations?error=unsupported_provider', req.url))
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     const data = await response.json()
     const expiresAt = data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined
 
-    await storeOAuthToken(userId, provider, {
+    await storeOAuthToken(organizationId, provider, {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       scope: data.scope,

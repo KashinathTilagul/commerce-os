@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, userId: user.id })
+    return NextResponse.json({ success: true, organizationId: user.id })
   } catch (error) {
     console.error('Setup Post Error:', error)
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })

@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     
     // Update local DB
     const integration = await db.integration.findFirst({
-      where: { userId: auth.user.id, toolkitSlug }
+      where: { organizationId: auth.user.id, toolkitSlug }
     })
 
     if (integration) {
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       // Log the event
       await db.event.create({
         data: {
-          userId: auth.user.id,
+          organizationId: auth.user.id,
           type: 'INTEGRATION_CONNECTED',
           actorName: 'Founder',
           summary: `Connected ${integration.name} to EKVAAR OS`,

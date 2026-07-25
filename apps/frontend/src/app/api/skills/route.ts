@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   if (!auth.success) return auth.response
 
   const skills = await db.skill.findMany({
-    where: { userId: auth.user.id }
+    where: { organizationId: auth.user.id }
   })
   return NextResponse.json(skills)
 }
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       slug: body.slug,
       name: body.name,
       category: body.category || 'general',
-      userId: auth.user.id,
+      organizationId: auth.user.id,
       source: body.source,
       skillMdPath: body.skillMdPath,
       skillMdContent: body.skillMdContent,

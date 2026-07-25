@@ -1,8 +1,8 @@
 import { db } from '@/lib/db'
 
-export async function registerCapabilities(userId: string, agentId: string, capabilities: any[]) {
+export async function registerCapabilities(organizationId: string, agentId: string, capabilities: any[]) {
   const creates = capabilities.map(cap => ({
-    userId,
+    organizationId,
     ownerId: agentId,
     name: cap.name,
     description: cap.description,
@@ -22,7 +22,7 @@ export async function registerCapabilities(userId: string, agentId: string, capa
   const results: any[] = []
   for (const c of creates) {
     const res = await db.capability.upsert({
-      where: { userId_name: { userId, name: c.name } },
+      where: { organizationId_name: { organizationId, name: c.name } },
       update: c,
       create: c
     })
@@ -31,8 +31,8 @@ export async function registerCapabilities(userId: string, agentId: string, capa
   return results
 }
 
-export async function queryCapabilities(userId: string, options: { category?: string, search?: string, availability?: string }) {
-  const where: any = { userId }
+export async function queryCapabilities(organizationId: string, options: { category?: string, search?: string, availability?: string }) {
+  const where: any = { organizationId }
   if (options.category) where.category = options.category
   if (options.availability) where.availability = options.availability
   if (options.search) {
@@ -45,9 +45,9 @@ export async function queryCapabilities(userId: string, options: { category?: st
   return db.capability.findMany({ where })
 }
 
-export async function findCapabilityForIntent(userId: string, intent: string) {
+export async function findCapabilityForIntent(organizationId: string, intent: string) {
   const searchWords = intent.split(' ').filter(w => w.length > 3)
-  const where: any = { userId, availability: 'ONLINE' }
+  const where: any = { organizationId, availability: 'ONLINE' }
   if (searchWords.length > 0) {
     where.OR = searchWords.flatMap(w => [
       { name: { contains: w } },

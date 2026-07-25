@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   const suppliers = await db.supplier.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     orderBy: { name: 'asc' },
   })
   return NextResponse.json(suppliers)

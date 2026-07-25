@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   const workspaces = await db.workspace.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     include: {
       connections: { select: { provider: true } },
       artifacts: { select: { id: true, title: true, type: true, mimeType: true, status: true, createdAt: true } },

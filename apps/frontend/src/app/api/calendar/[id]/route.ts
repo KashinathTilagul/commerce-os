@@ -14,7 +14,7 @@ export async function PATCH(
   const { title, description, start, end, color } = body
 
   const existing = await db.calendarEvent.findFirst({
-    where: { id, userId: auth.user.id },
+    where: { id, organizationId: auth.user.id },
   })
 
   if (!existing) {
@@ -44,7 +44,7 @@ export async function DELETE(
 
   const { id } = await params
   const existing = await db.calendarEvent.findFirst({
-    where: { id, userId: auth.user.id },
+    where: { id, organizationId: auth.user.id },
   })
 
   if (!existing) {

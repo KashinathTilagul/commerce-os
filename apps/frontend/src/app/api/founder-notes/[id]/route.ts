@@ -12,7 +12,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const existing = await db.founderNote.findUnique({ where: { id } })
-    if (!existing || existing.userId !== auth.user.id) {
+    if (!existing || existing.organizationId !== auth.user.id) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
@@ -47,7 +47,7 @@ export async function DELETE(
   try {
     const { id } = await params
     const existing = await db.founderNote.findUnique({ where: { id } })
-    if (!existing || existing.userId !== auth.user.id) {
+    if (!existing || existing.organizationId !== auth.user.id) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
     await db.founderNote.delete({ where: { id } })

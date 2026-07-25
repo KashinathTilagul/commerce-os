@@ -1,9 +1,9 @@
 import { db } from '@/lib/db'
 
-export async function enqueueBrowseJob(userId: string, data: { agentCode: string, url: string, action?: string, actionData?: string, priority?: number }) {
+export async function enqueueBrowseJob(organizationId: string, data: { agentCode: string, url: string, action?: string, actionData?: string, priority?: number }) {
   const job = await db.browseJob.create({
     data: {
-      userId,
+      organizationId,
       agentCode: data.agentCode,
       url: data.url,
       action: data.action ?? 'snapshot',
@@ -64,9 +64,9 @@ export async function failBrowseJob(jobId: string, error: string) {
   })
 }
 
-export async function getJobStatus(userId: string, jobId: string) {
+export async function getJobStatus(organizationId: string, jobId: string) {
   return db.browseJob.findUnique({
-    where: { id: jobId, userId }
+    where: { id: jobId, organizationId }
   })
 }
 

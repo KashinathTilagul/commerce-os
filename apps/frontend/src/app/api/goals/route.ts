@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   const goals = await db.goal.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     include: { iterations: { orderBy: { createdAt: 'desc' }, take: 10 } },
     orderBy: { createdAt: 'desc' },
   })

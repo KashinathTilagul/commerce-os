@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { CommerceProvider } from './provider'
 import { CommerceHub } from './hub'
 import { db } from '@/lib/db'

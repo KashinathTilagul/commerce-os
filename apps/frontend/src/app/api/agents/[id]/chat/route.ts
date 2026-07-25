@@ -68,7 +68,7 @@ Never claim you have already finished work in your reply — when intent is 'wor
     if (object.intent === 'work' && object.task && !agent.isHuman) {
       const task = sanitizeInput(object.task, { maxLength: 300 })
       const active = await db.issue.findFirst({
-        where: { userId: auth.user.id, assigneeId: agent.id, status: { in: ['BACKLOG', 'IN_PROGRESS'] } },
+        where: { organizationId: auth.user.id, assigneeId: agent.id, status: { in: ['BACKLOG', 'IN_PROGRESS'] } },
         orderBy: { createdAt: 'desc' },
       })
       let target
@@ -77,10 +77,10 @@ Never claim you have already finished work in your reply — when intent is 'wor
         await db.issueComment.create({ data: { issueId: active.id, authorName: 'Founder', body: task, kind: 'COMMENT' } })
         target = active
       } else {
-        const count = await db.issue.count({ where: { userId: auth.user.id } })
+        const count = await db.issue.count({ where: { organizationId: auth.user.id } })
         target = await db.issue.create({
           data: {
-            userId: auth.user.id, code: `PAP-${String(count + 1).padStart(2, '0')}`, title: task,
+            organizationId: auth.user.id, code: `PAP-${String(count + 1).padStart(2, '0')}`, title: task,
             description: `Instructed directly by the Founder to ${agent.name} (${agent.role}).`,
             status: 'BACKLOG', priority: 'P2', type: 'TASK', assigneeId: agent.id, department: agent.department,
           },
@@ -94,7 +94,7 @@ Never claim you have already finished work in your reply — when intent is 'wor
 
     await db.event.create({
       data: {
-        userId: auth.user.id, type: 'AGENT_CHAT', actorName: agent.name,
+        organizationId: auth.user.id, type: 'AGENT_CHAT', actorName: agent.name,
         summary: `Direct chat with ${agent.name}${issueCode ? ` → ${issueCode}` : ''}`,
         payload: JSON.stringify({ message: message.slice(0, 100), reply: reply.slice(0, 100), issueCode }),
         severity: 'INFO',

@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   const issues = await db.issue.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     include: {
       assignee: { select: { id: true, name: true, code: true, avatarColor: true, role: true } },
       createdBy: { select: { id: true, name: true, code: true, avatarColor: true } },
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     const issue = await db.issue.create({
       data: {
-        userId: auth.user.id,
+        organizationId: auth.user.id,
         code,
         title,
         description,
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     await db.event.create({
       data: {
-        userId: auth.user.id,
+        organizationId: auth.user.id,
         type: 'ISSUE_CREATED',
         actorName: 'Founder',
         summary: `Created issue ${code}: ${title}`,

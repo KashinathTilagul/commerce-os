@@ -12,7 +12,7 @@ export async function PATCH(
 
   const { id } = await params
   const existing = await db.issue.findUnique({ where: { id } })
-  if (!existing || existing.userId !== auth.user.id) {
+  if (!existing || existing.organizationId !== auth.user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
@@ -31,7 +31,7 @@ export async function PATCH(
   if (status) {
     await db.event.create({
       data: {
-        userId: auth.user.id,
+        organizationId: auth.user.id,
         type: 'ISSUE_STATUS_CHANGE',
         actorName: 'Founder',
         summary: `${updated.code} → ${status}`,

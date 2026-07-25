@@ -54,6 +54,8 @@ model Organization {
   syncStates     SyncState[]
   knowledgeNodes KnowledgeNode[]
   knowledgeEdges KnowledgeEdge[]
+  prompts        Prompt[]
+  aiExecutionLogs AIExecutionLog[]
 }
 
 model User {
@@ -1034,4 +1036,47 @@ model KnowledgeEdge {
   @@unique([organizationId, sourceId, targetId, type])
   @@index([sourceId])
   @@index([targetId])
+}
+
+// ============ AI WORKFORCE ============
+
+model Prompt {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  version        String
+  department     String
+  variables      String   // JSON array of expected keys
+  systemPrompt   String
+  developerPrompt String
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([organizationId, name, version])
+}
+
+model AIExecutionLog {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  agent              String
+  runtimeVersion     String
+  promptVersion      String
+  model              String
+  provider           String
+  retrievedNodeCount Int
+  toolsSelected      String   // JSON array
+  toolExecutionTime  Int      // ms
+  totalLatency       Int      // ms
+  inputTokens        Int
+  outputTokens       Int
+  estimatedCost      Float
+  success            Boolean
+  errorReason        String?
+  
+  createdAt          DateTime @default(now())
+  
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }

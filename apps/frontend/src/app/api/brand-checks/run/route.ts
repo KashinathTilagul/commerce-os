@@ -21,7 +21,7 @@ export async function POST() {
 
   const check = await db.brandCheck.create({
     data: {
-      userId: auth.user.id,
+      organizationId: auth.user.id,
       module: module_,
       asset,
       status,
@@ -34,7 +34,7 @@ export async function POST() {
 
   await db.event.create({
     data: {
-      userId: auth.user.id,
+      organizationId: auth.user.id,
       type: 'BRAND_SCAN_COMPLETE',
       actorName: 'Brand Guardian AI',
       summary: `${asset}: ${status} (${violations} violations)`,

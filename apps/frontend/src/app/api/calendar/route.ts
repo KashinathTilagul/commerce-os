@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   const events = await db.calendarEvent.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     orderBy: { start: 'asc' },
   })
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
   const event = await db.calendarEvent.create({
     data: {
-      userId: auth.user.id,
+      organizationId: auth.user.id,
       title,
       description: description || '',
       start: new Date(start),

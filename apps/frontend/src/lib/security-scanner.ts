@@ -13,7 +13,7 @@ export interface ScanResult {
  * Engineered, Non-AI Security Scanner for EKVAAR OS.
  * Performs 100% deterministic static and dynamic checks across code, DB, and environment.
  */
-export async function runEngineeredSecurityScan(userId: string): Promise<ScanResult> {
+export async function runEngineeredSecurityScan(organizationId: string): Promise<ScanResult> {
   const alerts: SecurityAlertPayload[] = []
   let totalChecks = 0
 
@@ -38,7 +38,7 @@ export async function runEngineeredSecurityScan(userId: string): Promise<ScanRes
   try {
     const expiredTokens = await db.oAuthToken.findMany({
       where: {
-        userId,
+        organizationId,
         isValid: true,
         expiresAt: { lt: new Date() },
       },
@@ -105,7 +105,7 @@ export async function runEngineeredSecurityScan(userId: string): Promise<ScanRes
   try {
     const stalledCount = await db.browseJob.count({
       where: {
-        userId,
+        organizationId,
         status: 'RUNNING',
         startedAt: { lt: new Date(Date.now() - 5 * 60 * 1000) },
       },
@@ -127,7 +127,7 @@ export async function runEngineeredSecurityScan(userId: string): Promise<ScanRes
   try {
     const highFailures = await db.event.count({
       where: {
-        userId,
+        organizationId,
         type: 'SECURITY_ALERT',
         timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
@@ -146,7 +146,7 @@ export async function runEngineeredSecurityScan(userId: string): Promise<ScanRes
 
   // Process all alerts through the escalator
   for (const alert of alerts) {
-    await processSecurityAlert(userId, alert)
+    await processSecurityAlert(organizationId, alert)
   }
 
   return {

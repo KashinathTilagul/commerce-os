@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 
-export async function createGoal(userId: string, data: {
+export async function createGoal(organizationId: string, data: {
   title: string
   metric: string
   targetValue: number
@@ -13,7 +13,7 @@ export async function createGoal(userId: string, data: {
 }) {
   return db.goal.create({
     data: {
-      userId,
+      organizationId,
       title: data.title,
       metric: data.metric,
       targetValue: data.targetValue,
@@ -94,9 +94,9 @@ export async function resumeGoal(goalId: string) {
   return db.goal.update({ where: { id: goalId }, data: { status: 'ACTIVE' } })
 }
 
-export async function getGoalWithIterations(userId: string, goalId: string) {
+export async function getGoalWithIterations(organizationId: string, goalId: string) {
   return db.goal.findUnique({
-    where: { id: goalId, userId },
+    where: { id: goalId, organizationId },
     include: {
       iterations: {
         orderBy: { createdAt: 'desc' }

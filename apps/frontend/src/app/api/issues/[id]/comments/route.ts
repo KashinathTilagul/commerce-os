@@ -12,7 +12,7 @@ export async function POST(
 
   const { id } = await params
   const issue = await db.issue.findUnique({ where: { id } })
-  if (!issue || issue.userId !== auth.user.id) {
+  if (!issue || issue.organizationId !== auth.user.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 

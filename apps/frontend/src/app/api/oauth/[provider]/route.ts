@@ -14,7 +14,7 @@ export async function GET(
   if (!config) return NextResponse.json({ error: 'Unsupported OAuth provider' }, { status: 400 })
 
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/oauth/callback`
-  const state = encodeURIComponent(JSON.stringify({ provider, userId: auth.user.id }))
+  const state = encodeURIComponent(JSON.stringify({ provider, organizationId: auth.user.id }))
 
   let authUrl: string = config.authUrl
   if (provider === 'shopify') {

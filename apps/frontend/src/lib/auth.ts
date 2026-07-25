@@ -5,6 +5,18 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { db } from "./db"
 import { compare } from "bcryptjs"
 
+declare module "next-auth" {
+  interface User {
+    id: string;
+    role: string;
+    orgRole?: string;
+    organizationId?: string;
+  }
+  interface Session {
+    user: User;
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db) as any,
   session: { 
@@ -52,7 +64,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role || "USER",
           orgRole: user.orgRole || "MEMBER",
-          organizationId: user.organizationId,
+          organizationId: user.organizationId || '',
         }
       }
     })

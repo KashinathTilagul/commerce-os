@@ -20,15 +20,15 @@ export const AI_SYSTEMS = [
 
 // Seeds a fresh user's digital workforce (agents, AI systems, integration catalog) —
 // every new account needs its own copy of these, they aren't shared across users.
-export async function seedDatabase(userId: string) {
+export async function seedDatabase(organizationId: string) {
   const results: Record<string, number> = {};
 
   // Founder (human) — seeded from the base list.
   const founder = AGENTS.find((a: any) => a.isHuman) || AGENTS[0];
   await db.agent.upsert({
-    where: { userId_code: { userId, code: founder.code } },
+    where: { organizationId_code: { organizationId, code: founder.code } },
     update: {},
-    create: { ...founder, userId, tokenBudget: 50000 },
+    create: { ...founder, organizationId, tokenBudget: 50000 },
   });
 
   // Digital org: Chiefs first (so their ids exist), then specialists linked via managerId.
@@ -37,37 +37,37 @@ export async function seedDatabase(userId: string) {
   const codeToId: Record<string, string> = {};
   for (const c of chiefs) {
     const a = await db.agent.upsert({
-      where: { userId_code: { userId, code: c.code } },
+      where: { organizationId_code: { organizationId, code: c.code } },
       update: {},
-      create: { userId, code: c.code, name: c.name, role: c.role, department: c.department, primeDirective: c.primeDirective, skills: c.skills, avatarColor: c.avatarColor, description: c.role, managerId: null, tokenBudget: 50000 },
+      create: { organizationId, code: c.code, name: c.name, role: c.role, department: c.department, primeDirective: c.primeDirective, skills: c.skills, avatarColor: c.avatarColor, description: c.role, managerId: null, tokenBudget: 50000 },
     });
     codeToId[c.code] = a.id;
   }
   for (const s of specialists) {
     await db.agent.upsert({
-      where: { userId_code: { userId, code: s.code } },
+      where: { organizationId_code: { organizationId, code: s.code } },
       update: {},
-      create: { userId, code: s.code, name: s.name, role: s.role, department: s.department, primeDirective: s.primeDirective, skills: s.skills, avatarColor: s.avatarColor, description: s.role, managerId: s.managerCode ? codeToId[s.managerCode] ?? null : null, tokenBudget: 50000 },
+      create: { organizationId, code: s.code, name: s.name, role: s.role, department: s.department, primeDirective: s.primeDirective, skills: s.skills, avatarColor: s.avatarColor, description: s.role, managerId: s.managerCode ? codeToId[s.managerCode] ?? null : null, tokenBudget: 50000 },
     });
   }
   results.agents = 1 + ROSTER.length;
 
-  const existingAI = await db.aISystem.count({ where: { userId } });
+  const existingAI = await db.aISystem.count({ where: { organizationId } });
   if (existingAI === 0) {
     for (const system of AI_SYSTEMS) {
-      await db.aISystem.create({ data: { ...system, userId } });
+      await db.aISystem.create({ data: { ...system, organizationId } });
     }
     results.aiSystems = AI_SYSTEMS.length;
   }
 
-  const integrationResult = await seedIntegrations(userId);
+  const integrationResult = await seedIntegrations(organizationId);
   results.integrations = typeof integrationResult === 'number' ? integrationResult : (integrationResult as any).seeded || 0;
 
   // Seed default capabilities for agents
-  const cmoAgent = await db.agent.findFirst({ where: { userId, code: 'CMO' } })
+  const cmoAgent = await db.agent.findFirst({ where: { organizationId, code: 'CMO' } })
   if (cmoAgent) {
     const { registerCapabilities } = await import('./capability-registry')
-    await registerCapabilities(userId, cmoAgent.id, [
+    await registerCapabilities(organizationId, cmoAgent.id, [
       { name: 'meta_ads_optimize', description: 'Audits Meta Ads campaigns, detects creative fatigue, and optimizes spend.', category: 'marketing', requiredPermissions: 'marketing:execute' },
       { name: 'seo_technical_audit', description: 'Runs complete SEO technical audits for website pages and keywords.', category: 'marketing', requiredPermissions: 'web:read' },
       { name: 'geo_ai_search_optimize', description: 'Generative Engine Optimization for ChatGPT, Perplexity, and Claude search visibility.', category: 'marketing', requiredPermissions: 'content:write' },
@@ -82,9 +82,9 @@ export async function seedDatabase(userId: string) {
   ]
   for (const s of defaultSkills) {
     await db.skill.upsert({
-      where: { userId_slug: { userId, slug: s.slug } },
+      where: { organizationId_slug: { organizationId, slug: s.slug } },
       update: {},
-      create: { ...s, userId },
+      create: { ...s, organizationId },
     })
   }
   results.skills = defaultSkills.length;

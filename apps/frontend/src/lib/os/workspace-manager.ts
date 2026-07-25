@@ -8,7 +8,7 @@ import { OSModule, ServiceRegistry, IEventDispatcher } from './registry'
 import { db } from '@/lib/db'
 
 export interface IWorkspaceManager extends OSModule {
-  createWorkspace(userId: string, title: string): Promise<string>
+  createWorkspace(organizationId: string, title: string): Promise<string>
   trackRevision(workspaceId: string, authorId: string, commitMsg: string, diffPayload?: any): Promise<void>
   connectProvider(workspaceId: string, provider: string, resourceUrl: string): Promise<void>
   exportArtifact(workspaceId: string, type: string): Promise<string>
@@ -25,11 +25,11 @@ export class WorkspaceManager implements IWorkspaceManager {
     return { status: 'HEALTHY' as const, latencyMs: 3 }
   }
 
-  async createWorkspace(userId: string, title: string): Promise<string> {
+  async createWorkspace(organizationId: string, title: string): Promise<string> {
     console.log(`[WorkspaceManager] Creating workspace: ${title}`)
     const ws = await db.workspace.create({
       data: {
-        userId,
+        organizationId,
         title,
         status: 'DRAFT'
       }

@@ -72,13 +72,13 @@ export function shouldEscalate(agentCode: string): { escalate: boolean; reason?:
   return { escalate: false }
 }
 
-export async function escalateToFounder(userId: string, agentCode: string, reason: string) {
-  const agent = await db.agent.findFirst({ where: { userId, code: agentCode } })
+export async function escalateToFounder(organizationId: string, agentCode: string, reason: string) {
+  const agent = await db.agent.findFirst({ where: { organizationId, code: agentCode } })
   if (!agent) throw new Error("Agent not found")
   
   await db.approval.create({
     data: {
-      userId,
+      organizationId,
       type: 'STRATEGIC',
       title: `Agent ${agentCode} requires intervention`,
       description: reason,

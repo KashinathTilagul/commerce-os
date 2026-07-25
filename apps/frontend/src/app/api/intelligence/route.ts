@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   try {
-    const aiSystems = await db.aISystem.findMany({ where: { userId: auth.user.id } })
+    const aiSystems = await db.aISystem.findMany({ where: { organizationId: auth.user.id } })
     
     // Compute total tasks to represent "tokens" or usage abstractly
     const totalTasks = aiSystems.reduce((sum, sys) => sum + sys.tasksTotal, 0)

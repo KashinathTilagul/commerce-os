@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const orders = await db.order.findMany({
     where: {
-      userId: auth.user.id,
+      organizationId: auth.user.id,
       ...(status && status !== 'ALL' ? { status } : {}),
       ...(channel && channel !== 'ALL' ? { channel } : {}),
     },

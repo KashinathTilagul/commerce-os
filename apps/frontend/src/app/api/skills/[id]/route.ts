@@ -8,7 +8,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const skill = await db.skill.findUnique({
-    where: { id, userId: auth.user.id }
+    where: { id, organizationId: auth.user.id }
   })
 
   if (!skill) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   
   const skill = await db.skill.update({
-    where: { id, userId: auth.user.id },
+    where: { id, organizationId: auth.user.id },
     data: {
       slug: body.slug,
       name: body.name,
@@ -53,7 +53,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params
   await db.skill.delete({
-    where: { id, userId: auth.user.id }
+    where: { id, organizationId: auth.user.id }
   })
 
   return NextResponse.json({ success: true })

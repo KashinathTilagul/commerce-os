@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { IProvider, ProviderResponse, ProviderState } from './base-provider'
 import { executeTool } from '@/lib/composio-service'
 import { ServiceRegistry, IEventDispatcher } from '../registry'

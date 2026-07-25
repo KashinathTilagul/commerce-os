@@ -10,13 +10,13 @@ export interface SecurityAlertPayload {
   ruleId?: string
 }
 
-export async function processSecurityAlert(userId: string, alert: SecurityAlertPayload) {
+export async function processSecurityAlert(organizationId: string, alert: SecurityAlertPayload) {
   const { title, description, severity, affectedPath, poc, recommendedPatch, ruleId } = alert
 
   // 1. Log to Event Bus
   const event = await db.event.create({
     data: {
-      userId,
+      organizationId,
       type: 'SECURITY_ALERT',
       actorName: 'Security Engine',
       summary: `[${severity}] ${title}`,
@@ -37,16 +37,16 @@ export async function processSecurityAlert(userId: string, alert: SecurityAlertP
   let approval: any = null
   if (severity === 'CRITICAL' || severity === 'WARNING') {
     // Find or fallback to human founder
-    const founderAgent = await db.agent.findFirst({ where: { userId, code: 'FOUNDER' } })
-    const requesterId = founderAgent?.id || (await db.agent.findFirst({ where: { userId } }))?.id
+    const founderAgent = await db.agent.findFirst({ where: { organizationId, code: 'FOUNDER' } })
+    const requesterId = founderAgent?.id || (await db.agent.findFirst({ where: { organizationId } }))?.id
 
     if (requesterId) {
-      const count = await db.approval.count({ where: { userId } })
+      const count = await db.approval.count({ where: { organizationId } })
       const code = `SEC-${String(count + 1).padStart(2, '0')}`
 
       approval = await db.approval.create({
         data: {
-          userId,
+          organizationId,
           code,
           type: 'SECURITY',
           title: `[SECURITY] ${title}`,
@@ -65,13 +65,13 @@ export async function processSecurityAlert(userId: string, alert: SecurityAlertP
   if (severity === 'CRITICAL') {
     try {
       const discordIntegration = await db.integration.findFirst({
-        where: { organizationId: userId, toolkitSlug: 'discord', isConnected: true },
+        where: { organizationId: organizationId, toolkitSlug: 'discord', isConnected: true },
       })
       if (discordIntegration) {
         const { executeTool } = await import('@/lib/composio-service')
         const alertMsg = `🚨 **EKVAAR OS SECURITY ALERT** 🚨\n**Severity:** ${severity}\n**Title:** ${title}\n**Location:** \`${affectedPath || 'N/A'}\`\n**Action Required:** Check Founder Inbox for details.`
         await executeTool({
-          organizationId: userId,
+          organizationId: organizationId,
           toolkitSlug: 'discord',
           toolSlug: 'discord_send_message',
           agentCode: 'SECURITY',

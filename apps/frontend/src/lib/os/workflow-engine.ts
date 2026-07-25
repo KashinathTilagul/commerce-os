@@ -10,7 +10,7 @@ import { IProviderManager } from './provider-manager'
 import { db } from '@/lib/db'
 
 export interface IWorkflowEngine extends OSModule {
-  submitWorkflow(userId: string, name: string, graphDef: WorkflowGraph): Promise<string>
+  submitWorkflow(organizationId: string, name: string, graphDef: WorkflowGraph): Promise<string>
   resumeWorkflow(workflowId: string): Promise<void>
 }
 
@@ -42,7 +42,7 @@ export class WorkflowEngine implements IWorkflowEngine {
   /**
    * Translates a Graph into DB records and begins execution.
    */
-  async submitWorkflow(userId: string, name: string, graphDef: WorkflowGraph): Promise<string> {
+  async submitWorkflow(organizationId: string, name: string, graphDef: WorkflowGraph): Promise<string> {
     console.log(`[WorkflowEngine] Submitting workflow: ${name} with ${graphDef.nodes.length} nodes`)
     
     const eventBus = ServiceRegistry.get<IEventDispatcher>('EventBus')
@@ -50,7 +50,7 @@ export class WorkflowEngine implements IWorkflowEngine {
     // 1. Persist the workflow DAG
     const workflow = await db.workflow.create({
       data: {
-        userId,
+        organizationId,
         name,
         status: 'RUNNING',
         graphDef: JSON.stringify(graphDef),

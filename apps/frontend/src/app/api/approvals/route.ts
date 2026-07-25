@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   const approvals = await db.approval.findMany({
     where: {
-      userId: auth.user.id,
+      organizationId: auth.user.id,
       ...(inbox && inbox !== 'ALL' ? { inbox } : {}),
     },
     include: {

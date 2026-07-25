@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   const agents = await db.agent.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     include: {
       issuesAssigned: { select: { code: true, title: true, status: true, priority: true } },
       approvals: { select: { code: true, title: true, status: true } },

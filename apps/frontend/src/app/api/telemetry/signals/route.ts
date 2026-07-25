@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const since = new Date(Date.now() - hours * 3600000)
 
   const events = await db.event.findMany({
-    where: { userId: auth.user.id, severity: { in: ['WARN', 'ERROR', 'CRITICAL'] }, timestamp: { gte: since } },
+    where: { organizationId: auth.user.id, severity: { in: ['WARN', 'ERROR', 'CRITICAL'] }, timestamp: { gte: since } },
     orderBy: { timestamp: 'desc' },
     take: 50,
   })

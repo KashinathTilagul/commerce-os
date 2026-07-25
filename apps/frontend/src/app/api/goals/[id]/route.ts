@@ -52,6 +52,6 @@ export async function DELETE(
   if (!auth.success) return auth.response
 
   const { id } = await params
-  await db.goal.deleteMany({ where: { id, userId: auth.user.id } })
+  await db.goal.deleteMany({ where: { id, organizationId: auth.user.id } })
   return NextResponse.json({ success: true })
 }

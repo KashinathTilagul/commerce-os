@@ -21,7 +21,7 @@ export function WindowFrame({ win }: { win: WindowState }) {
   const isActive = activeId === win.id
   const app = APP_MAP[win.appId]
   if (!app) return null
-  const AppComponent = app.component
+  const AppComponent = app.entryPoint as any
 
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null)
   const resizeRef = useRef<{ startX: number; startY: number; origW: number; origH: number; dir: string } | null>(null)
@@ -192,7 +192,10 @@ export function WindowFrame({ win }: { win: WindowState }) {
             {/* Centered title */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="flex items-center gap-2 text-xs text-foreground/70 font-medium">
-                <app.icon className="h-3.5 w-3.5 text-foreground/60" />
+                {(() => {
+                  const Icon = app.icon as any;
+                  return <Icon className="h-3.5 w-3.5 text-foreground/60" />;
+                })()}
                 <span className="font-display tracking-tight">{win.title}</span>
                 {!isActive && <span className="text-foreground/30">·</span>}
               </div>

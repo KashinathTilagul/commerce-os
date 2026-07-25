@@ -56,7 +56,7 @@ export function decryptToken(ciphertext: string): string {
 }
 
 export async function storeOAuthToken(
-  userId: string,
+  organizationId: string,
   provider: string,
   data: {
     accessToken: string
@@ -71,7 +71,7 @@ export async function storeOAuthToken(
   const encryptedRefresh = data.refreshToken ? encryptToken(data.refreshToken) : null
 
   return db.oAuthToken.upsert({
-    where: { userId_provider: { userId, provider } },
+    where: { organizationId_provider: { organizationId, provider } },
     update: {
       accessToken: encryptedAccess,
       refreshToken: encryptedRefresh,
@@ -82,7 +82,7 @@ export async function storeOAuthToken(
       isValid: true,
     },
     create: {
-      userId,
+      organizationId,
       provider,
       accessToken: encryptedAccess,
       refreshToken: encryptedRefresh,
@@ -95,9 +95,9 @@ export async function storeOAuthToken(
   })
 }
 
-export async function getOAuthToken(userId: string, provider: string) {
+export async function getOAuthToken(organizationId: string, provider: string) {
   const token = await db.oAuthToken.findUnique({
-    where: { userId_provider: { userId, provider } },
+    where: { organizationId_provider: { organizationId, provider } },
   })
 
   if (!token || !token.isValid) return null
@@ -109,15 +109,15 @@ export async function getOAuthToken(userId: string, provider: string) {
   }
 }
 
-export async function revokeOAuthToken(userId: string, provider: string) {
+export async function revokeOAuthToken(organizationId: string, provider: string) {
   return db.oAuthToken.delete({
-    where: { userId_provider: { userId, provider } },
+    where: { organizationId_provider: { organizationId, provider } },
   })
 }
 
-export async function isTokenValid(userId: string, provider: string): Promise<boolean> {
+export async function isTokenValid(organizationId: string, provider: string): Promise<boolean> {
   const token = await db.oAuthToken.findUnique({
-    where: { userId_provider: { userId, provider } },
+    where: { organizationId_provider: { organizationId, provider } },
   })
   if (!token || !token.isValid) return false
   if (token.expiresAt && token.expiresAt < new Date()) return false

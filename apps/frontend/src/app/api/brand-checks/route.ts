@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   const checks = await db.brandCheck.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     orderBy: { checkedAt: 'desc' },
     take: 50,
   })

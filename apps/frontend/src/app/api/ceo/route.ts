@@ -8,12 +8,12 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   try {
-    const issues = await db.issue.findMany({ where: { userId: auth.user.id } })
-    const ceo = await db.agent.findFirst({ where: { userId: auth.user.id, code: 'CEO' } })
+    const issues = await db.issue.findMany({ where: { organizationId: auth.user.id } })
+    const ceo = await db.agent.findFirst({ where: { organizationId: auth.user.id, code: 'CEO' } })
 
     // Get real recent events by the CEO, fallback to system events if none exist
     const recentEvents = await db.event.findMany({
-      where: { userId: auth.user.id, actorId: ceo?.id },
+      where: { organizationId: auth.user.id, actorId: ceo?.id },
       take: 5,
       orderBy: { timestamp: 'desc' }
     })

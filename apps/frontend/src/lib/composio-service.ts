@@ -506,13 +506,13 @@ export async function executeTool(params: {
 /**
  * Seed integrations into the database for a specific user
  */
-export async function seedIntegrations(userId: string) {
+export async function seedIntegrations(organizationId: string) {
   for (const tk of TOOLKIT_CATALOG) {
-    const existing = await db.integration.findFirst({ where: { userId, toolkitSlug: tk.slug } })
+    const existing = await db.integration.findFirst({ where: { organizationId, toolkitSlug: tk.slug } })
     if (!existing) {
       await db.integration.create({
         data: {
-          userId,
+          organizationId,
           toolkitSlug: tk.slug,
           name: tk.name,
           description: tk.description,

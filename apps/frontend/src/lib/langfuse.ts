@@ -1,13 +1,13 @@
 import { db } from '@/lib/db'
 
-export async function startTrace(userId: string, options: { name: string; agentCode?: string; metadata?: any }) {
+export async function startTrace(organizationId: string, options: { name: string; agentCode?: string; metadata?: any }) {
   const traceId = `trace_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
   
   let actorId: string | undefined = undefined
   let actorName = 'System'
   
   if (options.agentCode) {
-    const agent = await db.agent.findFirst({ where: { userId, code: options.agentCode } })
+    const agent = await db.agent.findFirst({ where: { organizationId, code: options.agentCode } })
     if (agent) {
       actorId = agent.id
       actorName = agent.name
@@ -16,7 +16,7 @@ export async function startTrace(userId: string, options: { name: string; agentC
 
   await db.event.create({
     data: {
-      userId,
+      organizationId,
       type: 'LLM_TRACE',
       actorId,
       actorName,
@@ -40,7 +40,7 @@ export async function startSpan(traceId: string, options: { name: string; input?
 
   await db.event.create({
     data: {
-      userId: traceEvent.userId,
+      organizationId: traceEvent.organizationId,
       type: 'LLM_SPAN',
       actorId: traceEvent.actorId,
       actorName: traceEvent.actorName,
@@ -62,7 +62,7 @@ export async function endSpan(spanId: string, options: { output?: any; statusCod
 
   await db.event.create({
     data: {
-      userId: spanEvent.userId,
+      organizationId: spanEvent.organizationId,
       type: 'LLM_SPAN',
       actorId: spanEvent.actorId,
       actorName: spanEvent.actorName,
@@ -82,7 +82,7 @@ export async function endTrace(traceId: string) {
 
   await db.event.create({
     data: {
-      userId: traceEvent.userId,
+      organizationId: traceEvent.organizationId,
       type: 'LLM_TRACE',
       actorId: traceEvent.actorId,
       actorName: traceEvent.actorName,
@@ -92,12 +92,12 @@ export async function endTrace(traceId: string) {
   })
 }
 
-export async function getTraces(userId: string, options?: { agentCode?: string; limit?: number }) {
+export async function getTraces(organizationId: string, options?: { agentCode?: string; limit?: number }) {
   const limit = options?.limit || 50
-  const whereClause: any = { userId, type: 'LLM_TRACE' }
+  const whereClause: any = { organizationId, type: 'LLM_TRACE' }
   
   if (options?.agentCode) {
-    const agent = await db.agent.findFirst({ where: { userId, code: options.agentCode } })
+    const agent = await db.agent.findFirst({ where: { organizationId, code: options.agentCode } })
     if (agent) {
       whereClause.actorId = agent.id
     } else {

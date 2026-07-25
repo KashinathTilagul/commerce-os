@@ -215,7 +215,7 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
   try {
     switch (action.type) {
       case 'approve': {
-        const approvals = await db.approval.findMany({ where: { userId, status: 'PENDING' }, include: { requester: true } })
+        const approvals = await db.approval.findMany({ where: { organizationId, status: 'PENDING' }, include: { requester: true } })
         const query = sanitizeInput(action.query || '', { maxLength: 100 })
         const match = approvals.find(a =>
           a.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -232,7 +232,7 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
       }
 
       case 'reject': {
-        const approvals = await db.approval.findMany({ where: { userId, status: 'PENDING' } })
+        const approvals = await db.approval.findMany({ where: { organizationId, status: 'PENDING' } })
         const query = sanitizeInput(action.query || '', { maxLength: 100 })
         const match = approvals.find(a =>
           a.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -251,7 +251,7 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
       case 'issue_status': {
         const query = sanitizeInput(action.query || '', { maxLength: 50 })
         const status = sanitizeInput(action.status || '', { maxLength: 30 })
-        const issue = await db.issue.findFirst({ where: { userId, code: query } })
+        const issue = await db.issue.findFirst({ where: { organizationId, code: query } })
         if (issue) {
           await db.issue.update({ where: { id: issue.id }, data: { status } })
           return { success: true, message: `${issue.code} → ${status}` }
@@ -267,7 +267,7 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         const violations = Math.floor(Math.random() * 5)
         const status = violations === 0 ? 'PASS' : violations <= 2 ? 'WARN' : 'FAIL'
         await db.brandCheck.create({
-          data: { userId, module: mod, asset, status, violations, notes: violations === 0 ? 'Within brand system.' : 'Palette drift detected.' },
+          data: { organizationId, module: mod, asset, status, violations, notes: violations === 0 ? 'Within brand system.' : 'Palette drift detected.' },
         })
         return { success: true, message: `Brand scan: ${asset} → ${status} (${violations} violations)` }
       }
@@ -276,12 +276,12 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         const toolkit = sanitizeInput(action.toolkit || '', { maxLength: 50 })
         const tool = sanitizeInput(action.tool || '', { maxLength: 100 })
         const agent = sanitizeInput(action.agent || 'CMO', { maxLength: 20 })
-        const integration = await db.integration.findFirst({ where: { organizationId: userId, toolkitSlug: toolkit } })
+        const integration = await db.integration.findFirst({ where: { organizationId: organizationId, toolkitSlug: toolkit } })
         if (!integration || !integration.isConnected) {
           return { success: false, message: `${toolkit} is not connected` }
         }
         const { executeTool } = await import('@/lib/composio-service')
-        const result = await executeTool({ organizationId: userId, toolkitSlug: toolkit, toolSlug: tool, agentCode: agent, agentName: agent, input: {} })
+        const result = await executeTool({ organizationId: organizationId, toolkitSlug: toolkit, toolSlug: tool, agentCode: agent, agentName: agent, input: {} })
         return { success: result.success, output: result.output, message: result.success ? 'Tool executed' : result.error }
       }
 
@@ -290,19 +290,19 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         const task = sanitizeInput(action.task || '', { maxLength: 300 })
         if (!task) return { success: false, message: 'No task described' }
 
-        const agent = await resolveAgent(userId, who)
+        const agent = await resolveAgent(organizationId, who)
         if (!agent) return { success: false, message: `No digital employee matching "${who}"` }
 
         const priority = ['P0', 'P1', 'P2', 'P3'].includes((action.priority || '').toUpperCase())
           ? action.priority.toUpperCase() : 'P2'
 
         // Next PAP code — count existing issues for this user
-        const count = await db.issue.count({ where: { userId } })
+        const count = await db.issue.count({ where: { organizationId } })
         const code = `PAP-${String(count + 1).padStart(2, '0')}`
 
         const issue = await db.issue.create({
           data: {
-            userId, code, title: task,
+            organizationId, code, title: task,
             description: `Assigned by Founder via Krishna to ${agent.name} (${agent.role}).`,
             status: 'BACKLOG', priority, type: 'TASK',
             assigneeId: agent.id, department: agent.department,
@@ -314,7 +314,7 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         })
         await db.event.create({
           data: {
-            userId, type: 'ISSUE_ASSIGNED', actorName: 'Krishna',
+            organizationId, type: 'ISSUE_ASSIGNED', actorName: 'Krishna',
             summary: `Assigned ${code} "${task.slice(0, 50)}" to ${agent.name}`,
             payload: JSON.stringify({ code, assignee: agent.code, priority }),
             severity: 'INFO',
@@ -322,7 +322,7 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         })
         // Kick the agent to start working immediately (best-effort; long-lived
         // Node server keeps this running after the response is sent).
-        void import('@/lib/agent-worker').then(m => m.runAgentWork(userId, agent.id)).catch(() => {})
+        void import('@/lib/agent-worker').then(m => m.runAgentWork(organizationId, agent.id)).catch(() => {})
         return { success: true, message: `${code} assigned to ${agent.name}`, agentName: agent.name, code }
       }
 
@@ -330,21 +330,21 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         const question = sanitizeInput(action.question || '', { maxLength: 500 })
         if (!question) return { success: false, message: 'No question' }
         const { analyze } = await import('@/lib/analyst')
-        const r = await analyze(userId, question)
+        const r = await analyze(organizationId, question)
         return { success: true, answer: r.answer, plan: r.plan }
       }
 
       case 'message_team': {
         const text = sanitizeInput(action.text || '', { maxLength: 2000 })
         if (!text) return { success: false, message: 'No message text' }
-        const integration = await db.integration.findFirst({ where: { organizationId: userId, toolkitSlug: 'discord' } })
+        const integration = await db.integration.findFirst({ where: { organizationId: organizationId, toolkitSlug: 'discord' } })
         if (!integration || !integration.isConnected) {
           return { success: false, message: 'Discord is not connected. Connect it in Integrations to message the team.' }
         }
         const { executeTool } = await import('@/lib/composio-service')
         const input: Record<string, any> = { content: text }
         if (action.channel) input.channel_id = sanitizeInput(action.channel, { maxLength: 100 })
-        const result = await executeTool({ organizationId: userId, toolkitSlug: 'discord', toolSlug: 'discord_send_message', agentCode: 'FOUNDER', agentName: 'Founder', input })
+        const result = await executeTool({ organizationId: organizationId, toolkitSlug: 'discord', toolSlug: 'discord_send_message', agentCode: 'FOUNDER', agentName: 'Founder', input })
         return { success: result.success, message: result.success ? 'Message posted to Discord' : result.error }
       }
 
@@ -362,7 +362,7 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
 async function resolveAgent(organizationId: string, query: string) {
   const q = query.toLowerCase().trim()
   if (!q) return null
-  const agents = await db.agent.findMany({ where: { userId, isHuman: false } })
+  const agents = await db.agent.findMany({ where: { organizationId, isHuman: false } })
   const match = (
     agents.find(a => a.code.toLowerCase() === q) ||
     agents.find(a => a.name.toLowerCase() === q) ||
@@ -378,7 +378,7 @@ async function resolveAgent(organizationId: string, query: string) {
   // Fallback to Capability Registry search
   try {
     const { findCapabilityForIntent } = await import('@/lib/capability-registry')
-    const capMatch = await findCapabilityForIntent(userId, query)
+    const capMatch = await findCapabilityForIntent(organizationId, query)
     if (capMatch?.owner) {
       return capMatch.owner
     }

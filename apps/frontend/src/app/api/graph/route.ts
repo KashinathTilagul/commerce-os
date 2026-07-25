@@ -15,11 +15,11 @@ export async function GET() {
       customerCount,
       campaignCount
     ] = await Promise.all([
-      db.agent.count({ where: { userId: uid } }),
-      db.issue.count({ where: { userId: uid } }),
-      db.product.count({ where: { userId: uid } }),
-      db.customer.count({ where: { userId: uid } }),
-      db.campaign.count({ where: { userId: uid } }),
+      db.agent.count({ where: { organizationId: uid } }),
+      db.issue.count({ where: { organizationId: uid } }),
+      db.product.count({ where: { organizationId: uid } }),
+      db.customer.count({ where: { organizationId: uid } }),
+      db.campaign.count({ where: { organizationId: uid } }),
     ])
 
     return NextResponse.json({

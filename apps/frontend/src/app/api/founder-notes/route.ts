@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   const notes = await db.founderNote.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     orderBy: { createdAt: 'desc' },
   })
   return NextResponse.json(notes)
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const note = await db.founderNote.create({
       data: {
-        userId: auth.user.id,
+        organizationId: auth.user.id,
         title: title || 'New Note',
         excerpt: content ? content.slice(0, 100) : '',
         body: content || '',

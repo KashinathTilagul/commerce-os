@@ -7,7 +7,7 @@ export async function GET() {
   if (!auth.success) return auth.response
 
   const events = await db.event.findMany({
-    where: { userId: auth.user.id },
+    where: { organizationId: auth.user.id },
     include: { actor: { select: { id: true, name: true, code: true, avatarColor: true } } },
     orderBy: { timestamp: 'desc' },
     take: 100,
