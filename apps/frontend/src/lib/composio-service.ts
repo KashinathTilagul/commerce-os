@@ -438,7 +438,7 @@ const COMPOSIO_SLUG_MAP: Record<string, string> = {
  * Execute a tool via Composio (or simulate in demo mode)
  */
 export async function executeTool(params: {
-  userId: string
+  organizationId: string
   toolkitSlug: string
   toolSlug: string
   agentCode: string
@@ -450,7 +450,7 @@ export async function executeTool(params: {
 
   // Find the integration in DB
   const integration = await db.integration.findFirst({
-    where: { userId: params.userId, toolkitSlug: params.toolkitSlug },
+    where: { organizationId: params.organizationId, toolkitSlug: params.toolkitSlug },
   })
 
   if (!integration || !integration.isConnected) {
@@ -475,10 +475,10 @@ export async function executeTool(params: {
 
   try {
     if (composio) {
-      // REAL Composio execution — SDK signature is execute(TOOL_SLUG, { userId, arguments })
+      // REAL Composio execution — SDK signature is execute(TOOL_SLUG, { entityId, arguments })
       const slug = COMPOSIO_SLUG_MAP[params.toolSlug] || params.toolSlug.toUpperCase()
       const result = await composio.tools.execute(slug, {
-        userId: params.userId,
+        entityId: params.organizationId,
         connectedAccountId: integration.connectedAccountId || undefined,
         arguments: params.input,
         // Use the latest toolkit version instead of pinning one

@@ -50,6 +50,8 @@ model Organization {
   artifacts      Artifact[]
   
   context        OrganizationContext?
+  commerceLinks  CommerceObjectLink[]
+  syncStates     SyncState[]
 }
 
 model User {
@@ -739,14 +741,16 @@ model OAuthToken {
 // ============ CONTEXT STORE ============
 
 model ContextEntry {
-  id        String   @id @default(cuid())
+  id             String   @id @default(cuid())
   organizationId String
-  handle    String // "txn_query_8912" — unique reference for retrieval
-  source    String // "prisma:transaction", "camofox:snapshot", "agent:cmo"
-  summary   String // 2-3 line compact summary for LLM prompt
-  fullData  String // Full JSON payload (never sent to LLM directly)
-  metadata  String? // JSON — row count, categories, date range, etc.
-  ttl       Int      @default(3600) // Seconds before auto-expiry
+  handle         String   // "txn_query_8912" — unique reference for retrieval
+  source         String   // "prisma:transaction", "camofox:snapshot", "agent:cmo"
+  title          String   @default("")
+  summary        String   // 2-3 line compact summary for LLM prompt
+  fullData       String?  // Full JSON payload (never sent to LLM directly), now optional
+  metadata       String?  // JSON — row count, categories, date range, etc.
+  linkedBusinessObject String? // "Product:cl123456"
+  ttl            Int      @default(3600) // Seconds before auto-expiry
   createdAt DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -914,4 +918,45 @@ model OrganizationContext {
   updatedAt       DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ============ COMMERCE ABSTRACTION ============
+
+model CommerceObjectLink {
+  id             String   @id @default(cuid())
+  organizationId String
+  provider       String   // shopify, amazon, woocommerce
+  entityType     String   // PRODUCT, ORDER, CUSTOMER
+  externalId     String   // ID in the provider system
+  internalId     String   // ID of the canonical model
+  checksum       String?
+  syncedAt       DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider, entityType, externalId])
+  @@index([organizationId, internalId])
+}
+
+model SyncState {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  provider           String
+  entity             String   // PRODUCT, ORDER, CUSTOMER
+  lastSuccessfulSync DateTime?
+  lastAttempt        DateTime?
+  status             String   @default("IDLE") // IDLE, RUNNING, ERROR
+  recordsProcessed   Int      @default(0)
+  recordsFailed      Int      @default(0)
+  duration           Int      @default(0) // ms
+  cursor             String?
+  error              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider, entity])
 }

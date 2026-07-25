@@ -190,7 +190,7 @@ AVAILABLE ACTIONS:
     try {
       await db.event.create({
         data: {
-          userId: uid,
+          organizationId: uid,
           type: 'JARVIS_QUERY',
           actorName: 'Krishna (JARVIS)',
           summary: `Founder: "${message.slice(0, 60)}" → ${spoken.slice(0, 60)}`,
@@ -211,7 +211,7 @@ AVAILABLE ACTIONS:
   }
 }
 
-async function executeAction(action: { type: string; [key: string]: any }, userId: string): Promise<any> {
+async function executeAction(action: { type: string; [key: string]: any }, organizationId: string): Promise<any> {
   try {
     switch (action.type) {
       case 'approve': {
@@ -276,12 +276,12 @@ async function executeAction(action: { type: string; [key: string]: any }, userI
         const toolkit = sanitizeInput(action.toolkit || '', { maxLength: 50 })
         const tool = sanitizeInput(action.tool || '', { maxLength: 100 })
         const agent = sanitizeInput(action.agent || 'CMO', { maxLength: 20 })
-        const integration = await db.integration.findFirst({ where: { userId, toolkitSlug: toolkit } })
+        const integration = await db.integration.findFirst({ where: { organizationId: userId, toolkitSlug: toolkit } })
         if (!integration || !integration.isConnected) {
           return { success: false, message: `${toolkit} is not connected` }
         }
         const { executeTool } = await import('@/lib/composio-service')
-        const result = await executeTool({ userId, toolkitSlug: toolkit, toolSlug: tool, agentCode: agent, agentName: agent, input: {} })
+        const result = await executeTool({ organizationId: userId, toolkitSlug: toolkit, toolSlug: tool, agentCode: agent, agentName: agent, input: {} })
         return { success: result.success, output: result.output, message: result.success ? 'Tool executed' : result.error }
       }
 
@@ -337,14 +337,14 @@ async function executeAction(action: { type: string; [key: string]: any }, userI
       case 'message_team': {
         const text = sanitizeInput(action.text || '', { maxLength: 2000 })
         if (!text) return { success: false, message: 'No message text' }
-        const integration = await db.integration.findFirst({ where: { userId, toolkitSlug: 'discord' } })
+        const integration = await db.integration.findFirst({ where: { organizationId: userId, toolkitSlug: 'discord' } })
         if (!integration || !integration.isConnected) {
           return { success: false, message: 'Discord is not connected. Connect it in Integrations to message the team.' }
         }
         const { executeTool } = await import('@/lib/composio-service')
         const input: Record<string, any> = { content: text }
         if (action.channel) input.channel_id = sanitizeInput(action.channel, { maxLength: 100 })
-        const result = await executeTool({ userId, toolkitSlug: 'discord', toolSlug: 'discord_send_message', agentCode: 'FOUNDER', agentName: 'Founder', input })
+        const result = await executeTool({ organizationId: userId, toolkitSlug: 'discord', toolSlug: 'discord_send_message', agentCode: 'FOUNDER', agentName: 'Founder', input })
         return { success: result.success, message: result.success ? 'Message posted to Discord' : result.error }
       }
 
@@ -359,7 +359,7 @@ async function executeAction(action: { type: string; [key: string]: any }, userI
 // Resolve a fuzzy human reference ("CMO", "Mira", "marketing", "Chief Tech…")
 // to one of the user's agents. Exact code match wins, then name/role/department substring,
 // then Capability Registry intent lookup.
-async function resolveAgent(userId: string, query: string) {
+async function resolveAgent(organizationId: string, query: string) {
   const q = query.toLowerCase().trim()
   if (!q) return null
   const agents = await db.agent.findMany({ where: { userId, isHuman: false } })

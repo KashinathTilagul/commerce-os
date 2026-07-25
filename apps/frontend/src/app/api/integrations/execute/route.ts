@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     const integration = await db.integration.findFirst({
-      where: { userId: authResult.user.id, toolkitSlug },
+      where: { organizationId: authResult.user.id, toolkitSlug },
     })
 
     if (!integration || !integration.isConnected) {
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     })
 
     const result = await executeTool({
-      userId: authResult.user.id,
+      organizationId: authResult.user.id,
       toolkitSlug,
       toolSlug,
       agentCode,
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     await db.event.create({
       data: {
-        userId: authResult.user.id,
+        organizationId: authResult.user.id,
         type: 'TOOL_EXECUTION',
         actorName: agentName || agentCode,
         summary: `${agentName || agentCode} executed ${toolSlug} on ${integration.name} → ${result.success ? 'SUCCESS' : 'ERROR'}`,

@@ -9,7 +9,7 @@ export async function POST() {
 
   const googleCalendarIntegration = await db.integration.findFirst({
     where: {
-      userId: auth.user.id,
+      organizationId: auth.user.id,
       toolkitSlug: 'google_calendar',
       isConnected: true,
     },
@@ -32,7 +32,7 @@ export async function POST() {
     const timeMax = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString()
 
     const pullResult = await executeTool({
-      userId: auth.user.id,
+      organizationId: auth.user.id,
       toolkitSlug: 'google_calendar',
       toolSlug: 'google_calendar_list_events',
       agentCode: 'FOUNDER',
@@ -45,13 +45,13 @@ export async function POST() {
         if (!gEvent.id || !gEvent.summary) continue
 
         const existing = await db.calendarEvent.findFirst({
-          where: { userId: auth.user.id, googleEventId: gEvent.id },
+          where: { organizationId: auth.user.id, googleEventId: gEvent.id },
         })
 
         if (!existing) {
           await db.calendarEvent.create({
             data: {
-              userId: auth.user.id,
+              organizationId: auth.user.id,
               title: gEvent.summary,
               description: gEvent.description || '',
               start: new Date(gEvent.start?.dateTime || gEvent.start?.date || now),
@@ -71,12 +71,12 @@ export async function POST() {
 
   try {
     const localEvents = await db.calendarEvent.findMany({
-      where: { userId: auth.user.id, source: 'local', googleEventId: null },
+      where: { organizationId: auth.user.id, source: 'local', googleEventId: null },
     })
 
     for (const event of localEvents) {
       const pushResult = await executeTool({
-        userId: auth.user.id,
+        organizationId: auth.user.id,
         toolkitSlug: 'google_calendar',
         toolSlug: 'google_calendar_create_event',
         agentCode: 'FOUNDER',

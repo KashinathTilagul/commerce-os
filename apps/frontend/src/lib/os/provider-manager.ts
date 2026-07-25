@@ -80,7 +80,7 @@ export class ProviderManager implements IProviderManager {
     if (providerInstance) {
       console.log(`[ProviderManager] Routing to first-class provider: ${providerInstance.name}`)
       const result = await providerInstance.execute(tool.toolSlug, {
-        userId: task.workflow?.userId || 'SYSTEM',
+        organizationId: task.workflow?.userId || 'SYSTEM',
         input: input
       })
 
@@ -105,8 +105,7 @@ export class ProviderManager implements IProviderManager {
       const { executeTool } = await import('@/lib/composio-service')
       
       const result = await executeTool({
-        userId: params.userId,
-        toolkitSlug: tool.toolSlug.split('_')[0], // Very naive deduction, actual implementation needs robust mapping
+        organizationId: params.userId, toolkitSlug: tool.toolSlug.split('_')[0], // Very naive deduction, actual implementation needs robust mapping
         toolSlug: tool.toolSlug,
         agentCode: params.agentCode || 'SYSTEM',
         agentName: params.agentName || 'OS Kernel',

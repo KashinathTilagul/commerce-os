@@ -25,7 +25,7 @@ export class ComposioProvider implements IProvider {
     return { status: 'HEALTHY' as const }
   }
 
-  async authenticate(userId: string) {
+  async authenticate(organizationId: string) {
     this.state = 'AUTHENTICATING'
     
     // In a real flow, this would call Composio SDK or credential manager to verify connection
@@ -53,12 +53,11 @@ export class ComposioProvider implements IProvider {
 
   async execute(
     toolSlug: string,
-    params: { userId: string; input: any; agentCode?: string; agentName?: string }
+    params: { organizationId: string; input: any; agentCode?: string; agentName?: string }
   ): Promise<ProviderResponse> {
     
     const executeParams = {
-      userId: params.userId,
-      toolkitSlug: 'composio',
+      organizationId: params.organizationId, toolkitSlug: 'composio',
       toolSlug: toolSlug,
       agentCode: params.agentCode || 'UNKNOWN',
       agentName: params.agentName || 'System',

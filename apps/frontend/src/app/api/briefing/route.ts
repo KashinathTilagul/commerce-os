@@ -16,25 +16,25 @@ export async function GET() {
   // DB — always available
   const [blockedIssues, urgentIssues, pendingApprovals, stuckOrders] = await Promise.all([
     db.issue.findMany({
-      where: { userId: uid, status: 'BLOCKED' },
+      where: { organizationId: uid, status: 'BLOCKED' },
       orderBy: { createdAt: 'desc' },
       take: 5,
       select: { id: true, code: true, title: true, priority: true, updatedAt: true },
     }),
     db.issue.findMany({
-      where: { userId: uid, priority: 'P0', status: { not: 'DONE' } },
+      where: { organizationId: uid, priority: 'P0', status: { not: 'DONE' } },
       orderBy: { createdAt: 'desc' },
       take: 3,
       select: { id: true, code: true, title: true, status: true },
     }),
     db.approval.findMany({
-      where: { userId: uid, status: 'PENDING' },
+      where: { organizationId: uid, status: 'PENDING' },
       orderBy: { createdAt: 'desc' },
       take: 5,
       select: { id: true, title: true, amount: true, type: true, createdAt: true },
     }),
     db.order.findMany({
-      where: { userId: uid, status: 'PROCESSING', updatedAt: { lt: fortyEightHrsAgo } },
+      where: { organizationId: uid, status: 'PROCESSING', updatedAt: { lt: fortyEightHrsAgo } },
       orderBy: { updatedAt: 'asc' },
       take: 10,
       select: { id: true, orderNumber: true, customerName: true, total: true, updatedAt: true },
@@ -44,7 +44,7 @@ export async function GET() {
   // Composio — return data or the real error so the UI never lies about why
   async function tryTool(toolkitSlug: string, toolSlug: string, input: Record<string, any>) {
     try {
-      const r = await executeTool({ userId: uid, toolkitSlug, toolSlug, agentCode: 'FOUNDER', agentName: 'Founder', input })
+      const r = await executeTool({ organizationId: uid, toolkitSlug, toolSlug, agentCode: 'FOUNDER', agentName: 'Founder', input })
       return r.success ? { data: r.output, error: null } : { data: null, error: r.error || 'Tool failed' }
     } catch (e: any) { return { data: null, error: e.message || 'Tool failed' } }
   }

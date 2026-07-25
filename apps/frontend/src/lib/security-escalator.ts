@@ -65,13 +65,13 @@ export async function processSecurityAlert(userId: string, alert: SecurityAlertP
   if (severity === 'CRITICAL') {
     try {
       const discordIntegration = await db.integration.findFirst({
-        where: { userId, toolkitSlug: 'discord', isConnected: true },
+        where: { organizationId: userId, toolkitSlug: 'discord', isConnected: true },
       })
       if (discordIntegration) {
         const { executeTool } = await import('@/lib/composio-service')
         const alertMsg = `🚨 **EKVAAR OS SECURITY ALERT** 🚨\n**Severity:** ${severity}\n**Title:** ${title}\n**Location:** \`${affectedPath || 'N/A'}\`\n**Action Required:** Check Founder Inbox for details.`
         await executeTool({
-          userId,
+          organizationId: userId,
           toolkitSlug: 'discord',
           toolSlug: 'discord_send_message',
           agentCode: 'SECURITY',
