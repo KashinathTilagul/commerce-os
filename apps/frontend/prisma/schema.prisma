@@ -52,6 +52,8 @@ model Organization {
   context        OrganizationContext?
   commerceLinks  CommerceObjectLink[]
   syncStates     SyncState[]
+  knowledgeNodes KnowledgeNode[]
+  knowledgeEdges KnowledgeEdge[]
 }
 
 model User {
@@ -959,4 +961,77 @@ model SyncState {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, provider, entity])
+}
+
+// ============ KNOWLEDGE GRAPH ============
+
+enum RelationshipType {
+  BELONGS_TO
+  PURCHASED_BY
+  CONTAINS
+  RELATED_TO
+  GENERATED_FROM
+  USES
+  REFERENCES
+  MEMBER_OF
+  OWNS
+  CREATED_BY
+  UPDATED_BY
+}
+
+enum EmbeddingStatus {
+  NOT_INDEXED
+  PENDING
+  INDEXING
+  INDEXED
+  FAILED
+}
+
+model KnowledgeNode {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  type               String
+  title              String
+  summary            String
+  metadata           String?  // JSON
+  businessObjectType String
+  businessObjectId   String
+  checksum           String
+  
+  source             String   // e.g., COMMERCE, DOCUMENT, CRM
+  sourceProvider     String   // e.g., shopify, google_drive
+  confidence         String   // e.g., VERIFIED, INFERRED
+
+  embeddingStatus    EmbeddingStatus @default(NOT_INDEXED)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  sourceEdges        KnowledgeEdge[] @relation("SourceNode")
+  targetEdges        KnowledgeEdge[] @relation("TargetNode")
+
+  @@unique([organizationId, businessObjectType, businessObjectId])
+  @@index([organizationId, type])
+}
+
+model KnowledgeEdge {
+  id             String           @id @default(cuid())
+  organizationId String
+  sourceId       String
+  targetId       String
+  type           RelationshipType
+  metadata       String?          // JSON
+  
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceNode     KnowledgeNode    @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
+  targetNode     KnowledgeNode    @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, sourceId, targetId, type])
+  @@index([sourceId])
+  @@index([targetId])
 }

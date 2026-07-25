@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { CommerceMapper } from './mapper'
+import { KnowledgePipeline } from '@/lib/knowledge/pipeline'
 
 export class CommerceHub {
   static async persistProduct(raw: any, orgId: string, provider: string) {
@@ -63,20 +64,13 @@ export class CommerceHub {
     })
 
     // Knowledge Graph Update
-    await db.contextEntry.upsert({
-      where: { organizationId_handle: { organizationId: orgId, handle: `product_${internalId}` } },
-      create: {
-        organizationId: orgId,
-        handle: `product_${internalId}`,
-        source: 'commerce_hub',
-        title: canonical.name,
-        summary: `Product: ${canonical.name} | SKU: ${canonical.sku} | Category: ${canonical.category} | Price: ${canonical.price}`,
-        linkedBusinessObject: `Product:${internalId}`,
-      },
-      update: {
-        title: canonical.name,
-        summary: `Product: ${canonical.name} | SKU: ${canonical.sku} | Category: ${canonical.category} | Price: ${canonical.price}`,
-      },
+    await KnowledgePipeline.ingest({
+      organizationId: orgId,
+      source: 'COMMERCE',
+      sourceProvider: provider,
+      businessObjectType: 'PRODUCT',
+      businessObjectId: internalId,
+      rawObject: canonical
     })
 
     return { status: link ? 'UPDATED' : 'CREATED', internalId }
@@ -142,6 +136,15 @@ export class CommerceHub {
       },
     })
 
+    await KnowledgePipeline.ingest({
+      organizationId: orgId,
+      source: 'COMMERCE',
+      sourceProvider: provider,
+      businessObjectType: 'ORDER',
+      businessObjectId: internalId,
+      rawObject: canonical
+    })
+
     return { status: link ? 'UPDATED' : 'CREATED', internalId }
   }
 
@@ -203,6 +206,15 @@ export class CommerceHub {
         checksum,
         syncedAt: new Date(),
       },
+    })
+
+    await KnowledgePipeline.ingest({
+      organizationId: orgId,
+      source: 'COMMERCE',
+      sourceProvider: provider,
+      businessObjectType: 'CUSTOMER',
+      businessObjectId: internalId,
+      rawObject: canonical
     })
 
     return { status: link ? 'UPDATED' : 'CREATED', internalId }
