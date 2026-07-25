@@ -9,7 +9,6 @@ const TOP_BAR_H = 28
 const MIN_W = 720
 const MIN_H = 480
 
-
 export function WindowFrame({ win }: { win: WindowState }) {
   const focus = useWindowStore(s => s.focus)
   const close = useWindowStore(s => s.close)
@@ -132,37 +131,31 @@ export function WindowFrame({ win }: { win: WindowState }) {
     <AnimatePresence>
       {!win.isMinimized && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.85, y: 30 }}
+          initial={{ opacity: 0, scale: 0.96, y: 12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.85, y: 30 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+          exit={{ opacity: 0, scale: 0.96, y: 12 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
           onMouseDown={() => focus(win.id)}
-          className={`absolute flex flex-col overflow-hidden ${win.isMaximized ? 'rounded-none' : 'rounded-xl'}`}
+          className={`absolute flex flex-col overflow-hidden transition-all duration-200 ${
+            win.isMaximized ? 'rounded-none' : 'rounded-2xl'
+          } ${isActive ? 'window-active' : 'window-inactive'} ${
+            (win.appId === 'executive_brief' || win.appId === 'decisions') ? 'material-layer-4' : 'material-layer-3'
+          }`}
           style={{
             left: bounds.x,
             top: bounds.y,
             width: bounds.width,
             height: bounds.height,
             zIndex: win.zIndex,
-            background: 'var(--window-bg)',
-            backdropFilter: win.isMaximized ? 'none' : 'blur(60px) saturate(180%)',
-            WebkitBackdropFilter: win.isMaximized ? 'none' : 'blur(60px) saturate(180%)',
-            boxShadow: win.isMaximized
-              ? 'none'
-              : isActive
-              ? '0 32px 80px rgba(0,0,0,0.35), 0 0 0 1px var(--window-border)'
-              : '0 16px 48px rgba(0,0,0,0.2), 0 0 0 1px var(--window-border)',
-            border: 'none',
           }}
         >
           {/* Title bar */}
           <div
-            className="relative flex items-center h-9 px-3 flex-shrink-0 cursor-grab active:cursor-grabbing"
+            className="relative flex items-center h-9 px-3 flex-shrink-0 cursor-grab active:cursor-grabbing border-b border-white/10"
             style={{
               background: isActive
-                ? 'var(--glass-card-bg)'
+                ? 'rgba(255, 255, 255, 0.05)'
                 : 'transparent',
-              borderBottom: '1px solid var(--window-border)',
             }}
             onMouseDown={handleTitleMouseDown}
             onDoubleClick={() => toggleMaximize(win.id)}
@@ -191,13 +184,13 @@ export function WindowFrame({ win }: { win: WindowState }) {
 
             {/* Centered title */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="flex items-center gap-2 text-xs text-foreground/70 font-medium">
+              <div className="flex items-center gap-2 text-xs text-foreground/80 font-medium">
                 {(() => {
                   const Icon = app.icon as any;
-                  return <Icon className="h-3.5 w-3.5 text-foreground/60" />;
+                  return <Icon className="h-3.5 w-3.5 text-[#D4859B]" />;
                 })()}
-                <span className="font-display tracking-tight">{win.title}</span>
-                {!isActive && <span className="text-foreground/30">·</span>}
+                <span className="font-display tracking-tight text-white/90">{win.title}</span>
+                {!isActive && <span className="text-white/30">·</span>}
               </div>
             </div>
 
@@ -206,7 +199,7 @@ export function WindowFrame({ win }: { win: WindowState }) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-h-0 overflow-y-auto bg-background text-foreground">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-transparent text-foreground">
             <AppComponent {...(win.id === 'command' ? { onNavigate: (id: any) => { const t = APP_MAP[id as keyof typeof APP_MAP]; if (t) useWindowStore.getState().open(id, t.name) } } : {})} />
           </div>
 
@@ -278,4 +271,3 @@ function ResizeHandle({
     />
   )
 }
-

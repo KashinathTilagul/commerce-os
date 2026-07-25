@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 
 const PILLAR_DEPARTMENT_MAP: Record<string, string[]> = {
   brand: ['CREATIVE', 'BRAND', 'EXECUTIVE'],
@@ -14,18 +13,18 @@ const PILLAR_DEPARTMENT_MAP: Record<string, string[]> = {
 }
 
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const userId = auth.user.id // Kept for legacy usage if any, but queries use orgId
 
   const [systems, agents] = await Promise.all([
     db.aISystem.findMany({
-      where: { organizationId: auth.organization.id },
+      where: { organizationId: auth.organizationId },
       orderBy: { name: 'asc' },
     }),
     db.agent.findMany({
-      where: { organizationId: auth.organization.id },
+      where: { organizationId: auth.organizationId },
     }),
   ])
 

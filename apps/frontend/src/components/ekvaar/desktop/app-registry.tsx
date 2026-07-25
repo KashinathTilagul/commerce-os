@@ -32,6 +32,7 @@ import { SpotifyApp } from '@/components/ekvaar/modules/spotify'
 import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
 import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
 import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
+import { ExecutiveBriefModule } from '@/components/ekvaar/modules/executive-brief'
 import { OSManifest } from '@/lib/os-desktop/manifest'
 import { AppRegistry } from '@/lib/os-desktop/registry'
 
@@ -46,6 +47,21 @@ export interface AppDef extends OSManifest {
 
 export const APPS: AppDef[] = [
   // Core OS apps
+  {
+    id: 'executive_brief',
+    name: 'Executive Brief',
+    shortName: 'Brief',
+    version: '3.0.0',
+    icon: LayoutDashboard as any,
+    iconVariant: 'board-room',
+    category: 'core',
+    requiredCapabilities: [],
+    entryPoint: ExecutiveBriefModule as any,
+    permissions: [],
+    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #1F3A5F 50%, #4CAF50 100%)',
+    glyphColor: '#F5F1EA',
+    menuItems: [{ label: 'File', items: ['Export Brief', 'Close Window'] }]
+  },
   {
     id: 'health',
     name: 'Health Monitor',

@@ -1,20 +1,19 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 
 // PATCH /api/agents/[id] — update agent soul, skills, description, primeDirective, status
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
     const { id } = await params
     const existing = await db.agent.findUnique({ where: { id } })
-    if (!existing || existing.userId !== auth.user.id) {
+    if (!existing || existing.organizationId !== auth.user.id) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 

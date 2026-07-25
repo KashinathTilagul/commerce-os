@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 import { z } from 'zod'
 import { routeObject } from '@/lib/ai-router'
 import { sanitizeInput } from '@/lib/security'
@@ -22,13 +22,13 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
     const { id } = await params
     const agent = await db.agent.findUnique({ where: { id } })
-    if (!agent || agent.userId !== auth.user.id) {
+    if (!agent || agent.organizationId !== auth.organizationId) {
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
     }
 

@@ -595,7 +595,7 @@ model Capability {
   id                  String   @id @default(cuid())
   name                String // "competitor_price_scan", "meta_ads_optimize"
   description         String // Human-readable description
-  ownerId             String // Agent ID that provides this
+  ownerId             String? // Agent ID that provides this
   ownerType           String   @default("AGENT") // AGENT | SERVICE | INTEGRATION
   requiredPermissions String   @default("") // "web:read,shopify:read" comma-separated
   costEstimate        String   @default("low") // free | low | medium | high
@@ -612,7 +612,7 @@ model Capability {
   updatedAt           DateTime @updatedAt
 
   organization           Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  owner          Agent          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner          Agent?         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   toolRegistries ToolRegistry[]
 
   @@unique([organizationId, name])

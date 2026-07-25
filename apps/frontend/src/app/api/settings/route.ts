@@ -1,7 +1,6 @@
-// @ts-nocheck
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 import { encryptSecret } from '@/lib/crypto'
 
 const API_KEY_FIELDS = ['primaryApiKey', 'fallback1ApiKey', 'fallback2ApiKey'] as const
@@ -19,7 +18,7 @@ const SYSTEM_FIELDS = new Set([
 const PREFERENCE_FIELDS = new Set(['ttsVoice', 'ttsSpeed', 'ttsStability', 'ttsVolume', 'krishnaPrompt'])
 
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   let settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
@@ -39,7 +38,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
@@ -72,7 +71,7 @@ export async function PATCH(req: Request) {
     // Non-blocking — don't fail the save if event logging breaks
     db.event.create({
       data: {
-        userId: auth.user.id,
+        organizationId: auth.organizationId,
         type: 'SYSTEM_SETTINGS_UPDATED',
         actorName: 'Founder',
         summary: 'Updated system settings',

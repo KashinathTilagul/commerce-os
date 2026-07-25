@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 
@@ -51,7 +50,7 @@ export async function POST(req: NextRequest) {
 
   // Group by user
   const blockersByUser = stalledBlockers.reduce<Record<string, typeof stalledBlockers>>((acc, i) => {
-    ;(acc[i.userId] ??= []).push(i)
+    ;(acc[i.organizationId] ??= []).push(i)
     return acc
   }, {})
 

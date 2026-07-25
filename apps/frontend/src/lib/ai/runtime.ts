@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { db } from '@/lib/db'
 import { ContextBuilder, SqlRetrievalStrategy } from '@/lib/knowledge/context-builder'
 import { ModelProviderFactory } from './model-provider'
@@ -33,7 +32,7 @@ export class AIRuntime {
         profile: org.context?.companyProfile || {},
         brand: org.context?.brandDna || {},
         policies: [], // would parse policies
-        capabilities: (org.capabilities ? String(org.capabilities) : "").split(',')
+        capabilities: ((org as any).capabilities ? ((org as any).capabilities as any).map((c: any) => c.name).join(",") : "").split(',')
       },
       session: {
         sessionId: params.sessionId,

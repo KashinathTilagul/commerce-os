@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError } from '@/lib/security'
 import { db } from '@/lib/db'
@@ -79,20 +78,15 @@ export async function POST(req: NextRequest) {
       
       await tx.capability.createMany({
         data: defaultCapabilities.map(cap => ({
-          name: cap.name,
-          description: cap.description,
-          category: cap.category,
-          organizationId: org.id
+          name: cap.name, description: cap.description, category: cap.category, organizationId: org.id, ownerType: "SYSTEM"
         }))
       })
 
       // 5. Initialize Default Knowledge Space (Workspace)
       await tx.workspace.create({
         data: {
-          name: "Knowledge Base",
-          description: "Root knowledge space for the organization.",
-          isArchived: false,
-          isPublic: false,
+          title: "Knowledge Base",
+          
           organizationId: org.id
         }
       })

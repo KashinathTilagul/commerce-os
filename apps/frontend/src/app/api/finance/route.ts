@@ -1,12 +1,11 @@
-// @ts-nocheck
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
-  const userId = auth.user.id
+  const organizationId = auth.organizationId
 
   const sixMonthsAgo = new Date()
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
@@ -16,12 +15,12 @@ export async function GET() {
   // a narrow 6-month window for the trend chart, and a capped recent list —
   // instead of pulling every transaction row ever into memory.
   const [byTypeAndCategory, recentWindow, recentTransactions] = await Promise.all([
-    db.transaction.groupBy({ by: ['type', 'category'], where: { userId }, _sum: { amount: true } }),
+    db.transaction.groupBy({ by: ['type', 'category'], where: { organizationId }, _sum: { amount: true } }),
     db.transaction.findMany({
       where: { organizationId, date: { gte: sixMonthsAgo } },
       select: { type: true, amount: true, date: true },
     }),
-    db.transaction.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 20 }),
+    db.transaction.findMany({ where: { organizationId }, orderBy: { date: 'desc' }, take: 20 }),
   ])
 
   let totalIncome = 0
@@ -29,7 +28,7 @@ export async function GET() {
   const incomeByCat: Record<string, number> = {}
   const expenseByCat: Record<string, number> = {}
   for (const row of byTypeAndCategory) {
-    const amt = row._sum || {}.amount || 0
+    const amt = row._sum?.amount || 0 || 0
     if (row.type === 'INCOME') {
       totalIncome += amt
       incomeByCat[row.category] = (incomeByCat[row.category] || 0) + amt

@@ -1,14 +1,13 @@
-// @ts-nocheck
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 import { ShopifyProvider } from '@/lib/commerce/shopify-provider'
 import { SyncEngine } from '@/lib/commerce/sync-engine'
 
 export async function POST() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
-  const orgId = auth.organization.id
+  const orgId = auth.organizationId
 
   try {
     const provider = new ShopifyProvider()

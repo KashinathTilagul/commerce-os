@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { CommerceProvider } from './provider'
 import { CommerceHub } from './hub'
 import { db } from '@/lib/db'
@@ -85,7 +84,7 @@ export class SyncEngine {
       }
 
       const duration = Date.now() - startTime
-      await this.updateState(entity, 'IDLE', { processed, failed, duration }, null)
+      await this.updateState(entity, 'IDLE', { processed, failed, duration }, undefined)
       
       await dispatchEvent(`${entity}S_SYNCED`, 'SYNC_ENGINE', {
         provider: this.provider.providerName,

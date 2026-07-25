@@ -1,28 +1,27 @@
-// @ts-nocheck
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError } from '@/lib/security'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
-  const authResult = await requireAuth()
+  const authResult = await requireOrganization()
   if (!authResult.success) return authResult.response
 
   try {
     const uid = authResult.user.id
     const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks, agents, issues, approvals, events] = await Promise.all([
-      db.product.findMany({ where: { organizationId: authResult.organization.id }, select: { id: true, name: true, sku: true, color: true, house: true, stock: true, reorderAt: true, status: true } }),
-      db.order.findMany({ where: { organizationId: authResult.organization.id }, select: { id: true, orderNumber: true, total: true, status: true, createdAt: true, channel: true, items: { select: { quantity: true, price: true, product: { select: { house: true, color: true } } } } } }),
-      db.customer.findMany({ where: { organizationId: authResult.organization.id }, select: { id: true, tier: true, totalSpent: true } }),
-      db.transaction.findMany({ where: { organizationId: authResult.organization.id }, select: { type: true, amount: true, category: true, date: true } }),
-      db.campaign.findMany({ where: { organizationId: authResult.organization.id }, select: { id: true, title: true, status: true, budget: true, spend: true } }),
-      db.aISystem.findMany({ where: { organizationId: authResult.organization.id }, select: { name: true, status: true, health: true, tasksToday: true } }),
-      db.restoration.findMany({ where: { organizationId: authResult.organization.id }, select: { status: true } }),
-      db.brandCheck.findMany({ where: { organizationId: authResult.organization.id }, select: { status: true } }),
-      db.agent.findMany({ where: { organizationId: authResult.organization.id }, select: { code: true, name: true, status: true, tokenSpend: true, tokenBudget: true } }),
-      db.issue.findMany({ where: { organizationId: authResult.organization.id }, select: { status: true } }),
-      db.approval.findMany({ where: { organizationId: authResult.organization.id }, select: { status: true, isRead: true } }),
-      db.event.findMany({ where: { organizationId: authResult.organization.id }, orderBy: { timestamp: 'desc' }, take: 10, select: { id: true, type: true, actorName: true, summary: true, severity: true, timestamp: true } }),
+      db.product.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, name: true, sku: true, color: true, house: true, stock: true, reorderAt: true, status: true } }),
+      db.order.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, orderNumber: true, total: true, status: true, createdAt: true, channel: true, items: { select: { quantity: true, price: true, product: { select: { house: true, color: true } } } } } }),
+      db.customer.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, tier: true, totalSpent: true } }),
+      db.transaction.findMany({ where: { organizationId: authResult.organizationId }, select: { type: true, amount: true, category: true, date: true } }),
+      db.campaign.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, title: true, status: true, budget: true, spend: true } }),
+      db.aISystem.findMany({ where: { organizationId: authResult.organizationId }, select: { name: true, status: true, health: true, tasksToday: true } }),
+      db.restoration.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true } }),
+      db.brandCheck.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true } }),
+      db.agent.findMany({ where: { organizationId: authResult.organizationId }, select: { code: true, name: true, status: true, tokenSpend: true, tokenBudget: true } }),
+      db.issue.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true } }),
+      db.approval.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true, isRead: true } }),
+      db.event.findMany({ where: { organizationId: authResult.organizationId }, orderBy: { timestamp: 'desc' }, take: 10, select: { id: true, type: true, actorName: true, summary: true, severity: true, timestamp: true } }),
     ])
 
     const revenue = transactions.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)

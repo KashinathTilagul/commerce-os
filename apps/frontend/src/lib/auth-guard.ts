@@ -34,3 +34,27 @@ export async function requireRole(roles: string | string[]): Promise<AuthResult>
 
   return { success: true, user: authResult.user }
 }
+
+export type OrgAuthResult = 
+  | { success: true; user: Session["user"]; organizationId: string; session: Session }
+  | { success: false; response: NextResponse }
+
+export async function requireOrganization(): Promise<OrgAuthResult> {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user) {
+    return { success: false, response: createApiError("Unauthorized", 401) }
+  }
+
+  if (!session.user.organizationId) {
+    return { success: false, response: createApiError("Organization required", 403) }
+  }
+
+  return { 
+    success: true, 
+    user: session.user, 
+    organizationId: session.user.organizationId,
+    session
+  }
+}
+

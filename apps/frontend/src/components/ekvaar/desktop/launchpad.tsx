@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
@@ -108,7 +107,7 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
                     onClick={() => handleAppClick(app.id, app.name)}
                   >
                     <div className="transition-all group-hover:scale-105 group-hover:-translate-y-1">
-                      <AppIcon variant={app.iconVariant} size={72} />
+                      <AppIcon variant={app.iconVariant as string} size={72} />
                     </div>
                     <div className="text-xs text-center leading-tight max-w-[100px] truncate text-white/90">
                       {displayName}

@@ -42,6 +42,6 @@ export interface IProvider {
    */
   execute(
     toolSlug: string,
-    params: { userId: string; input: any; agentCode?: string; agentName?: string }
+    params: { organizationId: string; input: any; agentCode?: string; agentName?: string }
   ): Promise<ProviderResponse>
 }

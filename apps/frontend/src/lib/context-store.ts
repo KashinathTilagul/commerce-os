@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { db } from '@/lib/db'
 
 export async function storeContext(
@@ -44,7 +43,7 @@ export async function retrieveContext(organizationId: string, handle: string) {
 
   return {
     ...entry,
-    fullData: JSON.parse(entry.fullData),
+    fullData: JSON.parse(entry.fullData || '{}'),
     metadata: entry.metadata ? JSON.parse(entry.metadata) : null
   }
 }

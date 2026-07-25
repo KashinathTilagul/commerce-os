@@ -1,10 +1,9 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { searchParams } = new URL(req.url)
@@ -13,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const products = await db.product.findMany({
     where: {
-      organizationId: auth.organization.id,
+      organizationId: auth.organizationId,
       ...(category && category !== 'ALL' ? { 
         OR: [{ category }, { house: category }] 
       } : {}),
