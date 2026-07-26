@@ -35,6 +35,9 @@ jobs:
           SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
         run: |
           set -e -o pipefail
+          echo "DEBUG pwd=$(pwd) home=$HOME path=$PATH"
+          echo "DEBUG which sudo: $(which sudo || echo NOTFOUND)"
+          ls -la /usr/bin/sudo || echo "DEBUG /usr/bin/sudo missing"
           # ponytail: the self-hosted runner's systemd service has no HOME set
           # (confirmed via actions-runner/.env), so `~` expansion isn't reliable
           # here — use the absolute path instead.
