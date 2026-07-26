@@ -9,7 +9,7 @@ jobs:
     # ubuntu-latest jobs are blocked whenever GitHub Actions billing has an
     # issue; this avoids that entirely and drops the redundant SSH hop.
     runs-on: self-hosted
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Run apply-roster.ts
         run: |
@@ -19,5 +19,7 @@ jobs:
           # every single run since it wasn't a real dependency — any registry
           # hiccup inside the container hung this indefinitely and jammed the
           # whole runner queue behind it. tsx is now a real devDependency
-          # (baked into the image), so call its binary directly.
-          timeout 120 docker compose exec -T frontend node node_modules/.bin/tsx scripts/apply-roster.ts
+          # (baked into the image), so call its binary directly. 66 sequential
+          # upserts against a live SQLite db can genuinely take a couple
+          # minutes, so the safety timeout is generous, not tight.
+          timeout 480 docker compose exec -T frontend node node_modules/.bin/tsx scripts/apply-roster.ts
