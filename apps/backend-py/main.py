@@ -1,6 +1,9 @@
 """
-EKVAAR OS — Unified Python Backend (FastAPI)
-Replaces the legacy Node.js backend entirely.
+EKVAAR OS — Python Sidecar (FastAPI)
+Serves only Jarvis TTS/STT (edge-tts + faster-whisper). Everything else
+(auth, agents, orders, issues, telemetry, risk, workflow, etc.) lives in the
+Next.js/Prisma app — see docs/architecture/decision-log.md for the migration
+that made this the single source of truth.
 """
 
 import os
@@ -8,68 +11,26 @@ from dotenv import load_dotenv
 # Load environment variables from parent directory .env file
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
-from fastapi import FastAPI, WebSocket, Request, Query
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-import asyncio
-import hashlib
 
-from core.database import init_db, get_pool
-from core.automation.scheduler import scheduler
 from core.exceptions import EkvaarException
-import core.automation.escalation_engine
-from core.automation.trigger_system import ensure_triggers_registered  # Load escalation listeners
-
-# Import all route modules
-from routes.graph_routes import router as graph_router
-from routes.issues_routes import router as issues_router
-from routes.approvals_routes import router as approvals_router
-from routes.workflow_routes import router as workflow_router
-from routes.dashboard_routes import router as dashboard_router
 from routes.jarvis_routes import router as jarvis_router, load_whisper
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize the database and services on startup."""
-    await init_db()
-    pool = get_pool()
-    await pool.initialize()
-    print("[EKVAAR OS] SQLite database initialized — all tables ready.")
-    print("[EKVAAR OS] Connection pool initialized with 5 connections.")
-    
-    ensure_triggers_registered()
-    print("[EKVAAR OS] Workflow trigger system operational.")
-
     # Load Whisper STT model in background so it's ready on first request
     import threading
     threading.Thread(target=load_whisper, daemon=True).start()
-    
-    from core.telemetry.telemetry_ingestion import telemetry
-    from core.telemetry.risk_engine import risk_engine
-    from core.telemetry.signal_detection import signal_engine
-    
-    async def run_telemetry_cycle():
-        await telemetry.ingest_from_live_metrics()
-        await telemetry.ingest_agent_metrics()
-        await signal_engine.run_full_detection_cycle()
-        await risk_engine.assess_risks()
-    
-    scheduler.schedule_job("telemetry_cycle", 300, run_telemetry_cycle)
-    print("[EKVAAR OS] Telemetry and Risk assessment scheduled every 5 minutes.")
-    
-    await scheduler.start()
-    
     yield
-    await scheduler.stop()
-    await pool.close_all()
-    print("[EKVAAR OS] Shutting down.")
 
 
 app = FastAPI(
-    title="EKVAAR OS — Agentic Intelligence Layer",
-    version="2.0.0",
+    title="EKVAAR OS — Jarvis Voice Sidecar",
+    version="1.0.0",
     lifespan=lifespan,
 )
 
@@ -110,122 +71,9 @@ async def ekvaar_exception_handler(request: Request, exc: EkvaarException):
     )
 
 
-# ─── Mount all API routers under /api ────────────────────────────────────────
-
-app.include_router(graph_router, prefix="/api")
-app.include_router(issues_router, prefix="/api")
-app.include_router(approvals_router, prefix="/api")
-app.include_router(workflow_router, prefix="/api")
-app.include_router(dashboard_router, prefix="/api")
 app.include_router(jarvis_router)
 
 
-# ─── Root health check ──────────────────────────────────────────────────────
-
 @app.get("/")
-def read_root():
-    return {
-        "status": "online",
-        "module": "EKVAAR OS Unified Backend",
-        "version": "2.0.0",
-        "engine": "FastAPI + SQLite (aiosqlite)",
-        "routes": [
-            "/api/graph/*",
-            "/api/content/*",
-        ]
-    }
-
-
-from core.llm.router import router as llm_router
-
-import json
-
-async def verify_ws_token(token: str) -> bool:
-    """Verify WebSocket auth token. Requires JWT_SECRET to be set."""
-    jwt_secret = os.getenv("JWT_SECRET", os.getenv("NEXTAUTH_SECRET", ""))
-    if not jwt_secret:
-        print("[SECURITY WARNING] JWT_SECRET not set - rejecting WebSocket connection")
-        return False
-    if not token:
-        return False
-    try:
-        import jwt
-        jwt.decode(token, jwt_secret, algorithms=["HS256"])
-        return True
-    except Exception as e:
-        print(f"[SECURITY] WebSocket auth failed: {e}")
-        return False
-
-
-@app.websocket("/ws/agent")
-async def websocket_agent(websocket: WebSocket, token: str = Query(None)):
-    if not token or not await verify_ws_token(token):
-        await websocket.close(code=4001, reason="Unauthorized")
-        return
-    await websocket.accept()
-    
-    from core.llm.router import BEDROCK_MODEL as MODEL_ID
-    boot_messages = [
-        "\r\n\x1b[1;36m[EKVAAR OS]\x1b[0m Booting Hermes Intelligence Layer...\r\n",
-        "\x1b[1;32m[SYSTEM]\x1b[0m Python Unified Backend v2.0.0 Online.\r\n",
-        "\x1b[1;32m[SYSTEM]\x1b[0m 28 SQLite tables initialized.\r\n",
-        "\x1b[1;32m[SYSTEM]\x1b[0m Graph, Agent, and Content routes mounted.\r\n",
-        "\x1b[1;33m[SYSTEM]\x1b[0m Node.js backend fully deprecated.\r\n",
-        f"\x1b[1;34m[LLM]\x1b[0m Provider: Amazon Bedrock | Model: {MODEL_ID}\r\n",
-        "\x1b[1;32m[SYSTEM]\x1b[0m LLM router initialized — Amazon Bedrock.\r\n",
-    ]
-    
-    boot_messages.append("\r\n\x1b[1;35mHermes>\x1b[0m ")
-    
-    for msg in boot_messages:
-        await websocket.send_text(msg)
-        await asyncio.sleep(0.1)
-
-    cmd_buffer = []
-
-    try:
-        while True:
-            command = await websocket.receive_text()
-            command = command.strip()
-            
-            if not command:
-                continue
-
-            try:
-                # Load soul persona prompt context
-                soul_path = os.path.join("core", "identity", "soul.md")
-                system_prompt = ""
-                if os.path.exists(soul_path):
-                    with open(soul_path, "r", encoding="utf-8") as sf:
-                        system_prompt = sf.read()
-
-                # Check if LLM is available before routing
-                # Bedrock errors surface via route_request return value; no pre-check needed
-                
-                # Run fallback route request
-                response = await llm_router.route_request(
-                    prompt=command,
-                    system_prompt=system_prompt,
-                    task_type="general"
-                )
-                
-                # Render output directly without terminal prefixes
-                if response.get("status") == "success":
-                    text_msg = response.get("message", "")
-                    await websocket.send_text(text_msg)
-                    await websocket.send_text("\r\n[Hermes> ")
-                else:
-                    error_msg = response.get("message", "Routing failed.")
-                    await websocket.send_text(f"[Error] {error_msg}")
-                    await websocket.send_text("\r\n[Hermes> ")
-            except Exception as inner_ex:
-                await websocket.send_text(f"[System Error] {str(inner_ex)}")
-    except Exception as e:
-        print(f"WebSocket Error: {e}")
-    finally:
-        print("Client disconnected.")
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+async def root():
+    return {"status": "ok", "service": "jarvis-sidecar"}
