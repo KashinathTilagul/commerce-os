@@ -35,7 +35,10 @@ jobs:
           SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
         run: |
           set -e -o pipefail
-          cd ~/Ekvaar 2>/dev/null || cd ~/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
+          # ponytail: the self-hosted runner's systemd service has no HOME set
+          # (confirmed via actions-runner/.env), so `~` expansion isn't reliable
+          # here — use the absolute path instead.
+          cd /home/ubuntu/Ekvaar 2>/dev/null || cd /home/ubuntu/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
           echo "[i] Deploying from: $(pwd)"
           git pull origin main
           echo "[i] Now at commit: $(git rev-parse --short HEAD)"
