@@ -34,6 +34,8 @@ export function Settings() {
   const [deleting, setDeleting] = useState(false)
   const [promptValue, setPromptValue] = useState('')
   const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [orgNameValue, setOrgNameValue] = useState('')
+  const orgNameTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
@@ -55,6 +57,7 @@ export function Settings() {
       hasSyncedRef.current = true
       if (settings.ttsVoice) setLocalVoice(settings.ttsVoice) // eslint-disable-line react-hooks/set-state-in-effect
       if (settings.krishnaPrompt !== undefined) setPromptValue(settings.krishnaPrompt) // eslint-disable-line react-hooks/set-state-in-effect
+      if (settings.organizationName !== undefined) setOrgNameValue(settings.organizationName) // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [settings, isLoading])
 
@@ -62,6 +65,7 @@ export function Settings() {
   useEffect(() => {
     return () => {
       if (promptTimeoutRef.current) clearTimeout(promptTimeoutRef.current)
+      if (orgNameTimeoutRef.current) clearTimeout(orgNameTimeoutRef.current)
     }
   }, [])
 
@@ -140,6 +144,33 @@ export function Settings() {
       />
 
       <div className="px-6 lg:px-10 py-8 space-y-6">
+        {/* Organization */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <Palette className="h-4 w-4" /> Organization
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Shown on the boot screen and throughout the OS.</p>
+          </CardHeader>
+          <CardContent>
+            <Row label="Business name" desc="Your organization's display name">
+              <Input
+                value={orgNameValue}
+                onChange={(e) => {
+                  const newValue = e.target.value
+                  setOrgNameValue(newValue)
+                  if (orgNameTimeoutRef.current) clearTimeout(orgNameTimeoutRef.current)
+                  orgNameTimeoutRef.current = setTimeout(() => {
+                    handleChange('organizationName', newValue)
+                  }, 500)
+                }}
+                placeholder="Your Business"
+                className="h-8 text-xs w-56"
+              />
+            </Row>
+          </CardContent>
+        </Card>
+
         {/* Appearance */}
         <Card>
           <CardHeader className="pb-3">

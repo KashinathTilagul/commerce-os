@@ -31,10 +31,12 @@ export async function GET() {
     preference = await db.userPreference.create({ data: { userId: auth.user.id } })
   }
 
+  const organization = await db.organization.findUnique({ where: { id: auth.organizationId }, select: { name: true } })
+
   // Never expose API keys in response
   const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, ...safeSettings } = settings as any
-  
-  return NextResponse.json({ ...safeSettings, ...preference })
+
+  return NextResponse.json({ ...safeSettings, ...preference, organizationName: organization?.name || '' })
 }
 
 export async function PATCH(req: Request) {
@@ -54,8 +56,9 @@ export async function PATCH(req: Request) {
     const preferenceBody = Object.fromEntries(
       Object.entries(raw).filter(([k]) => PREFERENCE_FIELDS.has(k))
     )
+    const organizationName = typeof raw.organizationName === 'string' ? raw.organizationName.trim() : undefined
 
-    if (Object.keys(systemBody).length === 0 && Object.keys(preferenceBody).length === 0) {
+    if (Object.keys(systemBody).length === 0 && Object.keys(preferenceBody).length === 0 && organizationName === undefined) {
       return NextResponse.json({ error: 'No valid fields' }, { status: 400 })
     }
 
@@ -66,6 +69,9 @@ export async function PATCH(req: Request) {
       Object.keys(preferenceBody).length > 0
         ? db.userPreference.upsert({ where: { userId: auth.user.id }, update: preferenceBody, create: { userId: auth.user.id, ...preferenceBody } })
         : db.userPreference.findUnique({ where: { userId: auth.user.id } }),
+      organizationName
+        ? db.organization.update({ where: { id: auth.organizationId }, data: { name: organizationName } })
+        : null,
     ])
 
     // Non-blocking — don't fail the save if event logging breaks
@@ -82,8 +88,9 @@ export async function PATCH(req: Request) {
 
     // Never expose API keys in response
     const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, ...safeSettings } = (settings || {}) as any
-    
-    return NextResponse.json({ ...safeSettings, ...preference })
+
+    const org = await db.organization.findUnique({ where: { id: auth.organizationId }, select: { name: true } })
+    return NextResponse.json({ ...safeSettings, ...preference, organizationName: org?.name || '' })
   } catch (e: any) {
     console.error('[Settings PATCH]', e.message)
     return NextResponse.json({ error: e.message }, { status: 500 })

@@ -47,18 +47,90 @@
   --color-neel: #1F3A5F;
   --color-arav: #2F4F3A;
   --color-gulabi: #D4859B;
-  --color-champagne: #F5F1EA;
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
+
+  /* Glass surfaces */
+  --window-bg: rgba(248, 246, 242, 0.78);
+  --window-border: rgba(0, 0, 0, 0.10);
+  --glass-card-bg: rgba(255, 255, 255, 0.55);
+  --glass-card-border: rgba(0, 0, 0, 0.07);
+
+  /* EKVAAR Light — Architectural, restrained */
   --background: oklch(0.985 0.002 60);
   --foreground: oklch(0.18 0.005 60);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.005 60);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.005 60);
+  --primary: oklch(0.18 0.005 60);
+  --primary-foreground: oklch(0.985 0.002 60);
+  --secondary: oklch(0.96 0.003 60);
+  --secondary-foreground: oklch(0.18 0.005 60);
+  --muted: oklch(0.96 0.003 60);
+  --muted-foreground: oklch(0.5 0.005 60);
+  --accent: oklch(0.93 0.005 60);
+  --accent-foreground: oklch(0.18 0.005 60);
+  --destructive: oklch(0.55 0.22 27);
+  --border: oklch(0.91 0.003 60);
+  --input: oklch(0.93 0.003 60);
+  --ring: oklch(0.5 0.005 60);
+  /* Brand-aligned chart colors */
+  --chart-1: #C8302A;
+  --chart-2: #1F3A5F;
+  --chart-3: #2F4F3A;
+  --chart-4: #D4859B;
+  --chart-5: #8B7355;
+  --sidebar: oklch(0.18 0.005 60);
+  --sidebar-foreground: oklch(0.95 0.002 60);
+  --sidebar-primary: oklch(0.985 0.002 60);
+  --sidebar-primary-foreground: oklch(0.18 0.005 60);
+  --sidebar-accent: oklch(0.25 0.005 60);
+  --sidebar-accent-foreground: oklch(0.95 0.002 60);
+  --sidebar-border: oklch(0.28 0.005 60);
+  --sidebar-ring: oklch(0.5 0.005 60);
 }
 
 .dark {
-  --background: oklch(0.11 0.003 60);
-  --foreground: oklch(0.96 0.002 60);
+  /* Glass surfaces */
+  --window-bg: rgba(16, 16, 18, 0.72);
+  --window-border: rgba(255, 255, 255, 0.08);
+  --glass-card-bg: rgba(255, 255, 255, 0.04);
+  --glass-card-border: rgba(255, 255, 255, 0.07);
+
+  --background: oklch(0.13 0.003 60);
+  --foreground: oklch(0.95 0.002 60);
+  --card: oklch(0.18 0.003 60);
+  --card-foreground: oklch(0.95 0.002 60);
+  --popover: oklch(0.18 0.003 60);
+  --popover-foreground: oklch(0.95 0.002 60);
+  --primary: oklch(0.95 0.002 60);
+  --primary-foreground: oklch(0.18 0.003 60);
+  --secondary: oklch(0.22 0.003 60);
+  --secondary-foreground: oklch(0.95 0.002 60);
+  --muted: oklch(0.22 0.003 60);
+  --muted-foreground: oklch(0.7 0.003 60);
+  --accent: oklch(0.26 0.003 60);
+  --accent-foreground: oklch(0.95 0.002 60);
+  --destructive: oklch(0.65 0.22 27);
+  --border: oklch(0.28 0.003 60);
+  --input: oklch(0.24 0.003 60);
+  --ring: oklch(0.5 0.003 60);
+  --chart-1: #C8302A;
+  --chart-2: #4A6B8F;
+  --chart-3: #5A7B65;
+  --chart-4: #D4859B;
+  --chart-5: #B89977;
+  --sidebar: oklch(0.1 0.003 60);
+  --sidebar-foreground: oklch(0.95 0.002 60);
+  --sidebar-primary: oklch(0.95 0.002 60);
+  --sidebar-primary-foreground: oklch(0.13 0.003 60);
+  --sidebar-accent: oklch(0.2 0.003 60);
+  --sidebar-accent-foreground: oklch(0.95 0.002 60);
+  --sidebar-border: oklch(0.22 0.003 60);
+  --sidebar-ring: oklch(0.5 0.003 60);
 }
 
 @layer base {
@@ -73,18 +145,25 @@
     text-rendering: optimizeLegibility;
   }
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(245, 241, 234, 0.15);
-    border-radius: 9999px;
+    background: oklch(0.7 0.003 60 / 0.3);
+    border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(245, 241, 234, 0.3);
+    background: oklch(0.7 0.003 60 / 0.5);
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.15s;
   }
 }
 
@@ -95,96 +174,106 @@
     font-weight: 600;
   }
 
-  /* --- DESIGN SYSTEM 3.0: 4-LAYER MATERIAL HIERARCHY --- */
-
-  /* Layer 1: Bare Desktop Environment */
-  .material-layer-1 {
-    background: #070709;
+  .text-balance {
+    text-wrap: balance;
   }
 
-  /* Layer 2: Utility Surfaces (MenuBar, Dock, Spotlight) */
-  .material-layer-2 {
-    background: rgba(20, 20, 24, 0.72);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    border: 1px solid rgba(245, 241, 234, 0.1);
-    box-shadow: 
-      0 4px 12px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  .brand-divider {
+    background: linear-gradient(
+      to right,
+      transparent,
+      oklch(0.5 0.005 60 / 0.2),
+      transparent
+    );
+    height: 1px;
   }
 
-  /* Layer 3: Standard Application Windows */
-  .material-layer-3 {
-    background: rgba(16, 16, 20, 0.84);
-    backdrop-filter: blur(48px) saturate(190%);
-    -webkit-backdrop-filter: blur(48px) saturate(190%);
-    border: 1px solid rgba(245, 241, 234, 0.12);
-    /* Triple Layered Shadow System: Contact + Ambient + Elevation */
-    box-shadow: 
-      0 2px 4px rgba(0, 0, 0, 0.4),
-      0 12px 24px -4px rgba(0, 0, 0, 0.6),
-      0 32px 64px -12px rgba(0, 0, 0, 0.85),
-      inset 0 1px 1px rgba(255, 255, 255, 0.22);
+  /* Glass card — subtle frost */
+  .glass-card {
+    background: var(--glass-card-bg);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid var(--glass-card-border);
   }
 
-  /* Layer 4: Executive Surfaces (Executive Brief, Decision Center, Krishna) - Highest Visual Priority */
-  .material-layer-4 {
-    background: linear-gradient(135deg, rgba(24, 24, 28, 0.92) 0%, rgba(14, 14, 16, 0.88) 100%);
-    backdrop-filter: blur(40px) saturate(200%);
-    -webkit-backdrop-filter: blur(40px) saturate(200%);
-    border: 1px solid rgba(245, 241, 234, 0.18);
-    /* Triple Layered Shadow + Champagne Highlight & Agni Red Elevation Glow */
-    box-shadow: 
-      0 2px 6px rgba(0, 0, 0, 0.5),
-      0 16px 36px -6px rgba(0, 0, 0, 0.75),
-      0 40px 80px -16px rgba(0, 0, 0, 0.95),
-      0 0 32px rgba(200, 48, 42, 0.12),
-      inset 0 1px 1.5px rgba(245, 241, 234, 0.35);
+  /* Glass panel — stronger frost for floating surfaces */
+  .glass-panel {
+    background: var(--window-bg);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    border: 0.5px solid var(--window-border);
   }
 
-  /* Window Focus Transitions & State Communication */
-  .window-active {
-    border-color: rgba(245, 241, 234, 0.28) !important;
-    box-shadow: 
-      0 2px 6px rgba(0, 0, 0, 0.5),
-      0 20px 48px -8px rgba(0, 0, 0, 0.8),
-      0 48px 96px -20px rgba(0, 0, 0, 0.98),
-      0 0 32px rgba(200, 48, 42, 0.14),
-      inset 0 1.5px 2px rgba(245, 241, 234, 0.4) !important;
-    opacity: 1 !important;
+  /* Restrained, architectural card — now with subtle glass */
+  .arch-card {
+    @apply border rounded-lg;
+    background: var(--glass-card-bg);
+    border-color: var(--glass-card-border);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+    transition: border-color 0.2s ease, background 0.2s ease;
   }
 
-  .window-inactive {
-    border-color: rgba(255, 255, 255, 0.07) !important;
-    box-shadow: 0 12px 28px -6px rgba(0, 0, 0, 0.5) !important;
-    opacity: 0.85 !important;
+  .arch-card:hover {
+    background: var(--glass-card-bg);
+    border-color: oklch(0.5 0.005 60 / 0.25);
   }
 
-  /* Living Desktop Slow Ambient Glow Animation */
-  .animate-ambient-shift {
-    animation: ambientShift 24s ease-in-out infinite alternate;
+  /* Subtle film grain — cinematic feel */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' /%3E%3C/svg%3E");
   }
 
-  @keyframes ambientShift {
-    0% {
-      opacity: 0.85;
-      transform: scale(1) translateY(0);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1.04) translateY(-10px);
-    }
-    100% {
-      opacity: 0.9;
-      transform: scale(1.02) translateY(5px);
-    }
-  }
-
-  /* Brand Colors */
+  /* Brand color utility classes */
   .bg-noor { background-color: #0A0A0A; }
   .bg-rui { background-color: #F5F1EA; }
   .bg-agni { background-color: #C8302A; }
   .bg-neel { background-color: #1F3A5F; }
   .bg-arav { background-color: #2F4F3A; }
   .bg-gulabi { background-color: #D4859B; }
+  .text-noor { color: #0A0A0A; }
+  .text-rui { color: #F5F1EA; }
+  .text-agni { color: #C8302A; }
+  .text-neel { color: #1F3A5F; }
+  .text-arav { color: #2F4F3A; }
+  .text-gulabi { color: #D4859B; }
+  .border-noor { border-color: #0A0A0A; }
+  .border-agni { border-color: #C8302A; }
+  .border-neel { border-color: #1F3A5F; }
+  .border-arav { border-color: #2F4F3A; }
+  .border-gulabi { border-color: #D4859B; }
+
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-pulse-soft {
+    animation: pulseSoft 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulseSoft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* Suppress browser-native password icons so they don't overlap our submit button */
+  .lock-password-input::-ms-reveal,
+  .lock-password-input::-ms-clear {
+    display: none;
+  }
+  .lock-password-input::-webkit-credentials-auto-fill-button,
+  .lock-password-input::-webkit-textfield-decoration-container {
+    visibility: hidden;
+    display: none !important;
+  }
 }
