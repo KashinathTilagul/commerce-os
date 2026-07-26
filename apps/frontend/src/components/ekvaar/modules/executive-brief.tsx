@@ -48,7 +48,7 @@ export function ExecutiveBriefModule() {
   const attentionItems = ExecutiveIntelligenceEngine.getNeedsAttentionItems('default_org')
 
   return (
-    <div className="h-full w-full material-layer-4 text-[#F5F1EA] p-6 overflow-y-auto font-sans flex flex-col gap-6 selection:bg-[#C8302A] selection:text-white">
+    <div className="h-full w-full bg-background text-[#F5F1EA] p-6 overflow-y-auto font-sans flex flex-col gap-6 selection:bg-[#C8302A] selection:text-white">
       {/* Toast Overlay */}
       <AnimatePresence>
         {toastMessage && (

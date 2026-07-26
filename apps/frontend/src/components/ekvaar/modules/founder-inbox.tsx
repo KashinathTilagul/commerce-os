@@ -102,7 +102,7 @@ export function FounderInbox() {
     : allApprovals
 
   return (
-    <div className="material-layer-4 h-full min-h-screen text-[#F5F1EA]">
+    <div className="bg-background h-full min-h-screen text-[#F5F1EA]">
       <PageHeader
         eyebrow="Founder Inbox · Operational Command"
         title="Decision Compression & Event Timeline"

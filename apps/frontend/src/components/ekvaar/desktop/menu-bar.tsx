@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Wifi, WifiOff, Battery, BatteryLow, Search, Volume2, VolumeX, BatteryMedium, BatteryFull, BatteryCharging } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
 import { useMusicStore } from '@/lib/music-store'
@@ -57,6 +58,16 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
     }).catch(() => {})
   }, [])
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const r = await fetch('/api/settings')
+      if (!r.ok) throw new Error('Failed to fetch settings')
+      return r.json()
+    },
+  })
+  const orgName = settings?.organizationName || 'OS'
+
   const activeApp = activeId ? APP_MAP[activeId] : null
 
   const handleMenuClick = (label: string) => setOpenMenu(openMenu === label ? null : label)
@@ -111,7 +122,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
       {/* Left cluster */}
       <div className="flex items-center gap-1">
         <MenuButton
-          label="EKVAAR"
+          label={orgName}
           isOpen={openMenu === 'ekvaar'}
           onClick={() => handleMenuClick('ekvaar')}
           items={['Lock Screen', 'Sign Out', 'Restart']}

@@ -551,18 +551,6 @@ function DockItem({
             variant={app.iconVariant || 'generic'}
             size={baseSize}
           />
-          
-          {/* Live Notification Badge for Executive Brief & Inbox */}
-          {(app.id === 'executive_brief' || app.id === 'inbox') && !editMode && (
-            <span className="absolute -top-1 -right-1 bg-[#C8302A] text-white text-[10px] font-mono font-bold w-5 h-5 rounded-full flex items-center justify-center border border-black shadow-lg animate-bounce">
-              3
-            </span>
-          )}
-
-          {/* Krishna Chief of Staff Active Status Indicator */}
-          {(app.id === 'executive_brief' || app.id === 'agents' || app.id === 'ai') && !editMode && (
-            <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-[#4CAF50] rounded-full border-2 border-black animate-pulse shadow-md" title="Krishna Active (Chief of Staff)" />
-          )}
         </div>
 
         {/* Edit mode: remove button */}
