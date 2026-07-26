@@ -251,7 +251,6 @@ model Campaign {
   createdAt   DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  purchaseOrders PurchaseOrder[]
 
   @@index([organizationId])
 }
@@ -322,6 +321,7 @@ model Supplier {
   lastOrder DateTime @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
 
   @@index([organizationId])
 }
