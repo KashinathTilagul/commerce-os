@@ -90,6 +90,13 @@ jobs:
           # Swap: recreates only changed containers
           /usr/bin/sudo docker compose up -d
 
+          # nginx.conf is bind-mounted, not baked into an image, and its own
+          # compose config never changes — so `up -d` never recreates it and
+          # it keeps running with whatever container IP it resolved for
+          # frontend/fastapi at ITS OWN boot. Restart it every deploy so it
+          # re-resolves against the just-recreated containers.
+          /usr/bin/sudo docker compose restart nginx
+
           # Now that old containers are replaced, drop dangling images
           /usr/bin/sudo docker image prune -af || true
 
