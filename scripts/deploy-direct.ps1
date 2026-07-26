@@ -14,8 +14,7 @@ git push origin main --tags
 
 Write-Host "[2/4] Connecting to EC2 ($EC2_HOST) via SSH..." -ForegroundColor Yellow
 
-$scriptFile = [System.IO.Path]::GetTempFileName() + ".sh"
-@'
+$scriptContent = @'
 set -e
 cd ~/Ekvaar 2>/dev/null || cd ~/EKVAAR 2>/dev/null || { echo '[x] Repo directory not found'; exit 1; }
 echo "[i] Server working directory: $(pwd)"
@@ -42,14 +41,14 @@ echo '[i] Building Docker containers...'
 sudo docker compose build --progress=plain
 
 echo '[i] Starting Docker containers...'
-sudo docker compose up -d
+sudo docker compose up -d --remove-orphans
 
 echo '[i] Verifying health check on localhost...'
 for i in $(seq 1 36); do
   STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: os.ekvaar.com" https://localhost/api/health || echo 000)
   if [ "$STATUS" = "200" ]; then
     echo "[ok] Health check PASSED (HTTP 200) on attempt $i!"
-    break
+    exit 0
   fi
   echo "[i] Waiting for app... attempt $i (HTTP $STATUS)"
   sleep 5
@@ -60,7 +59,10 @@ if [ "$STATUS" != "200" ]; then
   sudo docker compose logs --tail 50
   exit 1
 fi
-'@ | Set-Content -Path $scriptFile -Encoding UTF8
+'@
+
+$scriptFile = [System.IO.Path]::GetTempFileName() + ".sh"
+[System.IO.File]::WriteAllText($scriptFile, $scriptContent)
 
 Get-Content $scriptFile -Raw | ssh -i $KEY_PATH -o StrictHostKeyChecking=no "${EC2_USER}@${EC2_HOST}" "bash -s"
 
@@ -72,5 +74,5 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host " URL: https://os.ekvaar.com" -ForegroundColor Green
     Write-Host "==================================================" -ForegroundColor Green
 } else {
-    Write-Host "[!] Deployment encountered an error on EC2." -ForegroundColor Red
+    Write-Host "[!] Deployment finished with code $LASTEXITCODE." -ForegroundColor Yellow
 }

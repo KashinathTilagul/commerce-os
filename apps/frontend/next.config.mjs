@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -13,7 +12,7 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
+    removeConsole: false,
   },
   poweredByHeader: false,
   headers: async () => [
