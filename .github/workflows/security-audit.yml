@@ -8,7 +8,9 @@ on:
 jobs:
   security-audit:
     name: Engineered Security Audit
-    runs-on: ubuntu-latest
+    # Self-hosted (same runner as deploy.yml) — ubuntu-latest jobs are blocked
+    # whenever GitHub Actions billing has an issue.
+    runs-on: self-hosted
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
