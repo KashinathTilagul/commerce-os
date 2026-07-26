@@ -5,17 +5,13 @@ on:
 
 jobs:
   apply-roster:
-    runs-on: ubuntu-latest
+    # Self-hosted (same runner as deploy.yml, already on the target box) —
+    # ubuntu-latest jobs are blocked whenever GitHub Actions billing has an
+    # issue; this avoids that entirely and drops the redundant SSH hop.
+    runs-on: self-hosted
     steps:
-      - name: Run apply-roster.ts on AWS EC2
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.AWS_HOST }}
-          username: ${{ secrets.AWS_USER }}
-          key: ${{ secrets.AWS_SSH_KEY }}
-          port: 22
-          command_timeout: 5m
-          script: |
-            set -e -o pipefail
-            cd ~/Ekvaar 2>/dev/null || cd ~/EKVAAR 2>/dev/null || { echo "[✗] Repo directory not found"; exit 1; }
-            docker compose exec -T frontend npx tsx scripts/apply-roster.ts
+      - name: Run apply-roster.ts
+        run: |
+          set -e -o pipefail
+          cd /home/ubuntu/Ekvaar 2>/dev/null || cd /home/ubuntu/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
+          docker compose exec -T frontend npx tsx scripts/apply-roster.ts
