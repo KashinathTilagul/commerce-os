@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { Package, Truck, AlertTriangle, Factory, MapPin, Star, Clock } from 'lucide-react'
+import { Package, Truck, AlertTriangle, Factory, MapPin, Star, Clock, TrendingDown } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, HouseBadge, ColorDot, StatusPill } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -38,10 +38,10 @@ export function InventoryOps() {
     for (const p of products) {
       allCategories.add(p.category || p.house || 'Uncategorized')
     }
-    
+
     const byHouse: Record<string, { stock: number; value: number; count: number; low: number }> = {}
     for (const cat of allCategories) byHouse[cat] = { stock: 0, value: 0, count: 0, low: 0 }
-    
+
     for (const p of products) {
       const cat = p.category || p.house || 'Uncategorized'
       byHouse[cat].stock += p.stock
@@ -49,7 +49,14 @@ export function InventoryOps() {
       byHouse[cat].count++
       if (p.stock <= p.reorderAt && p.status !== 'DRAFT') byHouse[cat].low++
     }
-    return { totalStock, totalValue, lowStock, restocking, byHouse, allCategories: Array.from(allCategories).sort() }
+
+    const active = products.filter((p) => p.status !== 'DRAFT' && p.price > 0)
+    const avgMarginPct = active.length
+      ? active.reduce((s, p) => s + (p.price - p.cost) / p.price, 0) / active.length * 100
+      : 0
+    const marginWatch = [...active].sort((a, b) => (a.price - a.cost) / a.price - (b.price - b.cost) / b.price).slice(0, 8)
+
+    return { totalStock, totalValue, lowStock, restocking, byHouse, allCategories: Array.from(allCategories).sort(), avgMarginPct, marginWatch }
   }, [products])
 
   return (
@@ -57,14 +64,15 @@ export function InventoryOps() {
       <PageHeader
         eyebrow="Inventory & Operations"
         title="Manufacturing · Stock · Suppliers"
-        description="EKVAAR rejects overproduction. Intentional manufacturing, ethical labor, controlled inventory, reduced waste, long-wear construction. The goal is structural permanence — not sustainability marketing."
+        description="Intentional manufacturing, ethical sourcing, controlled inventory, reduced waste, long-wear construction. The goal is structural permanence — not sustainability marketing."
       />
 
       <div className="px-4 lg:px-8 py-8 space-y-6">
         {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <KpiCard label="Units in Stock" value={String(stats.totalStock)} accent="#1F3A5F" icon={<Package className="h-4 w-4" />} />
           <KpiCard label="Inventory Value" value={formatINR(stats.totalValue)} accent="#2F4F3A" icon={<Factory className="h-4 w-4" />} />
+          <KpiCard label="Avg Margin" value={`${stats.avgMarginPct.toFixed(0)}%`} accent="#8B7355" icon={<TrendingDown className="h-4 w-4" />} />
           <KpiCard label="Low Stock Alerts" value={String(stats.lowStock.length)} accent="#C8302A" icon={<AlertTriangle className="h-4 w-4" />} />
           <KpiCard label="Active Suppliers" value={String(suppliers.filter((s) => s.status === 'ACTIVE').length)} accent="#D4859B" icon={<Truck className="h-4 w-4" />} />
         </div>
@@ -102,6 +110,41 @@ export function InventoryOps() {
             })}
           </div>
         </div>
+
+        {/* Margin watch */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <TrendingDown className="h-4 w-4 text-agni" /> Margin Watch
+            </CardTitle>
+            <CardDescription className="text-xs">Lowest-margin SKUs — candidates for repricing or cost renegotiation</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-[320px] overflow-y-auto">
+              {stats.marginWatch.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-8 text-center">No priced SKUs yet.</div>
+              ) : (
+                stats.marginWatch.map((p) => {
+                  const marginPct = ((p.price - p.cost) / p.price) * 100
+                  return (
+                    <div key={p.id} className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
+                      <div className="flex items-center gap-3">
+                        <ColorDot color={p.color} size={12} />
+                        <div>
+                          <div className="text-sm font-medium">{p.name}</div>
+                          <div className="text-[10px] text-muted-foreground">{p.sku} · {formatINRFull(p.cost)} cost / {formatINRFull(p.price)} price</div>
+                        </div>
+                      </div>
+                      <div className={`text-sm font-mono ${marginPct < 30 ? 'text-agni font-medium' : 'text-muted-foreground'}`}>
+                        {marginPct.toFixed(0)}%
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Restock queue + Suppliers */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -192,30 +235,37 @@ export function InventoryOps() {
                     <TableHead className="text-[10px] tracking-wider uppercase">Color</TableHead>
                     <TableHead className="text-[10px] tracking-wider uppercase text-right">Stock</TableHead>
                     <TableHead className="text-[10px] tracking-wider uppercase text-right">Cost</TableHead>
+                    <TableHead className="text-[10px] tracking-wider uppercase text-right">Margin</TableHead>
                     <TableHead className="text-[10px] tracking-wider uppercase text-right">Value</TableHead>
                     <TableHead className="text-[10px] tracking-wider uppercase">Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-mono text-[10px]">{p.sku}</TableCell>
-                      <TableCell className="text-sm font-medium">{p.name}</TableCell>
-                      <TableCell><HouseBadge house={p.house} /></TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <ColorDot color={p.color} size={10} />
-                          <span className="text-[10px]">{p.color}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className={`text-right font-mono text-sm ${p.stock <= p.reorderAt ? 'text-agni font-medium' : ''}`}>
-                        {p.stock}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-xs">{formatINRFull(p.cost)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{formatINR(p.stock * p.cost)}</TableCell>
-                      <TableCell><StatusPill status={p.status} /></TableCell>
-                    </TableRow>
-                  ))}
+                  {products.map((p) => {
+                    const marginPct = p.price > 0 ? ((p.price - p.cost) / p.price) * 100 : null
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-mono text-[10px]">{p.sku}</TableCell>
+                        <TableCell className="text-sm font-medium">{p.name}</TableCell>
+                        <TableCell><HouseBadge house={p.house} /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            <ColorDot color={p.color} size={10} />
+                            <span className="text-[10px]">{p.color}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className={`text-right font-mono text-sm ${p.stock <= p.reorderAt ? 'text-agni font-medium' : ''}`}>
+                          {p.stock}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatINRFull(p.cost)}</TableCell>
+                        <TableCell className={`text-right font-mono text-xs ${marginPct !== null && marginPct < 30 ? 'text-agni' : ''}`}>
+                          {marginPct !== null ? `${marginPct.toFixed(0)}%` : '—'}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatINR(p.stock * p.cost)}</TableCell>
+                        <TableCell><StatusPill status={p.status} /></TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
