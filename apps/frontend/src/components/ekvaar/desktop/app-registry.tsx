@@ -33,7 +33,6 @@ import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
 import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
 import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
 import { OSManifest } from '@/lib/os-desktop/manifest'
-import { AppRegistry } from '@/lib/os-desktop/registry'
 
 // To bridge legacy metadata that isn't in OSManifest yet
 export interface AppDef extends OSManifest {
@@ -398,11 +397,6 @@ export const APPS: AppDef[] = [
 export const APP_MAP: Record<string, AppDef> = Object.fromEntries(
   APPS.map((app) => [app.id, app])
 )
-
-// Register all apps to OS registry
-APPS.forEach(app => {
-  AppRegistry.registerManifest(app)
-})
 
 // Hook for fetching dynamically available apps based on organization capabilities
 export function useAvailableApps() {

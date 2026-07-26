@@ -51,37 +51,20 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
       return
     }
 
-    import('@/lib/os-desktop/search-service').then(({ SearchService }) => {
-      SearchService.searchGlobal(q).then(res => {
-        if (!active) return
-        // Map GlobalSearchResult back to Spotlight's expected format for now
-        const formatted = res.map(r => {
-          if (r.type === 'app') {
-            const appId = r.id.replace('app_', '')
-            const appDef = APP_BY_ID.get(appId)
-            return {
-              id: appId,
-              name: r.title,
-              shortName: r.title,
-              icon: appDef?.icon,
-              iconVariant: appDef?.iconVariant,
-              gradient: appDef?.gradient,
-              glyphColor: appDef?.glyphColor,
-              hint: r.subtitle || ''
-            }
-          }
-          return {
-            id: r.id,
-            name: r.title,
-            shortName: r.title,
-            icon: undefined,
-            hint: r.subtitle || '',
-            action: r.action
-          }
-        })
-        setResults(formatted)
-      })
-    })
+    const lowerQuery = q.toLowerCase()
+    const matches = APPS.filter(app =>
+      app.name.toLowerCase().includes(lowerQuery) || app.description?.toLowerCase().includes(lowerQuery)
+    ).map(app => ({
+      id: app.id,
+      name: app.name,
+      shortName: app.shortName,
+      icon: app.icon,
+      iconVariant: app.iconVariant,
+      gradient: app.gradient,
+      glyphColor: app.glyphColor,
+      hint: app.description || '',
+    }))
+    if (active) setResults(matches)
 
     return () => { active = false }
   }, [query])
