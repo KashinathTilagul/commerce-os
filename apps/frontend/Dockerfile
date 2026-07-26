@@ -19,4 +19,4 @@ EXPOSE 3000
 
 COPY --from=builder /app ./
 
-CMD ["sh", "-c", "mkdir -p /app/db && touch /app/db/custom.db && chmod -R 777 /app/db && node node_modules/.bin/prisma db push --accept-data-loss --force-reset && node node_modules/.bin/next start"]
+CMD ["sh", "-c", "mkdir -p /app/db && touch /app/db/custom.db && chmod -R 777 /app/db && node node_modules/.bin/prisma db push --accept-data-loss && node node_modules/.bin/next start"]
