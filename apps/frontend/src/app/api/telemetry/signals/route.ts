@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const hours = Number(req.nextUrl.searchParams.get('hours') || 24)
   const since = new Date(Date.now() - hours * 3600000)
 
   const events = await db.event.findMany({
-    where: { organizationId: auth.user.id, severity: { in: ['WARN', 'ERROR', 'CRITICAL'] }, timestamp: { gte: since } },
+    where: { organizationId: auth.organizationId, severity: { in: ['WARN', 'ERROR', 'CRITICAL'] }, timestamp: { gte: since } },
     orderBy: { timestamp: 'desc' },
     take: 50,
   })

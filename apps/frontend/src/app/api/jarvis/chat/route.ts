@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError, sanitizeInput } from '@/lib/security'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { routeObject } from '@/lib/ai-router'
@@ -34,7 +34,7 @@ const KrishnaResponseSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const authResult = await requireAuth()
+  const authResult = await requireOrganization()
   if (!authResult.success) return authResult.response
 
   try {
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const { message, activeWindow } = validated
 
     // ── Live system context (DB-side aggregation, not raw row dumps) ────
-    const uid = authResult.user.id
+    const uid = authResult.organizationId
     const liveContext = await getLiveBusinessSnapshot(uid)
 
     // ── Time & greeting ──────────────────────────────────────────────────

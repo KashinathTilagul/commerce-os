@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { Kernel } from '@/lib/os/kernel'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 export async function POST(req: Request) {
   try {
-    const auth = await requireAuth()
+    const auth = await requireOrganization()
     if (!auth.success) return auth.response
-    const organizationId = auth.user.id
+    const organizationId = auth.organizationId
     
     const body = await req.json()
     const { intent, payload } = body

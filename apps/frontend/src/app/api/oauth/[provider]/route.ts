@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { getOAuthToken, revokeOAuthToken, isTokenValid, getProviderConfig, storeOAuthToken } from '@/lib/oauth'
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ provider: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { provider } = await params
@@ -14,7 +14,7 @@ export async function GET(
   if (!config) return NextResponse.json({ error: 'Unsupported OAuth provider' }, { status: 400 })
 
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/oauth/callback`
-  const state = encodeURIComponent(JSON.stringify({ provider, organizationId: auth.user.id }))
+  const state = encodeURIComponent(JSON.stringify({ provider, organizationId: auth.organizationId }))
 
   let authUrl: string = config.authUrl
   if (provider === 'shopify') {
@@ -37,7 +37,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ provider: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { provider } = await params
@@ -75,7 +75,7 @@ export async function POST(
     const data = await response.json()
     const expiresAt = data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined
     
-    await storeOAuthToken(auth.user.id, provider, {
+    await storeOAuthToken(auth.organizationId, provider, {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
       scope: data.scope,
@@ -92,10 +92,10 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ provider: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { provider } = await params
-  await revokeOAuthToken(auth.user.id, provider)
+  await revokeOAuthToken(auth.organizationId, provider)
   return NextResponse.json({ success: true, message: `Disconnected ${provider}` })
 }

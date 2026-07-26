@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError } from '@/lib/security'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 
@@ -12,7 +12,7 @@ const PaginationSchema = z.object({
 })
 
 export async function GET(req: NextRequest) {
-  const authResult = await requireAuth()
+  const authResult = await requireOrganization()
   if (!authResult.success) return authResult.response
 
   try {
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(paginationResult.success ? paginationResult.data.limit : 50, 100)
 
     const customers = await db.customer.findMany({
-      where: { organizationId: authResult.user.id, ...(tier && tier !== 'ALL' ? { tier } : {}) },
+      where: { organizationId: authResult.organizationId, ...(tier && tier !== 'ALL' ? { tier } : {}) },
       orderBy: { totalSpent: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     })
 
     const total = await db.customer.count({
-      where: { organizationId: authResult.user.id, ...(tier && tier !== 'ALL' ? { tier } : {}) },
+      where: { organizationId: authResult.organizationId, ...(tier && tier !== 'ALL' ? { tier } : {}) },
     })
 
     return createApiResponse({

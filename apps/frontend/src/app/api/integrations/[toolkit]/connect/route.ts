@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { initiateConnection, TOOLKIT_CATALOG } from '@/lib/composio-service'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 // POST /api/integrations/[toolkit]/connect — connect or disconnect an integration
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ toolkit: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { toolkit } = await params
@@ -16,7 +16,7 @@ export async function POST(
   const { action } = body as { action?: 'connect' | 'disconnect' }
 
   let integration = await db.integration.findFirst({
-    where: { organizationId: auth.user.id, toolkitSlug: toolkit },
+    where: { organizationId: auth.organizationId, toolkitSlug: toolkit },
   })
 
   if (!integration) {
@@ -27,7 +27,7 @@ export async function POST(
     }
     integration = await db.integration.create({
       data: {
-        organizationId: auth.user.id,
+        organizationId: auth.organizationId,
         toolkitSlug: toolkit,
         name: meta.name,
         description: meta.description,
@@ -53,7 +53,7 @@ export async function POST(
   }
 
   // Connect — attempt real Composio connection
-  const connection = await initiateConnection(toolkit, auth.user.id)
+  const connection = await initiateConnection(toolkit, auth.organizationId)
 
   if (connection.redirectUrl) {
     return NextResponse.json({ success: true, action: 'redirect', redirectUrl: connection.redirectUrl })
@@ -80,7 +80,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ toolkit: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { toolkit } = await params
@@ -88,7 +88,7 @@ export async function PATCH(
   const { agentPermissions } = body
 
   const integration = await db.integration.findFirst({
-    where: { organizationId: auth.user.id, toolkitSlug: toolkit },
+    where: { organizationId: auth.organizationId, toolkitSlug: toolkit },
   })
 
   if (!integration) return NextResponse.json({ error: 'Integration not found' }, { status: 404 })

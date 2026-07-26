@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { id } = await params
   const skill = await db.skill.findUnique({
-    where: { id, organizationId: auth.user.id }
+    where: { id, organizationId: auth.organizationId }
   })
 
   if (!skill) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -17,14 +17,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { id } = await params
   const body = await req.json()
   
   const skill = await db.skill.update({
-    where: { id, organizationId: auth.user.id },
+    where: { id, organizationId: auth.organizationId },
     data: {
       slug: body.slug,
       name: body.name,
@@ -48,12 +48,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { id } = await params
   await db.skill.delete({
-    where: { id, organizationId: auth.user.id }
+    where: { id, organizationId: auth.organizationId }
   })
 
   return NextResponse.json({ success: true })

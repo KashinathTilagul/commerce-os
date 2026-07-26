@@ -35,7 +35,7 @@ export async function POST(
     const body = await req.json()
     const { message } = ChatSchema.parse(body)
 
-    const liveContext = await getLiveBusinessSnapshot(auth.user.id)
+    const liveContext = await getLiveBusinessSnapshot(auth.organizationId)
 
     const systemPrompt = `You are ${agent.name}, the ${agent.role} of this company.
 Your Prime Directive (Soul):
@@ -68,7 +68,7 @@ Never claim you have already finished work in your reply — when intent is 'wor
     if (object.intent === 'work' && object.task && !agent.isHuman) {
       const task = sanitizeInput(object.task, { maxLength: 300 })
       const active = await db.issue.findFirst({
-        where: { organizationId: auth.user.id, assigneeId: agent.id, status: { in: ['BACKLOG', 'IN_PROGRESS'] } },
+        where: { organizationId: auth.organizationId, assigneeId: agent.id, status: { in: ['BACKLOG', 'IN_PROGRESS'] } },
         orderBy: { createdAt: 'desc' },
       })
       let target
@@ -77,24 +77,24 @@ Never claim you have already finished work in your reply — when intent is 'wor
         await db.issueComment.create({ data: { issueId: active.id, authorName: 'Founder', body: task, kind: 'COMMENT' } })
         target = active
       } else {
-        const count = await db.issue.count({ where: { organizationId: auth.user.id } })
+        const count = await db.issue.count({ where: { organizationId: auth.organizationId } })
         target = await db.issue.create({
           data: {
-            organizationId: auth.user.id, code: `PAP-${String(count + 1).padStart(2, '0')}`, title: task,
+            organizationId: auth.organizationId, code: `PAP-${String(count + 1).padStart(2, '0')}`, title: task,
             description: `Instructed directly by the Founder to ${agent.name} (${agent.role}).`,
             status: 'BACKLOG', priority: 'P2', type: 'TASK', assigneeId: agent.id, department: agent.department,
           },
         })
       }
       await db.agent.update({ where: { id: agent.id }, data: { currentTask: task, status: 'ACTIVE' } })
-      const result = await runAgentWork(auth.user.id, agent.id, target.id)
+      const result = await runAgentWork(auth.organizationId, agent.id, target.id)
       issueCode = target.code
       reply = result.ok ? `On it — ${target.code}. ${reply}` : `I couldn't start that. ${result.message}`
     }
 
     await db.event.create({
       data: {
-        organizationId: auth.user.id, type: 'AGENT_CHAT', actorName: agent.name,
+        organizationId: auth.organizationId, type: 'AGENT_CHAT', actorName: agent.name,
         summary: `Direct chat with ${agent.name}${issueCode ? ` → ${issueCode}` : ''}`,
         payload: JSON.stringify({ message: message.slice(0, 100), reply: reply.slice(0, 100), issueCode }),
         severity: 'INFO',

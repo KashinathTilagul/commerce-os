@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { executeTool } from '@/lib/composio-service'
 
 export async function POST() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const googleCalendarIntegration = await db.integration.findFirst({
     where: {
-      organizationId: auth.user.id,
+      organizationId: auth.organizationId,
       toolkitSlug: 'google_calendar',
       isConnected: true,
     },
@@ -32,7 +32,7 @@ export async function POST() {
     const timeMax = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString()
 
     const pullResult = await executeTool({
-      organizationId: auth.user.id,
+      organizationId: auth.organizationId,
       toolkitSlug: 'google_calendar',
       toolSlug: 'google_calendar_list_events',
       agentCode: 'FOUNDER',
@@ -45,13 +45,13 @@ export async function POST() {
         if (!gEvent.id || !gEvent.summary) continue
 
         const existing = await db.calendarEvent.findFirst({
-          where: { organizationId: auth.user.id, googleEventId: gEvent.id },
+          where: { organizationId: auth.organizationId, googleEventId: gEvent.id },
         })
 
         if (!existing) {
           await db.calendarEvent.create({
             data: {
-              organizationId: auth.user.id,
+              organizationId: auth.organizationId,
               title: gEvent.summary,
               description: gEvent.description || '',
               start: new Date(gEvent.start?.dateTime || gEvent.start?.date || now),
@@ -71,12 +71,12 @@ export async function POST() {
 
   try {
     const localEvents = await db.calendarEvent.findMany({
-      where: { organizationId: auth.user.id, source: 'local', googleEventId: null },
+      where: { organizationId: auth.organizationId, source: 'local', googleEventId: null },
     })
 
     for (const event of localEvents) {
       const pushResult = await executeTool({
-        organizationId: auth.user.id,
+        organizationId: auth.organizationId,
         toolkitSlug: 'google_calendar',
         toolSlug: 'google_calendar_create_event',
         agentCode: 'FOUNDER',

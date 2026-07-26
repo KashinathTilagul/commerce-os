@@ -12,7 +12,7 @@ export async function PATCH(
 
   const { id } = await params
   const existing = await db.approval.findUnique({ where: { id } })
-  if (!existing || existing.organizationId !== auth.user.id) {
+  if (!existing || existing.organizationId !== auth.organizationId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
@@ -42,7 +42,7 @@ export async function PATCH(
 
   await db.event.create({
     data: {
-      organizationId: auth.user.id,
+      organizationId: auth.organizationId,
       type: action === 'approve' ? 'APPROVAL_GRANTED' : action === 'reject' ? 'APPROVAL_REJECTED' : 'APPROVAL_REVISION',
       actorName: 'Founder',
       summary: `${updated.code}: ${status.replace(/_/g, ' ').toLowerCase()}`,

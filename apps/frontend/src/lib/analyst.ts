@@ -52,13 +52,13 @@ function timeFloor(range: string): Date | null {
 }
 
 // Validate the plan against the whitelist and run it read-only, always scoped to userId.
-async function runPlan(userId: string, plan: QueryPlan): Promise<any> {
+async function runPlan(organizationId: string, plan: QueryPlan): Promise<any> {
   const ds = DATASETS[plan.dataset]
   const allowed = new Set<string>([...ds.nums, ...ds.dims])
   const model = (db as any)[ds.model]
 
-  // Build where — userId ALWAYS enforced by us, never by the model.
-  const where: any = { userId }
+  // Build where — organizationId ALWAYS enforced by us, never by the model.
+  const where: any = { organizationId }
   for (const f of plan.filters || []) {
     if (!allowed.has(f.field)) throw new Error(`Field not queryable: ${f.field}`)
     if (f.op === 'eq') where[f.field] = f.value
@@ -94,7 +94,7 @@ async function runPlan(userId: string, plan: QueryPlan): Promise<any> {
 export interface AnalystResult { answer: string; plan: QueryPlan; data: any; provider?: string }
 
 // Full pipeline: question → plan → execute → grounded answer.
-export async function analyze(userId: string, question: string): Promise<AnalystResult> {
+export async function analyze(organizationId: string, question: string): Promise<AnalystResult> {
   const schemaHint = Object.entries(DATASETS)
     .map(([name, d]) => `- ${name}: numeric[${d.nums.join(', ') || 'none'}] dims[${d.dims.join(', ')}] date=${d.date}`)
     .join('\n')
@@ -106,7 +106,7 @@ export async function analyze(userId: string, question: string): Promise<Analyst
     temperature: 0,
   })
 
-  const data = await runPlan(userId, plan)
+  const data = await runPlan(organizationId, plan)
 
   const { text } = await routeText('default', {
     system: `You are EKVAAR's data analyst. Answer the founder's question from the computed result below — cite the exact numbers, INR for money, concise (1-3 sentences). Never invent figures beyond the data.`,

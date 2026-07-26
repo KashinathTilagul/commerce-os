@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 // ponytail: no vector store/knowledge graph exists yet, so "memory" is the real
 // Event log — every workflow/agent/business action already lands there. Swap
 // for a real embeddings pipeline (MemoryEngine) once semantic search is needed.
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
-  const organizationId = auth.user.id
+  const organizationId = auth.organizationId
   const hourAgo = new Date(Date.now() - 3600000)
 
   const [entities, relationships, totalEvents, recentEvents, events] = await Promise.all([

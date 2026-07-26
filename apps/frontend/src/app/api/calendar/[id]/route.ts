@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { id } = await params
@@ -14,7 +14,7 @@ export async function PATCH(
   const { title, description, start, end, color } = body
 
   const existing = await db.calendarEvent.findFirst({
-    where: { id, organizationId: auth.user.id },
+    where: { id, organizationId: auth.organizationId },
   })
 
   if (!existing) {
@@ -39,12 +39,12 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { id } = await params
   const existing = await db.calendarEvent.findFirst({
-    where: { id, organizationId: auth.user.id },
+    where: { id, organizationId: auth.organizationId },
   })
 
   if (!existing) {

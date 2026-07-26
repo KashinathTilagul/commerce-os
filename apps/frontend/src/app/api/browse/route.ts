@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { enqueueBrowseJob, getJobStatus } from '@/lib/browse-queue'
 import { createApiError } from '@/lib/security'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { searchParams } = new URL(req.url)
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     return createApiError('Job ID is required', 400)
   }
 
-  const job = await getJobStatus(auth.user.id, id)
+  const job = await getJobStatus(auth.organizationId, id)
   if (!job) {
     return createApiError('Job not found', 404)
   }
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       return createApiError('agentCode and url are required', 400)
     }
 
-    const jobId = await enqueueBrowseJob(auth.user.id, {
+    const jobId = await enqueueBrowseJob(auth.organizationId, {
       agentCode,
       url,
       action,

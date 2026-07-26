@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 // Workforce Engine — spawns, governs, and terminates specialized agents
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
-  const agents = await db.agent.findMany({ where: { organizationId: auth.user.id } })
+  const agents = await db.agent.findMany({ where: { organizationId: auth.organizationId } })
   const active = agents.filter((a) => a.status === 'ACTIVE' || a.status === 'RUNNING')
   const totalBudget = agents.reduce((s, a) => s + a.tokenBudget, 0)
   const totalSpend = agents.reduce((s, a) => s + a.tokenSpend, 0)

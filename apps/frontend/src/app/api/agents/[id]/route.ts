@@ -13,7 +13,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const existing = await db.agent.findUnique({ where: { id } })
-    if (!existing || existing.organizationId !== auth.user.id) {
+    if (!existing || existing.organizationId !== auth.organizationId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
@@ -37,7 +37,7 @@ export async function PATCH(
     // Log the update
     await db.event.create({
       data: {
-        organizationId: auth.user.id,
+        organizationId: auth.organizationId,
         type: 'AGENT_UPDATED',
         actorName: 'Founder',
         summary: `Updated ${updated.name} (${updated.code}) — soul/skills/profile edited`,

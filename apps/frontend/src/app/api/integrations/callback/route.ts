@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 // GET /api/integrations/callback — OAuth callback from Composio
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) {
     const baseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin
     return NextResponse.redirect(new URL('/login', baseUrl))
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     
     // Update local DB
     const integration = await db.integration.findFirst({
-      where: { organizationId: auth.user.id, toolkitSlug }
+      where: { organizationId: auth.organizationId, toolkitSlug }
     })
 
     if (integration) {
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
       // Log the event
       await db.event.create({
         data: {
-          organizationId: auth.user.id,
+          organizationId: auth.organizationId,
           type: 'INTEGRATION_CONNECTED',
           actorName: 'Founder',
           summary: `Connected ${integration.name} to EKVAAR OS`,

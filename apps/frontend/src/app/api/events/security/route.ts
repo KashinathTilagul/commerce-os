@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { runEngineeredSecurityScan } from '@/lib/security-scanner'
 import { processSecurityAlert } from '@/lib/security-escalator'
 import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   // Execute engineered non-AI security scan
-  const scanResult = await runEngineeredSecurityScan(auth.user.id)
+  const scanResult = await runEngineeredSecurityScan(auth.organizationId)
   return NextResponse.json(scanResult)
 }
 
@@ -25,9 +25,9 @@ export async function POST(req: NextRequest) {
     const founder = await db.user.findFirst({ orderBy: { createdAt: 'asc' } })
     organizationId = founder?.id || null
   } else {
-    const auth = await requireAuth()
+    const auth = await requireOrganization()
     if (!auth.success) return auth.response
-    organizationId = auth.user.id
+    organizationId = auth.organizationId
   }
 
   if (!organizationId) {

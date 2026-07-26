@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
     const { id } = await params
     const existing = await db.founderNote.findUnique({ where: { id } })
-    if (!existing || existing.organizationId !== auth.user.id) {
+    if (!existing || existing.organizationId !== auth.organizationId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
@@ -41,13 +41,13 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
     const { id } = await params
     const existing = await db.founderNote.findUnique({ where: { id } })
-    if (!existing || existing.organizationId !== auth.user.id) {
+    if (!existing || existing.organizationId !== auth.organizationId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
     await db.founderNote.delete({ where: { id } })

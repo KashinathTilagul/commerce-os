@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const notes = await db.founderNote.findMany({
-    where: { organizationId: auth.user.id },
+    where: { organizationId: auth.organizationId },
     orderBy: { createdAt: 'desc' },
   })
   return NextResponse.json(notes)
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     const note = await db.founderNote.create({
       data: {
-        organizationId: auth.user.id,
+        organizationId: auth.organizationId,
         title: title || 'New Note',
         excerpt: content ? content.slice(0, 100) : '',
         body: content || '',

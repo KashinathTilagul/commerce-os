@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { storeContext, retrieveContext, searchContext } from '@/lib/context-store'
 
 export async function GET(request: Request) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { searchParams } = new URL(request.url)
@@ -12,13 +12,13 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get('limit') || '10', 10)
 
   if (handle) {
-    const data = await retrieveContext(auth.user.id, handle)
+    const data = await retrieveContext(auth.organizationId, handle)
     if (!data) return NextResponse.json({ error: 'Not found or expired' }, { status: 404 })
     return NextResponse.json(data)
   }
 
   if (search) {
-    const data = await searchContext(auth.user.id, search, limit)
+    const data = await searchContext(auth.organizationId, search, limit)
     return NextResponse.json(data)
   }
 
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const handle = await storeContext(auth.user.id, {
+    const handle = await storeContext(auth.organizationId, {
       source,
       summary,
       fullData,

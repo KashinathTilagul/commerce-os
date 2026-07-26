@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const skills = await db.skill.findMany({
-    where: { organizationId: auth.user.id }
+    where: { organizationId: auth.organizationId }
   })
   return NextResponse.json(skills)
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const body = await req.json()
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       slug: body.slug,
       name: body.name,
       category: body.category || 'general',
-      organizationId: auth.user.id,
+      organizationId: auth.organizationId,
       source: body.source,
       skillMdPath: body.skillMdPath,
       skillMdContent: body.skillMdContent,

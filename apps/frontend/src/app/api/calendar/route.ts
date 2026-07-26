@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const events = await db.calendarEvent.findMany({
-    where: { organizationId: auth.user.id },
+    where: { organizationId: auth.organizationId },
     orderBy: { start: 'asc' },
   })
 
@@ -15,7 +15,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const body = await req.json()
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
   const event = await db.calendarEvent.create({
     data: {
-      organizationId: auth.user.id,
+      organizationId: auth.organizationId,
       title,
       description: description || '',
       start: new Date(start),

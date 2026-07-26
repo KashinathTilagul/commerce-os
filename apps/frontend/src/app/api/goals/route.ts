@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { createGoal, getDueGoals } from '@/lib/goal-engine'
 import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { searchParams } = new URL(req.url)
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   const goals = await db.goal.findMany({
-    where: { organizationId: auth.user.id },
+    where: { organizationId: auth.organizationId },
     include: { iterations: { orderBy: { createdAt: 'desc' }, take: 10 } },
     orderBy: { createdAt: 'desc' },
   })
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required goal fields' }, { status: 400 })
     }
 
-    const goal = await createGoal(auth.user.id, {
+    const goal = await createGoal(auth.organizationId, {
       title,
       metric,
       targetValue: Number(targetValue),

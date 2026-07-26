@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 // PATCH /api/issues/[id] — change status, assignee, priority
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   const { id } = await params
   const existing = await db.issue.findUnique({ where: { id } })
-  if (!existing || existing.organizationId !== auth.user.id) {
+  if (!existing || existing.organizationId !== auth.organizationId) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
@@ -31,7 +31,7 @@ export async function PATCH(
   if (status) {
     await db.event.create({
       data: {
-        organizationId: auth.user.id,
+        organizationId: auth.organizationId,
         type: 'ISSUE_STATUS_CHANGE',
         actorName: 'Founder',
         summary: `${updated.code} → ${status}`,

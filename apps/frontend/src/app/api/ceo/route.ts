@@ -1,19 +1,19 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 
 // CEO Engine — interprets Founder goals and breaks them into actionable agent plans
 export async function GET() {
-  const auth = await requireAuth()
+  const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
-    const issues = await db.issue.findMany({ where: { organizationId: auth.user.id } })
-    const ceo = await db.agent.findFirst({ where: { organizationId: auth.user.id, code: 'CEO' } })
+    const issues = await db.issue.findMany({ where: { organizationId: auth.organizationId } })
+    const ceo = await db.agent.findFirst({ where: { organizationId: auth.organizationId, code: 'CEO' } })
 
     // Get real recent events by the CEO, fallback to system events if none exist
     const recentEvents = await db.event.findMany({
-      where: { organizationId: auth.user.id, actorId: ceo?.id },
+      where: { organizationId: auth.organizationId, actorId: ceo?.id },
       take: 5,
       orderBy: { timestamp: 'desc' }
     })

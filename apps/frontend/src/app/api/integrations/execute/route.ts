@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError, sanitizeObject } from '@/lib/security'
-import { requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { executeTool, AGENT_TOOLKIT_ACCESS } from '@/lib/composio-service'
 import { z } from 'zod'
@@ -14,7 +14,7 @@ const ExecuteSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  const authResult = await requireAuth()
+  const authResult = await requireOrganization()
   if (!authResult.success) return authResult.response
 
   try {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     const integration = await db.integration.findFirst({
-      where: { organizationId: authResult.user.id, toolkitSlug },
+      where: { organizationId: authResult.organizationId, toolkitSlug },
     })
 
     if (!integration || !integration.isConnected) {
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     })
 
     const result = await executeTool({
-      organizationId: authResult.user.id,
+      organizationId: authResult.organizationId,
       toolkitSlug,
       toolSlug,
       agentCode,
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
     await db.event.create({
       data: {
-        organizationId: authResult.user.id,
+        organizationId: authResult.organizationId,
         type: 'TOOL_EXECUTION',
         actorName: agentName || agentCode,
         summary: `${agentName || agentCode} executed ${toolSlug} on ${integration.name} → ${result.success ? 'SUCCESS' : 'ERROR'}`,
