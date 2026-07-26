@@ -133,7 +133,12 @@ export async function routeObject<T>(
   opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
 ): Promise<{ object: T; provider: string; model: string }> {
   const { result, provider, model } = await runChain(tier, async (m) => {
-    const { object } = await generateObject({ model: m, ...opts })
+    // ponytail: force tool-call mode instead of the default json_schema
+    // response format — Groq (and most non-OpenAI OpenAI-compatible
+    // providers) only support json_schema on a small model whitelist, so
+    // the default mode threw "does not support response_format json_schema"
+    // for any other model. Tool-calling structured output works everywhere.
+    const { object } = await generateObject({ model: m, mode: 'tool', ...opts })
     return object as T
   })
   return { object: result, provider, model }

@@ -35,6 +35,22 @@ const CATEGORY_LABELS: Record<string, string> = {
   R_AND_D: 'R&D',
 }
 
+function downloadPnLCsv(data: FinanceData) {
+  const lines: string[] = ['Category,Amount (INR)']
+  lines.push('--- Income ---,')
+  for (const [cat, amt] of Object.entries(data.incomeByCat)) lines.push(`${CATEGORY_LABELS[cat] || cat},${amt}`)
+  lines.push('--- Expenses ---,')
+  for (const [cat, amt] of Object.entries(data.expenseByCat)) lines.push(`${CATEGORY_LABELS[cat] || cat},${amt}`)
+  lines.push('', `Total Income,${data.totalIncome}`, `Total Expenses,${data.totalExpenses}`, `Net Profit,${data.netProfit}`, `Margin %,${data.margin}`)
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `pnl-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function FinanceModule() {
   const { data, isLoading } = useQuery<FinanceData>({
     queryKey: ['finance'],
@@ -45,14 +61,23 @@ export function FinanceModule() {
     },
   })
 
+  // Real month-over-month deltas from the trend data — % change vs the prior month
+  const trend = data?.monthlyTrend || []
+  const prevM = trend[trend.length - 2]
+  const lastM = trend[trend.length - 1]
+  const pctChange = (curr?: number, prev?: number) => (prev && curr !== undefined) ? Math.round(((curr - prev) / prev) * 1000) / 10 : undefined
+  const incomeDelta = pctChange(lastM?.income, prevM?.income)
+  const expenseDelta = pctChange(lastM?.expenses, prevM?.expenses)
+  const netDelta = pctChange(lastM?.net, prevM?.net)
+
   return (
     <div>
       <PageHeader
         eyebrow="Finance"
         title="P&L · Cash Flow · Discipline"
-        description="The goal is not sustainability marketing. The goal is structural permanence. Every rupee in must strengthen the House — materials, labor, restoration, AI infrastructure."
+        description="Every rupee in strengthens the organization — track it with discipline, not sustainability marketing."
         actions={
-          <Button size="sm" className="gap-1.5">
+          <Button size="sm" className="gap-1.5" disabled={!data} onClick={() => data && downloadPnLCsv(data)}>
             <Sparkles className="h-3.5 w-3.5" /> Generate P&L
           </Button>
         }
@@ -64,32 +89,30 @@ export function FinanceModule() {
           <KpiCard
             label="Total Revenue"
             value={data ? formatINR(data.totalIncome) : '—'}
-            delta={12.4}
-            deltaLabel="trailing 30d"
+            delta={incomeDelta}
+            deltaLabel="vs prior month"
             accent="#2F4F3A"
             icon={<TrendingUp className="h-4 w-4" />}
           />
           <KpiCard
             label="Total Expenses"
             value={data ? formatINR(data.totalExpenses) : '—'}
-            delta={-4.2}
-            deltaLabel="controlled"
+            delta={expenseDelta}
+            deltaLabel="vs prior month"
             accent="#C8302A"
             icon={<TrendingDown className="h-4 w-4" />}
           />
           <KpiCard
             label="Net Profit"
             value={data ? formatINR(data.netProfit) : '—'}
-            delta={18.6}
-            deltaLabel="expanding"
+            delta={netDelta}
+            deltaLabel="vs prior month"
             accent="#1F3A5F"
             icon={<Wallet className="h-4 w-4" />}
           />
           <KpiCard
             label="Margin"
             value={data ? `${data.margin}%` : '—'}
-            delta={2.1}
-            deltaLabel="structural"
             accent="#D4859B"
           />
         </div>
@@ -226,7 +249,13 @@ export function FinanceModule() {
               {data ? `${Math.round((data.totalExpenses / data.totalIncome) * 100)}%` : '—'} of revenue is reinvested into materials, labor, restoration, and AI infrastructure.
             </div>
             <p className="text-xs text-muted-foreground mt-2 max-w-2xl leading-relaxed">
-              EKVAAR rejects overproduction. Spending is intentional: 35% on materials and labor, 18% on AI infrastructure, 9% on restoration programs. No trend marketing. No hype spend. Every rupee strengthens the House.
+              {data && data.totalExpenses > 0 ? (() => {
+                const top = Object.entries(data.expenseByCat)
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 3)
+                  .map(([cat, amt]) => `${Math.round((amt / data.totalExpenses) * 100)}% on ${(CATEGORY_LABELS[cat] || cat).toLowerCase()}`)
+                return `Spending breakdown: ${top.join(', ')}.`
+              })() : 'No expense data yet.'}
             </p>
           </CardContent>
         </Card>

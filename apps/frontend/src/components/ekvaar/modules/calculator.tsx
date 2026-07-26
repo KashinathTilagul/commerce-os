@@ -1,8 +1,24 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useWindowStore } from '@/lib/window-store'
+
+// ponytail: the window store has one generic default open size (1100x700)
+// for every app since it doesn't track per-app sizing — that stretches this
+// 4-column button grid into a giant oval-button mess. Snap to a compact size
+// once on mount instead of teaching the store about per-app defaults.
+const COMPACT_SIZE = { width: 360, height: 560 }
 
 export function Calculator() {
+  const win = useWindowStore(s => s.windows.find(w => w.appId === 'calculator'))
+  const resize = useWindowStore(s => s.resize)
+  useEffect(() => {
+    if (win && !win.isMaximized && (win.size.width !== COMPACT_SIZE.width || win.size.height !== COMPACT_SIZE.height)) {
+      resize(win.id, COMPACT_SIZE)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [win?.id])
+
   const [display, setDisplay] = useState('0')
   const [prev, setPrev] = useState<number | null>(null)
   const [op, setOp] = useState<string | null>(null)

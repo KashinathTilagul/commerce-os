@@ -22,7 +22,8 @@ export function TerminalModule() {
     queryFn: async () => {
       const r = await fetch('/api/events')
       if (!r.ok) throw new Error('Failed to fetch events')
-      return r.json()
+      const data = await r.json()
+      return Array.isArray(data) ? data : data.events || []
     },
     staleTime: 30000,
   })

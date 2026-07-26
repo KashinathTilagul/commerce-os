@@ -38,6 +38,16 @@ export function AIInfrastructure() {
     },
   })
 
+  const { data: orgContext } = useQuery<any>({
+    queryKey: ['org-context'],
+    queryFn: async () => {
+      const r = await fetch('/api/organization/context')
+      if (!r.ok) return null
+      return r.json()
+    },
+  })
+  const brandDna = orgContext?.brandDna || 'Restrained, considered, and never trend-chasing'
+
   const avgHealth = systems.length > 0
     ? Math.round(systems.reduce((s, a) => s + a.health, 0) / systems.length)
     : 100
@@ -145,29 +155,11 @@ export function AIInfrastructure() {
         <Card className="bg-noor text-rui border-0">
           <CardContent className="p-8">
             <div className="text-[10px] tracking-[0.3em] uppercase text-rui/50 mb-3">AI Discipline</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <div className="text-[10px] tracking-wider uppercase text-arav mb-2">AI Must Be</div>
-                <ul className="space-y-2 text-sm text-rui/80">
-                  <li>— Restrained. Never loud.</li>
-                  <li>— Culturally intelligent. Never costume.</li>
-                  <li>— Premium. Never cheap.</li>
-                  <li>— Permanence-oriented. Never trend-chasing.</li>
-                </ul>
-              </div>
-              <div>
-                <div className="text-[10px] tracking-wider uppercase text-agni mb-2">AI Must Not</div>
-                <ul className="space-y-2 text-sm text-rui/60">
-                  <li>— Generate meme aesthetics</li>
-                  <li>— Drift the brand voice</li>
-                  <li>— Push trend-led product</li>
-                  <li>— Dilute the House with volume</li>
-                </ul>
-              </div>
-            </div>
+            <div className="text-sm text-rui/80 max-w-2xl">{brandDna}</div>
             <div className="mt-6 pt-6 border-t border-rui/10 text-sm text-rui/70 italic">
-              "AI should strengthen the House. Not dilute it."
+              "AI should strengthen the organization. Never dilute it."
             </div>
+            <div className="mt-2 text-[10px] text-rui/40">Edit your brand DNA in the Brand Intelligence app.</div>
           </CardContent>
         </Card>
       </div>

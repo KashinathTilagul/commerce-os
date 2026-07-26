@@ -2,12 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
-import { Users, Heart, BookOpen, Sparkles, Crown, Archive, Search } from 'lucide-react'
+import { Users, Heart, BookOpen, Crown, Archive, Search } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -75,11 +74,6 @@ export function CommunityModule() {
         eyebrow="Originals · Community"
         title="Customers Are Originals, Not Followers"
         description="Belonging over audience farming. Community systems: Founder Notes, Restoration Programs, House Access, Archive Access, Story-led campaigns. Every member is held by the House."
-        actions={
-          <Button size="sm" className="gap-1.5">
-            <Sparkles className="h-3.5 w-3.5" /> Publish Founder Note
-          </Button>
-        }
       />
 
       <div className="px-4 lg:px-8 py-8 space-y-6">

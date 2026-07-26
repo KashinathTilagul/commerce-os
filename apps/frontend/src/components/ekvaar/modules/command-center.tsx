@@ -146,7 +146,9 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: string) => void 
       <PageHeader
         eyebrow="Board Room · Reality Layer"
         title="All-Time Operations"
-        description="EKVAAR is a permanent Indian cultural fashion house. Built against disposability. Designed once. Worn forever. This is the operating system that holds the House together — powered by a digital C-suite of 12 autonomous agents."
+        description={orgContext?.companyProfile
+          ? `${orgContext.companyProfile} — this operating system holds it together, powered by a digital C-suite of ${k?.activeAgents || 0} autonomous agents.`
+          : `The operating system that holds your organization together — powered by a digital C-suite of ${k?.activeAgents || 0} autonomous agents. Set your company profile in Brand Intelligence.`}
         actions={
           <>
             <Badge variant="outline" className="gap-1.5">
@@ -516,11 +518,11 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: string) => void 
               "We didn't start with a plan. We started with a pause."
             </div>
             <div className="mt-6 text-sm text-rui/60 max-w-2xl leading-relaxed">
-              One time — chosen with intent. All time — relevant across time. EKVAAR is not a clothing brand. It is a cultural and design system, operated from this command center.
+              {orgContext?.brandDna || 'One time — chosen with intent. All time — relevant across time.'}
             </div>
             <div className="mt-8 flex items-center gap-3 text-xs">
               <div className="h-px w-12 bg-rui/30" />
-              <span className="tracking-[0.2em] uppercase text-rui/50">EKVAAR · India ka Original</span>
+              <span className="tracking-[0.2em] uppercase text-rui/50">Board Room</span>
             </div>
           </CardContent>
         </Card>
