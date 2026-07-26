@@ -442,7 +442,11 @@ export function CalendarApp() {
                 {COLORS.map((c) => (
                   <button key={c} onClick={() => setForm({ ...form, color: c })}
                     className="h-7 w-7 rounded-full border-2 transition-transform hover:scale-110"
-                    style={{ background: c, borderColor: form.color === c ? '#FFFFFF' : 'rgba(255,255,255,0.2)' }} />
+                    style={{
+                      background: c,
+                      borderColor: form.color === c ? 'var(--foreground)' : 'var(--border)',
+                      boxShadow: form.color === c ? `0 0 0 2px ${c}` : 'none',
+                    }} />
                 ))}
               </div>
             </div>

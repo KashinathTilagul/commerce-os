@@ -181,8 +181,8 @@ export const APPS: AppDef[] = [
   },
   {
     id: 'files',
-    name: 'Files',
-    shortName: 'Files',
+    name: 'Notes & Logs',
+    shortName: 'Logs',
     version: '1.0.0',
     icon: FolderOpen as any,
     category: 'core',

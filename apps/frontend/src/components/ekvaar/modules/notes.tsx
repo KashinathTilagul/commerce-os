@@ -106,7 +106,7 @@ export function Notes() {
       <PageHeader
         eyebrow="Notes"
         title="Quick Notes"
-        description="Capture observations, decisions, and ideas. Notes persist instantly to the EKVAAR OS backend."
+        description="Capture observations, decisions, and ideas. Notes persist instantly to the OS backend."
         actions={
           <Button size="sm" className="gap-1.5" onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
             {createMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}

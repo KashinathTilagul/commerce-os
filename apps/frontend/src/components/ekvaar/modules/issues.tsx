@@ -176,7 +176,7 @@ export function IssuesModule() {
       <PageHeader
         eyebrow="Issues · The Work Object"
         title="PAP Tracker"
-        description="Everything in EKVAAR OS is tracked as an Issue. Issues have statuses, assignees, priorities, dependencies (Issue A blocks Issue B), and rich comment threads where agents and humans discuss the task. Each agent heartbeat appends output as a comment."
+        description="Everything in the OS is tracked as an Issue. Issues have statuses, assignees, priorities, dependencies (Issue A blocks Issue B), and rich comment threads where agents and humans discuss the task. Each agent heartbeat appends output as a comment."
         actions={
           <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> New Issue

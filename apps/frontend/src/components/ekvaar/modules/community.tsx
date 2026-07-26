@@ -188,7 +188,7 @@ export function CommunityModule() {
               <CardContent className="p-5">
                 <div className="text-[10px] tracking-[0.25em] uppercase text-arav mb-2">Restoration Program</div>
                 <p className="text-sm text-foreground/80 max-w-2xl leading-relaxed">
-                  EKVAAR pieces are built to age well, repeat well, and stay relevant across years. The Restoration Program repairs wear, reshapes silhouettes, and recolors faded pieces — extending each garment's life indefinitely. This is structural permanence, not sustainability marketing.
+                  Pieces are built to age well, repeat well, and stay relevant across years. The Restoration Program repairs wear, reshapes silhouettes, and recolors faded pieces — extending each garment's life indefinitely. This is structural permanence, not sustainability marketing.
                 </p>
               </CardContent>
             </Card>
@@ -267,7 +267,7 @@ export function CommunityModule() {
                       <h3 className="font-display text-xl tracking-tight leading-tight">{n.title}</h3>
                       <p className="text-sm text-muted-foreground mt-2 leading-relaxed flex-1">{n.excerpt}</p>
                       <div className="mt-4 pt-4 border-t border-border text-[10px] tracking-[0.2em] uppercase text-muted-foreground">
-                        EKVAAR · Founder Note
+                        Founder Note
                       </div>
                     </CardContent>
                   </Card>

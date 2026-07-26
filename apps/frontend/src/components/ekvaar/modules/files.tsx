@@ -29,7 +29,7 @@ interface EventItem { id: string; type: string; actorName: string; summary: stri
 
 const STATIC_TREE: FileItem[] = [
   {
-    name: 'EKVAAR OS', type: 'folder', children: [
+    name: 'Organization', type: 'folder', children: [
       { name: 'Founder Notes', type: 'folder', children: [] },
       { name: 'Agent Logs', type: 'folder', children: [] },
       { name: 'Event Ledger', type: 'folder', children: [] },
@@ -48,7 +48,7 @@ const FILE_COLORS = {
 }
 
 export function Files() {
-  const [path, setPath] = useState<string[]>(['EKVAAR OS'])
+  const [path, setPath] = useState<string[]>(['Organization'])
   const [search, setSearch] = useState('')
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null)
   const [editBody, setEditBody] = useState('')
@@ -190,7 +190,7 @@ export function Files() {
       <div className="px-4 lg:px-8 py-6 space-y-4">
         {/* Breadcrumb + search */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setPath(['EKVAAR OS'])}>
+          <Button variant="ghost" size="sm" onClick={() => setPath(['Organization'])}>
             <Home className="h-3.5 w-3.5" />
           </Button>
           <div className="flex items-center gap-1 text-xs flex-wrap">
