@@ -15,11 +15,13 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # Runs directly on the AWS EC2 box (self-hosted runner registered there) —
+    # no SSH hop needed since the runner already lives on the deploy target,
+    # and self-hosted runners don't consume metered Actions minutes.
+    runs-on: self-hosted
 
     steps:
-      - name: Deploy to AWS EC2
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy
         env:
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
@@ -31,80 +33,73 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
-        with:
-          host: ${{ secrets.AWS_HOST }}
-          username: ${{ secrets.AWS_USER }}
-          key: ${{ secrets.AWS_SSH_KEY }}
-          port: 22
-          command_timeout: 60m
-          envs: NEXTAUTH_SECRET,GOOGLE_CLIENT_ID,GOOGLE_CLIENT_SECRET,COMPOSIO_API_KEY,OPENROUTER_API_KEY,GROQ_API_KEY,JWT_SECRET,SPOTIFY_CLIENT_ID,SPOTIFY_CLIENT_SECRET,SPOTIFY_REDIRECT_URI
-          script: |
-            set -e -o pipefail
-            cd ~/Ekvaar 2>/dev/null || cd ~/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
-            echo "[i] Deploying from: $(pwd)"
-            git pull origin main
-            echo "[i] Now at commit: $(git rev-parse --short HEAD)"
+        run: |
+          set -e -o pipefail
+          cd ~/Ekvaar 2>/dev/null || cd ~/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
+          echo "[i] Deploying from: $(pwd)"
+          git pull origin main
+          echo "[i] Now at commit: $(git rev-parse --short HEAD)"
 
-            # Ensure Swapfile exists on EC2 to prevent Docker/Next.js OOM crashes
-            if [ $(swapon --show | wc -l) -eq 0 ]; then
-              echo "[i] Enabling 2GB swap space to prevent OOM build crashes..."
-              sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
-              sudo chmod 600 /swapfile
-              sudo mkswap /swapfile || true
-              sudo swapon /swapfile || true
-            fi
+          # Ensure Swapfile exists on EC2 to prevent Docker/Next.js OOM crashes
+          if [ $(swapon --show | wc -l) -eq 0 ]; then
+            echo "[i] Enabling 2GB swap space to prevent OOM build crashes..."
+            sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+            sudo chmod 600 /swapfile
+            sudo mkswap /swapfile || true
+            sudo swapon /swapfile || true
+          fi
 
-            # Ensure database directory permissions on host
-            mkdir -p db apps/frontend/db
-            sudo chmod -R 777 db apps/frontend/db 2>/dev/null || true
+          # Ensure database directory permissions on host
+          mkdir -p db apps/frontend/db
+          sudo chmod -R 777 db apps/frontend/db 2>/dev/null || true
 
-            printf '%s\n' \
-              "DATABASE_URL=file:///app/db/custom.db" \
-              "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
-              "NEXTAUTH_URL=https://os.ekvaar.com" \
-              "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
-              "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
-              "COMPOSIO_API_KEY=${COMPOSIO_API_KEY}" \
-              "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" \
-              "GROQ_API_KEY=${GROQ_API_KEY}" \
-              "JWT_SECRET=${JWT_SECRET}" \
-              "AWS_REGION=us-east-1" \
-              "BEDROCK_MODEL_ID=amazon.nova-pro-v1:0" \
-              "SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}" \
-              "SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}" \
-              "SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}" \
-              > .env
+          printf '%s\n' \
+            "DATABASE_URL=file:///app/db/custom.db" \
+            "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
+            "NEXTAUTH_URL=https://os.ekvaar.com" \
+            "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
+            "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
+            "COMPOSIO_API_KEY=${COMPOSIO_API_KEY}" \
+            "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" \
+            "GROQ_API_KEY=${GROQ_API_KEY}" \
+            "JWT_SECRET=${JWT_SECRET}" \
+            "AWS_REGION=us-east-1" \
+            "BEDROCK_MODEL_ID=amazon.nova-pro-v1:0" \
+            "SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}" \
+            "SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}" \
+            "SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}" \
+            > .env
 
-            echo "[i] Disk before cleanup:"; df -h / || true
+          echo "[i] Disk before cleanup:"; df -h / || true
 
-            # Reclaim space WITHOUT stopping the running site
-            sudo docker image prune -f || true
-            sudo docker container prune -f || true
-            sudo docker builder prune -f --keep-storage 2GB || true
-            sudo apt-get clean || true
-            sudo journalctl --vacuum-size=100M || true
-            echo "[i] Disk after cleanup:"; df -h / || true
+          # Reclaim space WITHOUT stopping the running site
+          sudo docker image prune -f || true
+          sudo docker container prune -f || true
+          sudo docker builder prune -f --keep-storage 2GB || true
+          sudo apt-get clean || true
+          sudo journalctl --vacuum-size=100M || true
+          echo "[i] Disk after cleanup:"; df -h / || true
 
-            # Build while old containers still serve traffic
-            sudo docker compose build --progress=plain 2>&1
+          # Build while old containers still serve traffic
+          sudo docker compose build --progress=plain 2>&1
 
-            # Swap: recreates only changed containers
-            sudo docker compose up -d
+          # Swap: recreates only changed containers
+          sudo docker compose up -d
 
-            # Now that old containers are replaced, drop dangling images
-            sudo docker image prune -af || true
+          # Now that old containers are replaced, drop dangling images
+          sudo docker image prune -af || true
 
-            # Health check the app DIRECTLY on localhost (up to 5 min for cold container boot)
-            for i in $(seq 1 60); do
-              STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: os.ekvaar.com" https://localhost/api/health || echo 000)
-              [ "$STATUS" = "200" ] && break
-              echo "[i] Waiting for app... attempt $i/60 (HTTP $STATUS)"
-              sleep 5
-            done
+          # Health check the app DIRECTLY on localhost (up to 5 min for cold container boot)
+          for i in $(seq 1 60); do
+            STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: os.ekvaar.com" https://localhost/api/health || echo 000)
+            [ "$STATUS" = "200" ] && break
+            echo "[i] Waiting for app... attempt $i/60 (HTTP $STATUS)"
+            sleep 5
+          done
 
-            if [ "$STATUS" != "200" ]; then
-              echo "[x] App failed to start (HTTP $STATUS). Container logs:"
-              sudo docker compose logs --tail 150
-              exit 1
-            fi
-            echo "[ok] Deployed OK (HTTP $STATUS)"
+          if [ "$STATUS" != "200" ]; then
+            echo "[x] App failed to start (HTTP $STATUS). Container logs:"
+            sudo docker compose logs --tail 150
+            exit 1
+          fi
+          echo "[ok] Deployed OK (HTTP $STATUS)"
