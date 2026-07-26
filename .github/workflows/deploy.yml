@@ -35,29 +35,27 @@ jobs:
           SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
         run: |
           set -e -o pipefail
-          echo "DEBUG pwd=$(pwd) home=$HOME path=$PATH"
-          echo "DEBUG which sudo: $(which sudo || echo NOTFOUND)"
-          ls -la /usr/bin/sudo || echo "DEBUG /usr/bin/sudo missing"
-          # ponytail: the self-hosted runner's systemd service has no HOME set
-          # (confirmed via actions-runner/.env), so `~` expansion isn't reliable
-          # here — use the absolute path instead.
+          # ponytail: the job's PATH under this self-hosted runner isn't reliable
+          # (sudo failed to resolve even though it works under a bare shell) —
+          # pin PATH explicitly and never depend on `~` (HOME isn't set either).
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           cd /home/ubuntu/Ekvaar 2>/dev/null || cd /home/ubuntu/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
           echo "[i] Deploying from: $(pwd)"
           git pull origin main
           echo "[i] Now at commit: $(git rev-parse --short HEAD)"
 
           # Ensure Swapfile exists on EC2 to prevent Docker/Next.js OOM crashes
-          if [ $(swapon --show | wc -l) -eq 0 ]; then
+          if [ $(/usr/sbin/swapon --show | wc -l) -eq 0 ]; then
             echo "[i] Enabling 2GB swap space to prevent OOM build crashes..."
-            sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
-            sudo chmod 600 /swapfile
-            sudo mkswap /swapfile || true
-            sudo swapon /swapfile || true
+            /usr/bin/sudo fallocate -l 2G /swapfile || /usr/bin/sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+            /usr/bin/sudo chmod 600 /swapfile
+            /usr/bin/sudo mkswap /swapfile || true
+            /usr/bin/sudo swapon /swapfile || true
           fi
 
           # Ensure database directory permissions on host
           mkdir -p db apps/frontend/db
-          sudo chmod -R 777 db apps/frontend/db 2>/dev/null || true
+          /usr/bin/sudo chmod -R 777 db apps/frontend/db 2>/dev/null || true
 
           printf '%s\n' \
             "DATABASE_URL=file:///app/db/custom.db" \
@@ -79,21 +77,21 @@ jobs:
           echo "[i] Disk before cleanup:"; df -h / || true
 
           # Reclaim space WITHOUT stopping the running site
-          sudo docker image prune -f || true
-          sudo docker container prune -f || true
-          sudo docker builder prune -f --keep-storage 2GB || true
-          sudo apt-get clean || true
-          sudo journalctl --vacuum-size=100M || true
+          /usr/bin/sudo docker image prune -f || true
+          /usr/bin/sudo docker container prune -f || true
+          /usr/bin/sudo docker builder prune -f --keep-storage 2GB || true
+          /usr/bin/sudo apt-get clean || true
+          /usr/bin/sudo journalctl --vacuum-size=100M || true
           echo "[i] Disk after cleanup:"; df -h / || true
 
           # Build while old containers still serve traffic
-          sudo docker compose build --progress=plain 2>&1
+          /usr/bin/sudo docker compose build --progress=plain 2>&1
 
           # Swap: recreates only changed containers
-          sudo docker compose up -d
+          /usr/bin/sudo docker compose up -d
 
           # Now that old containers are replaced, drop dangling images
-          sudo docker image prune -af || true
+          /usr/bin/sudo docker image prune -af || true
 
           # Health check the app DIRECTLY on localhost (up to 5 min for cold container boot)
           for i in $(seq 1 60); do
@@ -105,7 +103,7 @@ jobs:
 
           if [ "$STATUS" != "200" ]; then
             echo "[x] App failed to start (HTTP $STATUS). Container logs:"
-            sudo docker compose logs --tail 150
+            /usr/bin/sudo docker compose logs --tail 150
             exit 1
           fi
           echo "[ok] Deployed OK (HTTP $STATUS)"
