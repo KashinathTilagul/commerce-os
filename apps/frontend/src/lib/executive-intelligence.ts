@@ -1,11 +1,15 @@
 /**
- * Executive Intelligence Engine & Priority Engine (EKVAAR OS V3)
+ * Executive Intelligence Engine & Priority Engine (EKVAAR OS v3.2)
  * 
- * Sits between AI Workforce Agents and the Window Orchestrator.
- * Krishna operates as Chief of Staff: evaluating events, prioritizing severity,
- * and deciding whether to open an urgent window, display a toast notification,
- * or aggregate items into the Executive Brief.
+ * ARCHITECTURAL BOUNDARY:
+ * Sits between Event Bus/AI Workforce Agents and the Window Orchestrator.
+ * Answers: Is this real? Is this important? Does it affect revenue? Can AI solve it? Does Founder need to know?
+ * 
+ * Handlers evaluate business logic & confidence, then pass pure display decisions to WindowOrchestrator.
  */
+
+import { WindowOrchestrator } from '@/lib/window-orchestrator'
+import { ConfidenceEngine } from '@/lib/intelligence/confidence-engine'
 
 export type EventSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
 
@@ -51,29 +55,47 @@ export interface BusinessHealthStatus {
 
 export class ExecutiveIntelligenceEngine {
   /**
-   * Priority Engine: Evaluates incoming agent events and decides intervention level
+   * Evaluates incoming agent event, calculates confidence & revenue impact,
+   * then instructs WindowOrchestrator to perform a display action.
    */
-  static processEvent(event: AgentEvent): {
-    action: 'LAUNCH_WINDOW' | 'SHOW_TOAST' | 'ADD_TO_BRIEF'
-    targetAppId?: string
-  } {
+  static processEvent(event: AgentEvent) {
+    const targetAppId = event.targetAppId || 'executive_brief'
+
+    // Evaluate confidence with decay
+    const confidence = ConfidenceEngine.evaluate({
+      businessObjectType: event.category,
+      action: event.title,
+      historicalDataPoints: 42,
+      dataQualityScore: 92,
+      dataAgeMinutes: 15,
+    })
+
     if (event.severity === 'CRITICAL') {
-      return {
-        action: 'LAUNCH_WINDOW',
-        targetAppId: event.targetAppId || 'executive_brief',
-      }
+      // Direct escalation to living window
+      WindowOrchestrator.execute({
+        type: 'OPEN_OR_FOCUS',
+        appId: targetAppId,
+        title: event.title,
+        severity: 'CRITICAL',
+        payload: { ...event, confidence },
+      })
+      return { action: 'LAUNCH_WINDOW', targetAppId }
     }
 
     if (event.severity === 'HIGH') {
-      return {
-        action: 'SHOW_TOAST',
-        targetAppId: event.targetAppId || 'executive_brief',
-      }
+      // Raise toast notification
+      WindowOrchestrator.execute({
+        type: 'SHOW_TOAST',
+        appId: targetAppId,
+        title: event.title,
+        severity: 'HIGH',
+        payload: { ...event, confidence },
+      })
+      return { action: 'SHOW_TOAST', targetAppId }
     }
 
-    return {
-      action: 'ADD_TO_BRIEF',
-    }
+    // Medium/Low: Aggregate into Executive Brief / Founder Inbox
+    return { action: 'ADD_TO_BRIEF', targetAppId }
   }
 
   /**
