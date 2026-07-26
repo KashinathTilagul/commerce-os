@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
-import { Search, Download, ShoppingBag, TrendingUp, MapPin } from 'lucide-react'
+import { Search, Download, ShoppingBag, TrendingUp, MapPin, Zap, AlertOctagon } from 'lucide-react'
 import { PageHeader, StatusPill, HouseBadge, ColorDot, KpiCard } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -45,6 +45,20 @@ export function SalesOrders() {
     const m: Record<string, number> = {}
     for (const o of orders) m[o.status] = (m[o.status] || 0) + 1
     return m
+  }, [orders])
+
+  // Channel velocity — order count/revenue per channel, plus orders stuck in
+  // PROCESSING for 3+ days (the "ORDER_STUCK" signal the roadmap calls for)
+  const channelStats = useMemo(() => {
+    const m: Record<string, { count: number; revenue: number; stuck: number }> = {}
+    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
+    for (const o of orders) {
+      if (!m[o.channel]) m[o.channel] = { count: 0, revenue: 0, stuck: 0 }
+      m[o.channel].count++
+      if (o.status !== 'CANCELLED' && o.status !== 'RETURNED') m[o.channel].revenue += o.total
+      if (o.status === 'PROCESSING' && new Date(o.createdAt).getTime() < threeDaysAgo) m[o.channel].stuck++
+    }
+    return Object.entries(m).sort((a, b) => b[1].revenue - a[1].revenue)
   }, [orders])
 
   // Top cities
@@ -103,6 +117,36 @@ export function SalesOrders() {
                   </button>
                 )
               })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Channel velocity */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <Zap className="h-4 w-4" /> Channel Velocity
+            </CardTitle>
+            <CardDescription className="text-xs">Order volume and revenue by sales channel</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {channelStats.map(([ch, s]) => (
+                <button
+                  key={ch}
+                  onClick={() => setChannel(channel === ch ? 'ALL' : ch)}
+                  className={`arch-card p-3 text-left transition-all ${channel === ch ? 'border-foreground' : ''}`}
+                >
+                  <div className="text-[10px] tracking-wider uppercase text-muted-foreground">{ch}</div>
+                  <div className="font-display text-xl mt-1">{s.count}</div>
+                  <div className="text-[10px] text-muted-foreground font-mono">{formatINR(s.revenue)}</div>
+                  {s.stuck > 0 && (
+                    <div className="mt-1.5 text-[10px] text-agni flex items-center gap-1">
+                      <AlertOctagon className="h-3 w-3" /> {s.stuck} stuck 3d+
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
           </CardContent>
         </Card>

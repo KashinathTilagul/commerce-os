@@ -25,6 +25,7 @@ const CATEGORY_ICONS: Record<string, any> = {
   OPERATIONAL: Activity,
   MARKETING: TrendingUp,
   INVENTORY: Shield,
+  COMMERCE: Shield,
   AGENT: AlertCircle,
   INFRASTRUCTURE: AlertTriangle
 }

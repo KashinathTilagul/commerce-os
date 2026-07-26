@@ -185,34 +185,42 @@ export function InventoryOps() {
               <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
                 <Truck className="h-4 w-4" /> Suppliers
               </CardTitle>
-              <CardDescription className="text-xs">Ethical sourcing network</CardDescription>
+              <CardDescription className="text-xs">Ethical sourcing network — flagged for low rating or long lead time</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                {suppliers.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{s.name}</div>
-                      <div className="text-[10px] text-muted-foreground flex items-center gap-2 mt-0.5">
-                        <MapPin className="h-3 w-3" /> {s.city}
-                        <span>·</span>
-                        <span>{s.material}</span>
+                {[...suppliers]
+                  .sort((a, b) => Number(b.rating < 3.5 || b.leadTime > 21) - Number(a.rating < 3.5 || a.leadTime > 21))
+                  .map((s) => {
+                    const flagged = s.status === 'ACTIVE' && (s.rating < 3.5 || s.leadTime > 21)
+                    return (
+                      <div key={s.id} className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                            {s.name}
+                            {flagged && <AlertTriangle className="h-3 w-3 text-agni shrink-0" />}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground flex items-center gap-2 mt-0.5">
+                            <MapPin className="h-3 w-3" /> {s.city}
+                            <span>·</span>
+                            <span>{s.material}</span>
+                          </div>
+                        </div>
+                        <div className="text-right ml-3">
+                          <div className={`flex items-center gap-1 text-xs ${s.rating < 3.5 ? 'text-agni' : ''}`}>
+                            <Star className="h-3 w-3 text-gulabi fill-gulabi" />
+                            <span className="font-mono">{s.rating}</span>
+                          </div>
+                          <div className={`text-[10px] flex items-center gap-1 mt-0.5 ${s.leadTime > 21 ? 'text-agni' : 'text-muted-foreground'}`}>
+                            <Clock className="h-3 w-3" /> {s.leadTime}d
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <StatusPill status={s.status} />
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right ml-3">
-                      <div className="flex items-center gap-1 text-xs">
-                        <Star className="h-3 w-3 text-gulabi fill-gulabi" />
-                        <span className="font-mono">{s.rating}</span>
-                      </div>
-                      <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <Clock className="h-3 w-3" /> {s.leadTime}d
-                      </div>
-                    </div>
-                    <div className="ml-3">
-                      <StatusPill status={s.status} />
-                    </div>
-                  </div>
-                ))}
+                    )
+                  })}
               </div>
             </CardContent>
           </Card>

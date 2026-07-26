@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 
 export type Risk = {
   id: string
-  category: 'AGENT' | 'OPERATIONAL' | 'INFRASTRUCTURE'
+  category: 'AGENT' | 'OPERATIONAL' | 'INFRASTRUCTURE' | 'COMMERCE'
   risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
   score: number
   metric: string
@@ -20,10 +20,11 @@ export async function computeRisks(organizationId: string): Promise<Risk[]> {
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
 
-  const [agents, issues, orders] = await Promise.all([
+  const [agents, issues, orders, products] = await Promise.all([
     db.agent.findMany({ where: { organizationId, isHuman: false } }),
     db.issue.findMany({ where: { organizationId, status: { not: 'DONE' } } }),
     db.order.findMany({ where: { organizationId, status: 'PROCESSING', createdAt: { lt: threeDaysAgo } } }),
+    db.product.findMany({ where: { organizationId, status: 'ACTIVE' } }),
   ])
 
   for (const a of agents) {
@@ -86,6 +87,35 @@ export async function computeRisks(organizationId: string): Promise<Risk[]> {
       current_value: (Date.now() - o.createdAt.getTime()) / 86400000,
       message: `Order ${o.orderNumber} stuck in PROCESSING for ${Math.floor((Date.now() - o.createdAt.getTime()) / 86400000)}+ days`,
     })
+  }
+
+  for (const p of products) {
+    if (p.stock <= p.reorderAt) {
+      const level: Risk['risk_level'] = p.stock === 0 ? 'CRITICAL' : 'HIGH'
+      risks.push({
+        id: `product-stockout-${p.id}`,
+        category: 'COMMERCE',
+        risk_level: level,
+        score: LEVEL_SCORE[level],
+        metric: 'stockout_risk',
+        current_value: p.stock,
+        message: `${p.name} (${p.sku}) at ${p.stock} units, reorder point is ${p.reorderAt}`,
+      })
+    }
+    if (p.price > 0) {
+      const marginPct = ((p.price - p.cost) / p.price) * 100
+      if (marginPct < 20) {
+        risks.push({
+          id: `product-margin-${p.id}`,
+          category: 'COMMERCE',
+          risk_level: marginPct < 0 ? 'CRITICAL' : 'MEDIUM',
+          score: marginPct < 0 ? LEVEL_SCORE.CRITICAL : LEVEL_SCORE.MEDIUM,
+          metric: 'margin_compression',
+          current_value: marginPct,
+          message: `${p.name} (${p.sku}) margin is ${marginPct.toFixed(0)}%`,
+        })
+      }
+    }
   }
 
   const resolved = await db.event.findMany({

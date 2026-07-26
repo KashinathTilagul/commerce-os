@@ -31,6 +31,7 @@ model Organization {
   founderNotes   FounderNote[]
   restorations   Restoration[]
   suppliers      Supplier[]
+  purchaseOrders PurchaseOrder[]
   aiSystems      AISystem[]
   brandChecks    BrandCheck[]
   agents         Agent[]
@@ -151,6 +152,7 @@ model Product {
 
   organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
+  purchaseOrders PurchaseOrder[]
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -249,6 +251,26 @@ model Campaign {
   createdAt   DateTime  @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+
+  @@index([organizationId])
+}
+
+model PurchaseOrder {
+  id             String   @id @default(cuid())
+  organizationId String
+  supplierId     String
+  productId      String
+  quantity       Int
+  unitCost       Float
+  status         String   @default("DRAFT") // DRAFT | SENT | CONFIRMED | RECEIVED | CANCELLED
+  expectedDate   DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier     Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
 }
