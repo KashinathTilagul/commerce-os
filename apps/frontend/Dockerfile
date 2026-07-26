@@ -9,7 +9,6 @@ COPY . .
 ENV DATABASE_URL="file:///app/db/custom.db"
 RUN mkdir -p /app/db && touch /app/db/custom.db
 RUN node node_modules/.bin/prisma generate
-RUN node node_modules/.bin/prisma db push --accept-data-loss
 RUN node node_modules/next/dist/bin/next build --webpack
 
 FROM node:22-slim AS runner
@@ -20,4 +19,4 @@ EXPOSE 3000
 
 COPY --from=builder /app ./
 
-CMD ["sh", "-c", "touch /app/db/custom.db && node node_modules/.bin/prisma db push --accept-data-loss && node node_modules/.bin/next start"]
+CMD ["sh", "-c", "mkdir -p /app/db && touch /app/db/custom.db && chmod -R 777 /app/db && node node_modules/.bin/prisma db push --accept-data-loss --force-reset && node node_modules/.bin/next start"]
