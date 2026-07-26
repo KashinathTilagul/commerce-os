@@ -137,19 +137,26 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
                 boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
               }}
             >
-              {/* Search input */}
+              {/* Search input with Krishna Executive Mode Header */}
               <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
-                <Search className="h-4 w-4 text-white/40 shrink-0" />
+                <Command className="h-4 w-4 text-[#D4859B] shrink-0 animate-pulse" />
                 <input
                   ref={inputRef}
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   onKeyDown={handleKey}
-                  placeholder="Search apps, actions…"
-                  className="flex-1 bg-transparent text-white/90 text-[15px] outline-none placeholder:text-white/25"
+                  placeholder="Ask Krishna Chief of Staff or search actions (⌘K)…"
+                  className="flex-1 bg-transparent text-white/90 text-[15px] outline-none placeholder:text-white/30 font-mono"
                 />
-                <kbd className="text-[10px] text-white/25 px-1.5 py-0.5 rounded border border-white/10 font-mono">ESC</kbd>
+                <kbd className="text-[10px] text-[#D4859B] px-1.5 py-0.5 rounded border border-[#D4859B]/30 font-mono">⌘K</kbd>
               </div>
+
+              {!query && (
+                <div className="px-5 py-3 bg-[#1A1F2C]/60 border-b border-white/5 text-xs font-mono text-[#4FB0F5] flex items-center justify-between">
+                  <span>Krishna: Executive Mode Active · 3 priorities require attention</span>
+                  <span className="text-[10px] text-white/40">Press ↵ to view Brief</span>
+                </div>
+              )}
 
               {/* Results */}
               {results.length > 0 && (
