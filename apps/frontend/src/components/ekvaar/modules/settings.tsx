@@ -211,30 +211,26 @@ export function Settings() {
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
               <Cpu className="h-4 w-4" /> Intelligence Core
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Krishna is directly connected to AWS Bedrock Native Integration.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Krishna routes through these providers in order — Primary first, then each Fallback if the one before it fails or is unset. Mix free and paid keys as needed; a slot left blank is simply skipped.
+            </p>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-4">
-              <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground flex items-center gap-1"><Key className="h-3 w-3" /> AWS Bedrock API Key</label>
-                <Input
-                  type="password"
-                  value={s.primaryApiKey || ''}
-                  onChange={(e) => handleChange('primaryApiKey', e.target.value)}
-                  placeholder={s.primaryApiKey ? '•••••••••••••••• (key set)' : 'Paste your AWS Bedrock Base64 key here...'}
-                  className="h-8 text-xs font-mono"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground">Model ID</label>
-                <Input
-                  value={s.primaryModel || ''}
-                  onChange={(e) => handleChange('primaryModel', e.target.value)}
-                  placeholder="amazon-bedrock/zai.glm-5"
-                  className="h-8 text-xs font-mono"
-                />
-              </div>
-            </div>
+          <CardContent className="space-y-4">
+            <ProviderSlot
+              title="Primary"
+              provider={s.primaryProvider} model={s.primaryModel} apiKey={s.primaryApiKey} baseUrl={s.primaryBaseUrl}
+              onChange={(field, value) => handleChange(`primary${field}`, value)}
+            />
+            <ProviderSlot
+              title="Fallback 1"
+              provider={s.fallback1Provider} model={s.fallback1Model} apiKey={s.fallback1ApiKey} baseUrl={s.fallback1BaseUrl}
+              onChange={(field, value) => handleChange(`fallback1${field}`, value)}
+            />
+            <ProviderSlot
+              title="Fallback 2"
+              provider={s.fallback2Provider} model={s.fallback2Model} apiKey={s.fallback2ApiKey} baseUrl={s.fallback2BaseUrl}
+              onChange={(field, value) => handleChange(`fallback2${field}`, value)}
+            />
             <Row label="Max token budget %" desc="Auto-pause agents at this threshold">
               <div className="w-56">
                 <Slider value={[s.maxTokens ?? 80]} onValueChange={(v) => handleChange('maxTokens', v[0])} max={100} step={5} />
@@ -492,6 +488,68 @@ export function Settings() {
           <Button onClick={handleApply}>Apply changes</Button>
         </div>
       </div>
+    </div>
+  )
+}
+
+const PROVIDER_OPTIONS = [
+  { value: 'bedrock', label: 'AWS Bedrock' },
+  { value: 'openrouter', label: 'OpenRouter' },
+  { value: 'groq', label: 'Groq' },
+  { value: 'openai', label: 'OpenAI-compatible (custom)' },
+]
+
+function ProviderSlot({
+  title, provider, model, apiKey, baseUrl, onChange,
+}: {
+  title: string
+  provider?: string
+  model?: string
+  apiKey?: string
+  baseUrl?: string
+  onChange: (field: 'Provider' | 'Model' | 'ApiKey' | 'BaseUrl', value: string) => void
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium">{title}</span>
+        <Select value={provider || ''} onValueChange={(v) => onChange('Provider', v)}>
+          <SelectTrigger className="h-7 w-44 text-xs"><SelectValue placeholder="Choose provider" /></SelectTrigger>
+          <SelectContent>
+            {PROVIDER_OPTIONS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <label className="text-[11px] text-muted-foreground flex items-center gap-1"><Key className="h-3 w-3" /> API Key</label>
+        <Input
+          type="password"
+          value={apiKey || ''}
+          onChange={(e) => onChange('ApiKey', e.target.value)}
+          placeholder={apiKey ? '•••••••••••••••• (key set)' : 'Paste your API key here...'}
+          className="h-8 text-xs font-mono"
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-[11px] text-muted-foreground">Model ID</label>
+        <Input
+          value={model || ''}
+          onChange={(e) => onChange('Model', e.target.value)}
+          placeholder={provider === 'bedrock' ? 'amazon-bedrock/zai.glm-5' : provider === 'groq' ? 'llama-3.3-70b-versatile' : 'model-id'}
+          className="h-8 text-xs font-mono"
+        />
+      </div>
+      {provider === 'openai' && (
+        <div className="space-y-1">
+          <label className="text-[11px] text-muted-foreground">Base URL</label>
+          <Input
+            value={baseUrl || ''}
+            onChange={(e) => onChange('BaseUrl', e.target.value)}
+            placeholder="https://api.example.com/v1"
+            className="h-8 text-xs font-mono"
+          />
+        </div>
+      )}
     </div>
   )
 }

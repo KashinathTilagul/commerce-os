@@ -39,13 +39,20 @@ function dec(v?: string | null): string {
   try { return decryptSecret(v) } catch { return '' }
 }
 
+// Known OpenAI-compatible providers' default base URLs, so picking a provider
+// in Settings works without also having to know/paste its API base URL.
+const PROVIDER_BASE_URLS: Record<string, string> = {
+  openrouter: 'https://openrouter.ai/api/v1',
+  groq: 'https://api.groq.com/openai/v1',
+}
+
 function makeModel(c: Candidate): LanguageModel {
   if (c.provider === 'bedrock' || c.provider === 'amazon-bedrock') {
     const br = createAmazonBedrock({ apiKey: c.apiKey, region: process.env.AWS_REGION || 'us-east-1' })
     return br(c.model.replace('amazon-bedrock/', ''))
   }
-  // OpenAI-compatible: OpenRouter, Groq, OpenAI, etc.
-  const oa = createOpenAI({ name: c.provider, apiKey: c.apiKey, baseURL: c.baseUrl || 'https://openrouter.ai/api/v1' })
+  // OpenAI-compatible: OpenRouter, Groq, OpenAI, custom, etc.
+  const oa = createOpenAI({ name: c.provider, apiKey: c.apiKey, baseURL: c.baseUrl || PROVIDER_BASE_URLS[c.provider] || 'https://openrouter.ai/api/v1' })
   return oa(c.model)
 }
 
