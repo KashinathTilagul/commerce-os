@@ -665,8 +665,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           activeWindow: activeWindowName,
         }),
       })
-      if (!res.ok) throw new Error('API error')
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'API error')
       const reply = data.spoken || "I'm here."
       const spoken = reply
       setMessages(prev => [...prev, { role: 'krishna', text: reply, ts: Date.now() }])
@@ -685,8 +685,13 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       }
 
       await speakText(spoken)
-    } catch {
-      const fallback = "I'm here. How can I help?"
+    } catch (e: any) {
+      // ponytail: this used to swallow the real error and show a fake
+      // "I'm here" reply — meaning a broken AI provider looked identical
+      // to a working one from the founder's side. Show what actually broke.
+      const fallback = e?.message && e.message !== 'API error'
+        ? `Krishna hit an error: ${e.message}`
+        : "Krishna couldn't reach the server. Check your connection and try again."
       setMessages(prev => [...prev, { role: 'krishna', text: fallback, ts: Date.now() }])
       setIsProcessing(false)
       await speakText(fallback)

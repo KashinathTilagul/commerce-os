@@ -204,10 +204,11 @@ AVAILABLE ACTIONS:
   } catch (e: any) {
     console.error('[Krishna] Fatal error:', e)
     if (e instanceof z.ZodError) return createApiError('Invalid request format', 400)
-    return createApiResponse({
-      spoken: "I'm here, Founder. All systems operational.",
-      action: { type: 'none' },
-    })
+    // ponytail: this used to return 200 with a fabricated "all systems
+    // operational" reply on every failure (missing AI provider config,
+    // provider outage, bugs) — meaning nothing ever surfaced as broken to
+    // the founder or to logs/monitoring. Report the real failure instead.
+    return createApiError(e.message || 'Krishna failed to respond', 500)
   }
 }
 
