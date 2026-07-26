@@ -42,7 +42,7 @@ export async function GET() {
 
     if (data.access_token) {
       cookieStore.set('spotify_access_token', data.access_token, {
-        httpOnly: false,
+        httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: data.expires_in || 3600,
@@ -50,7 +50,7 @@ export async function GET() {
       })
       if (data.scope) {
         cookieStore.set('spotify_scope', data.scope, {
-          httpOnly: false,
+          httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 30 * 24 * 60 * 60,

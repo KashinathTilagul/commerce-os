@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     })
 
     cookieStore.set('spotify_scope', data.scope || '', {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60,
@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     })
 
     cookieStore.set('spotify_access_token', data.access_token, {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: data.expires_in,

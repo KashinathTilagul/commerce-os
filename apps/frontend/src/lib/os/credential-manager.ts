@@ -6,7 +6,11 @@ import * as crypto from 'crypto'
  * In a real production system, this would use KMS, AWS Secrets Manager, or HashiCorp Vault.
  * For this prototype, we simulate encrypted local storage via an OS-level key.
  */
-const SYSTEM_MASTER_KEY = process.env.OS_MASTER_KEY || 'default-insecure-master-key-32b!'
+function getSystemMasterKey(): string {
+  const key = process.env.OS_MASTER_KEY
+  if (!key) throw new Error('OS_MASTER_KEY is required to encrypt/decrypt stored credentials')
+  return key
+}
 
 export interface Credential {
   id: string
@@ -34,7 +38,7 @@ export class CredentialManager implements OSModule {
    */
   private encrypt(text: string): string {
     const iv = crypto.randomBytes(16)
-    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(SYSTEM_MASTER_KEY.padEnd(32, '0').slice(0, 32)), iv)
+    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(getSystemMasterKey().padEnd(32, '0').slice(0, 32)), iv)
     let encrypted = cipher.update(text)
     encrypted = Buffer.concat([encrypted, cipher.final()])
     return iv.toString('hex') + ':' + encrypted.toString('hex')
@@ -47,7 +51,7 @@ export class CredentialManager implements OSModule {
     const textParts = text.split(':')
     const iv = Buffer.from(textParts.shift()!, 'hex')
     const encryptedText = Buffer.from(textParts.join(':'), 'hex')
-    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(SYSTEM_MASTER_KEY.padEnd(32, '0').slice(0, 32)), iv)
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(getSystemMasterKey().padEnd(32, '0').slice(0, 32)), iv)
     let decrypted = decipher.update(encryptedText)
     decrypted = Buffer.concat([decrypted, decipher.final()])
     return decrypted.toString()

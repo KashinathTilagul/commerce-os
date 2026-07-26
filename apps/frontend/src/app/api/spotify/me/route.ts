@@ -27,7 +27,7 @@ async function getAccessToken(): Promise<string | null> {
   const data = await response.json()
   if (data.access_token) {
     cookieStore.set('spotify_access_token', data.access_token, {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: data.expires_in,

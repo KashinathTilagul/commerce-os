@@ -174,25 +174,19 @@ export function SpotifyApp() {
   const isPlaying = sdkReady ? sdk.isPlaying : polledPlaying
 
   useEffect(() => {
-    const accessToken = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('spotify_access_token='))
-      ?.split('=')[1]
-    
-    if (accessToken) {
-      setToken(accessToken)
-    } else {
-      fetch('/api/spotify/token')
-        .then(r => r.json())
-        .then(data => {
-          if (data.token) {
-            setToken(data.token)
-          } else if (data.error) {
-            console.log('Spotify token error:', data.error)
-          }
-        })
-        .catch(e => console.error('Token fetch error:', e))
-    }
+    // ponytail: token cookies are httpOnly (XSS hardening) so this always
+    // goes through the API, which reads the cookie server-side and refreshes
+    // it via spotify_refresh_token when the access token has expired.
+    fetch('/api/spotify/token')
+      .then(r => r.json())
+      .then(data => {
+        if (data.token) {
+          setToken(data.token)
+        } else if (data.error) {
+          console.log('Spotify token error:', data.error)
+        }
+      })
+      .catch(e => console.error('Token fetch error:', e))
   }, [])
 
   // Web Playback SDK — module-level singleton; no cleanup so music survives

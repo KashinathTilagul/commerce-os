@@ -42,7 +42,7 @@ async function getAccessToken(): Promise<{ token: string | null; error?: string 
 
     if (data.access_token) {
       cookieStore.set('spotify_access_token', data.access_token, {
-        httpOnly: false,
+        httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: data.expires_in || 3600,
