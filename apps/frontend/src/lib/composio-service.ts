@@ -357,8 +357,8 @@ const COMPOSIO_TOOLKIT_MAP: Record<string, string> = {
   google_drive: 'googledrive',
   google_sheets: 'googlesheets',
 }
-// The shared OAuth app is pending Shopify review; this config keeps credentials per organization account.
-const SHOPIFY_AUTH_CONFIG_ID = process.env.COMPOSIO_SHOPIFY_AUTH_CONFIG_ID || 'ac_f7nDxRiCP9zl'
+// Each organization authorizes its own Shopify store through this custom OAuth app.
+const SHOPIFY_AUTH_CONFIG_ID = process.env.COMPOSIO_SHOPIFY_AUTH_CONFIG_ID || 'ac_wPXwhDOiLHc3'
 
 function composioToolkit(slug: string): string {
   return COMPOSIO_TOOLKIT_MAP[slug] || slug
@@ -379,13 +379,14 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
 
     // Step 1: Check if already connected — skip OAuth if so
     try {
-      const existing = await composio.connectedAccounts.list({ entityId: entity })
+      const existing = await composio.connectedAccounts.list({ userIds: [entity] })
       const active = existing?.items?.find((acc: any) =>
-        (acc.appName || acc.toolkitSlug || acc.toolkit || '')
+        (acc.appName || acc.toolkitSlug || acc.toolkit?.slug || '')
           .toLowerCase()
           .replace(/[^a-z0-9]/g, '') ===
         toolkitSlug.toLowerCase().replace(/[^a-z0-9]/g, '') &&
-        acc.status === 'ACTIVE'
+        acc.status === 'ACTIVE' &&
+        (toolkitSlug !== 'shopify' || (acc.authConfig?.id || acc.authConfigId) === SHOPIFY_AUTH_CONFIG_ID)
       )
       if (active) {
         console.log(`[initiateConnection] Already connected for ${toolkitSlug}, entityId ${entity}: ${active.id}`)
@@ -407,7 +408,7 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
       (ckToolkit !== 'shopify' || c.id === SHOPIFY_AUTH_CONFIG_ID)
     )
     if (!match) {
-      const detail = ckToolkit === 'shopify' ? ` Expected organization-safe API-key config ${SHOPIFY_AUTH_CONFIG_ID}.` : ''
+      const detail = ckToolkit === 'shopify' ? ` Expected organization-safe OAuth config ${SHOPIFY_AUTH_CONFIG_ID}.` : ''
       return { redirectUrl: null, error: `No auth config found for "${ckToolkit}" on Composio.${detail} Please add this integration on your Composio dashboard first.` }
     }
     const authConfigId = match.id
