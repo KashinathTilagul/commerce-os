@@ -747,6 +747,7 @@ model OAuthToken {
   id           String    @id @default(cuid())
   organizationId String
   provider     String // google | meta | shopify
+  shopDomain   String?   // Shopify store domain, e.g. ekvaar.myshopify.com
   accessToken  String // Encrypted
   refreshToken String? // Encrypted
   tokenType    String    @default("Bearer")
