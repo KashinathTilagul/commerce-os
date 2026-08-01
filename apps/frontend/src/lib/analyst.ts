@@ -101,7 +101,7 @@ export async function analyze(organizationId: string, question: string): Promise
 
   const { object: plan } = await routeObject<QueryPlan>('reasoning', {
     schema: PlanSchema,
-    system: `You are EKVAAR's data analyst. Convert the founder's question into a query plan over ONLY these datasets (use exact field names; never invent fields):\n${schemaHint}\n\nUse 'aggregate' with metrics/groupBy for "how many / total / average / by X"; use 'list' to show individual rows. Add timeRange for "this month" (mtd), "this year" (ytd), "last 30 days" (30d), "today". Money fields are in INR.`,
+    system: `You are the organization's data analyst. Convert the founder's question into a query plan over ONLY these datasets (use exact field names; never invent fields):\n${schemaHint}\n\nUse 'aggregate' with metrics/groupBy for "how many / total / average / by X"; use 'list' to show individual rows. Add timeRange for "this month" (mtd), "this year" (ytd), "last 30 days" (30d), "today".`,
     prompt: question,
     temperature: 0,
   })
@@ -109,7 +109,7 @@ export async function analyze(organizationId: string, question: string): Promise
   const data = await runPlan(organizationId, plan)
 
   const { text } = await routeText('default', {
-    system: `You are EKVAAR's data analyst. Answer the founder's question from the computed result below — cite the exact numbers, INR for money, concise (1-3 sentences). Never invent figures beyond the data.`,
+    system: `You are the organization's data analyst. Answer the founder's question from the computed result below — cite the exact numbers and stay concise (1-3 sentences). Never invent figures beyond the data.`,
     prompt: `Question: ${question}\n\nQuery plan: ${JSON.stringify(plan)}\n\nComputed result: ${JSON.stringify(data)}`,
     temperature: 0.3,
   })

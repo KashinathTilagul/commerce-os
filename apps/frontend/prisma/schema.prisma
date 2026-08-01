@@ -1,5 +1,4 @@
-// EKVAAR OS — Prisma Schema
-// India's First All-Time Fashion House — Operating System
+// Multi-tenant Business OS schema.
 
 generator client {
   provider      = "prisma-client-js"
@@ -19,6 +18,8 @@ model Organization {
   name        String
   slug        String?  @unique
   tier        String   @default("STARTER") // STARTER | GROWTH | PRO | ENTERPRISE
+  onboardingStep Int   @default(0)
+  onboardingCompletedAt DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -136,8 +137,8 @@ model Product {
   organizationId String
   name        String
   sku         String
-  house       String // Solids | Layers | Street | Luxe | Origins
-  color       String // Noor Black | Rui White | Agni Red | Neel Blue | Arav Green | Gulabi Pink
+  house       String // Product collection or grouping
+  color       String // Primary color when supplied by the commerce provider
   category    String // tee | hoodie | jacket | pants | accessory | object ...
   price       Float
   cost        Float
@@ -193,7 +194,7 @@ model OrderItem {
   product Product @relation(fields: [productId], references: [id])
 }
 
-// ============ CUSTOMERS / ORIGINALS ============
+// ============ CUSTOMERS ============
 
 model Customer {
   id               String   @id @default(cuid())
@@ -202,7 +203,7 @@ model Customer {
   email            String
   phone            String
   city             String
-  tier             String   @default("ORIGINAL") // ORIGINAL | HOUSE | ARCHIVE | FOUNDER_CIRCLE
+  tier             String   @default("NEW") // Organization-defined customer segment
   totalOrders      Int      @default(0)
   totalSpent       Float    @default(0)
   joinedAt         DateTime @default(now())
@@ -931,10 +932,10 @@ model TelemetryMetric {
 model OrganizationContext {
   id              String   @id @default(cuid())
   organizationId  String   @unique
-  companyProfile  String   @default("") // E.g., "A modern D2C fashion brand"
-  brandDna        String   @default("") // E.g., "Minimalist, sustainable, bold"
-  industry        String   @default("") // E.g., "Fashion & Apparel"
-  products        String   @default("") // E.g., "High-end streetwear and accessories"
+  companyProfile  String   @default("") // Organization-supplied business description
+  brandDna        String   @default("") // Organization-supplied brand principles
+  industry        String   @default("")
+  products        String   @default("") // Products or services offered by the organization
   toneOfVoice     String   @default("") // E.g., "Direct, sophisticated, confident"
   policies        String   @default("") // High-level org policies
   workflows       String   @default("") // Overview of canonical workflows

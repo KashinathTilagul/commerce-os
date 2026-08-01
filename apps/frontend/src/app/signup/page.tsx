@@ -52,7 +52,7 @@ export default function SignupPage() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, companyName: companyName || `${name}'s Organization` }),
+        body: JSON.stringify({ name, email, password, companyName }),
       })
 
       const data = await res.json().catch(() => ({}))
@@ -86,7 +86,7 @@ export default function SignupPage() {
         <CardHeader className="space-y-3 text-center pb-2">
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
           <CardDescription>
-            Join EKVAAR OS — India's First All-Time Fashion House
+            Create a clean operating system for your business
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
@@ -118,7 +118,7 @@ export default function SignupPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyName">Organization Name (Optional)</Label>
+              <Label htmlFor="companyName">Business name</Label>
               <Input
                 id="companyName"
                 type="text"
@@ -126,6 +126,7 @@ export default function SignupPage() {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 disabled={loading}
+                required
                 className="h-11"
               />
             </div>

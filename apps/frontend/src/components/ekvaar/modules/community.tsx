@@ -13,10 +13,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
 
 const TIER_META: Record<string, { label: string; color: string; icon: any }> = {
-  ORIGINAL: { label: 'Original', color: 'text-foreground', icon: Users },
-  HOUSE: { label: 'House', color: 'text-neel', icon: Heart },
-  ARCHIVE: { label: 'Archive', color: 'text-arav', icon: Archive },
-  FOUNDER_CIRCLE: { label: 'Founder Circle', color: 'text-gulabi', icon: Crown },
+  NEW: { label: 'New', color: 'text-foreground', icon: Users },
+  RETURNING: { label: 'Returning', color: 'text-neel', icon: Heart },
+  INACTIVE: { label: 'Inactive', color: 'text-arav', icon: Archive },
+  VIP: { label: 'VIP', color: 'text-gulabi', icon: Crown },
 }
 
 export function CommunityModule() {
@@ -71,15 +71,15 @@ export function CommunityModule() {
   return (
     <div>
       <PageHeader
-        eyebrow="Originals · Community"
-        title="Customers Are Originals, Not Followers"
-        description="Belonging over audience farming. Community systems: Founder Notes, Restoration Programs, House Access, Archive Access, Story-led campaigns. Every member is held by the House."
+        eyebrow="Customers · Community"
+        title="Customer Relationships"
+        description="Understand real customers, segments, lifetime value, locations, and activity from your connected systems."
       />
 
       <div className="px-4 lg:px-8 py-8 space-y-6">
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Total Originals" value={String(customers.length)} accent="#1F3A5F" icon={<Users className="h-4 w-4" />} />
+          <KpiCard label="Total Customers" value={String(customers.length)} accent="#1F3A5F" icon={<Users className="h-4 w-4" />} />
           <KpiCard label="Lifetime Community Spend" value={formatINR(totalCommunitySpend)} accent="#2F4F3A" />
           <KpiCard label="Restorations" value={String(totalRestorations)} accent="#C8302A" icon={<Heart className="h-4 w-4" />} />
           <KpiCard label="Founder Notes" value={String(notes.filter((n) => n.status === 'PUBLISHED').length)} accent="#D4859B" icon={<BookOpen className="h-4 w-4" />} />
@@ -119,7 +119,7 @@ export function CommunityModule() {
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="font-display tracking-tight text-base">Originals Directory</CardTitle>
+                  <CardTitle className="font-display tracking-tight text-base">Customer Directory</CardTitle>
                   <CardDescription className="text-xs">{filteredCustomers.length} members</CardDescription>
                 </div>
                 <div className="relative w-64">
@@ -148,7 +148,7 @@ export function CommunityModule() {
                     </TableHeader>
                     <TableBody>
                       {filteredCustomers.slice(0, 100).map((c) => {
-                        const meta = TIER_META[c.tier] || TIER_META.ORIGINAL
+                        const meta = TIER_META[c.tier] || TIER_META.NEW
                         return (
                           <TableRow key={c.id}>
                             <TableCell>

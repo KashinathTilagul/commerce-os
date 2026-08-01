@@ -73,9 +73,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
       <Card className="w-full max-w-md border-border/50 shadow-2xl">
         <CardHeader className="space-y-3 text-center pb-2">
-          <CardTitle className="text-2xl font-bold">EKVAAR OS</CardTitle>
+          <CardTitle className="text-2xl font-bold">Business OS</CardTitle>
           <CardDescription>
-            India's First All-Time Fashion House
+            Your company, connected and ready to operate
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
@@ -156,7 +156,7 @@ export default function LoginPage() {
           
           <div className="mt-6 pt-6 border-t border-border/50">
             <p className="text-sm text-center text-muted-foreground mb-3">
-              New to EKVAAR OS?
+              Setting up a new business OS?
             </p>
             <Link href="/signup" className="block">
               <Button variant="outline" className="w-full h-11">

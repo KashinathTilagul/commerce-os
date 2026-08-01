@@ -10,7 +10,7 @@ export class CommerceMapper {
       organizationId: orgId,
       name: raw.title || 'Untitled',
       sku: raw.variants?.[0]?.sku || String(raw.id),
-      house: raw.product_type || 'Origins',
+      house: raw.product_type || 'Uncategorized',
       color: 'Unknown',
       category: raw.product_type || 'uncategorized',
       price: parseFloat(raw.variants?.[0]?.price || '0'),
@@ -33,7 +33,7 @@ export class CommerceMapper {
       customerName: customerName || 'Unknown',
       customerEmail: raw.customer?.email || '',
       customerCity: raw.shipping_address?.city || '',
-      channel: 'D2C',
+      channel: raw.source_name || 'Shopify',
       itemsCount: raw.line_items?.length || 0,
       total: parseFloat(raw.total_price || '0'),
       status: raw.fulfillment_status === 'fulfilled' ? 'SHIPPED' 
@@ -52,7 +52,7 @@ export class CommerceMapper {
       email: raw.email || '',
       phone: raw.phone || '0000000000',
       city: raw.default_address?.city || 'Unknown',
-      tier: 'ORIGINAL',
+      tier: 'NEW',
       totalOrders: raw.orders_count || 0,
       totalSpent: parseFloat(raw.total_spent || '0'),
     }

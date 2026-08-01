@@ -89,7 +89,7 @@ export function LockScreen() {
     }
   }
 
-  const name = session?.user?.name || session?.user?.email || 'EKVAAR'
+  const name = session?.user?.name || session?.user?.email || 'Business OS'
   const initial = name.charAt(0).toUpperCase()
 
   return (

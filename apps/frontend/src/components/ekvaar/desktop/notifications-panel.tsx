@@ -108,7 +108,7 @@ export function NotificationsPanel({ open, onClose }: Props) {
         })
       })
       .catch(() => {
-        setItems([{ id: '1', type: 'system', title: 'EKVAAR OS', body: 'No new notifications', ts: Date.now(), read: true }])
+        setItems([{ id: '1', type: 'system', title: 'Business OS', body: 'No new notifications', ts: Date.now(), read: true }])
       })
   }, [open])
 

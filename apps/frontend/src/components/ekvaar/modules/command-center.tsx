@@ -218,7 +218,7 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: string) => void 
 
         {/* Secondary KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Originals (Members)" value={k ? String(k.customersTotal) : '—'} accent="#1F3A5F" icon={<Users className="h-4 w-4" />} />
+          <KpiCard label="Customers" value={k ? String(k.customersTotal) : '—'} accent="#1F3A5F" icon={<Users className="h-4 w-4" />} />
           <KpiCard label="Active Products" value={k ? String(k.activeProducts) : '—'} accent="#2F4F3A" icon={<Package className="h-4 w-4" />} />
           <KpiCard label="AI Health" value={k ? `${k.aiHealth}%` : '—'} accent="#D4859B" icon={<Cpu className="h-4 w-4" />} />
           <KpiCard label="Brand Compliance" value={k ? `${k.brandCompliance}%` : '—'} accent="#C8302A" icon={<ShieldCheck className="h-4 w-4" />} />
@@ -340,8 +340,8 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: string) => void 
 
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="font-display tracking-tight">Sales by House</CardTitle>
-              <CardDescription className="text-xs">House of Originals distribution</CardDescription>
+              <CardTitle className="font-display tracking-tight">Sales by Product Group</CardTitle>
+              <CardDescription className="text-xs">Revenue distribution across product groups</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {Object.entries(data?.salesByHouse ?? {})

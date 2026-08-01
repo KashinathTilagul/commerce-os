@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
           organizationId: auth.organizationId,
           type: 'INTEGRATION_CONNECTED',
           actorName: 'Founder',
-          summary: `Connected ${integration.name} to EKVAAR OS`,
+          summary: `Connected ${integration.name} to the organization`,
           payload: JSON.stringify({ toolkit: toolkitSlug, connectedAccountId }),
           severity: 'INFO',
         },

@@ -28,10 +28,10 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "EKVAAR OS — India's First All-Time Fashion House",
-  description: "Operating system for EKVAAR. Sales, finance, operations, brand, community, and AI infrastructure — built for permanence.",
-  keywords: ["EKVAAR", "fashion house", "operating system", "all-time fashion", "India"],
-  authors: [{ name: "EKVAAR" }],
+  title: "Business OS — Your company, connected",
+  description: "An AI-native operating system for company operations, finance, commerce, knowledge, and connected applications.",
+  keywords: ["business operating system", "AI agents", "commerce", "operations", "integrations"],
+  authors: [{ name: "Business OS" }],
   icons: {
     icon: "/branding/monogram.png",
   },

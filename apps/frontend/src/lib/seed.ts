@@ -3,19 +3,11 @@ import { seedIntegrations } from "./composio-service";
 
 import { ROSTER } from './agent-roster'
 
-// Chiefs + specialists live in agent-roster.ts (ROSTER). This is just the human founder.
-export const AGENTS = [
-  { code: "FOUNDER", name: "Kashinath", role: "Founder & Visionary", department: "EXECUTIVE", primeDirective: "Define the soul and direction of EKVAAR. Every decision must serve permanence.", description: "The human founder and creative force behind EKVAAR.", skills: "vision,strategy,brand,design,culture", avatarColor: "#c084fc", isHuman: true },
-];
-
 export const AI_SYSTEMS = [
-  { name: "Brand Guardian", status: "ACTIVE", health: 98, tasksToday: 12, tasksTotal: 1450, accuracy: 99.2, description: "Monitors every output for brand alignment — tone, color, philosophy.", pillar: "brand" },
-  { name: "Content Engine", status: "ACTIVE", health: 95, tasksToday: 8, tasksTotal: 890, accuracy: 96.5, description: "Generates campaign copy, social posts, and journal entries.", pillar: "content" },
-  { name: "Creative AI", status: "ACTIVE", health: 92, tasksToday: 5, tasksTotal: 670, accuracy: 94.0, description: "Visual direction, mood boards, design suggestions.", pillar: "creative" },
-  { name: "Commerce Intelligence", status: "ACTIVE", health: 97, tasksToday: 15, tasksTotal: 2100, accuracy: 98.1, description: "Pricing, inventory optimization, demand forecasting.", pillar: "commerce" },
-  { name: "Founder Twin", status: "ACTIVE", health: 100, tasksToday: 3, tasksTotal: 420, accuracy: 99.8, description: "Digital representation of the founder's decision-making framework.", pillar: "founder" },
-  { name: "Product Intelligence", status: "ACTIVE", health: 94, tasksToday: 7, tasksTotal: 560, accuracy: 95.5, description: "Product performance analysis, trend detection, quality monitoring.", pillar: "product" },
-  { name: "Operations AI", status: "ACTIVE", health: 96, tasksToday: 10, tasksTotal: 1800, accuracy: 97.3, description: "Supply chain optimization, logistics, and workflow automation.", pillar: "operations" },
+  { name: "Brand Guardian", status: "IDLE", health: 100, tasksToday: 0, tasksTotal: 0, accuracy: 0, description: "Monitors output for the organization's configured brand rules.", pillar: "brand" },
+  { name: "Content Engine", status: "IDLE", health: 100, tasksToday: 0, tasksTotal: 0, accuracy: 0, description: "Supports approved content and campaign workflows.", pillar: "content" },
+  { name: "Commerce Intelligence", status: "IDLE", health: 100, tasksToday: 0, tasksTotal: 0, accuracy: 0, description: "Analyzes connected commerce data without inventing activity.", pillar: "commerce" },
+  { name: "Operations AI", status: "IDLE", health: 100, tasksToday: 0, tasksTotal: 0, accuracy: 0, description: "Supports operational workflows after real data is connected.", pillar: "operations" },
 ];
 
 // Seeds a fresh user's digital workforce (agents, AI systems, integration catalog) —
@@ -23,8 +15,16 @@ export const AI_SYSTEMS = [
 export async function seedDatabase(organizationId: string) {
   const results: Record<string, number> = {};
 
-  // Founder (human) — seeded from the base list.
-  const founder = AGENTS.find((a: any) => a.isHuman) || AGENTS[0];
+  const organization = await db.organization.findUnique({
+    where: { id: organizationId },
+    include: { users: { where: { orgRole: 'FOUNDER' }, take: 1 } },
+  })
+  const founderName = organization?.users[0]?.name || 'Founder'
+  const founder = {
+    code: 'FOUNDER', name: founderName, role: 'Founder', department: 'EXECUTIVE',
+    primeDirective: `Define the direction of ${organization?.name || 'the organization'} using real company context and data.`,
+    description: 'The human founder and final decision-maker.', skills: 'vision,strategy,leadership', avatarColor: '#c084fc', isHuman: true,
+  }
   await db.agent.upsert({
     where: { organizationId_code: { organizationId, code: founder.code } },
     update: {},

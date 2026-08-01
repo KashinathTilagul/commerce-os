@@ -23,6 +23,18 @@ export async function POST(req: NextRequest) {
     const validated = ExecuteSchema.parse(sanitized)
     const { toolkitSlug, toolSlug, agentCode, agentName, input } = validated
 
+    if (agentCode === 'FOUNDER') {
+      if (!['FOUNDER', 'ADMIN'].includes(authResult.user.orgRole || '')) {
+        return createApiError('Only founders and administrators can act as the founder', 403)
+      }
+    } else {
+      const agent = await db.agent.findUnique({
+        where: { organizationId_code: { organizationId: authResult.organizationId, code: agentCode } },
+        select: { id: true },
+      })
+      if (!agent) return createApiError(`Agent ${agentCode} does not belong to this organization`, 403)
+    }
+
     const allowedToolkits = AGENT_TOOLKIT_ACCESS[agentCode] || []
     if (!allowedToolkits.includes(toolkitSlug)) {
       return createApiError(`Agent ${agentCode} does not have access to ${toolkitSlug}`, 403)

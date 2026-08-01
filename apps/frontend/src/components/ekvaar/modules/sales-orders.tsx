@@ -78,7 +78,7 @@ export function SalesOrders() {
       <PageHeader
         eyebrow="Sales & Orders"
         title="Order Pipeline"
-        description="Every order is an Original entering the House. Track fulfillment across D2C, retail, wholesale, and pop-up channels. Permanence is built one order at a time."
+        description="Track real orders, revenue, fulfillment status, and sales channels from your connected commerce systems."
         actions={
           <Button variant="outline" size="sm" className="gap-1.5">
             <Download className="h-3.5 w-3.5" /> Export
@@ -239,7 +239,7 @@ export function SalesOrders() {
               <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
                 <MapPin className="h-4 w-4" /> Top Cities
               </CardTitle>
-              <CardDescription className="text-xs">Where the Originals live</CardDescription>
+              <CardDescription className="text-xs">Customer locations by revenue</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {cityStats.map(([city, s]) => {

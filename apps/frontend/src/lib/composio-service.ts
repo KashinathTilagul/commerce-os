@@ -1,6 +1,6 @@
 /**
  * Composio Integration Service
- * Wraps the @composio/core SDK for the EKVAAR OS.
+ * Wraps the @composio/core SDK for the Business OS.
  * Agents call tools autonomously through this service.
  */
 
@@ -228,15 +228,24 @@ export const TOOLKIT_CATALOG = [
   { slug: 'slate', name: 'Slate', description: 'API documentation — pages, content', category: 'docs', toolsCount: 8, logo: '📄' },
 ]
 
-// Available tools per toolkit (curated subset for demo)
-const TOOLS_BY_TOOLKIT: Record<string, { slug: string; name: string; description: string }[]> = {
+// Available tools per toolkit. Write actions are never invoked by the blank UI test control.
+const TOOLS_BY_TOOLKIT: Record<string, { slug: string; name: string; description: string; write?: boolean }[]> = {
   shopify: [
     { slug: 'shopify_get_orders', name: 'Get Orders', description: 'Fetch recent orders with filtering by status, date, customer' },
     { slug: 'shopify_get_products', name: 'Get Products', description: 'List all products with inventory levels and pricing' },
-    { slug: 'shopify_create_discount', name: 'Create Discount', description: 'Create a discount code for campaigns' },
-    { slug: 'shopify_update_inventory', name: 'Update Inventory', description: 'Adjust stock levels for a product variant' },
+    { slug: 'shopify_get_product', name: 'Get Product', description: 'Fetch one product and its current Shopify details' },
+    { slug: 'shopify_create_product', name: 'Create Product', description: 'Create a product with variants, pricing, description, vendor, and type', write: true },
+    { slug: 'shopify_update_product', name: 'Update Product', description: 'Change product title, description, vendor, type, status, tags, or options', write: true },
+    { slug: 'shopify_create_product_image', name: 'Add Product Image', description: 'Attach an image and accessible alt text to a product', write: true },
+    { slug: 'shopify_create_discount', name: 'Create Discount', description: 'Create a discount code for campaigns', write: true },
+    { slug: 'shopify_update_inventory', name: 'Update Inventory', description: 'Adjust stock levels for a product variant', write: true },
     { slug: 'shopify_get_customers', name: 'Get Customers', description: 'Fetch customer list with order history' },
-    { slug: 'shopify_fulfill_order', name: 'Fulfill Order', description: 'Mark an order as fulfilled with tracking info' },
+    { slug: 'shopify_fulfill_order', name: 'Fulfill Order', description: 'Mark an order as fulfilled with tracking info', write: true },
+    { slug: 'shopify_get_themes', name: 'Get Themes', description: 'List store themes and identify the live theme' },
+    { slug: 'shopify_get_theme_asset', name: 'Get Theme File', description: 'Read a Liquid, JSON, CSS, or JavaScript theme file' },
+    { slug: 'shopify_list_theme_assets', name: 'List Theme Files', description: 'List files in a Shopify theme' },
+    { slug: 'shopify_update_theme_asset', name: 'Create or Update Theme File', description: 'Write a Liquid, JSON, CSS, JavaScript, or locale file in a theme', write: true },
+    { slug: 'shopify_update_theme', name: 'Update Theme', description: 'Change an existing theme name or role', write: true },
   ],
   stripe: [
     { slug: 'stripe_get_charges', name: 'Get Charges', description: 'List recent charges with filtering' },
@@ -321,10 +330,10 @@ const ALL_TOOLKIT_SLUGS = TOOLKIT_CATALOG.map((t) => t.slug)
 export const AGENT_TOOLKIT_ACCESS: Record<string, string[]> = {
   FOUNDER: ALL_TOOLKIT_SLUGS, // founder has access to everything
   CMO: ['shopify', 'stripe', 'meta_ads', 'google_analytics', 'instagram', 'twitter'],
-  CTO: ['github', 'vercel', 'aws', 'slack'],
+  CTO: ['github', 'vercel', 'aws', 'slack', 'shopify'],
   CFO: ['stripe', 'google_sheets', 'shopify'],
   COO: ['shopify', 'google_sheets', 'slack'],
-  CCO: ['instagram', 'twitter', 'notion'],
+  CCO: ['instagram', 'twitter', 'notion', 'shopify'],
   CSM: ['gmail', 'slack', 'whatsapp', 'hubspot'],
   CEO: ['shopify', 'stripe', 'github', 'slack', 'notion'],
   GROWTH: ['google_analytics', 'meta_ads', 'google_sheets'],
@@ -436,6 +445,17 @@ const COMPOSIO_SLUG_MAP: Record<string, string> = {
   google_calendar_list_events: 'GOOGLECALENDAR_EVENTS_LIST',
   google_calendar_create_event: 'GOOGLECALENDAR_CREATE_EVENT',
   shopify_get_orders: 'SHOPIFY_GET_ORDERS',
+  shopify_get_products: 'SHOPIFY_GET_PRODUCTS',
+  shopify_get_product: 'SHOPIFY_GET_PRODUCT',
+  shopify_create_product: 'SHOPIFY_CREATE_PRODUCT',
+  shopify_update_product: 'SHOPIFY_UPDATE_PRODUCTS_PARAM_PRODUCT_ID',
+  shopify_create_product_image: 'SHOPIFY_CREATE_A_NEW_PRODUCT_IMAGE',
+  shopify_update_inventory: 'SHOPIFY_ADJUST_INVENTORY_LEVEL',
+  shopify_get_themes: 'SHOPIFY_GET_THEMES',
+  shopify_get_theme_asset: 'SHOPIFY_GET_THEMES_PARAM_THEME_ID_ASSETS',
+  shopify_list_theme_assets: 'SHOPIFY_LIST_THEME_ASSETS',
+  shopify_update_theme_asset: 'SHOPIFY_CREATES_OR_UPDATES_AN_ASSET_FOR_A_THEME',
+  shopify_update_theme: 'SHOPIFY_UPDATE_THEME',
   discord_send_message: 'DISCORD_SEND_MESSAGE',
   discord_get_messages: 'DISCORD_GET_MESSAGES',
   google_tasks_list: 'GOOGLETASKS_LIST_TASKS',
@@ -471,6 +491,16 @@ export async function executeTool(params: {
   }
 
   // Check agent permissions
+  const toolkitAccess = AGENT_TOOLKIT_ACCESS[params.agentCode] || []
+  if (!toolkitAccess.includes(params.toolkitSlug)) {
+    return {
+      success: false,
+      output: null,
+      duration: Date.now() - startTime,
+      error: `Agent ${params.agentCode} does not have permission to use ${params.toolkitSlug}.`,
+    }
+  }
+
   const allowedAgents = integration.agentPermissions.split(',').filter(Boolean)
   if (allowedAgents.length > 0 && !allowedAgents.includes(params.agentCode)) {
     return {
@@ -515,24 +545,28 @@ export async function executeTool(params: {
  * Seed integrations into the database for a specific user
  */
 export async function seedIntegrations(organizationId: string) {
-  for (const tk of TOOLKIT_CATALOG) {
-    const existing = await db.integration.findFirst({ where: { organizationId, toolkitSlug: tk.slug } })
-    if (!existing) {
-      await db.integration.create({
-        data: {
-          organizationId,
-          toolkitSlug: tk.slug,
-          name: tk.name,
-          description: tk.description,
-          category: tk.category,
-          toolsCount: tk.toolsCount,
-          isConnected: false,
-          connectedAt: null,
-          connectedAccountId: null,
-          agentPermissions: '',
-        },
-      })
-    }
+  const existing = await db.integration.findMany({
+    where: { organizationId },
+    select: { toolkitSlug: true },
+  })
+  const existingSlugs = new Set(existing.map((integration) => integration.toolkitSlug))
+  const missing = TOOLKIT_CATALOG.filter((toolkit) => !existingSlugs.has(toolkit.slug))
+  if (missing.length > 0) {
+    await db.integration.createMany({
+      data: missing.map((toolkit) => ({
+        organizationId,
+        toolkitSlug: toolkit.slug,
+        name: toolkit.name,
+        description: toolkit.description,
+        category: toolkit.category,
+        logoUrl: toolkit.logo,
+        toolsCount: toolkit.toolsCount,
+        isConnected: false,
+        connectedAt: null,
+        connectedAccountId: null,
+        agentPermissions: '',
+      })),
+    })
   }
-  return { seeded: TOOLKIT_CATALOG.length }
+  return { seeded: missing.length }
 }

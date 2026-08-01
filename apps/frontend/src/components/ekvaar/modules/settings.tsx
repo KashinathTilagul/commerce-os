@@ -334,7 +334,7 @@ export function Settings() {
                   handleChange('krishnaPrompt', newValue)
                 }, 500)
               }}
-              placeholder={`You are Krishna, the central AI of EKVAAR OS...\n\nDefine personality, tone, language, restrictions (or none), and anything else you want Krishna to follow.`}
+              placeholder={`You are Krishna, the central AI of this Business OS...\n\nDefine personality, tone, language, restrictions (or none), and anything else you want Krishna to follow.`}
               className="w-full h-48 bg-muted/30 border border-border rounded-md px-3 py-2 text-sm font-mono resize-none focus:outline-none focus:ring-1 focus:ring-arav placeholder:text-muted-foreground/40"
             />
             <p className="text-[11px] text-muted-foreground mt-1.5">Changes save automatically. Affects next message — no restart needed.</p>
@@ -575,7 +575,7 @@ function VoicePreviewButton({ voice }: { voice: string }) {
     if (playing) return
     setPlaying(true)
     const done = () => setPlaying(false)
-    const text = 'Hello. I am Krishna, the intelligence layer of EKVAAR OS.'
+    const text = 'Hello. I am Krishna, the intelligence layer of your Business OS.'
     const synth = window.speechSynthesis
 
     // ── 1. Start browser TTS immediately (synchronous — preserves user gesture) ──
