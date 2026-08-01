@@ -4,11 +4,11 @@ This repo already has a Shopify path, but full store control needs the right sco
 
 ## Current authentication route
 
-Shopify is currently blocking Composio's shared OAuth app while it is under review. EKVAAR therefore uses the Composio API-key auth config `shopify-ekvaar-merchant-app` (`ac_f7nDxRiCP9zl`) as the immediate route. The access token and permanent `myshopify.com` store domain are stored on the connected account owned by the EKVAAR organization, not shared across organizations.
+EKVAAR uses the custom Composio OAuth config `shopify-tacvjh` (`ac_wPXwhDOiLHc3`). Every connected account is owned by one EKVAAR organization, so credentials are never shared across organizations.
 
-Each organization must provide its credentials through the Composio-hosted connection screen. Never send a Shopify access token through chat or store it in EKVAAR's database.
+Each organization enters only its permanent `myshopify.com` subdomain in the Composio-hosted connection screen and authorizes the Shopify app. Never send a Shopify access token through chat or store it in EKVAAR's database.
 
-For an existing Shopify Admin-created custom app, use its Admin API access token. For a new merchant-owned app created in Shopify's Dev Dashboard, client-credentials access tokens expire after 24 hours; the API-key connection must be refreshed when the token rotates. Permanent, low-friction access across unrelated merchant organizations still requires Shopify approval of a public OAuth app. Custom distribution avoids review but is limited to one store or stores in the same Shopify Plus organization.
+The OAuth connection avoids the 24-hour lifetime of Shopify client-credentials tokens. Installing the app across unrelated merchant organizations still requires Shopify approval of the app's public distribution. Custom distribution avoids review but is limited to one store or stores in the same Shopify Plus organization.
 
 ## 1. What already exists in EKVAAR
 
@@ -38,7 +38,7 @@ The Shopify merchant needs to:
 - If theme editing is needed, approve theme-related access and install any theme app extension
 - If revenue reporting is needed, approve the reports scope and any protected customer data requirements Shopify asks for
 
-For the current Composio API-key route, the merchant must enter the permanent `myshopify.com` domain and Admin API access token in the hosted connection form. The custom storefront domain, such as `ekvaar.com`, is not the Shopify API domain.
+The merchant must enter the permanent `myshopify.com` subdomain in the hosted connection form. The custom storefront domain, such as `ekvaar.com`, is not the Shopify API domain.
 
 ## 4. Scope plan for a near-total Shopify agent
 
