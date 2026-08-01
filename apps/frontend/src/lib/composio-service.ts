@@ -394,7 +394,10 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
 
     // Step 2: Resolve the auth config ID for this toolkit (Composio slug, not internal)
     const ckToolkit = composioToolkit(toolkitSlug)
-    const authConfigs = await composio.authConfigs.list({ toolkit: ckToolkit })
+    const authConfigs = await composio.authConfigs.list({
+      toolkit: ckToolkit,
+      isComposioManaged: ckToolkit === 'shopify' ? true : undefined,
+    })
     // Never trust items[0] blindly — verify it belongs to the requested toolkit,
     // otherwise an unmatched filter returns ALL configs and we'd OAuth the wrong app
     const match = authConfigs.items?.find((c: any) =>
