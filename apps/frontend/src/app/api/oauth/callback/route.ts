@@ -31,11 +31,13 @@ export async function GET(req: NextRequest) {
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/oauth/callback`
 
   let tokenUrl = config.tokenUrl as string
+  let shopDomain: string | undefined
   if (provider === 'shopify') {
     const shop = url.searchParams.get('shop')
     if (!shop) {
       return NextResponse.redirect(new URL('/settings/integrations?error=missing_shop', req.url))
     }
+    shopDomain = shop
     tokenUrl = (config.tokenUrl as string).replace('{shop}', shop)
   }
 
@@ -64,6 +66,7 @@ export async function GET(req: NextRequest) {
       refreshToken: data.refresh_token,
       scope: data.scope,
       expiresAt: (expiresAt || undefined) as any,
+      shopDomain,
     })
 
     return NextResponse.redirect(new URL('/settings/integrations?success=1', req.url))

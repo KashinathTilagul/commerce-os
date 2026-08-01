@@ -15,7 +15,18 @@ const OAUTH_PROVIDERS = {
   shopify: {
     authUrl: 'https://{shop}.myshopify.com/admin/oauth/authorize',
     tokenUrl: 'https://{shop}.myshopify.com/admin/oauth/access_token',
-    scopes: ['read_products', 'read_orders', 'read_inventory', 'write_inventory'],
+    scopes: [
+      'read_products',
+      'write_products',
+      'read_inventory',
+      'write_inventory',
+      'read_orders',
+      'write_orders',
+      'read_customers',
+      'read_reports',
+      'read_themes',
+      'write_themes',
+    ],
   },
 } as const
 
@@ -65,6 +76,7 @@ export async function storeOAuthToken(
     expiresAt?: Date
     accountId?: string
     accountName?: string
+    shopDomain?: string
   }
 ) {
   const encryptedAccess = encryptToken(data.accessToken)
@@ -79,6 +91,7 @@ export async function storeOAuthToken(
       expiresAt: data.expiresAt || null,
       accountId: data.accountId || null,
       accountName: data.accountName || null,
+      shopDomain: data.shopDomain || null,
       isValid: true,
     },
     create: {
@@ -90,6 +103,7 @@ export async function storeOAuthToken(
       expiresAt: data.expiresAt || null,
       accountId: data.accountId || null,
       accountName: data.accountName || null,
+      shopDomain: data.shopDomain || null,
       isValid: true,
     },
   })
