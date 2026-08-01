@@ -357,6 +357,9 @@ const COMPOSIO_TOOLKIT_MAP: Record<string, string> = {
   google_drive: 'googledrive',
   google_sheets: 'googlesheets',
 }
+// The shared OAuth app is pending Shopify review; this config keeps credentials per organization account.
+const SHOPIFY_AUTH_CONFIG_ID = process.env.COMPOSIO_SHOPIFY_AUTH_CONFIG_ID || 'ac_f7nDxRiCP9zl'
+
 function composioToolkit(slug: string): string {
   return COMPOSIO_TOOLKIT_MAP[slug] || slug
 }
@@ -396,15 +399,16 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
     const ckToolkit = composioToolkit(toolkitSlug)
     const authConfigs = await composio.authConfigs.list({
       toolkit: ckToolkit,
-      isComposioManaged: ckToolkit === 'shopify' ? true : undefined,
     })
     // Never trust items[0] blindly — verify it belongs to the requested toolkit,
     // otherwise an unmatched filter returns ALL configs and we'd OAuth the wrong app
     const match = authConfigs.items?.find((c: any) =>
-      (c.toolkit?.slug || c.toolkitSlug || c.appName || '').toLowerCase().replace(/[^a-z0-9]/g, '') === ckToolkit.replace(/[^a-z0-9]/g, '')
+      (c.toolkit?.slug || c.toolkitSlug || c.appName || '').toLowerCase().replace(/[^a-z0-9]/g, '') === ckToolkit.replace(/[^a-z0-9]/g, '') &&
+      (ckToolkit !== 'shopify' || c.id === SHOPIFY_AUTH_CONFIG_ID)
     )
     if (!match) {
-      return { redirectUrl: null, error: `No auth config found for "${ckToolkit}" on Composio. Please add this integration on your Composio dashboard first.` }
+      const detail = ckToolkit === 'shopify' ? ` Expected organization-safe API-key config ${SHOPIFY_AUTH_CONFIG_ID}.` : ''
+      return { redirectUrl: null, error: `No auth config found for "${ckToolkit}" on Composio.${detail} Please add this integration on your Composio dashboard first.` }
     }
     const authConfigId = match.id
     console.log(`[initiateConnection] Resolved auth config for ${toolkitSlug}: ${authConfigId}`)

@@ -2,6 +2,14 @@
 
 This repo already has a Shopify path, but full store control needs the right scopes and a proper Shopify app install flow.
 
+## Current authentication route
+
+Shopify is currently blocking Composio's shared OAuth app while it is under review. EKVAAR therefore uses the Composio API-key auth config `shopify-ekvaar-merchant-app` (`ac_f7nDxRiCP9zl`) as the immediate route. The access token and permanent `myshopify.com` store domain are stored on the connected account owned by the EKVAAR organization, not shared across organizations.
+
+Each organization must provide its credentials through the Composio-hosted connection screen. Never send a Shopify access token through chat or store it in EKVAAR's database.
+
+For an existing Shopify Admin-created custom app, use its Admin API access token. For a new merchant-owned app created in Shopify's Dev Dashboard, client-credentials access tokens expire after 24 hours; the API-key connection must be refreshed when the token rotates. Permanent, low-friction access across unrelated merchant organizations still requires Shopify approval of a public OAuth app. Custom distribution avoids review but is limited to one store or stores in the same Shopify Plus organization.
+
 ## 1. What already exists in EKVAAR
 
 - Shopify OAuth scaffold in `apps/frontend/src/lib/oauth.ts`
@@ -29,6 +37,8 @@ The Shopify merchant needs to:
 - Grant access to the shop data the agent will touch
 - If theme editing is needed, approve theme-related access and install any theme app extension
 - If revenue reporting is needed, approve the reports scope and any protected customer data requirements Shopify asks for
+
+For the current Composio API-key route, the merchant must enter the permanent `myshopify.com` domain and Admin API access token in the hosted connection form. The custom storefront domain, such as `ekvaar.com`, is not the Shopify API domain.
 
 ## 4. Scope plan for a near-total Shopify agent
 
