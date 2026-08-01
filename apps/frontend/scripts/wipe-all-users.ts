@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-
-const db = new PrismaClient()
+import { db } from '../src/lib/db'
 
 async function main() {
   console.log('[i] Resetting all tenant and user data...')
@@ -32,8 +30,11 @@ async function main() {
 }
 
 main()
+  .then(async () => {
+    await db.$disconnect()
+    process.exit(0)
+  })
   .catch((error) => {
     console.error('[x] Reset failed:', error)
     process.exit(1)
   })
-  .finally(() => db.$disconnect())
