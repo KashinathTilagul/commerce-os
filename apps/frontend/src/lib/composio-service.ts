@@ -482,10 +482,10 @@ export async function executeTool(params: {
 
   try {
     if (composio) {
-      // REAL Composio execution — SDK signature is execute(TOOL_SLUG, { entityId, arguments })
+      // Composio calls the organization-scoped connection owner `userId` during execution.
       const slug = COMPOSIO_SLUG_MAP[params.toolSlug] || params.toolSlug.toUpperCase()
       const result = await composio.tools.execute(slug, {
-        entityId: params.organizationId,
+        userId: params.organizationId,
         connectedAccountId: integration.connectedAccountId || undefined,
         arguments: params.input,
         // Use the latest toolkit version instead of pinning one
