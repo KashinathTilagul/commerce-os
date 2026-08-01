@@ -40,7 +40,7 @@ export function Integrations() {
   const [executing, setExecuting] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['integrations'],
     queryFn: async () => {
       const r = await fetch('/api/integrations')
@@ -160,7 +160,13 @@ export function Integrations() {
         </div>
 
         {/* Search results or grouped catalog */}
-        {filtered ? (
+        {isLoading ? (
+          <Card><CardContent className="py-16 flex items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading your app catalog...</CardContent></Card>
+        ) : isError ? (
+          <Card><CardContent className="py-14 text-center"><div className="font-medium">The app catalog could not be loaded.</div><div className="text-xs text-muted-foreground mt-1">Your connections are safe. Retry the catalog request.</div><Button variant="outline" className="mt-4" onClick={() => refetch()}>Retry</Button></CardContent></Card>
+        ) : allIntegrations.length === 0 ? (
+          <Card><CardContent className="py-14 text-center"><Plug className="h-7 w-7 mx-auto text-muted-foreground" /><div className="font-medium mt-3">No apps are available yet.</div><div className="text-xs text-muted-foreground mt-1">Refresh to reconcile this organization with the current catalog.</div><Button variant="outline" className="mt-4" onClick={() => refetch()}>Refresh catalog</Button></CardContent></Card>
+        ) : filtered ? (
           <div>
             <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-3">
               Search Results ({filtered.length})
@@ -274,7 +280,7 @@ export function Integrations() {
                           </span>
                         ))
                       ) : (
-                        <span className="text-xs text-muted-foreground">No agents assigned</span>
+                        <span className="text-xs text-muted-foreground">Available to all permitted agents</span>
                       )}
                     </div>
                   </div>
@@ -291,7 +297,7 @@ export function Integrations() {
                             <div className="text-sm font-medium">{tool.name}</div>
                             <div className="text-[10px] text-muted-foreground">{tool.description}</div>
                           </div>
-                          {selected.isConnected && (
+                          {selected.isConnected && !tool.write && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -303,6 +309,7 @@ export function Integrations() {
                               Test
                             </Button>
                           )}
+                          {tool.write && <Badge variant="outline" className="ml-3">Run via assistant</Badge>}
                         </div>
                       ))}
                     </div>

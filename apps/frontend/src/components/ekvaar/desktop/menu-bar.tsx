@@ -77,7 +77,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
     // Go menu — open apps by name
     const goMap: Record<string, string> = {
       'Board Room': 'command', 'Command Center': 'command',
-      'House of Originals': 'house', 'Finance': 'finance',
+      'Customers': 'house', 'Finance': 'finance',
       'AI Infrastructure': 'ai', 'Digital Employees': 'agents',
       'Sales & Orders': 'sales', 'Integrations': 'integrations',
       'Inventory & Ops': 'inventory', 'Campaigns': 'campaigns',
@@ -153,7 +153,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
             <MenuButton label="View" isOpen={openMenu === 'View'} onClick={() => handleMenuClick('View')}
               items={['Show Dock', 'Enter Full Screen']} onAction={handleMenuAction} onClose={() => setOpenMenu(null)} />
             <MenuButton label="Go" isOpen={openMenu === 'Go'} onClick={() => handleMenuClick('Go')}
-              items={['Board Room', 'House of Originals', 'Finance', 'Sales & Orders', 'AI Infrastructure']}
+              items={['Board Room', 'Customers', 'Finance', 'Sales & Orders', 'AI Infrastructure']}
               onAction={handleMenuAction} onClose={() => setOpenMenu(null)} />
             <MenuButton label="Window" isOpen={openMenu === 'Window'} onClick={() => handleMenuClick('Window')}
               items={['Minimize', 'Zoom', 'Bring All to Front']} onAction={handleMenuAction} onClose={() => setOpenMenu(null)} />

@@ -3,35 +3,37 @@ import { PrismaClient } from '@prisma/client'
 const db = new PrismaClient()
 
 async function main() {
-  console.log('[i] Wiping all user accounts...')
-  
-  const sessionCount = await db.session.deleteMany()
-  console.log(`[✓] Deleted ${sessionCount.count} sessions`)
-  
-  const accountCount = await db.account.deleteMany()
-  console.log(`[✓] Deleted ${accountCount.count} accounts`)
-  
-  const auditCount = await db.auditLog.deleteMany()
-  console.log(`[✓] Deleted ${auditCount.count} audit logs`)
-  
-  const prefCount = await db.userPreference.deleteMany()
-  console.log(`[✓] Deleted ${prefCount.count} user preferences`)
-  
-  const userCount = await db.user.deleteMany()
-  console.log(`[✓] Deleted ${userCount.count} users`)
-  
-  const tokenCount = await db.verificationToken.deleteMany()
-  console.log(`[✓] Deleted ${tokenCount.count} verification tokens`)
-  
-  const systemCount = await db.systemSetting.deleteMany()
-  console.log(`[✓] Deleted ${systemCount.count} system settings`)
-  
-  console.log('\n[✓] All user accounts wiped. Ready for fresh signup.')
+  console.log('[i] Resetting all tenant and user data...')
+
+  await db.$transaction(async (tx) => {
+    // Organization deletion cascades through every tenant-scoped model,
+    // including integrations, commerce, agents, knowledge, and workspaces.
+    await tx.auditLog.deleteMany()
+    await tx.verificationToken.deleteMany()
+    await tx.organization.deleteMany()
+    await tx.user.deleteMany()
+  })
+
+  const [organizations, users, sessions, integrations, products, orders] = await Promise.all([
+    db.organization.count(),
+    db.user.count(),
+    db.session.count(),
+    db.integration.count(),
+    db.product.count(),
+    db.order.count(),
+  ])
+  const remaining = { organizations, users, sessions, integrations, products, orders }
+  if (Object.values(remaining).some(Boolean)) {
+    throw new Error(`Reset verification failed: ${JSON.stringify(remaining)}`)
+  }
+
+  console.log(`[ok] Tenant reset verified: ${JSON.stringify(remaining)}`)
+  console.log('[ok] Global system configuration was preserved.')
 }
 
 main()
-  .catch((e) => {
-    console.error('[✗] Error:', e)
+  .catch((error) => {
+    console.error('[x] Reset failed:', error)
     process.exit(1)
   })
   .finally(() => db.$disconnect())

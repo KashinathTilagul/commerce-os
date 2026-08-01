@@ -108,7 +108,7 @@ export function TerminalModule() {
           <CardHeader className="pb-2 border-b border-rui/10">
             <div className="flex items-center justify-between">
               <CardTitle className="font-display tracking-tight flex items-center gap-2 text-base text-rui">
-                <Terminal className="h-4 w-4" /> ekvaar@os ~ event-ledger
+                <Terminal className="h-4 w-4" /> business@os ~ event-ledger
               </CardTitle>
               <div className="flex items-center gap-1.5">
                 <div className="h-2 w-2 rounded-full bg-agni" />
@@ -121,7 +121,7 @@ export function TerminalModule() {
             {isLoading ? (
               <div className="h-[560px] p-4 font-mono text-xs space-y-1.5" style={{ background: '#0A0A0A' }}>
                 <div className="text-rui/40 mb-3">
-                  <div>$ ekvaar-os --event-ledger</div>
+                  <div>$ business-os --event-ledger</div>
                   <div className="text-rui/30">Loading...</div>
                 </div>
                 {[1, 2, 3, 4, 5].map(i => (
@@ -140,7 +140,7 @@ export function TerminalModule() {
             >
               {events.length === 0 && (
                 <div className="text-rui/40">
-                  <div>$ ekvaar-os --event-ledger</div>
+                  <div>$ business-os --event-ledger</div>
                   <div className="text-rui/30">No events recorded yet. Events will appear here when agents complete tasks, budgets change, or approvals are requested.</div>
                 </div>
               )}

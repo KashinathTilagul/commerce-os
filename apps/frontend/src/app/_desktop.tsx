@@ -27,6 +27,7 @@ export default function Desktop() {
   const [launchpadOpen, setLaunchpadOpen] = useState(false)
   const [spotlightOpen, setSpotlightOpen] = useState(false)
   const [jarvisTrigger, setJarvisTrigger] = useState(0)
+  const [setupReady, setSetupReady] = useState(false)
 
   useEffect(() => {
     const root = document.documentElement
@@ -41,6 +42,15 @@ export default function Desktop() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace('/login')
+    }
+    if (status === 'authenticated') {
+      fetch('/api/onboarding')
+        .then((response) => response.ok ? response.json() : Promise.reject())
+        .then((data) => {
+          if (!data.organization?.onboardingCompletedAt) router.replace('/onboarding')
+          else setSetupReady(true)
+        })
+        .catch(() => router.replace('/onboarding'))
     }
   }, [status, router])
 
@@ -72,7 +82,7 @@ export default function Desktop() {
     return () => window.removeEventListener('keydown', handler)
   }, [launchpadOpen, spotlightOpen])
 
-  if (status === 'loading') return <BootScreen />
+  if (status === 'loading' || (status === 'authenticated' && !setupReady)) return <BootScreen />
   
   if (status === 'unauthenticated') {
     return <BootScreen />

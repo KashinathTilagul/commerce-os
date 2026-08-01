@@ -1,5 +1,4 @@
-// EKVAAR OS — Brand Constants
-// India's First All-Time Fashion House
+// Shared formatting and display constants.
 
 export function formatINR(n: number): string {
   if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)}Cr`

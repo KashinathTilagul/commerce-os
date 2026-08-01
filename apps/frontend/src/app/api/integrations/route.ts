@@ -8,12 +8,9 @@ export async function GET() {
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
-  // Ensure integrations are seeded for this user
-  const count = await db.integration.count({ where: { organizationId: auth.organizationId } })
-  if (count === 0) {
-    const { seedIntegrations } = await import('@/lib/composio-service')
-    await seedIntegrations(auth.organizationId)
-  }
+  // Reconcile on every catalog read so newly added apps appear for existing organizations too.
+  const { seedIntegrations } = await import('@/lib/composio-service')
+  await seedIntegrations(auth.organizationId)
 
   const integrations = await db.integration.findMany({
     where: { organizationId: auth.organizationId },

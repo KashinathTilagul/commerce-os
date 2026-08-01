@@ -81,7 +81,7 @@ export class KnowledgePipeline {
     if (type === 'CUSTOMER') {
       return {
         title: raw.name || 'Unknown Customer',
-        summary: `Customer: ${raw.name} | Email: ${raw.email} | Tier: ${raw.tier || 'ORIGINAL'}`
+        summary: `Customer: ${raw.name} | Email: ${raw.email} | Segment: ${raw.tier || 'NEW'}`
       }
     }
     return { title: 'Unknown', summary: '' }

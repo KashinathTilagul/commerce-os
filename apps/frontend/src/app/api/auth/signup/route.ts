@@ -3,6 +3,7 @@ import { createApiResponse, createApiError } from '@/lib/security'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { hash } from 'bcryptjs'
+import { TOOLKIT_CATALOG } from '@/lib/composio-service'
 
 const SignupSchema = z.object({
   name: z.string().min(1).max(100),
@@ -14,7 +15,7 @@ const SignupSchema = z.object({
     .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number')
     .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
-  companyName: z.string().min(1).max(100).optional().default("My Organization"),
+  companyName: z.string().trim().min(2).max(100),
 })
 
 export async function POST(req: NextRequest) {
@@ -89,6 +90,22 @@ export async function POST(req: NextRequest) {
           
           organizationId: org.id
         }
+      })
+
+      // 6. Create the real integration catalog. Connections remain off until
+      // the organization authorizes each provider during onboarding.
+      await tx.integration.createMany({
+        data: TOOLKIT_CATALOG.map((toolkit) => ({
+          organizationId: org.id,
+          toolkitSlug: toolkit.slug,
+          name: toolkit.name,
+          description: toolkit.description,
+          category: toolkit.category,
+          logoUrl: toolkit.logo,
+          toolsCount: toolkit.toolsCount,
+          isConnected: false,
+          agentPermissions: '',
+        })),
       })
 
       return user

@@ -69,7 +69,7 @@ export async function processSecurityAlert(organizationId: string, alert: Securi
       })
       if (discordIntegration) {
         const { executeTool } = await import('@/lib/composio-service')
-        const alertMsg = `🚨 **EKVAAR OS SECURITY ALERT** 🚨\n**Severity:** ${severity}\n**Title:** ${title}\n**Location:** \`${affectedPath || 'N/A'}\`\n**Action Required:** Check Founder Inbox for details.`
+        const alertMsg = `**BUSINESS OS SECURITY ALERT**\n**Severity:** ${severity}\n**Title:** ${title}\n**Location:** \`${affectedPath || 'N/A'}\`\n**Action Required:** Check Founder Inbox for details.`
         await executeTool({
           organizationId: organizationId,
           toolkitSlug: 'discord',

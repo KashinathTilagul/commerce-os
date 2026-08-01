@@ -59,7 +59,7 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
 
   const liveContext = await getLiveBusinessSnapshot(organizationId)
 
-  const system = `You are ${agent.name}, the ${agent.role} (${agent.department}) at EKVAAR, an Indian fashion house.
+  const system = `You are ${agent.name}, the ${agent.role} (${agent.department}) for this organization.
 Your prime directive: ${agent.primeDirective}
 Your skills: ${agent.skills}
 
