@@ -1,6 +1,6 @@
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
 import { createOpenAI } from '@ai-sdk/openai'
-import { generateObject, generateText } from 'ai'
+import { generateText } from 'ai'
 import type { LanguageModel } from 'ai'
 import { db } from './db'
 import { decryptSecret } from './crypto'
@@ -134,19 +134,30 @@ async function runChain<T>(
   throw lastErr || new Error('All AI providers failed')
 }
 
-// generateObject with tiered fallback. Same options shape as ai/generateObject.
+// Structured output with tiered fallback. Same options shape generateObject
+// used to take (opts.schema is a zod schema).
+//
+// ponytail: AI SDK v7's generateObject always requests response_format
+// json_schema whenever a schema is given, and most OpenAI-compatible
+// providers (Groq included) only support json_schema on a small model
+// whitelist — there's no SDK toggle to opt out anymore. Asking for JSON in
+// the prompt and validating with the schema ourselves works on every
+// provider, so this sidesteps the negotiation entirely instead of chasing
+// per-provider structured-output support.
 export async function routeObject<T>(
   tier: Tier,
   opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
 ): Promise<{ object: T; provider: string; model: string }> {
   const { result, provider, model } = await runChain(tier, async (m) => {
-    // ponytail: force tool-call mode instead of the default json_schema
-    // response format — Groq (and most non-OpenAI OpenAI-compatible
-    // providers) only support json_schema on a small model whitelist, so
-    // the default mode threw "does not support response_format json_schema"
-    // for any other model. Tool-calling structured output works everywhere.
-    const { object } = await generateObject({ model: m, mode: 'tool', ...opts })
-    return object as T
+    const { text } = await generateText({
+      model: m,
+      system: `${opts.system}\n\nRespond with ONLY a single valid JSON object matching the required shape — no markdown fences, no prose before or after.`,
+      prompt: opts.prompt,
+      temperature: opts.temperature,
+      maxOutputTokens: opts.maxOutputTokens,
+    })
+    const jsonText = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
+    return opts.schema.parse(JSON.parse(jsonText)) as T
   })
   return { object: result, provider, model }
 }
