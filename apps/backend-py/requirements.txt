@@ -8,3 +8,5 @@ python-multipart
 pocket-tts
 scipy
 browser-use
+langchain-aws
+langchain-openai

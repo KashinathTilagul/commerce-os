@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { dequeueBrowseJob, completeBrowseJob, failBrowseJob } from '@/lib/browse-queue'
+import { db } from '@/lib/db'
+import { decryptSecret } from '@/lib/crypto'
 
 const BROWSER_SIDECAR_URL = process.env.BROWSER_SIDECAR_URL || process.env.JARVIS_SIDECAR_URL || 'http://localhost:8000'
 
@@ -9,6 +11,49 @@ function checkWorkerAuth(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized worker' }, { status: 401 })
   }
   return null
+}
+
+function dec(value?: string | null) {
+  try {
+    return decryptSecret(value)
+  } catch {
+    return ''
+  }
+}
+
+async function browserAiSettings() {
+  const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+  if (!settings) return {}
+
+  const slots = [
+    {
+      provider: settings.primaryProvider,
+      model: settings.primaryModel,
+      apiKey: dec(settings.primaryApiKey),
+      baseUrl: settings.primaryBaseUrl,
+    },
+    {
+      provider: settings.fallback1Provider,
+      model: settings.fallback1Model,
+      apiKey: dec(settings.fallback1ApiKey),
+      baseUrl: settings.fallback1BaseUrl,
+    },
+    {
+      provider: settings.fallback2Provider,
+      model: settings.fallback2Model,
+      apiKey: dec(settings.fallback2ApiKey),
+      baseUrl: settings.fallback2BaseUrl,
+    },
+  ]
+
+  const selected = slots.find((slot) => slot.provider && slot.model && slot.apiKey)
+  if (!selected) return {}
+  return {
+    ai_provider: selected.provider,
+    ai_model: selected.model,
+    ai_api_key: selected.apiKey,
+    ai_base_url: selected.baseUrl,
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -33,6 +78,7 @@ export async function POST(req: NextRequest) {
   try {
     const actionData = job.actionData ? JSON.parse(job.actionData) : {}
     const task = actionData.task || actionData.prompt || job.action || 'Take a snapshot and summarize the page.'
+    const aiSettings = await browserAiSettings()
     const response = await fetch(`${BROWSER_SIDECAR_URL}/api/browser/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -46,6 +92,7 @@ export async function POST(req: NextRequest) {
         viewport_height: actionData.viewportHeight,
         user_agent: actionData.userAgent,
         user_data_dir: actionData.userDataDir,
+        ...aiSettings,
       }),
       signal: AbortSignal.timeout(120000),
     })

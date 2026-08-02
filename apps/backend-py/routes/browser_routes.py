@@ -17,6 +17,10 @@ class BrowserRunRequest(BaseModel):
     viewport_height: int | None = Field(default=None, ge=480, le=2160)
     user_agent: str | None = Field(default=None, max_length=512)
     user_data_dir: str | None = Field(default=None, max_length=1024)
+    ai_provider: str | None = Field(default=None, max_length=80)
+    ai_model: str | None = Field(default=None, max_length=240)
+    ai_api_key: str | None = Field(default=None, max_length=4096)
+    ai_base_url: str | None = Field(default=None, max_length=2048)
 
 
 def _history_text(history: object) -> str:
@@ -57,32 +61,78 @@ def _browser_profile(payload: BrowserRunRequest):
     return BrowserProfile(**profile_kwargs)
 
 
-@router.post("/run")
-async def run_browser_task(payload: BrowserRunRequest):
-    if not os.getenv("BROWSER_USE_API_KEY") and not os.getenv("OPENAI_API_KEY"):
-        raise HTTPException(
-            status_code=503,
-            detail="Browser automation needs BROWSER_USE_API_KEY or OPENAI_API_KEY configured.",
+def _has_bedrock_credentials(payload: BrowserRunRequest) -> bool:
+    return bool(
+        (payload.ai_provider in {"bedrock", "amazon-bedrock"} and payload.ai_api_key)
+        or os.getenv("AWS_BEARER_TOKEN_BEDROCK")
+        or os.getenv("BEDROCK_API_KEY")
+        or (os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("AWS_SECRET_ACCESS_KEY"))
+    )
+
+
+def _browser_llm(payload: BrowserRunRequest):
+    provider = (payload.ai_provider or "").lower()
+    model = payload.ai_model
+    api_key = payload.ai_api_key
+
+    if provider in {"bedrock", "amazon-bedrock"} and api_key:
+        os.environ["AWS_BEARER_TOKEN_BEDROCK"] = api_key
+        from langchain_aws import ChatBedrockConverse
+
+        return ChatBedrockConverse(
+            model=(model or os.getenv("BEDROCK_MODEL_ID", "zai.glm-5")).replace("amazon-bedrock/", ""),
+            region_name=os.getenv("AWS_REGION", "us-east-1"),
         )
 
+    if api_key:
+        from langchain_openai import ChatOpenAI
+
+        provider_base_urls = {
+            "openrouter": "https://openrouter.ai/api/v1",
+            "groq": "https://api.groq.com/openai/v1",
+        }
+        return ChatOpenAI(
+            api_key=api_key,
+            base_url=payload.ai_base_url or provider_base_urls.get(provider),
+            model=model or os.getenv("OPENAI_BROWSER_MODEL", os.getenv("OPENAI_MODEL", "gpt-4.1-mini")),
+        )
+
+    if os.getenv("BROWSER_USE_API_KEY"):
+        from browser_use import ChatBrowserUse
+
+        return ChatBrowserUse(model=os.getenv("BROWSER_USE_MODEL", "browser-use/bu-30b-a3b-preview"))
+
+    if os.getenv("OPENAI_API_KEY"):
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(model=os.getenv("OPENAI_BROWSER_MODEL", os.getenv("OPENAI_MODEL", "gpt-4.1-mini")))
+
+    if _has_bedrock_credentials(payload):
+        from langchain_aws import ChatBedrockConverse
+
+        model = os.getenv("BROWSER_BEDROCK_MODEL", os.getenv("BEDROCK_MODEL_ID", "zai.glm-5"))
+        return ChatBedrockConverse(
+            model=model.replace("amazon-bedrock/", ""),
+            region_name=os.getenv("AWS_REGION", "us-east-1"),
+        )
+
+    raise HTTPException(
+        status_code=503,
+        detail="Browser automation needs an AI key saved in Settings or a browser AI env key configured.",
+    )
+
+
+@router.post("/run")
+async def run_browser_task(payload: BrowserRunRequest):
     try:
         from browser_use import Agent
-
-        try:
-            from browser_use import ChatBrowserUse
-
-            llm = ChatBrowserUse(model=os.getenv("BROWSER_USE_MODEL", "browser-use/bu-30b-a3b-preview"))
-        except Exception:
-            from langchain_openai import ChatOpenAI
-
-            llm = ChatOpenAI(model=os.getenv("OPENAI_BROWSER_MODEL", os.getenv("OPENAI_MODEL", "gpt-4.1-mini")))
 
         target = f"Start at {payload.url}. " if payload.url else ""
         task = (
             f"{target}{payload.task}\n\n"
             "Return a concise JSON-compatible summary with actions taken, extracted facts, and blockers."
         )
-        agent = Agent(task=task, llm=llm, browser_profile=_browser_profile(payload))
+        agent = Agent(task=task, llm=_browser_llm(payload), browser_profile=_browser_profile(payload))
         history = await agent.run()
         return {
             "success": True,
