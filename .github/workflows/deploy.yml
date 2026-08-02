@@ -34,6 +34,15 @@ jobs:
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
+          QIKINK_MODE: ${{ secrets.QIKINK_MODE }}
+          QIKINK_CLIENT_ID: ${{ secrets.QIKINK_CLIENT_ID }}
+          QIKINK_CLIENT_SECRET: ${{ secrets.QIKINK_CLIENT_SECRET }}
+          BROWSER_WORKER_KEY: ${{ secrets.BROWSER_WORKER_KEY }}
+          BROWSER_SIDECAR_URL: ${{ secrets.BROWSER_SIDECAR_URL }}
+          BROWSER_USE_API_KEY: ${{ secrets.BROWSER_USE_API_KEY }}
+          BROWSER_USE_MODEL: ${{ secrets.BROWSER_USE_MODEL }}
+          OPENAI_BROWSER_MODEL: ${{ secrets.OPENAI_BROWSER_MODEL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           set -e -o pipefail
           # ponytail: the job's PATH under this self-hosted runner isn't reliable
@@ -58,6 +67,20 @@ jobs:
           mkdir -p db apps/frontend/db
           /usr/bin/sudo chmod -R 777 db apps/frontend/db 2>/dev/null || true
 
+          existing_env() {
+            [ -f .env ] && grep -m1 "^$1=" .env | cut -d= -f2- || true
+          }
+
+          QIKINK_MODE="${QIKINK_MODE:-$(existing_env QIKINK_MODE)}"
+          QIKINK_CLIENT_ID="${QIKINK_CLIENT_ID:-$(existing_env QIKINK_CLIENT_ID)}"
+          QIKINK_CLIENT_SECRET="${QIKINK_CLIENT_SECRET:-$(existing_env QIKINK_CLIENT_SECRET)}"
+          BROWSER_WORKER_KEY="${BROWSER_WORKER_KEY:-$(existing_env BROWSER_WORKER_KEY)}"
+          BROWSER_SIDECAR_URL="${BROWSER_SIDECAR_URL:-$(existing_env BROWSER_SIDECAR_URL)}"
+          BROWSER_USE_API_KEY="${BROWSER_USE_API_KEY:-$(existing_env BROWSER_USE_API_KEY)}"
+          BROWSER_USE_MODEL="${BROWSER_USE_MODEL:-$(existing_env BROWSER_USE_MODEL)}"
+          OPENAI_BROWSER_MODEL="${OPENAI_BROWSER_MODEL:-$(existing_env OPENAI_BROWSER_MODEL)}"
+          OPENAI_API_KEY="${OPENAI_API_KEY:-$(existing_env OPENAI_API_KEY)}"
+
           printf '%s\n' \
             "DATABASE_URL=file:///app/db/custom.db" \
             "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
@@ -74,6 +97,16 @@ jobs:
             "SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}" \
             "SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}" \
             "SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}" \
+            "QIKINK_MODE=${QIKINK_MODE:-sandbox}" \
+            "QIKINK_CLIENT_ID=${QIKINK_CLIENT_ID}" \
+            "QIKINK_CLIENT_SECRET=${QIKINK_CLIENT_SECRET}" \
+            "BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}" \
+            "BROWSER_SIDECAR_URL=${BROWSER_SIDECAR_URL:-http://fastapi:8000}" \
+            "BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY}" \
+            "BROWSER_USE_MODEL=${BROWSER_USE_MODEL}" \
+            "OPENAI_BROWSER_MODEL=${OPENAI_BROWSER_MODEL}" \
+            "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+            "BROWSER_HEADLESS=true" \
             > .env
 
           echo "[i] Disk before cleanup:"; df -h / || true
@@ -87,7 +120,11 @@ jobs:
           echo "[i] Disk after cleanup:"; df -h / || true
 
           # Build while old containers still serve traffic
-          /usr/bin/sudo docker compose build --progress=plain 2>&1
+          /usr/bin/sudo docker compose build --progress=plain 2>&1 || {
+            echo "[!] Docker build failed once; pruning builder cache and retrying..."
+            /usr/bin/sudo docker builder prune -af || true
+            /usr/bin/sudo docker compose build --progress=plain 2>&1
+          }
 
           # Swap: recreates only changed containers
           /usr/bin/sudo docker compose up -d
