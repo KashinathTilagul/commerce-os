@@ -35,6 +35,7 @@ export function Settings() {
   const [promptValue, setPromptValue] = useState('')
   const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [orgNameValue, setOrgNameValue] = useState('')
+  const [providerDraft, setProviderDraft] = useState<Record<string, string>>({})
   const orgNameTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
@@ -76,19 +77,23 @@ export function Settings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       })
-      if (!r.ok) throw new Error('Failed to save settings')
-      return r.json()
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(data.error || 'Failed to save settings')
+      return data
     },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(['settings'], data)
+      if (Object.keys(variables).some((key) => /^(primary|fallback[12])/.test(key))) {
+        setProviderDraft({})
+      }
       // Don't toast theme/accent — they already have their own toasts
       const silent = ['theme', 'accent']
       if (!Object.keys(variables).some(k => silent.includes(k))) {
         toast.success('Saved')
       }
     },
-    onError: () => {
-      toast.error('Save failed', 'Could not reach the settings API — is the dev server running?')
+    onError: (error: Error) => {
+      toast.error('Save failed', error.message)
     },
   })
 
@@ -108,7 +113,11 @@ export function Settings() {
   }
 
   const handleApply = () => {
-    toast.success('Settings saved', 'All preferences are synced to the OS backend')
+    if (Object.keys(providerDraft).length === 0) {
+      toast.info('No provider changes to save')
+      return
+    }
+    mutation.mutate(providerDraft)
   }
 
   const handleReset = () => {
@@ -218,18 +227,21 @@ export function Settings() {
           <CardContent className="space-y-4">
             <ProviderSlot
               title="Primary"
-              provider={s.primaryProvider} model={s.primaryModel} apiKey={s.primaryApiKey} baseUrl={s.primaryBaseUrl}
-              onChange={(field, value) => handleChange(`primary${field}`, value)}
+              provider={providerDraft.primaryProvider ?? s.primaryProvider} model={providerDraft.primaryModel ?? s.primaryModel} apiKey={providerDraft.primaryApiKey ?? ''} baseUrl={providerDraft.primaryBaseUrl ?? s.primaryBaseUrl}
+              hasApiKey={Boolean(s.hasPrimaryApiKey) && providerDraft.primaryApiKey === undefined}
+              onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`primary${field}`]: value }))}
             />
             <ProviderSlot
               title="Fallback 1"
-              provider={s.fallback1Provider} model={s.fallback1Model} apiKey={s.fallback1ApiKey} baseUrl={s.fallback1BaseUrl}
-              onChange={(field, value) => handleChange(`fallback1${field}`, value)}
+              provider={providerDraft.fallback1Provider ?? s.fallback1Provider} model={providerDraft.fallback1Model ?? s.fallback1Model} apiKey={providerDraft.fallback1ApiKey ?? ''} baseUrl={providerDraft.fallback1BaseUrl ?? s.fallback1BaseUrl}
+              hasApiKey={Boolean(s.hasFallback1ApiKey) && providerDraft.fallback1ApiKey === undefined}
+              onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`fallback1${field}`]: value }))}
             />
             <ProviderSlot
               title="Fallback 2"
-              provider={s.fallback2Provider} model={s.fallback2Model} apiKey={s.fallback2ApiKey} baseUrl={s.fallback2BaseUrl}
-              onChange={(field, value) => handleChange(`fallback2${field}`, value)}
+              provider={providerDraft.fallback2Provider ?? s.fallback2Provider} model={providerDraft.fallback2Model ?? s.fallback2Model} apiKey={providerDraft.fallback2ApiKey ?? ''} baseUrl={providerDraft.fallback2BaseUrl ?? s.fallback2BaseUrl}
+              hasApiKey={Boolean(s.hasFallback2ApiKey) && providerDraft.fallback2ApiKey === undefined}
+              onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`fallback2${field}`]: value }))}
             />
             <Row label="Max token budget %" desc="Auto-pause agents at this threshold">
               <div className="w-56">
@@ -500,13 +512,14 @@ const PROVIDER_OPTIONS = [
 ]
 
 function ProviderSlot({
-  title, provider, model, apiKey, baseUrl, onChange,
+  title, provider, model, apiKey, baseUrl, hasApiKey, onChange,
 }: {
   title: string
   provider?: string
   model?: string
   apiKey?: string
   baseUrl?: string
+  hasApiKey?: boolean
   onChange: (field: 'Provider' | 'Model' | 'ApiKey' | 'BaseUrl', value: string) => void
 }) {
   return (
@@ -526,7 +539,7 @@ function ProviderSlot({
           type="password"
           value={apiKey || ''}
           onChange={(e) => onChange('ApiKey', e.target.value)}
-          placeholder={apiKey ? '•••••••••••••••• (key set)' : 'Paste your API key here...'}
+          placeholder={hasApiKey ? '•••••••••••••••• (key set)' : 'Paste your API key here...'}
           className="h-8 text-xs font-mono"
         />
       </div>
