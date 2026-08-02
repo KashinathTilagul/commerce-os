@@ -1,16 +1,18 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
-import { Package, Truck, AlertTriangle, Factory, MapPin, Star, Clock, TrendingDown } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Package, Truck, AlertTriangle, Factory, MapPin, Star, Clock, TrendingDown, Search } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, HouseBadge, ColorDot, StatusPill } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Progress } from '@/components/ui/progress'
 import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
+import { Input } from '@/components/ui/input'
 
 export function InventoryOps() {
+  const [search, setSearch] = useState('')
   const { data: products = [] } = useQuery<any[]>({
     queryKey: ['products-all-ops'],
     queryFn: async () => {
@@ -30,27 +32,28 @@ export function InventoryOps() {
   })
 
   const stats = useMemo(() => {
-    const totalStock = products.reduce((s, p) => s + p.stock, 0)
-    const totalValue = products.reduce((s, p) => s + p.stock * p.cost, 0)
-    const lowStock = products.filter((p) => p.stock <= p.reorderAt && p.status !== 'DRAFT')
-    const restocking = products.filter((p) => p.status === 'RESTOCKING')
+    const activeProducts = products.filter((p) => p.status === 'ACTIVE')
+    const totalStock = activeProducts.reduce((s, p) => s + p.stock, 0)
+    const totalValue = activeProducts.reduce((s, p) => s + p.stock * p.cost, 0)
+    const lowStock = activeProducts.filter((p) => p.stock <= p.reorderAt)
+    const restocking = activeProducts.filter((p) => p.status === 'RESTOCKING')
     const allCategories = new Set<string>()
-    for (const p of products) {
+    for (const p of activeProducts) {
       allCategories.add(p.category || p.house || 'Uncategorized')
     }
 
     const byHouse: Record<string, { stock: number; value: number; count: number; low: number }> = {}
     for (const cat of allCategories) byHouse[cat] = { stock: 0, value: 0, count: 0, low: 0 }
 
-    for (const p of products) {
+    for (const p of activeProducts) {
       const cat = p.category || p.house || 'Uncategorized'
       byHouse[cat].stock += p.stock
       byHouse[cat].value += p.stock * p.cost
       byHouse[cat].count++
-      if (p.stock <= p.reorderAt && p.status !== 'DRAFT') byHouse[cat].low++
+      if (p.stock <= p.reorderAt) byHouse[cat].low++
     }
 
-    const active = products.filter((p) => p.status !== 'DRAFT' && p.price > 0)
+    const active = activeProducts.filter((p) => p.price > 0)
     const avgMarginPct = active.length
       ? active.reduce((s, p) => s + (p.price - p.cost) / p.price, 0) / active.length * 100
       : 0
@@ -58,6 +61,11 @@ export function InventoryOps() {
 
     return { totalStock, totalValue, lowStock, restocking, byHouse, allCategories: Array.from(allCategories).sort(), avgMarginPct, marginWatch }
   }, [products])
+
+  const activeProducts = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return products.filter((p) => p.status === 'ACTIVE' && (!query || [p.name, p.sku, p.house, p.category, p.color].some(value => String(value || '').toLowerCase().includes(query))))
+  }, [products, search])
 
   return (
     <div>
@@ -230,7 +238,11 @@ export function InventoryOps() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="font-display tracking-tight text-base">Full Inventory Ledger</CardTitle>
-            <CardDescription className="text-xs">{products.length} SKUs across 5 houses</CardDescription>
+            <CardDescription className="text-xs">{activeProducts.length} active SKUs · Draft and inactive listings excluded</CardDescription>
+            <div className="relative mt-3 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products, SKU, house..." className="h-9 pl-9" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="max-h-[500px] overflow-y-auto">
@@ -249,7 +261,7 @@ export function InventoryOps() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((p) => {
+                  {activeProducts.map((p) => {
                     const marginPct = p.price > 0 ? ((p.price - p.cost) / p.price) * 100 : null
                     return (
                       <TableRow key={p.id}>

@@ -463,6 +463,36 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setGlobal('talking')
     speakingRef.current = true
 
+    try {
+      const response = await fetch('/api/jarvis/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: clean, voice: ttsVoiceRef.current, speed: ttsSpeedRef.current, stability: ttsStabilityRef.current, volume: ttsVolumeRef.current }),
+        signal: AbortSignal.timeout(12000),
+      })
+      if (response.ok && speakingRef.current) {
+        const audio = new Audio(URL.createObjectURL(await response.blob()))
+        audio.volume = ttsVolumeRef.current
+        let finish: (() => void) | null = null
+        const ended = new Promise<void>(resolve => { finish = resolve })
+        audioStopRef.current = () => { audio.pause(); finish?.() }
+        audio.onended = () => finish?.()
+        audio.onerror = () => finish?.()
+        await audio.play()
+        await ended
+        URL.revokeObjectURL(audio.src)
+        audioStopRef.current = null
+        if (speakingRef.current) {
+          speakingRef.current = false
+          setGlobal('idle')
+          if (voiceSessionRef.current && !listeningRef.current) {
+            setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 400)
+          }
+        }
+        return
+      }
+    } catch {}
+
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const sentences = toSentences(clean)
       for (const sentence of sentences) {

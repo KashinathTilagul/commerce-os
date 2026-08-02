@@ -10,7 +10,17 @@ export async function GET() {
     where: { organizationId: auth.organizationId },
     orderBy: { startDate: 'desc' },
   })
-  return NextResponse.json(campaigns)
+  const integrations = await db.integration.findMany({
+    where: { organizationId: auth.organizationId, toolkitSlug: { in: ['instagram', 'meta_ads', 'mailchimp'] } },
+    select: { toolkitSlug: true, isConnected: true },
+  })
+  const connected = new Set(integrations.filter((i) => i.isConnected).map((i) => i.toolkitSlug))
+  return NextResponse.json(campaigns.map((campaign) => ({
+    ...campaign,
+    integrationConnected: campaign.channel === 'INSTAGRAM'
+      ? connected.has('instagram') || connected.has('meta_ads')
+      : campaign.channel === 'EMAIL' ? connected.has('mailchimp') : true,
+  })))
 }
 
 export async function POST(req: NextRequest) {

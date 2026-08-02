@@ -135,7 +135,11 @@ export function KnowledgeAssetView() {
                   className="arch-card overflow-hidden text-left group hover:border-foreground/40"
                 >
                   <div className="aspect-[4/5] bg-muted/30 relative flex items-center justify-center border-b border-border transition-colors group-hover:bg-muted/50">
-                    <Box className="h-8 w-8 text-muted-foreground/30" />
+                    {p.imageUrl ? (
+                      <img src={p.imageUrl} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
+                    ) : (
+                      <Box className="h-8 w-8 text-muted-foreground/30" />
+                    )}
                   </div>
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-2">

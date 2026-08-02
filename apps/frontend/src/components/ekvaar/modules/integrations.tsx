@@ -142,9 +142,15 @@ export function Integrations() {
   const connectedIntegrations = allIntegrations.filter((i: any) => i.isConnected)
   const filtered = search
     ? allIntegrations.filter((i: any) =>
+        i.toolkitSlug.toLowerCase().includes(search.toLowerCase()) ||
         i.name.toLowerCase().includes(search.toLowerCase()) ||
         i.description.toLowerCase().includes(search.toLowerCase()) ||
-        i.category.toLowerCase().includes(search.toLowerCase())
+        i.category.toLowerCase().includes(search.toLowerCase()) ||
+        (i.tools || []).some((tool: any) =>
+          tool.name.toLowerCase().includes(search.toLowerCase()) ||
+          tool.slug.toLowerCase().includes(search.toLowerCase()) ||
+          tool.description.toLowerCase().includes(search.toLowerCase())
+        )
       )
     : null
 

@@ -55,7 +55,12 @@ export class AIRuntime {
     }
 
     // Prepare final strings
-    const systemMessage = `${promptDef.systemPrompt}\n\nOrganization Context: ${JSON.stringify(context.organization)}\nRetrieved Knowledge: ${retrievedContext.summary}`
+    const graphPrompt = {
+      query: params.query,
+      nodes: retrievedContext.nodes.map(node => ({ id: node.id, type: node.type, title: node.title, summary: node.summary, source: node.source, confidence: node.confidence })),
+      edges: retrievedContext.edges.map(edge => ({ source: edge.sourceId, target: edge.targetId, type: edge.type })),
+    }
+    const systemMessage = `${promptDef.systemPrompt}\n\nOrganization Context: ${JSON.stringify(context.organization)}\nKnowledge Graph Prompt:\n${JSON.stringify(graphPrompt)}\nUse only graph nodes and relationships as organizational knowledge; say when the graph has no supporting evidence.`
     
     // 5. Tool Resolution
     const resolvedTools = params.tools ? ToolResolver.resolve(params.tools, params.organizationId) : []

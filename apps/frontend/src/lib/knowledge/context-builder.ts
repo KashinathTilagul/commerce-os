@@ -31,17 +31,34 @@ export class SqlRetrievalStrategy implements KnowledgeRetrievalStrategy {
       where.type = options.type
     }
 
-    const nodes = await db.knowledgeNode.findMany({
+    const seedNodes = await db.knowledgeNode.findMany({
       where,
       take: options?.limit || 10
     })
 
+    const seedIds = seedNodes.map(node => node.id)
+    const edges = seedIds.length === 0 ? [] : await db.knowledgeEdge.findMany({
+      where: {
+        organizationId,
+        OR: [{ sourceId: { in: seedIds } }, { targetId: { in: seedIds } }],
+      },
+      include: { sourceNode: true, targetNode: true },
+      take: Math.max((options?.limit || 10) * 4, 20),
+    })
+
+    const nodeMap = new Map(seedNodes.map(node => [node.id, node]))
+    for (const edge of edges) {
+      nodeMap.set(edge.sourceNode.id, edge.sourceNode)
+      nodeMap.set(edge.targetNode.id, edge.targetNode)
+    }
+    const nodes = Array.from(nodeMap.values()).slice(0, Math.max(options?.limit || 10, 20))
+
     return {
       query,
       nodes,
-      edges: [], // Would fetch related edges here for sub-graph
-      metadata: { retrievedVia: 'SQL', count: nodes.length },
-      summary: `Retrieved ${nodes.length} nodes from SQL storage.`
+      edges,
+      metadata: { retrievedVia: 'KNOWLEDGE_GRAPH', seedCount: seedNodes.length, count: nodes.length, edgeCount: edges.length },
+      summary: `Retrieved a knowledge graph with ${nodes.length} nodes and ${edges.length} relationships.`
     }
   }
 }

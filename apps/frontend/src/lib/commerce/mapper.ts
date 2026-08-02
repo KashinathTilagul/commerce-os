@@ -19,6 +19,7 @@ export class CommerceMapper {
       status: raw.status === 'active' ? 'ACTIVE' : 'DRAFT',
       material: 'Unknown',
       description: (raw.body_html || '').replace(/<[^>]*>?/gm, '').substring(0, 200),
+      imageUrl: raw.image?.src || raw.images?.[0]?.src || null,
     }
   }
 

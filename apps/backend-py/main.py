@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from core.exceptions import EkvaarException
+from routes.browser_routes import router as browser_router
 from routes.jarvis_routes import router as jarvis_router, load_whisper
 
 
@@ -72,6 +73,7 @@ async def ekvaar_exception_handler(request: Request, exc: EkvaarException):
 
 
 app.include_router(jarvis_router)
+app.include_router(browser_router)
 
 
 @app.get("/")

@@ -7,3 +7,4 @@ faster-whisper
 python-multipart
 pocket-tts
 scipy
+browser-use
