@@ -27,8 +27,11 @@ export async function GET(req: NextRequest) {
     const revenueOrders = orders.filter((o) => o.paymentStatus === 'PAID' && o.status !== 'CANCELLED' && o.status !== 'RETURNED')
     // ponytail: accounting transactions and commerce orders are separate sources today;
     // add source IDs before importing Shopify payouts to prevent future double counting.
-    const revenue = revenueOrders.reduce((s, o) => s + o.total, 0)
+    const orderAndLedgerRevenue = revenueOrders.reduce((s, o) => s + o.total, 0)
       + transactions.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
+    // Shopify exposes lifetime spend on customers even when historical orders are
+    // outside the token's 60-day window. Use that real aggregate only as a fallback.
+    const revenue = orderAndLedgerRevenue || customers.reduce((s, c) => s + c.totalSpent, 0)
     const expenses = transactions.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0)
 
     const now = new Date()

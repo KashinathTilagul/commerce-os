@@ -30,6 +30,17 @@ export function SalesOrders() {
     },
   })
 
+  const { data: historicalOrderCount = 0 } = useQuery<number>({
+    queryKey: ['customers', 'historical-order-check'],
+    queryFn: async () => {
+      const r = await fetch('/api/customers?limit=100')
+      if (!r.ok) return 0
+      const data = await r.json()
+      const customers = Array.isArray(data?.customers) ? data.customers : []
+      return customers.reduce((sum: number, customer: any) => sum + Number(customer.totalOrders || 0), 0)
+    },
+  })
+
   const filtered = useMemo(() => {
     return orders.filter((o) => {
       if (search && !o.orderNumber.toLowerCase().includes(search.toLowerCase()) && !o.customerName.toLowerCase().includes(search.toLowerCase())) return false
@@ -87,6 +98,20 @@ export function SalesOrders() {
       />
 
       <div className="px-4 lg:px-8 py-8 space-y-6">
+        {orders.length === 0 && historicalOrderCount > 0 && (
+          <Card className="border-amber-500/40 bg-amber-500/5">
+            <CardContent className="flex items-start gap-3 p-4">
+              <AlertOctagon className="h-4 w-4 mt-0.5 text-amber-600" />
+              <div>
+                <div className="text-sm font-medium">Historical Shopify orders need one more permission</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Shopify reports {historicalOrderCount} lifetime orders, but the connection can only read orders from the last 60 days. Enable Shopify&apos;s read_all_orders scope and reconnect to import the full order history.
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard label="Total Orders" value={String(orders.length)} accent="#1F3A5F" icon={<ShoppingBag className="h-4 w-4" />} />
