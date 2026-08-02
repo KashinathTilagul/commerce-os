@@ -1,6 +1,13 @@
 import { CommerceProvider, SyncOptions, SyncResult } from './provider'
 import { executeTool } from '@/lib/composio-service'
 
+function getCollection(output: any, key: string): any[] {
+  if (Array.isArray(output)) return output
+  if (Array.isArray(output?.[key])) return output[key]
+  if (Array.isArray(output?.data?.[key])) return output.data[key]
+  return []
+}
+
 export class ShopifyProvider implements CommerceProvider {
   providerName = 'shopify'
 
@@ -38,10 +45,11 @@ export class ShopifyProvider implements CommerceProvider {
       throw new Error(`Shopify Provider Error: ${result.error}`)
     }
 
-    const items = result.output?.products || []
+    const limit = options.limit || 250
+    const items = getCollection(result.output, 'products')
     return {
       items,
-      hasMore: items.length > 0, // This is a simplification; pagination requires reading headers in real Shopify API
+      hasMore: items.length === limit,
       nextCursor: items.length > 0 ? items[items.length - 1].id.toString() : undefined,
     }
   }
@@ -60,10 +68,11 @@ export class ShopifyProvider implements CommerceProvider {
       throw new Error(`Shopify Provider Error: ${result.error}`)
     }
 
-    const items = result.output?.orders || []
+    const limit = options.limit || 250
+    const items = getCollection(result.output, 'orders')
     return {
       items,
-      hasMore: items.length > 0,
+      hasMore: items.length === limit,
       nextCursor: items.length > 0 ? items[items.length - 1].id.toString() : undefined,
     }
   }
@@ -82,10 +91,11 @@ export class ShopifyProvider implements CommerceProvider {
       throw new Error(`Shopify Provider Error: ${result.error}`)
     }
 
-    const items = result.output?.customers || []
+    const limit = options.limit || 250
+    const items = getCollection(result.output, 'customers')
     return {
       items,
-      hasMore: items.length > 0,
+      hasMore: items.length === limit,
       nextCursor: items.length > 0 ? items[items.length - 1].id.toString() : undefined,
     }
   }

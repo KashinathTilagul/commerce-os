@@ -36,12 +36,15 @@ export class CommerceMapper {
       channel: raw.source_name || 'Shopify',
       itemsCount: raw.line_items?.length || 0,
       total: parseFloat(raw.total_price || '0'),
-      status: raw.fulfillment_status === 'fulfilled' ? 'SHIPPED' 
+      status: raw.cancelled_at ? 'CANCELLED'
+            : raw.financial_status === 'refunded' ? 'RETURNED'
+            : raw.fulfillment_status === 'fulfilled' ? 'SHIPPED'
             : raw.fulfillment_status === 'partial' ? 'PROCESSING' 
             : 'NEW',
       paymentStatus: raw.financial_status === 'paid' ? 'PAID' 
                    : raw.financial_status === 'refunded' ? 'REFUNDED' 
                    : 'PENDING',
+      createdAt: raw.created_at ? new Date(raw.created_at) : new Date(),
     }
   }
 
@@ -49,12 +52,14 @@ export class CommerceMapper {
     return {
       organizationId: orgId,
       name: `${raw.first_name || ''} ${raw.last_name || ''}`.trim() || 'Unknown',
-      email: raw.email || '',
-      phone: raw.phone || '0000000000',
+      email: raw.email || `shopify-${raw.id}@unknown.invalid`,
+      phone: raw.phone || '',
       city: raw.default_address?.city || 'Unknown',
       tier: 'NEW',
       totalOrders: raw.orders_count || 0,
       totalSpent: parseFloat(raw.total_spent || '0'),
+      joinedAt: raw.created_at ? new Date(raw.created_at) : new Date(),
+      lastActive: raw.updated_at ? new Date(raw.updated_at) : new Date(),
     }
   }
 }
