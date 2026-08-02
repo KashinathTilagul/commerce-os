@@ -572,13 +572,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       const webSpeechText = webSpeechFinal.current.trim()
       webSpeechFinal.current = ''
 
-      if (!chunks.length && !webSpeechText) {
-        // Nothing captured — stop, don't loop
-        voiceSessionRef.current = false
-        setGlobal('idle')
-        return
-      }
-
       // Web Speech transcript is already in hand — use it immediately, no network wait.
       // Only fall back to the Whisper roundtrip if Web Speech gave us nothing.
       let finalText = webSpeechText
@@ -605,9 +598,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         return  // sendToKrishna manages state from here
       }
 
-      // No speech detected — stop, don't loop
-      voiceSessionRef.current = false
+      // Silence is a pause, not the end of a hands-free conversation.
       setGlobal('idle')
+      setTimeout(() => {
+        if (voiceSessionRef.current && !listeningRef.current) startListening()
+      }, 300)
     }
 
     recorder.start(250) // collect data every 250ms
@@ -706,9 +701,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setExpanded(true)
     voiceSessionRef.current = true
 
-    let hasHistory = false
     setMessages(m => {
-      if (m.length > 0) { hasHistory = true; return m }
+      if (m.length > 0) return m
       const h = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
       const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night'
       const greets = [
@@ -717,13 +711,14 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         `${g}. What do you need?`,
       ]
       const msg = greets[Math.floor(Math.random() * greets.length)]
-      setTimeout(() => speakText(msg), 200)
       return [...m, { role: 'krishna', text: msg, ts: Date.now(), id: Date.now().toString() }]
     })
-    if (hasHistory) {
-      setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 300)
-    }
-  }, [speakText, startListening])
+    setTimeout(() => {
+      const scroller = scrollRef.current
+      if (scroller) scroller.scrollTop = scroller.scrollHeight
+      if (voiceSessionRef.current && !listeningRef.current) startListening()
+    }, 100)
+  }, [startListening])
 
   const handleTextSend = () => {
     const text = inputText.trim()
