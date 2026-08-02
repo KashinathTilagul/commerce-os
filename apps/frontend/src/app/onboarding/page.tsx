@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 import { ArrowLeft, ArrowRight, Building2, Check, CheckCircle2, Loader2, Plug, Search, ShieldCheck, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,10 +55,15 @@ export default function OnboardingPage() {
     if (status !== 'authenticated') return
     fetch('/api/onboarding')
       .then(async (response) => {
+        if ([401, 403, 404].includes(response.status)) {
+          await signOut({ callbackUrl: '/signup' })
+          return null
+        }
         if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Could not load setup')
         return response.json()
       })
-      .then((setup: SetupData) => {
+      .then((setup: SetupData | null) => {
+        if (!setup) return
         if (setup.organization.onboardingCompletedAt) {
           router.replace('/')
           return
