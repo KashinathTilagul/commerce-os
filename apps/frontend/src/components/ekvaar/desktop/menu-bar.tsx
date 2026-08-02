@@ -77,11 +77,11 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
     // Go menu — open apps by name
     const goMap: Record<string, string> = {
       'Board Room': 'command', 'Command Center': 'command',
-      'Customers': 'house', 'Finance': 'finance',
+      'Customers': 'community', 'Finance': 'finance',
       'AI Infrastructure': 'ai', 'Digital Employees': 'agents',
       'Sales & Orders': 'sales', 'Integrations': 'integrations',
       'Inventory & Ops': 'inventory', 'Campaigns': 'campaigns',
-      'Brand Guardian': 'guardian',
+      'Brand Intelligence': 'brand-intelligence',
     }
     if (goMap[item]) { open(goMap[item] as any, item); return }
     // Window actions
@@ -110,12 +110,13 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 h-7 z-[9000] flex items-center px-3 text-xs text-white/95 select-none"
+      className="fixed top-0 left-0 right-0 h-8 z-[9000] flex items-center px-3 text-xs select-none"
       style={{
-        background: 'rgba(10,10,10,0.55)',
+        background: 'var(--desktop-chrome)',
+        color: 'var(--desktop-chrome-text)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        borderBottom: '1px solid var(--desktop-chrome-border)',
       }}
       onPointerLeave={() => { setOpenMenu(null); setShowVolume(false) }}
     >
@@ -130,7 +131,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
           onClose={() => setOpenMenu(null)}
         />
 
-        <span className="ml-1 font-semibold">{activeApp ? activeApp.name : 'Finder'}</span>
+        <span className="ml-1 font-semibold">{activeApp ? activeApp.name : 'Desktop'}</span>
 
         {activeApp?.menuItems.map((menu) => (
           <MenuButton
@@ -158,7 +159,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
             <MenuButton label="Window" isOpen={openMenu === 'Window'} onClick={() => handleMenuClick('Window')}
               items={['Minimize', 'Zoom', 'Bring All to Front']} onAction={handleMenuAction} onClose={() => setOpenMenu(null)} />
             <MenuButton label="Help" isOpen={openMenu === 'Help'} onClick={() => handleMenuClick('Help')}
-              items={['Brand Guardian', 'Keyboard Shortcuts']} onAction={handleMenuAction} onClose={() => setOpenMenu(null)} />
+              items={['Brand Intelligence', 'Keyboard Shortcuts']} onAction={handleMenuAction} onClose={() => setOpenMenu(null)} />
           </>
         )}
       </div>
@@ -174,25 +175,25 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
             title={music.volume === 0 ? 'Unmute' : 'Mute'}
             onClick={() => music.setVolume(music.volume === 0 ? 80 : 0)}
             onMouseEnter={() => setShowVolume(true)}
-            className="p-1 rounded hover:bg-white/15 transition-colors"
+            className="p-1 rounded hover:bg-[var(--desktop-chrome-hover)] transition-colors"
           >
-            {music.volume === 0 ? <VolumeX className="h-3 w-3 text-white/50" /> : <Volume2 className="h-3 w-3" />}
+            {music.volume === 0 ? <VolumeX className="h-3 w-3 opacity-50" /> : <Volume2 className="h-3 w-3" />}
           </button>
           <AnimatePresence>
             {showVolume && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                className="absolute top-full right-0 mt-1 px-3 py-2 rounded-lg border border-white/10 shadow-xl z-[9100]"
-                style={{ background: 'rgba(28,28,28,0.92)', backdropFilter: 'blur(20px)', width: 120 }}
+                className="absolute top-full right-0 mt-1 px-3 py-2 rounded-lg border shadow-xl z-[9100]"
+                style={{ background: 'var(--desktop-chrome-strong)', color: 'var(--desktop-chrome-text)', borderColor: 'var(--desktop-chrome-border)', backdropFilter: 'blur(20px)', width: 120 }}
                 onMouseLeave={() => setShowVolume(false)}
               >
-                <div className="text-[10px] text-white/40 mb-1.5 text-center">Volume</div>
+                <div className="text-[10px] opacity-50 mb-1.5 text-center">Volume</div>
                 <input
                   type="range" min={0} max={100} value={music.volume}
                   onChange={e => music.setVolume(+e.target.value)}
                   className="w-full accent-purple-400 h-1"
                 />
-                <div className="text-[10px] text-white/40 text-center mt-1">{music.volume === 0 ? 'Muted' : `${music.volume}%`}</div>
+                <div className="text-[10px] opacity-50 text-center mt-1">{music.volume === 0 ? 'Muted' : `${music.volume}%`}</div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -201,7 +202,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
         {/* WiFi */}
         <button
           title={online ? 'Connected' : 'Offline'}
-          className="p-1 rounded hover:bg-white/15 transition-colors"
+          className="p-1 rounded hover:bg-[var(--desktop-chrome-hover)] transition-colors"
         >
           {online
             ? <Wifi className="h-3 w-3 text-green-400" />
@@ -213,7 +214,7 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
         <button
           title="Spotlight (⌘K)"
           onClick={onSpotlight}
-          className="p-1 rounded hover:bg-white/15 transition-colors"
+          className="p-1 rounded hover:bg-[var(--desktop-chrome-hover)] transition-colors"
         >
           <Search className="h-3 w-3" />
         </button>
@@ -221,16 +222,16 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
         {/* Battery */}
         <button
           title={battery ? `${battery.level}%${battery.charging ? ' · Charging' : ''}` : 'Battery'}
-          className="p-1 rounded hover:bg-white/15 transition-colors flex items-center gap-1"
+          className="p-1 rounded hover:bg-[var(--desktop-chrome-hover)] transition-colors flex items-center gap-1"
         >
           <BatteryIcon className={`h-3 w-3 ${battery && battery.level <= 20 ? 'text-red-400' : ''}`} />
           {battery && <span className="text-[10px]">{battery.level}%</span>}
         </button>
 
-        <div className="h-3 w-px bg-white/20 mx-1" />
+        <div className="h-3 w-px bg-[var(--desktop-chrome-border)] mx-1" />
         <button
           onClick={() => setShowNotifications(v => !v)}
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/15 transition-colors tabular-nums text-[11px]"
+          className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-[var(--desktop-chrome-hover)] transition-colors tabular-nums text-[11px]"
         >
           <span>{dateStr}</span>
           <span className="ml-0.5">{timeStr}</span>
@@ -252,7 +253,7 @@ function MenuButton({
     <div className="relative">
       <button
         onClick={onClick}
-        className={`px-2.5 py-0.5 rounded transition-colors ${isOpen ? 'bg-white/20' : 'hover:bg-white/15'}`}
+        className={`px-2.5 py-0.5 rounded transition-colors ${isOpen ? 'bg-[var(--desktop-chrome-hover)]' : 'hover:bg-[var(--desktop-chrome-hover)]'}`}
       >
         {label}
       </button>
@@ -263,14 +264,14 @@ function MenuButton({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.1 }}
-            className="absolute top-full left-0 mt-1 min-w-[200px] py-1 rounded-md text-[12px] text-white/90 shadow-2xl border border-white/10 z-[9100]"
-            style={{ background: 'rgba(28,28,28,0.9)', backdropFilter: 'blur(20px) saturate(180%)' }}
+            className="absolute top-full left-0 mt-1 min-w-[200px] py-1 rounded-md text-[12px] shadow-2xl border z-[9100]"
+            style={{ background: 'var(--desktop-chrome-strong)', color: 'var(--desktop-chrome-text)', borderColor: 'var(--desktop-chrome-border)', backdropFilter: 'blur(20px) saturate(180%)' }}
           >
             {items.map((item, i) => (
               <button
                 key={item}
                 onClick={() => onAction(item)}
-                className="w-full text-left px-3 py-1.5 hover:bg-white/15 transition-colors"
+                className="w-full text-left px-3 py-1.5 hover:bg-[var(--desktop-chrome-hover)] transition-colors"
               >
                 {item}
               </button>

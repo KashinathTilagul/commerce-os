@@ -3,6 +3,9 @@ import { z } from "zod"
 import { getServerSession } from "next-auth"
 import { authOptions } from "./auth"
 import { db } from "./db"
+import { filterSensitiveData } from "./sensitive-data"
+
+export { filterSensitiveData } from "./sensitive-data"
 
 export interface RateLimitConfig {
   windowMs: number
@@ -107,29 +110,6 @@ export function sanitizeObject<T extends Record<string, any>>(
       result[cleanKey] = sanitizeObject(value, options)
     } else {
       result[cleanKey] = value
-    }
-  }
-
-  return result as T
-}
-
-const SENSITIVE_FIELDS = ["password", "token", "secret", "apiKey", "secretKey", "accessToken", "refreshToken"]
-
-export function filterSensitiveData<T>(data: T): T {
-  if (typeof data !== "object" || data === null) return data
-
-  if (Array.isArray(data)) {
-    return data.map(item => filterSensitiveData(item)) as T
-  }
-
-  const result: Record<string, any> = {}
-  for (const [key, value] of Object.entries(data as Record<string, any>)) {
-    if (SENSITIVE_FIELDS.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
-      result[key] = "***REDACTED***"
-    } else if (typeof value === "object" && value !== null) {
-      result[key] = filterSensitiveData(value)
-    } else {
-      result[key] = value
     }
   }
 

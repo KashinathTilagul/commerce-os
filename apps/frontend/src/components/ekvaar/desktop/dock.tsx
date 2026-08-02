@@ -9,6 +9,8 @@ import { AppIcon } from './app-icon'
 import { DockContextMenu } from './dock-context-menu'
 import { toast } from './toast'
 
+const DEFAULT_DOCK_IDS = ['launchpad', 'command', 'inbox', 'agents', 'sales', 'inventory', 'integrations', 'settings']
+
 interface DockProps {
   onLaunchpad?: () => void
   onJarvisClick?: () => void
@@ -39,13 +41,11 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
 
   const { apps: availableApps, coreAppIds, utilityAppIds, businessAppIds, marketplaceAppIds } = useAvailableApps()
 
-  const defaultDockOrder = useMemo(() => [
-    'launchpad',
-    ...coreAppIds,
-    ...utilityAppIds,
-    ...businessAppIds,
-    ...marketplaceAppIds
-  ], [coreAppIds, utilityAppIds, businessAppIds, marketplaceAppIds])
+  const allAppIds = useMemo(() => ['launchpad', ...availableApps.map(app => app.id)], [availableApps])
+  const defaultDockOrder = useMemo(
+    () => DEFAULT_DOCK_IDS.filter(id => allAppIds.includes(id)),
+    [allAppIds],
+  )
 
   // Auto-hide when any window is maximized
   const hasMaximized = windows.some((w) => w.isMaximized && !w.isMinimized)
@@ -80,22 +80,16 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   // Build the effective dock order from store or default
   const effectiveOrder = useMemo(() => {
     if (dockOrder && dockOrder.length > 0) {
-      // Filter to only known apps, add any missing new apps at the end
-      const known = defaultDockOrder.filter(id =>
-        dockOrder.includes(id) || id === 'launchpad' || id === 'brand-intelligence'
-      )
-      // Reorder based on stored order, then append any new apps
-      const ordered = dockOrder.filter(id => defaultDockOrder.includes(id))
-      const missing = defaultDockOrder.filter(id => !ordered.includes(id))
-      return [...ordered, ...missing]
+      const saved = dockOrder.filter(id => allAppIds.includes(id) && id !== 'launchpad')
+      return ['launchpad', ...saved]
     }
     return defaultDockOrder
-  }, [dockOrder, defaultDockOrder])
+  }, [dockOrder, defaultDockOrder, allAppIds])
 
-  // Filter out hidden apps (but keep Launchpad and Guardian always visible)
+  // Launchpad is the permanent way back to every app.
   const visibleOrder = useMemo(() => {
     return effectiveOrder.filter(id => {
-      if (id === 'launchpad' || id === 'brand-intelligence') return true
+      if (id === 'launchpad') return true
       return !hiddenApps.includes(id)
     })
   }, [effectiveOrder, hiddenApps])
@@ -112,7 +106,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
       glyphColor: '#F5F1EA', component: null, menuItems: [],
     }
     return m
-  }, [])
+  }, [availableApps])
 
   // Measure dock item centers whenever layout changes
   const measure = useCallback(() => {
@@ -261,7 +255,7 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   // Reset all
   const handleReset = () => {
     resetAll()
-    toast.info('Dock reset', 'All apps restored to default order')
+    toast.info('Dock reset', 'Essential apps restored')
   }
 
   // Determine section boundaries for dividers
@@ -304,21 +298,24 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
               className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-2 pointer-events-auto"
             >
               <div className="px-3 py-1.5 rounded-md text-[11px] text-white/80 border border-white/15"
-                style={{ background: 'rgba(28,28,30,0.9)', backdropFilter: 'blur(20px)' }}
+                style={{ background: 'var(--desktop-chrome-strong)', color: 'var(--desktop-chrome-text)', borderColor: 'var(--desktop-chrome-border)', backdropFilter: 'blur(20px)' }}
               >
                 Dock Edit · Drag to reorder · Click <X className="inline h-3 w-3" /> to remove from dock · Right-click for more options
               </div>
               <button
                 onClick={handleReset}
                 className="px-2.5 py-1.5 rounded-md text-[11px] text-white/80 border border-white/15 hover:bg-white/10 transition-colors flex items-center gap-1"
-                style={{ background: 'rgba(28,28,30,0.9)', backdropFilter: 'blur(20px)' }}
+                style={{ background: 'var(--desktop-chrome-strong)', color: 'var(--desktop-chrome-text)', borderColor: 'var(--desktop-chrome-border)', backdropFilter: 'blur(20px)' }}
               >
                 <RotateCcw className="h-3 w-3" /> Reset
               </button>
               <button
-                onClick={() => setEditMode(false)}
+                onClick={() => {
+                  setEditMode(false)
+                  toast.success('Dock saved', 'Your layout will be restored next time')
+                }}
                 className="px-2.5 py-1.5 rounded-md text-[11px] text-white border border-white/30 hover:bg-white/20 transition-colors flex items-center gap-1 font-medium"
-                style={{ background: 'rgba(28,28,30,0.9)', backdropFilter: 'blur(20px)' }}
+                style={{ background: 'var(--desktop-chrome-strong)', color: 'var(--desktop-chrome-text)', borderColor: 'var(--desktop-chrome-border)', backdropFilter: 'blur(20px)' }}
               >
                 <Check className="h-3 w-3" /> Done
               </button>
@@ -336,10 +333,11 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
           onMouseEnter={() => setIsDockHovered(true)}
           className="pointer-events-auto flex items-end gap-1.5 px-2.5 py-2 rounded-2xl border border-white/10"
           style={{
-            background: 'rgba(28, 28, 28, 0.6)',
+            background: 'var(--desktop-chrome)',
             backdropFilter: 'blur(30px) saturate(180%)',
             WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.12)',
+            borderColor: 'var(--desktop-chrome-border)',
+            boxShadow: '0 10px 40px var(--desktop-shadow), inset 0 1px 0 rgba(255,255,255,0.12)',
           }}
           initial={{ y: 120, opacity: 0 }}
           animate={{

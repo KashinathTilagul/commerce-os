@@ -48,6 +48,9 @@ function Squircle({ size, children }: { size: number; children: React.ReactNode 
 function IconVariant({ variant, size }: { variant: string; size: number }) {
   switch (variant) {
     case 'launchpad':     return <LaunchpadIcon size={size} />
+    case 'health':        return <HealthIcon size={size} />
+    case 'memory':        return <BooksIcon size={size} />
+    case 'drive':         return <BrowserIcon size={size} />
     case 'board-room':    return <BoardRoomIcon size={size} />
     case 'inbox':         return <MailIcon size={size} />
     case 'agents':        return <ContactsIcon size={size} />
@@ -69,7 +72,8 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'campaigns':     return <NewsIcon size={size} />
     case 'guardian':      return <ShieldIcon size={size} />
     case 'ai':            return <CpuIcon size={size} />
-    case 'guardian':    return <BooksIcon size={size} />
+    case 'risk':          return <RiskIcon size={size} />
+    case 'spotify':       return <MusicIcon size={size} />
     default:              return <GenericIcon size={size} />
   }
 }
@@ -660,6 +664,36 @@ function GenericIcon({ size }: { size: number }) {
       <Highlight opacity={0.22} stop={45} />
       <Glyph size={size}>
         <div style={{ width: s, height: s, background: '#FFFFFF', borderRadius: s * 0.2, opacity: 0.9 }} />
+      </Glyph>
+    </>
+  )
+}
+
+function HealthIcon({ size }: { size: number }) {
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #34C759 0%, #147D34 100%)" />
+      <Highlight opacity={0.24} />
+      <Glyph size={size}>
+        <svg width={size * 0.68} height={size * 0.44} viewBox="0 0 32 20" fill="none">
+          <path d="M1 11h7l3-8 5 15 4-10 3 3h8" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
+function RiskIcon({ size }: { size: number }) {
+  return (
+    <>
+      <Bg gradient="linear-gradient(180deg, #FF9F0A 0%, #C8302A 100%)" />
+      <Highlight opacity={0.24} />
+      <Glyph size={size}>
+        <svg width={size * 0.6} height={size * 0.58} viewBox="0 0 28 26" fill="none">
+          <path d="M14 2L26 24H2L14 2Z" fill="white" />
+          <path d="M14 9v7" stroke="#C8302A" strokeWidth="2.4" strokeLinecap="round" />
+          <circle cx="14" cy="20" r="1.4" fill="#C8302A" />
+        </svg>
       </Glyph>
     </>
   )
