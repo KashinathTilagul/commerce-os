@@ -6,7 +6,7 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Music, Activity, Brain
+  AlertTriangle, Music, Activity, Brain, Factory
 } from 'lucide-react'
 
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
@@ -32,6 +32,7 @@ import { SpotifyApp } from '@/components/ekvaar/modules/spotify'
 import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
 import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
 import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
+import { QikinkApp } from '@/components/ekvaar/modules/qikink'
 import { OSManifest } from '@/lib/os-desktop/manifest'
 
 // To bridge legacy metadata that isn't in OSManifest yet
@@ -40,6 +41,7 @@ export interface AppDef extends OSManifest {
   gradient: string
   glyphColor: string
   iconVariant?: string
+  organizationOnly?: string[]
   menuItems: { label: string; items: string[] }[]
 }
 
@@ -335,6 +337,22 @@ export const APPS: AppDef[] = [
     menuItems: []
   },
   {
+    id: 'qikink',
+    name: 'Qikink Operations',
+    shortName: 'Qikink',
+    version: '1.0.0',
+    icon: Factory as any,
+    iconVariant: 'qikink',
+    category: 'business',
+    requiredCapabilities: [],
+    organizationOnly: ['ekvaar'],
+    entryPoint: QikinkApp,
+    permissions: [],
+    gradient: 'linear-gradient(135deg, #111827 0%, #0F766E 55%, #F97316 100%)',
+    glyphColor: '#F5F1EA',
+    menuItems: []
+  },
+  {
     id: 'brand-intelligence',
     name: 'Brand Intelligence',
     shortName: 'Intelligence',
@@ -410,9 +428,19 @@ export function useAvailableApps() {
       return res.json()
     }
   })
+  const { data: setup } = useQuery({
+    queryKey: ['onboarding'],
+    queryFn: async () => {
+      const res = await fetch('/api/onboarding')
+      if (!res.ok) throw new Error('Failed to fetch organization')
+      return res.json()
+    }
+  })
+  const organizationMarker = `${setup?.organization?.slug || ''} ${setup?.organization?.name || ''}`.toLowerCase()
 
   // Filter apps that require capabilities the org doesn't have
   const availableApps = APPS.filter(app => {
+    if (app.organizationOnly?.length && !app.organizationOnly.some((org) => organizationMarker.includes(org))) return false
     // If the app doesn't require any capabilities, it's available
     if (!app.requiredCapabilities || app.requiredCapabilities.length === 0) return true
     
