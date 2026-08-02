@@ -36,7 +36,14 @@ export async function GET() {
   // Never expose API keys in response
   const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, ...safeSettings } = settings as any
 
-  return NextResponse.json({ ...safeSettings, ...preference, organizationName: organization?.name || '' })
+  return NextResponse.json({
+    ...safeSettings,
+    ...preference,
+    organizationName: organization?.name || '',
+    hasPrimaryApiKey: Boolean(primaryApiKey),
+    hasFallback1ApiKey: Boolean(fallback1ApiKey),
+    hasFallback2ApiKey: Boolean(fallback2ApiKey),
+  })
 }
 
 export async function PATCH(req: Request) {
@@ -51,6 +58,8 @@ export async function PATCH(req: Request) {
     for (const field of API_KEY_FIELDS) {
       if (typeof systemBody[field] === 'string' && systemBody[field]) {
         systemBody[field] = encryptSecret(systemBody[field] as string)
+      } else {
+        delete systemBody[field]
       }
     }
     const preferenceBody = Object.fromEntries(
@@ -90,7 +99,14 @@ export async function PATCH(req: Request) {
     const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, ...safeSettings } = (settings || {}) as any
 
     const org = await db.organization.findUnique({ where: { id: auth.organizationId }, select: { name: true } })
-    return NextResponse.json({ ...safeSettings, ...preference, organizationName: org?.name || '' })
+    return NextResponse.json({
+      ...safeSettings,
+      ...preference,
+      organizationName: org?.name || '',
+      hasPrimaryApiKey: Boolean(primaryApiKey),
+      hasFallback1ApiKey: Boolean(fallback1ApiKey),
+      hasFallback2ApiKey: Boolean(fallback2ApiKey),
+    })
   } catch (e: any) {
     console.error('[Settings PATCH]', e.message)
     return NextResponse.json({ error: e.message }, { status: 500 })

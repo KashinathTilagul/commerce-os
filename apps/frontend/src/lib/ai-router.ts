@@ -2,6 +2,7 @@ import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
 import { createOpenAI } from '@ai-sdk/openai'
 import { generateText } from 'ai'
 import type { LanguageModel } from 'ai'
+import { toJSONSchema } from 'zod'
 import { db } from './db'
 import { decryptSecret } from './crypto'
 
@@ -60,11 +61,14 @@ function makeModel(c: Candidate): LanguageModel {
 async function chainFor(tier: Tier): Promise<Candidate[]> {
   const cfg = await loadSettings()
 
-  // Bedrock guaranteed tail — historically the key is stored in primaryApiKey,
-  // else the OPENCODE_API_KEY env. This is the proven-working path today.
-  const bedrockKey = dec(cfg.primaryApiKey) || process.env.OPENCODE_API_KEY || ''
+  const bedrockSlot = [
+    { provider: cfg.primaryProvider, model: cfg.primaryModel, key: cfg.primaryApiKey },
+    { provider: cfg.fallback1Provider, model: cfg.fallback1Model, key: cfg.fallback1ApiKey },
+    { provider: cfg.fallback2Provider, model: cfg.fallback2Model, key: cfg.fallback2ApiKey },
+  ].find((candidate) => candidate.provider === 'bedrock' || candidate.provider === 'amazon-bedrock')
+  const bedrockKey = process.env.AWS_BEARER_TOKEN_BEDROCK || dec(bedrockSlot?.key) || ''
   const bedrock: Candidate | null = bedrockKey
-    ? { provider: 'bedrock', model: BEDROCK_DEFAULT, apiKey: bedrockKey }
+    ? { provider: 'bedrock', model: bedrockSlot?.model || BEDROCK_DEFAULT, apiKey: bedrockKey }
     : null
 
   // OpenAI-compatible candidates from the fallback config slots (only if they
@@ -148,15 +152,20 @@ export async function routeObject<T>(
   tier: Tier,
   opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
 ): Promise<{ object: T; provider: string; model: string }> {
+  const jsonSchema = JSON.stringify(toJSONSchema(opts.schema))
   const { result, provider, model } = await runChain(tier, async (m) => {
     const { text } = await generateText({
       model: m,
-      system: `${opts.system}\n\nRespond with ONLY a single valid JSON object matching the required shape — no markdown fences, no prose before or after.`,
+      system: `${opts.system}\n\nRespond with ONLY a single valid JSON object matching this JSON Schema — no markdown fences or prose:\n${jsonSchema}`,
       prompt: opts.prompt,
       temperature: opts.temperature,
       maxOutputTokens: opts.maxOutputTokens,
     })
-    const jsonText = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
+    const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
+    const start = cleaned.indexOf('{')
+    const end = cleaned.lastIndexOf('}')
+    if (start < 0 || end < start) throw new Error('Provider did not return the required JSON object')
+    const jsonText = cleaned.slice(start, end + 1)
     return opts.schema.parse(JSON.parse(jsonText)) as T
   })
   return { object: result, provider, model }

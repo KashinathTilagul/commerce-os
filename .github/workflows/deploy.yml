@@ -30,6 +30,7 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
@@ -67,6 +68,7 @@ jobs:
             "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" \
             "GROQ_API_KEY=${GROQ_API_KEY}" \
             "JWT_SECRET=${JWT_SECRET}" \
+            "AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}" \
             "AWS_REGION=us-east-1" \
             "BEDROCK_MODEL_ID=amazon.nova-pro-v1:0" \
             "SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}" \
