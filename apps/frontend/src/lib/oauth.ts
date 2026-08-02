@@ -21,6 +21,7 @@ const OAUTH_PROVIDERS = {
       'read_inventory',
       'write_inventory',
       'read_orders',
+      'read_all_orders',
       'write_orders',
       'read_customers',
       'read_reports',
