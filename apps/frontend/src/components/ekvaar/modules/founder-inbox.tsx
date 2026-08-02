@@ -102,7 +102,7 @@ export function FounderInbox() {
     : allApprovals
 
   return (
-    <div className="bg-background h-full min-h-screen text-[#F5F1EA]">
+    <div className="bg-background h-full min-h-screen text-foreground">
       <PageHeader
         eyebrow="Founder Inbox · Operational Command"
         title="Decision Compression & Event Timeline"
@@ -138,7 +138,7 @@ export function FounderInbox() {
 
         {/* Tabs */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid w-full grid-cols-4 max-w-md bg-[#121216] border border-white/10">
+          <TabsList className="grid w-full grid-cols-4 max-w-md bg-muted border border-border">
             <TabsTrigger value="MINE">Mine {isLoading ? '' : <span className="ml-1 text-[10px] text-muted-foreground">{pending.length}</span>}</TabsTrigger>
             <TabsTrigger value="UNREAD">Unread {isLoading ? '' : <span className="ml-1 text-[10px] text-muted-foreground">{unread.length}</span>}</TabsTrigger>
             <TabsTrigger value="RECENT">Recent</TabsTrigger>
@@ -149,9 +149,9 @@ export function FounderInbox() {
         {/* Approval list */}
         <div className="space-y-3">
           {isLoading ? (
-            <div className="text-center py-8 text-xs font-mono text-white/40">Loading operational events...</div>
+            <div className="text-center py-8 text-xs font-mono text-muted-foreground">Loading operational events...</div>
           ) : approvals.length === 0 ? (
-            <Card className="bg-[#141418]/60 border-white/10">
+            <Card className="bg-card/80 border-border">
               <CardContent className="p-12 text-center text-sm text-muted-foreground font-mono">
                 <Inbox className="h-8 w-8 mx-auto mb-3 opacity-40 text-[#4CAF50]" />
                 No pending items in this tab. The operational inbox is clear.
@@ -172,14 +172,14 @@ export function FounderInbox() {
                     transition={{ duration: 0.2 }}
                   >
                     <Card
-                      className={`cursor-pointer bg-[#141418]/70 border-white/10 hover:border-white/20 transition-all ${!a.isRead && a.status === 'PENDING' ? 'border-l-4' : ''}`}
+                      className={`cursor-pointer bg-card border-border hover:border-foreground/20 transition-all ${!a.isRead && a.status === 'PENDING' ? 'border-l-4' : ''}`}
                       style={{ borderLeftColor: !a.isRead && a.status === 'PENDING' ? meta.color : undefined }}
                       onClick={() => { setSelected(a); setKrishnaReply(null) }}
                     >
                       <CardContent className="p-5">
                         <div className="flex items-start gap-4">
                           <div
-                            className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/10"
+                            className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 border border-border"
                             style={{ background: `${meta.color}20`, color: meta.color }}
                           >
                             <Icon className="h-5 w-5" />
@@ -188,8 +188,8 @@ export function FounderInbox() {
                             <div className="flex items-start justify-between gap-3 mb-1">
                               <div>
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-[10px] font-mono text-white/50">{a.code}</span>
-                                  <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded font-mono border border-white/10" style={{ background: `${meta.color}15`, color: meta.color }}>
+                                  <span className="text-[10px] font-mono text-muted-foreground">{a.code}</span>
+                                  <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded font-mono border border-border" style={{ background: `${meta.color}15`, color: meta.color }}>
                                     {a.type}
                                   </span>
                                   <span className="text-[10px] font-mono text-[#4CAF50] border border-[#4CAF50]/30 px-1.5 py-0.5 rounded bg-[#4CAF50]/10">
@@ -200,8 +200,8 @@ export function FounderInbox() {
                               </div>
                               <StatusPill status={a.status} />
                             </div>
-                            <p className="text-xs text-white/70 line-clamp-2 leading-relaxed font-mono">{a.description}</p>
-                            <div className="mt-3 flex items-center gap-4 text-[10px] text-white/50 font-mono">
+                            <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed font-mono">{a.description}</p>
+                            <div className="mt-3 flex items-center gap-4 text-[10px] text-muted-foreground font-mono">
                               <div className="flex items-center gap-1.5">
                                 <div
                                   className="h-5 w-5 rounded-full flex items-center justify-center text-[9px] font-medium text-white"
@@ -212,7 +212,7 @@ export function FounderInbox() {
                                 <span>{a.requester?.name} · {a.requester?.role}</span>
                               </div>
                               {a.amount > 0 && (
-                                <span className="font-mono text-white/80">{formatINRFull(a.amount)}</span>
+                              <span className="font-mono text-foreground/80">{formatINRFull(a.amount)}</span>
                               )}
                               <span>{timeAgo(a.createdAt)}</span>
                             </div>
@@ -230,33 +230,33 @@ export function FounderInbox() {
 
       {/* Approval detail & 4-Way Action dialog */}
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="max-w-2xl bg-[#121216] border-white/20 text-[#F5F1EA]">
+        <DialogContent className="max-w-2xl bg-card border-border text-foreground">
           {selected && (
             <>
               <DialogHeader>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono text-xs text-white/50">{selected.code}</span>
+                  <span className="font-mono text-xs text-muted-foreground">{selected.code}</span>
                   <StatusPill status={selected.status} />
                   <span className="text-xs font-mono text-[#4CAF50] bg-[#4CAF50]/10 px-2 py-0.5 rounded border border-[#4CAF50]/30">
                     Confidence: 96%
                   </span>
                 </div>
                 <DialogTitle className="font-display text-2xl tracking-tight">{selected.title}</DialogTitle>
-                <DialogDescription className="text-white/60 font-mono">
+                <DialogDescription className="text-muted-foreground font-mono">
                   {selected.type} request from {selected.requester?.name} ({selected.requester?.role})
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4 py-2 font-mono">
-                <div className="bg-[#0A0A0E] p-3 rounded-xl border border-white/10 text-xs text-white/80 leading-relaxed">
-                  <strong className="text-white/40 block mb-1 uppercase tracking-wider">Description & Justification:</strong>
+                <div className="bg-background p-3 rounded-xl border border-border text-xs text-foreground/80 leading-relaxed">
+                  <strong className="text-muted-foreground block mb-1 uppercase tracking-wider">Description & Justification:</strong>
                   {selected.description}
                 </div>
 
                 {/* Evidence & Confidence Factors */}
-                <div className="bg-[#1A1A22] p-3 rounded-xl border border-white/10 text-xs space-y-1.5">
+                <div className="bg-muted/50 p-3 rounded-xl border border-border text-xs space-y-1.5">
                   <div className="text-[10px] uppercase text-[#D4859B] tracking-wider font-semibold">Krishna Confidence Breakdown</div>
-                  <div className="grid grid-cols-2 gap-2 text-white/70">
+                  <div className="grid grid-cols-2 gap-2 text-muted-foreground">
                     <div>• Data Completeness: 94%</div>
                     <div>• Velocity Surge Match: 98%</div>
                     <div>• Vendor Reliability: 95%</div>
@@ -265,7 +265,7 @@ export function FounderInbox() {
                 </div>
 
                 {krishnaReply && (
-                  <div className="bg-[#1F3A5F]/40 border border-[#1F3A5F] p-3 rounded-xl text-xs text-[#4FB0F5] leading-relaxed">
+                  <div className="bg-neel/10 border border-neel/30 p-3 rounded-xl text-xs text-neel leading-relaxed">
                     {krishnaReply}
                   </div>
                 )}
@@ -277,7 +277,7 @@ export function FounderInbox() {
                     placeholder="Ask Krishna Chief of Staff about this decision..."
                     value={krishnaQuery}
                     onChange={e => setKrishnaQuery(e.target.value)}
-                    className="bg-[#0A0A0A] border border-white/20 rounded-lg px-3 py-1.5 text-xs text-white flex-1 focus:outline-none focus:border-[#D4859B]"
+                    className="bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-foreground flex-1 focus:outline-none focus:border-[#D4859B]"
                   />
                   <Button 
                     onClick={handleAskKrishna}
@@ -290,21 +290,21 @@ export function FounderInbox() {
 
                 <div className="grid grid-cols-2 gap-4 text-xs">
                   <div>
-                    <div className="text-[10px] tracking-wider uppercase text-white/40">Amount at Stake</div>
+                    <div className="text-[10px] tracking-wider uppercase text-muted-foreground">Amount at Stake</div>
                     <div className="text-base font-display mt-0.5 font-bold text-[#4CAF50]">{selected.amount > 0 ? formatINRFull(selected.amount) : '—'}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] tracking-wider uppercase text-white/40">Requested</div>
-                    <div className="text-xs mt-1 text-white/70">{timeAgo(selected.createdAt)}</div>
+                    <div className="text-[10px] tracking-wider uppercase text-muted-foreground">Requested</div>
+                    <div className="text-xs mt-1 text-muted-foreground">{timeAgo(selected.createdAt)}</div>
                   </div>
                 </div>
               </div>
 
               {selected.status === 'PENDING' && (
-                <DialogFooter className="gap-2 sm:justify-between border-t border-white/10 pt-4">
+                <DialogFooter className="gap-2 sm:justify-between border-t border-border pt-4">
                   <Button
                     variant="outline"
-                    className="gap-1 text-xs border-white/20 text-white/60 hover:text-white"
+                    className="gap-1 text-xs border-border text-muted-foreground hover:text-foreground"
                     disabled={acting}
                     onClick={() => handleAction('revision')}
                   >
