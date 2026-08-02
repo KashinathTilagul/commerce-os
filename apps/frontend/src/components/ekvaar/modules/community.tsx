@@ -29,7 +29,7 @@ export function CommunityModule() {
       const r = await fetch('/api/customers')
       if (!r.ok) return []
       const data = await r.json()
-      return Array.isArray(data) ? data : []
+      return Array.isArray(data) ? data : Array.isArray(data.customers) ? data.customers : []
     },
   })
 
