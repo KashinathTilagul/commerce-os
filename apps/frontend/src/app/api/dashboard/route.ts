@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     const uid = authResult.user.id
     const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks, agents, issues, approvals, events] = await Promise.all([
       db.product.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, name: true, sku: true, color: true, house: true, stock: true, reorderAt: true, status: true } }),
-      db.order.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, orderNumber: true, total: true, status: true, createdAt: true, channel: true, items: { select: { quantity: true, price: true, product: { select: { house: true, color: true } } } } } }),
+      db.order.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, orderNumber: true, total: true, status: true, paymentStatus: true, createdAt: true, channel: true, items: { select: { quantity: true, price: true, product: { select: { house: true, color: true } } } } } }),
       db.customer.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, tier: true, totalSpent: true } }),
       db.transaction.findMany({ where: { organizationId: authResult.organizationId }, select: { type: true, amount: true, category: true, date: true } }),
       db.campaign.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, title: true, status: true, budget: true, spend: true } }),
@@ -24,7 +24,11 @@ export async function GET(req: NextRequest) {
       db.event.findMany({ where: { organizationId: authResult.organizationId }, orderBy: { timestamp: 'desc' }, take: 10, select: { id: true, type: true, actorName: true, summary: true, severity: true, timestamp: true } }),
     ])
 
-    const revenue = transactions.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
+    const revenueOrders = orders.filter((o) => o.paymentStatus === 'PAID' && o.status !== 'CANCELLED' && o.status !== 'RETURNED')
+    // ponytail: accounting transactions and commerce orders are separate sources today;
+    // add source IDs before importing Shopify payouts to prevent future double counting.
+    const revenue = revenueOrders.reduce((s, o) => s + o.total, 0)
+      + transactions.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
     const expenses = transactions.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0)
 
     const now = new Date()
@@ -34,7 +38,8 @@ export async function GET(req: NextRequest) {
     const ordersLast30 = orders.filter((o) => new Date(o.createdAt) >= last30)
     const ordersLast7 = orders.filter((o) => new Date(o.createdAt) >= last7)
 
-    const revenueLast30 = transactions.filter((t) => t.type === 'INCOME' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
+    const revenueLast30 = revenueOrders.filter((o) => new Date(o.createdAt) >= last30).reduce((s, o) => s + o.total, 0)
+      + transactions.filter((t) => t.type === 'INCOME' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
     const expensesLast30 = transactions.filter((t) => t.type === 'EXPENSE' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
 
     const lowStock = products.filter((p) => p.stock <= (p.reorderAt ?? 20) && p.status !== 'DRAFT')

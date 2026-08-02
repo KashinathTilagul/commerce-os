@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireOrganization } from '@/lib/auth-guard'
 
@@ -52,6 +52,20 @@ export async function GET(req: NextRequest) {
           severity: 'INFO',
         },
       })
+
+      if (toolkitSlug === 'shopify') {
+        after(async () => {
+          try {
+            const [{ ShopifyProvider }, { SyncEngine }] = await Promise.all([
+              import('@/lib/commerce/shopify-provider'),
+              import('@/lib/commerce/sync-engine'),
+            ])
+            await new SyncEngine(new ShopifyProvider(), auth.organizationId).runFullSync()
+          } catch (error) {
+            console.error('[Shopify] Initial sync failed:', error)
+          }
+        })
+      }
 
     }
 

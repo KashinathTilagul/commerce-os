@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Plug, Zap, CheckCircle2, XCircle, Search, Loader2, Play, Shield, Activity } from 'lucide-react'
+import { Plug, Zap, CheckCircle2, XCircle, Search, Loader2, Play, Shield, Activity, RefreshCw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -38,6 +38,7 @@ export function Integrations() {
   const [selected, setSelected] = useState<any | null>(null)
   const [connecting, setConnecting] = useState<string | null>(null)
   const [executing, setExecuting] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
   const queryClient = useQueryClient()
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -112,6 +113,28 @@ export function Integrations() {
     }
   }
 
+  const handleShopifySync = async () => {
+    setSyncing(true)
+    try {
+      const r = await fetch('/api/shopify/sync', { method: 'POST' })
+      const result = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(result.error || 'Shopify sync failed')
+      const count = Object.values(result.results || {}).reduce((sum: number, value: any) => sum + (value.processed || 0), 0)
+      toast.success('Shopify synced', `${count} products, customers, and orders imported`)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['products'] }),
+        queryClient.invalidateQueries({ queryKey: ['orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['events'] }),
+      ])
+    } catch (e: any) {
+      toast.error('Shopify sync failed', e.message)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   const stats = data?.stats
   const grouped = data?.grouped || {}
 
@@ -179,6 +202,8 @@ export function Integrations() {
                   onConnect={handleConnect}
                   onSelect={setSelected}
                   connecting={connecting}
+                  syncing={syncing}
+                  onShopifySync={handleShopifySync}
                 />
               ))}
             </div>
@@ -203,6 +228,8 @@ export function Integrations() {
                       onConnect={handleConnect}
                       onSelect={setSelected}
                       connecting={connecting}
+                      syncing={syncing}
+                      onShopifySync={handleShopifySync}
                     />
                   ))}
                 </div>
@@ -233,6 +260,8 @@ export function Integrations() {
                         onConnect={handleConnect}
                         onSelect={setSelected}
                         connecting={connecting}
+                        syncing={syncing}
+                        onShopifySync={handleShopifySync}
                       />
                     ))}
                   </div>
@@ -368,11 +397,15 @@ function IntegrationCard({
   onConnect,
   onSelect,
   connecting,
+  syncing,
+  onShopifySync,
 }: {
   integration: any
   onConnect: (toolkit: string, name: string, action: 'connect' | 'disconnect') => void
   onSelect: (i: any) => void
   connecting: string | null
+  syncing: boolean
+  onShopifySync: () => void
 }) {
   const meta = CATEGORY_META[i.category] || { icon: '📦' }
   return (
@@ -411,16 +444,28 @@ function IntegrationCard({
             </div>
           </div>
           {/* Quick connect/disconnect button */}
-          <div className="mt-3 flex justify-end" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-3 flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
             {i.isConnected ? (
-              <button
-                onClick={() => onConnect(i.toolkitSlug, i.name, 'disconnect')}
-                disabled={connecting === i.toolkitSlug}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] tracking-wider uppercase rounded-md bg-agni/10 text-agni hover:bg-agni/20 transition-colors disabled:opacity-50"
-              >
-                {connecting === i.toolkitSlug ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
-                Disconnect
-              </button>
+              <>
+                {i.toolkitSlug === 'shopify' && (
+                  <button
+                    onClick={onShopifySync}
+                    disabled={syncing}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] tracking-wider uppercase rounded-md bg-neel/10 text-neel hover:bg-neel/20 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
+                    Sync now
+                  </button>
+                )}
+                <button
+                  onClick={() => onConnect(i.toolkitSlug, i.name, 'disconnect')}
+                  disabled={connecting === i.toolkitSlug}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] tracking-wider uppercase rounded-md bg-agni/10 text-agni hover:bg-agni/20 transition-colors disabled:opacity-50"
+                >
+                  {connecting === i.toolkitSlug ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                  Disconnect
+                </button>
+              </>
             ) : (
               <button
                 onClick={() => onConnect(i.toolkitSlug, i.name, 'connect')}
