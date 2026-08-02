@@ -12,7 +12,8 @@ export function formatINRFull(n: number): string {
 }
 
 export function timeAgo(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date
+  const d = date instanceof Date ? date : new Date(date)
+  if (Number.isNaN(d.getTime())) return '—'
   const diff = Date.now() - d.getTime()
   const sec = Math.floor(diff / 1000)
   if (sec < 60) return `${sec}s ago`

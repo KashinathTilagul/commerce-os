@@ -52,14 +52,7 @@ export function DesktopWallpaper() {
   return (
     <div
       className="fixed inset-0 z-0"
-      style={{
-        background: `
-          radial-gradient(ellipse at 20% 30%, rgba(200, 48, 42, 0.18) 0%, transparent 45%),
-          radial-gradient(ellipse at 80% 70%, rgba(31, 58, 95, 0.20) 0%, transparent 45%),
-          radial-gradient(ellipse at 50% 100%, rgba(212, 133, 155, 0.10) 0%, transparent 55%),
-          linear-gradient(135deg, #0A0A0A 0%, #181818 50%, #0A0A0A 100%)
-        `,
-      }}
+      style={{ background: 'var(--desktop-wallpaper)' }}
     />
   )
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useWindowStore } from '@/lib/window-store'
-import { useThemeStore } from '@/lib/theme-store'
+import { applyTheme, useThemeStore } from '@/lib/theme-store'
 import { useLockStore } from '@/lib/lock-store'
 import { BootScreen, DesktopWallpaper } from '@/components/ekvaar/desktop/boot-and-wallpaper'
 import { MenuBar } from '@/components/ekvaar/desktop/menu-bar'
@@ -30,13 +30,11 @@ export default function Desktop() {
   const [setupReady, setSetupReady] = useState(false)
 
   useEffect(() => {
-    const root = document.documentElement
-    if (mode === 'light') {
-      root.classList.remove('dark')
-    } else {
-      root.classList.add('dark')
-    }
-    root.style.setProperty('--accent-color', accent)
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => applyTheme(mode, accent)
+    apply()
+    if (mode === 'auto') media.addEventListener('change', apply)
+    return () => media.removeEventListener('change', apply)
   }, [mode, accent])
 
   useEffect(() => {

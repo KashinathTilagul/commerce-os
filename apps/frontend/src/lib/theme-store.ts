@@ -28,6 +28,13 @@ export const useThemeStore = create<ThemeStore>((set) => ({
   },
 }))
 
+export function applyTheme(mode: ThemeMode, accent: string) {
+  const isDark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  document.documentElement.classList.toggle('dark', isDark)
+  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
+  document.documentElement.style.setProperty('--accent-color', accent)
+}
+
 // Hydrate from localStorage on client mount
 if (typeof window !== 'undefined') {
   try {
