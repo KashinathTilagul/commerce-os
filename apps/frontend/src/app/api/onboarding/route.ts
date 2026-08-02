@@ -35,6 +35,7 @@ export async function GET() {
   return NextResponse.json({
     organization: {
       name: organization.name,
+      slug: organization.slug,
       onboardingStep: organization.onboardingStep,
       onboardingCompletedAt: organization.onboardingCompletedAt,
     },

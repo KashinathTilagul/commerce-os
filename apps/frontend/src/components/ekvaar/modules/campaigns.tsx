@@ -88,6 +88,7 @@ export function CampaignsModule() {
 
   const toneOfVoice = orgContext?.toneOfVoice || 'Set your tone of voice in Brand Intelligence'
   const brandDna = orgContext?.brandDna || 'Set your brand DNA in Brand Intelligence'
+  const disconnectedCampaigns = campaigns.filter((c) => !c.integrationConnected && ['INSTAGRAM', 'EMAIL'].includes(c.channel))
 
   return (
     <div>
@@ -101,6 +102,11 @@ export function CampaignsModule() {
           </Button>
         }
       />
+      {disconnectedCampaigns.length > 0 && (
+        <div className="mb-5 rounded-xl border border-agni/30 bg-agni/10 px-4 py-3 text-sm text-foreground">
+          {disconnectedCampaigns.length} campaign{disconnectedCampaigns.length === 1 ? '' : 's'} need a connected channel before external metrics or publishing can sync.
+        </div>
+      )}
 
       <div className="px-4 lg:px-8 py-8 space-y-6">
         {/* KPIs */}

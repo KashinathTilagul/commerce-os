@@ -150,7 +150,7 @@ export const TOOLKIT_CATALOG = [
   { slug: 'getresponse', name: 'GetResponse', description: 'Marketing platform — emails, landing pages, webinars', category: 'marketing', toolsCount: 22, logo: '📩' },
   { slug: 'campaign_monitor', name: 'Campaign Monitor', description: 'Email builder — templates, journeys, analytics', category: 'marketing', toolsCount: 18, logo: '📊' },
   { slug: 'braze', name: 'Braze', description: 'Customer engagement — campaigns, canvases, content', category: 'marketing', toolsCount: 30, logo: '🎯' },
-  { slug: 'Iterable', name: 'Iterable', description: 'Cross-channel marketing — campaigns, journeys', category: 'marketing', toolsCount: 25, logo: '🔄' },
+  { slug: 'iterable', name: 'Iterable', description: 'Cross-channel marketing — campaigns, journeys', category: 'marketing', toolsCount: 25, logo: '🔄' },
   
   // Finance & Accounting
   { slug: 'quickbooks', name: 'QuickBooks', description: 'Accounting — invoices, expenses, reports', category: 'finance', toolsCount: 30, logo: '📒' },
@@ -214,12 +214,12 @@ export const TOOLKIT_CATALOG = [
   
   // Support & Community
   { slug: 'canny', name: 'Canny', description: 'Feedback — boards, posts, votes', category: 'support', toolsCount: 12, logo: '💡' },
-  { slug: 'userVoice', name: 'UserVoice', description: 'Product feedback — ideas, tickets, knowledge base', category: 'support', toolsCount: 15, logo: '🎤' },
+  { slug: 'uservoice', name: 'UserVoice', description: 'Product feedback — ideas, tickets, knowledge base', category: 'support', toolsCount: 15, logo: '🎤' },
   { slug: 'sleuth', name: 'Sleuth', description: 'DORA metrics — deployments, incidents, metrics', category: 'support', toolsCount: 10, logo: '🔍' },
   { slug: 'launchdarkly', name: 'LaunchDarkly', description: 'Feature flags — flags, variations, metrics', category: 'support', toolsCount: 18, logo: '🚀' },
   { slug: 'optimizely', name: 'Optimizely', description: 'Experimentation — experiments, variations, metrics', category: 'support', toolsCount: 20, logo: '🧪' },
   { slug: 'typeform', name: 'Typeform', description: 'Forms & surveys — forms, responses, insights', category: 'support', toolsCount: 15, logo: '📋' },
-  { slug: 'surveyMonkey', name: 'SurveyMonkey', description: 'Surveys — surveys, responses, analysis', category: 'support', toolsCount: 18, logo: '📊' },
+  { slug: 'surveymonkey', name: 'SurveyMonkey', description: 'Surveys — surveys, responses, analysis', category: 'support', toolsCount: 18, logo: '📊' },
   
   // Documentation & Knowledge
   { slug: 'readme', name: 'ReadMe', description: 'API docs — documentation, guides, reference', category: 'docs', toolsCount: 15, logo: '📖' },
@@ -325,6 +325,7 @@ const TOOLS_BY_TOOLKIT: Record<string, { slug: string; name: string; description
 }
 
 const ALL_TOOLKIT_SLUGS = TOOLKIT_CATALOG.map((t) => t.slug)
+type ToolkitCatalogItem = typeof TOOLKIT_CATALOG[number]
 
 // Agent → toolkit permissions mapping
 export const AGENT_TOOLKIT_ACCESS: Record<string, string[]> = {
@@ -344,7 +345,38 @@ export const AGENT_TOOLKIT_ACCESS: Record<string, string[]> = {
  * List all available integration toolkits
  */
 export async function listToolkits() {
-  return TOOLKIT_CATALOG
+  const composio = await getComposio()
+  if (!composio) return TOOLKIT_CATALOG
+
+  try {
+    const response = await composio.toolkits.list({ limit: 1000 })
+    const bySlug = new Map<string, ToolkitCatalogItem | any>()
+
+    for (const toolkit of TOOLKIT_CATALOG) bySlug.set(toolkit.slug, toolkit)
+
+    for (const item of response?.items || []) {
+      const slug = String(item.slug || item.key || item.name || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+      if (!slug) continue
+
+      const existing = bySlug.get(slug)
+      bySlug.set(slug, {
+        slug,
+        name: item.name || existing?.name || slug.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+        description: item.description || existing?.description || 'Composio app connection',
+        category: item.category || item.meta?.category || existing?.category || 'productivity',
+        toolsCount: item.toolsCount || item.meta?.tools_count || existing?.toolsCount || 0,
+        logo: item.logo || item.icon || existing?.logo || '🔗',
+      })
+    }
+
+    return Array.from(bySlug.values()).sort((a, b) => a.name.localeCompare(b.name))
+  } catch (error: any) {
+    console.warn('[Composio] Could not load live toolkit catalog, using local fallback:', error.message)
+    return TOOLKIT_CATALOG
+  }
 }
 
 /**
@@ -551,7 +583,8 @@ export async function seedIntegrations(organizationId: string) {
     select: { toolkitSlug: true },
   })
   const existingSlugs = new Set(existing.map((integration) => integration.toolkitSlug))
-  const missing = TOOLKIT_CATALOG.filter((toolkit) => !existingSlugs.has(toolkit.slug))
+  const catalog = await listToolkits()
+  const missing = catalog.filter((toolkit) => !existingSlugs.has(toolkit.slug))
   if (missing.length > 0) {
     await db.integration.createMany({
       data: missing.map((toolkit) => ({

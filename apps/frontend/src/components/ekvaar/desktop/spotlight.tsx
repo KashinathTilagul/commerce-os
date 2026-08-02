@@ -114,28 +114,28 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
             <div
               className="rounded-2xl overflow-hidden shadow-2xl"
               style={{
-                background: 'rgba(18,18,20,0.92)',
+                background: 'color-mix(in srgb, var(--card) 94%, transparent)',
                 backdropFilter: 'blur(40px) saturate(180%)',
-                border: '1px solid rgba(255,255,255,0.10)',
+                border: '1px solid var(--border)',
                 boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
               }}
             >
               {/* Search input with Krishna Executive Mode Header */}
-              <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
-                <Command className="h-4 w-4 text-[#D4859B] shrink-0 animate-pulse" />
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+                <Command className="h-4 w-4 text-primary shrink-0 animate-pulse" />
                 <input
                   ref={inputRef}
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   onKeyDown={handleKey}
                   placeholder="Ask Krishna Chief of Staff or search actions (⌘K)…"
-                  className="flex-1 bg-transparent text-white/90 text-[15px] outline-none placeholder:text-white/30 font-mono"
+                  className="flex-1 bg-transparent text-foreground text-[15px] outline-none placeholder:text-muted-foreground font-mono"
                 />
                 <kbd className="text-[10px] text-[#D4859B] px-1.5 py-0.5 rounded border border-[#D4859B]/30 font-mono">⌘K</kbd>
               </div>
 
               {!query && (
-                <div className="px-5 py-3 bg-[#1A1F2C]/60 border-b border-white/5 text-xs font-mono text-[#4FB0F5] flex items-center justify-between">
+                <div className="px-5 py-3 bg-muted/60 border-b border-border text-xs font-mono text-primary flex items-center justify-between">
                   <span>Krishna: Executive Mode Active · 3 priorities require attention</span>
                   <span className="text-[10px] text-white/40">Press ↵ to view Brief</span>
                 </div>
@@ -145,7 +145,7 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
               {results.length > 0 && (
                 <div className="py-2 max-h-80 overflow-y-auto">
                   {!query && (
-                    <div className="px-4 py-1.5 text-[10px] text-white/25 tracking-wider uppercase">
+                    <div className="px-4 py-1.5 text-[10px] text-muted-foreground tracking-wider uppercase">
                       Suggested
                     </div>
                   )}
@@ -153,15 +153,15 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
                     <button
                       key={app.id}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left ${
-                        i === selected ? 'bg-white/10' : 'hover:bg-white/5'
+                        i === selected ? 'bg-muted' : 'hover:bg-muted/70'
                       }`}
                       onClick={() => handleSelect(app.id, app.name)}
                       onMouseEnter={() => setSelected(i)}
                     >
                       <AppIcon variant={app.iconVariant} size={32} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-white/90 font-medium">{app.name}</div>
-                        {app.hint && <div className="text-[11px] text-white/35 truncate">{app.hint}</div>}
+                        <div className="text-sm text-foreground font-medium">{app.name}</div>
+                        {app.hint && <div className="text-[11px] text-muted-foreground truncate">{app.hint}</div>}
                       </div>
                       {i === selected && (
                         <kbd className="text-[10px] text-white/25 px-1.5 py-0.5 rounded border border-white/10 font-mono shrink-0">↵</kbd>
@@ -172,7 +172,7 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
               )}
 
               {query && results.length === 0 && (
-                <div className="py-8 text-center text-sm text-white/30">No results for "{query}"</div>
+                <div className="py-8 text-center text-sm text-muted-foreground">No results for "{query}"</div>
               )}
             </div>
           </motion.div>

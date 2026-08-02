@@ -94,6 +94,17 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
       if (top) useWindowStore.getState().focus(top.id)
       return
     }
+    if (item === 'New Window') { open('launchpad', 'Launchpad'); return }
+    if (['Undo', 'Redo', 'Cut', 'Copy', 'Paste'].includes(item)) {
+      document.execCommand(item.toLowerCase())
+      return
+    }
+    if (item === 'Show Dock') { window.dispatchEvent(new CustomEvent('ekvaar:show-dock')); return }
+    if (item === 'Enter Full Screen') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.()
+      else document.exitFullscreen?.()
+      return
+    }
     if (item === 'Lock Screen') { onLock?.(); return }
     if (item === 'Sign Out') { onSignOut?.(); return }
     if (item === 'Restart') { onRestart?.(); return }

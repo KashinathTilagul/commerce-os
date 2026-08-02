@@ -14,13 +14,15 @@ export async function GET() {
   // DB-side aggregation for all-time totals/category breakdown (groupBy),
   // a narrow 6-month window for the trend chart, and a capped recent list —
   // instead of pulling every transaction row ever into memory.
-  const [byTypeAndCategory, recentWindow, recentTransactions] = await Promise.all([
+  const [byTypeAndCategory, recentWindow, recentTransactions, paidOrders, customers] = await Promise.all([
     db.transaction.groupBy({ by: ['type', 'category'], where: { organizationId }, _sum: { amount: true } }),
     db.transaction.findMany({
       where: { organizationId, date: { gte: sixMonthsAgo } },
       select: { type: true, amount: true, date: true },
     }),
     db.transaction.findMany({ where: { organizationId }, orderBy: { date: 'desc' }, take: 20 }),
+    db.order.findMany({ where: { organizationId }, select: { total: true, status: true, paymentStatus: true } }),
+    db.customer.findMany({ where: { organizationId }, select: { totalSpent: true } }),
   ])
 
   let totalIncome = 0
@@ -52,8 +54,18 @@ export async function GET() {
     return { month: d.toLocaleString('en-US', { month: 'short' }), income, expenses, net: income - expenses }
   })
 
+  const eligibleOrders = paidOrders.filter((o) => o.paymentStatus === 'PAID' && !['CANCELLED', 'RETURNED'].includes(o.status))
+  const orderRevenue = eligibleOrders.reduce((sum, order) => sum + order.total, 0)
+  const customerLifetimeRevenue = customers.reduce((sum, customer) => sum + customer.totalSpent, 0)
+  const commerceRevenue = orderRevenue || customerLifetimeRevenue
+
   return NextResponse.json({
     totalIncome,
+    allTimeRevenue: totalIncome + commerceRevenue,
+    commerceRevenue,
+    commerceRevenueSource: orderRevenue > 0 ? 'orders' : customerLifetimeRevenue > 0 ? 'customer_lifetime' : 'none',
+    commerceOrderCount: eligibleOrders.length,
+    customerLifetimeRevenue,
     totalExpenses,
     netProfit: totalIncome - totalExpenses,
     margin: totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0,

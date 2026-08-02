@@ -147,6 +147,7 @@ model Product {
   status      String   @default("ACTIVE") // ACTIVE | DRAFT | ARCHIVED | RESTOCKING
   material    String
   description String
+  imageUrl    String?
   imageHue    Int      @default(0) // for placeholder rendering
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

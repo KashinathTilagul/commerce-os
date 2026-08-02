@@ -12,6 +12,11 @@ import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
 
 interface FinanceData {
   totalIncome: number
+  allTimeRevenue: number
+  commerceRevenue: number
+  commerceRevenueSource: 'orders' | 'customer_lifetime' | 'none'
+  commerceOrderCount: number
+  customerLifetimeRevenue: number
   totalExpenses: number
   netProfit: number
   margin: number
@@ -87,8 +92,8 @@ export function FinanceModule() {
         {/* KPIs */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
-            label="Total Revenue"
-            value={data ? formatINR(data.totalIncome) : '—'}
+            label="All-Time Revenue"
+            value={data ? formatINR(data.allTimeRevenue) : '—'}
             delta={incomeDelta}
             deltaLabel="vs prior month"
             accent="#2F4F3A"
@@ -116,6 +121,24 @@ export function FinanceModule() {
             accent="#D4859B"
           />
         </div>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="font-display tracking-tight text-base">Revenue Coverage</CardTitle>
+            <CardDescription className="text-xs">All-time revenue across accounting and connected commerce data</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Metric label="All-time revenue" value={formatINR(data?.allTimeRevenue || 0)} />
+            <Metric label="Ledger income" value={formatINR(data?.totalIncome || 0)} />
+            <Metric label="Commerce revenue" value={formatINR(data?.commerceRevenue || 0)} />
+            <Metric label="Paid orders" value={String(data?.commerceOrderCount || 0)} />
+          </CardContent>
+          {data?.commerceRevenueSource === 'customer_lifetime' && (
+            <div className="px-6 pb-4 text-[11px] text-muted-foreground">
+              Commerce revenue uses real customer lifetime totals because historical order access is limited by the connected Shopify scope.
+            </div>
+          )}
+        </Card>
 
         {/* Monthly trend chart */}
         <Card>
@@ -262,6 +285,10 @@ export function FinanceModule() {
       </div>
     </div>
   )
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div><div className="font-display text-xl mt-1">{value}</div></div>
 }
 
 function MonthlyChart({ data }: { data: { month: string; income: number; expenses: number; net: number }[] }) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { initiateConnection, TOOLKIT_CATALOG } from '@/lib/composio-service'
+import { initiateConnection, listToolkits } from '@/lib/composio-service'
 import { requireOrganization } from '@/lib/auth-guard'
 
 // POST /api/integrations/[toolkit]/connect — connect or disconnect an integration
@@ -21,7 +21,8 @@ export async function POST(
 
   if (!integration) {
     // Row missing (seeding was incomplete) — create it on demand from the catalog
-    const meta = TOOLKIT_CATALOG.find(t => t.slug === toolkit)
+    const catalog = await listToolkits()
+    const meta = catalog.find(t => t.slug === toolkit)
     if (!meta) {
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 })
     }

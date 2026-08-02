@@ -68,6 +68,7 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'sales':         return <SalesIcon size={size} />
     case 'finance':       return <WalletIcon size={size} />
     case 'inventory':     return <InventoryIcon size={size} />
+    case 'qikink':        return <QikinkIcon size={size} />
     case 'community':     return <CommunityIcon size={size} />
     case 'campaigns':     return <NewsIcon size={size} />
     case 'guardian':      return <ShieldIcon size={size} />
@@ -112,6 +113,27 @@ function Glyph({ size, children }: { size: number; children: React.ReactNode }) 
 // ============ ICON VARIANTS ============
 
 // Mail — blue gradient with white envelope
+function QikinkIcon({ size }: { size: number }) {
+  const s = size * 0.68
+  return (
+    <>
+      <Bg gradient="linear-gradient(135deg, #111827 0%, #0F766E 58%, #F97316 100%)" />
+      <Highlight opacity={0.32} stop={42} />
+      <Glyph size={size}>
+        <svg width={s} height={s} viewBox="0 0 28 28" fill="none" style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.28))' }}>
+          <path d="M4 22V11l5-3v5l5-5v5l5-5v14H4z" fill="#F8FAFC" />
+          <path d="M7 22v-5h14v5" fill="#D97706" opacity="0.9" />
+          <rect x="8" y="14" width="3" height="3" rx="0.6" fill="#0F766E" />
+          <rect x="13" y="14" width="3" height="3" rx="0.6" fill="#0F766E" />
+          <rect x="18" y="14" width="3" height="3" rx="0.6" fill="#0F766E" />
+          <path d="M9 7h4l1 4H8l1-4z" fill="#F97316" />
+          <path d="M17.5 6.5h3.5l1 4.5h-5.5l1-4.5z" fill="#FDBA74" />
+        </svg>
+      </Glyph>
+    </>
+  )
+}
+
 function MailIcon({ size }: { size: number }) {
   const s = size * 0.62
   return (

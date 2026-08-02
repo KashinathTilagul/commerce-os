@@ -57,7 +57,7 @@
   --window-border: rgba(0, 0, 0, 0.10);
   --glass-card-bg: rgba(255, 255, 255, 0.55);
   --glass-card-border: rgba(0, 0, 0, 0.07);
-  --desktop-wallpaper: radial-gradient(ellipse at 18% 24%, rgba(200, 48, 42, 0.12) 0%, transparent 42%), radial-gradient(ellipse at 82% 72%, rgba(31, 58, 95, 0.14) 0%, transparent 45%), linear-gradient(135deg, #eee9df 0%, #d9e0dc 52%, #e8ded8 100%);
+  --desktop-wallpaper: radial-gradient(ellipse at 16% 22%, rgba(200, 48, 42, 0.22) 0%, transparent 40%), radial-gradient(ellipse at 84% 70%, rgba(31, 58, 95, 0.20) 0%, transparent 44%), radial-gradient(ellipse at 50% 110%, rgba(47, 79, 58, 0.14) 0%, transparent 48%), linear-gradient(135deg, #d9d0c3 0%, #c7d0cd 52%, #d5c6c0 100%);
   --desktop-chrome: rgba(250, 248, 244, 0.72);
   --desktop-chrome-strong: rgba(250, 248, 244, 0.94);
   --desktop-chrome-text: rgba(24, 24, 27, 0.92);

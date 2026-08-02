@@ -593,6 +593,25 @@ function VoicePreviewButton({ voice }: { voice: string }) {
 
     // ── 1. Start browser TTS immediately (synchronous — preserves user gesture) ──
     synth.cancel()
+    fetch('/api/jarvis/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice, speed: 1.0, stability: 0.80, volume: 1.0 }),
+      signal: AbortSignal.timeout(8000),
+    }).then(async res => {
+      if (!res.ok) throw new Error('TTS unavailable')
+      const audio = new Audio(URL.createObjectURL(await res.blob()))
+      audio.volume = 1
+      audio.onended = () => { URL.revokeObjectURL(audio.src); done() }
+      await audio.play()
+    }).then(() => synth.cancel()).catch(() => {
+      const fallback = new SpeechSynthesisUtterance(text)
+      fallback.onend = done
+      fallback.onerror = done
+      synth.speak(fallback)
+    })
+    return
+
     const u = new SpeechSynthesisUtterance(text)
     u.volume = 1.0
     const isPocket = !voice.includes('-')

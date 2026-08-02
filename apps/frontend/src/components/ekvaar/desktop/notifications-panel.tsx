@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Bell, BellOff, CheckCheck, TrendingUp, ShoppingBag, AlertCircle, Info, Zap, ShieldAlert } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 export interface Notification {
   id: string
@@ -42,9 +42,19 @@ const typeColor: Record<Notification['type'], string> = {
 interface Props { open: boolean; onClose: () => void }
 
 export function NotificationsPanel({ open, onClose }: Props) {
+  const panelRef = useRef<HTMLDivElement>(null)
   const [items, setItems] = useState<Notification[]>([])
   const [dnd, setDnd] = useState(false)
   const [stats, setStats] = useState({ orders: 0, revenue: '₹0', pending: 0 })
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!panelRef.current?.contains(event.target as Node)) onClose()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open, onClose])
 
   useEffect(() => {
     if (!open) return
@@ -122,6 +132,7 @@ export function NotificationsPanel({ open, onClose }: Props) {
       {open && (
         <>
           <motion.div
+            ref={panelRef}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[8900]"
             onClick={onClose}
