@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Loader2, Volume2, VolumeX, Mic, MicOff, Send, Radio, Hand } from 'lucide-react'
+import { X, Loader2, Volume2, VolumeX, Mic, MicOff, Send, Radio, Hand, Activity, Command, Power, Settings2 } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
 import { APPS } from './app-registry'
 import { toast } from './toast'
@@ -767,193 +767,108 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   return (
     <AnimatePresence>
       {expanded && (
-        <motion.div
-          initial={{ opacity: 0, y: 24, scale: 0.93 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 24, scale: 0.93 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-          className="fixed z-[9900] w-[420px] flex flex-col rounded-2xl overflow-hidden"
-          style={{
-            bottom: '90px', right: '20px',
-            maxHeight: '72vh',
-            background: 'rgba(6,6,9,0.96)',
-            backdropFilter: 'blur(40px) saturate(180%)',
-            border: '1px solid rgba(88,86,214,0.25)',
-            boxShadow: '0 24px 80px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(88,86,214,0.12), inset 0 1px 0 rgba(255,255,255,0.04)',
-          }}
+        <motion.section
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.98 }}
+          transition={{ duration: 0.22 }}
+          className="fixed inset-0 z-[9900] overflow-hidden bg-[#05080b] text-white"
+          aria-label="Krishna command interface"
         >
-          {/* ── Header / HUD bar ─────────────────────────────────────────── */}
-          <div className="flex items-center gap-3 px-4 py-2.5 border-b"
-            style={{ borderColor: 'rgba(88,86,214,0.15)', background: 'rgba(88,86,214,0.06)' }}>
+          <div className="absolute inset-0 bg-cover bg-center opacity-70" style={{ backgroundImage: "url('/krishna/hud-reference.png')" }} />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,225,255,0.12),transparent_34%),linear-gradient(90deg,rgba(2,8,12,0.88),transparent_45%,rgba(2,8,12,0.82))]" />
 
-            {/* Animated state dot */}
-            <motion.div className="w-2 h-2 rounded-full flex-shrink-0"
-              style={{ background: stateColor, boxShadow: `0 0 10px ${stateColor}` }}
-              animate={{ scale: listening ? [1, 1.4, 1] : isSpeaking ? [1, 1.2, 1] : 1, opacity: isProcessing ? [1, 0.4, 1] : 1 }}
-              transition={{ duration: listening ? 0.6 : 0.9, repeat: (listening || isSpeaking || isProcessing) ? Infinity : 0 }} />
+          <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-5 py-4 sm:px-8">
+            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.28em] text-cyan-100/70">
+              <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_#22d3ee]" />
+              KRISHNA / COMMAND CORE
+              {hasOpenWindows && <span className="hidden text-white/35 sm:inline">/ CONTEXT LINKED</span>}
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setMuted(m => !m)} className="rounded p-2 text-white/55 hover:bg-cyan-300/10 hover:text-cyan-100" title={muted ? 'Unmute Krishna' : 'Mute Krishna'}>
+                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              </button>
+              <button onClick={closePanel} className="rounded p-2 text-white/55 hover:bg-red-400/10 hover:text-red-200" title="Close Krishna">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </header>
 
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-[10px] tracking-[0.2em] text-white/70 uppercase">KRISHNA</span>
-              <span className="text-[9px] font-mono text-white/25 uppercase tracking-widest">/ {stateLabel}</span>
+          <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 pb-28 pt-16">
+            <div className="relative grid h-[min(62vw,520px)] w-[min(62vw,520px)] min-h-[280px] min-w-[280px] place-items-center rounded-full border border-cyan-200/30 shadow-[0_0_50px_rgba(34,211,238,0.24),inset_0_0_50px_rgba(34,211,238,0.12)]">
+              <div className="absolute inset-3 rounded-full border border-dashed border-cyan-300/40" />
+              <div className="absolute inset-10 rounded-full border border-cyan-200/30" />
+              <motion.div className="absolute inset-16 rounded-full border-[10px] border-cyan-300/20"
+                animate={{ rotate: listening ? 360 : isProcessing ? -180 : 0 }}
+                transition={{ duration: listening ? 3 : 5, repeat: Infinity, ease: 'linear' }} />
+              <motion.button
+                onClick={toggleListening}
+                disabled={isProcessing && !speakingRef.current}
+                className="relative grid h-[44%] w-[44%] place-items-center rounded-full border border-cyan-100/75 bg-[radial-gradient(circle,rgba(20,230,255,0.95),rgba(0,104,175,0.78)_52%,rgba(1,12,28,0.96)_72%)] shadow-[0_0_45px_rgba(0,224,255,0.8),inset_0_0_30px_rgba(255,255,255,0.45)]"
+                animate={{ scale: listening || isSpeaking ? [1, 1.08, 1] : [1, 1.025, 1] }}
+                transition={{ duration: listening ? 0.8 : 2.8, repeat: Infinity }}
+                title={listening ? 'Stop listening' : 'Talk to Krishna'}
+              >
+                <span className="font-mono text-4xl font-light tracking-tighter text-white sm:text-6xl">K</span>
+                <span className="absolute bottom-4 font-mono text-[8px] tracking-[0.28em] text-cyan-50/80">{stateLabel.toUpperCase()}</span>
+              </motion.button>
+              <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap font-mono text-[10px] tracking-[0.24em] text-cyan-100/70">
+                {listening ? 'VOICE CHANNEL OPEN' : isProcessing ? 'REASONING IN PROGRESS' : 'TAP CORE TO SPEAK'}
+              </div>
             </div>
 
-            {/* VU meter when listening */}
             {listening && (
-              <div className="flex items-center gap-0.5 ml-1">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <motion.div key={i}
-                    className="w-0.5 rounded-full"
-                    style={{
-                      height: 10,
-                      background: volume > i * 12.5 ? '#FF3B30' : 'rgba(255,59,48,0.2)',
-                      transformOrigin: 'bottom',
-                    }}
-                    animate={{ scaleY: volume > i * 12.5 ? [1, 1.5, 1] : 1 }}
-                    transition={{ duration: 0.2, repeat: Infinity, delay: i * 0.03 }} />
+              <div className="mt-10 flex items-end gap-1" aria-label="Voice level">
+                {Array.from({ length: 16 }).map((_, i) => (
+                  <motion.span key={i} className="w-1 rounded-full bg-cyan-300"
+                    style={{ height: `${8 + ((i * 7) % 20)}px`, opacity: volume > i * 6 ? 1 : 0.2 }}
+                    animate={{ scaleY: volume > i * 6 ? [0.65, 1.45, 0.65] : 1 }}
+                    transition={{ duration: 0.35, repeat: Infinity, delay: i * 0.035 }} />
                 ))}
               </div>
             )}
-
-            <div className="ml-auto flex items-center gap-0.5">
-              <button onClick={() => setMuted(m => !m)}
-                className="text-white/25 hover:text-white/60 p-1.5 transition-colors rounded"
-                title={muted ? 'Unmute' : 'Mute'}>
-                {muted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
-              </button>
-              <button onClick={closePanel} className="text-white/25 hover:text-white/60 p-1.5 transition-colors rounded">
-                <X className="h-3 w-3" />
-              </button>
-            </div>
           </div>
 
-          {/* ── Messages ─────────────────────────────────────────────────── */}
-          <MessageScroller ref={scrollRef}>
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-10 gap-3">
-                <motion.div className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 0 24px rgba(88,86,214,0.4)' }}
-                  animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 3, repeat: Infinity }}>
-                  <Radio className="h-4 w-4 text-white/80" />
-                </motion.div>
-                <p className="text-[11px] font-mono text-white/20 tracking-wider uppercase">
-                  {micSupported ? 'Click mic to speak' : 'Type to connect'}
-                </p>
-              </div>
-            )}
-
-            {messages.map((m, i) => {
-              const isKrishna = m.role === 'krishna'
-              const prevSameRole = i > 0 && messages[i - 1].role === m.role
-              const nextSameRole = i < messages.length - 1 && messages[i + 1].role === m.role
-              return (
-                <Message key={i} isKrishna={isKrishna}>
-                  {isKrishna && (
-                    <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display text-white/80 transition-opacity ${nextSameRole ? 'opacity-0' : 'opacity-100'}`}
-                      style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 2px 8px rgba(88,86,214,0.4)' }}>
-                      K
-                    </div>
-                  )}
-                  <Bubble isKrishna={isKrishna} prevSameRole={prevSameRole} nextSameRole={nextSameRole}>
+          <aside className="absolute bottom-5 left-4 right-4 z-10 mx-auto flex max-w-3xl flex-col overflow-hidden rounded-xl border border-cyan-200/25 bg-[#041018]/85 shadow-[0_0_30px_rgba(0,210,255,0.13)] backdrop-blur-xl sm:bottom-7">
+            <div className="flex items-center justify-between border-b border-cyan-200/15 px-3 py-2 font-mono text-[9px] tracking-[0.18em] text-cyan-100/60">
+              <span className="flex items-center gap-2"><Activity className="h-3 w-3" /> LIVE TRANSCRIPT</span>
+              <span>{messages.length ? `${messages.length} MESSAGES` : 'READY'}</span>
+            </div>
+            <MessageScroller ref={scrollRef} className="max-h-32 min-h-14 px-3 py-2 sm:max-h-40">
+              {messages.slice(-3).map((m, i) => (
+                <Message key={`${m.ts}-${i}`} isKrishna={m.role === 'krishna'} className="mb-1">
+                  <Bubble
+                    isKrishna={m.role === 'krishna'}
+                    className="max-w-[88%] text-[11px] text-cyan-50/90"
+                    style={m.role === 'krishna'
+                      ? { background: 'rgba(34,211,238,0.10)', borderColor: 'rgba(165,243,252,0.24)' }
+                      : { background: 'rgba(255,255,255,0.08)', border: '0.5px solid rgba(165,243,252,0.16)' }}
+                  >
                     {m.text}
                   </Bubble>
                 </Message>
-              )
-            })}
-
-            {/* Ghost transcript */}
-            {listening && transcript && (
-              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end">
-                <div className="max-w-[78%] px-3 py-2 rounded-2xl rounded-br-sm text-[12px] italic"
-                  style={{ color: 'rgba(255,59,48,0.5)', background: 'rgba(255,59,48,0.06)', border: '0.5px solid rgba(255,59,48,0.12)' }}>
-                  {transcript}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Thinking indicator */}
-            {isProcessing && (
-              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex items-end gap-2">
-                <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-display text-white/80"
-                  style={{ background: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)', boxShadow: '0 2px 8px rgba(88,86,214,0.4)' }}>K</div>
-                <div className="px-3 py-2.5 rounded-2xl rounded-bl-sm"
-                  style={{ background: 'rgba(88,86,214,0.12)', border: '0.5px solid rgba(88,86,214,0.2)' }}>
-                  <div className="flex gap-1 items-center">
-                    {[0, 0.2, 0.4].map(delay => (
-                      <motion.div key={delay} className="w-1.5 h-1.5 rounded-full" style={{ background: '#8B89E8' }}
-                        animate={{ opacity: [0.3, 1, 0.3], scaleY: [0.6, 1, 0.6] }}
-                        transition={{ duration: 1.2, repeat: Infinity, delay, ease: 'easeInOut' }} />
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </MessageScroller>
-
-
-          {/* ── Input row ────────────────────────────────────────────────── */}
-          <div className="px-3 pb-3 pt-2 flex items-end gap-2 border-t"
-            style={{ borderColor: 'rgba(88,86,214,0.12)' }}>
-
-            {micSupported && (
-              <button
-                onClick={toggleListening}
-                disabled={isProcessing && !speakingRef.current}
-                title={listening ? 'Stop' : speakingRef.current ? 'Interrupt' : 'Speak'}
-                className={`shrink-0 h-9 w-9 rounded-full flex items-center justify-center transition-all duration-200 ${
-                  listening
-                    ? 'text-white shadow-lg shadow-red-500/40'
-                    : speakingRef.current
-                    ? 'text-white shadow-lg shadow-green-500/30'
-                    : 'text-white/40 hover:text-white/80'
-                }`}
-                style={{
-                  background: listening
-                    ? 'linear-gradient(135deg, #FF3B30, #FF2D55)'
-                    : speakingRef.current
-                    ? 'rgba(52,199,89,0.25)'
-                    : 'rgba(255,255,255,0.06)',
-                  border: listening
-                    ? 'none'
-                    : speakingRef.current
-                    ? '1px solid rgba(52,199,89,0.4)'
-                    : '1px solid rgba(255,255,255,0.08)',
-                }}
-              >
-                {listening
-                  ? <MicOff className="h-4 w-4" />
-                  : <Mic className="h-4 w-4" />
-                }
+              ))}
+              {listening && transcript && <p className="px-2 py-1 text-right font-mono text-xs italic text-cyan-100/80">{transcript}</p>}
+              {isProcessing && <p className="px-2 py-1 font-mono text-[10px] tracking-widest text-cyan-200/65">KRISHNA IS ANALYZING...</p>}
+              {!messages.length && !transcript && <p className="px-2 py-1 font-mono text-[10px] tracking-widest text-cyan-100/45">SPEAK OR TYPE A COMMAND</p>}
+              <div ref={messagesEndRef} />
+            </MessageScroller>
+            <div className="flex items-center gap-2 border-t border-cyan-200/15 p-2">
+              <button onClick={toggleListening} disabled={isProcessing && !speakingRef.current} className="grid h-10 w-10 shrink-0 place-items-center rounded border border-cyan-200/30 text-cyan-100 hover:bg-cyan-300/15 disabled:opacity-40" title={listening ? 'Stop listening' : 'Start listening'}>
+                {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </button>
-            )}
+              <textarea ref={inputRef} rows={1} value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTextSend() } }}
+                className="h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 font-mono text-xs text-cyan-50 outline-none placeholder:text-cyan-100/35"
+                placeholder={isProcessing ? 'PROCESSING...' : 'Enter a command for Krishna...'} />
+              <button onClick={handleTextSend} disabled={!inputText.trim() || isProcessing} className="grid h-10 w-10 shrink-0 place-items-center rounded border border-cyan-200/35 bg-cyan-300/15 text-cyan-50 hover:bg-cyan-300/30 disabled:opacity-35" title="Send command">
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </div>
+          </aside>
 
-            <textarea
-              ref={inputRef}
-              className="flex-1 rounded-xl px-3 py-2 text-[12px] outline-none resize-none leading-relaxed"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                color: 'rgba(255,255,255,0.85)',
-              }}
-              placeholder={isProcessing ? 'Processing…' : 'Message Krishna…'}
-              rows={1}
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTextSend() }
-              }}
-            />
-
-            <button
-              onClick={handleTextSend}
-              disabled={!inputText.trim() || isProcessing}
-              className="shrink-0 h-9 w-9 rounded-full flex items-center justify-center text-white transition-all disabled:opacity-20"
-              style={{ background: 'linear-gradient(135deg, #5856D6, #3634A3)' }}>
-              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-            </button>
-          </div>
-        </motion.div>
+          <div className="absolute bottom-8 left-6 hidden items-center gap-2 font-mono text-[9px] tracking-[0.18em] text-cyan-100/45 lg:flex"><Command className="h-3 w-3" /> ⌘K CLOSE</div>
+          <div className="absolute bottom-8 right-6 hidden items-center gap-3 text-cyan-100/45 lg:flex"><Settings2 className="h-3 w-3" /><Power className="h-3 w-3" /><Radio className="h-3 w-3" /></div>
+        </motion.section>
       )}
     </AnimatePresence>
   )
