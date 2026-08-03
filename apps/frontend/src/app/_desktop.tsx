@@ -14,6 +14,7 @@ import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
 import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
 import { Jarvis, GestureControl } from '@/components/ekvaar/desktop/jarvis'
+import { KrishnaWallpaper } from '@/components/ekvaar/desktop/krishna-wallpaper'
 import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
 import { DesktopWidgets } from '@/components/ekvaar/desktop/desktop-widgets'
 
@@ -99,6 +100,7 @@ export default function Desktop() {
     <div className="relative h-screen w-screen overflow-hidden">
       <div data-desktop-bg="true" className="absolute inset-0">
         <DesktopWallpaper />
+        <KrishnaWallpaper onActivate={() => setJarvisTrigger(t => t + 1)} />
       </div>
       <DesktopWidgets />
       <BootScreen />

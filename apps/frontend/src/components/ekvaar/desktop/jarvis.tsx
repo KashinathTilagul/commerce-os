@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Loader2, Volume2, VolumeX, Mic, MicOff, Send, Radio, Hand, Activity, Command, Power, Settings2 } from 'lucide-react'
+import { X, Loader2, Volume2, VolumeX, Mic, MicOff, Send, Hand } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
 import { APPS } from './app-registry'
 import { toast } from './toast'
@@ -337,7 +337,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const [listening, setListening] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [micSupported, setMicSupported] = useState(true)
-  const [volume, setVolume] = useState(0) // 0-100 VU meter
 
   const recorderRef       = useRef<MediaRecorder | null>(null)
   const webSpeechRef      = useRef<any>(null)          // Web Speech API instance
@@ -350,10 +349,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const bestVoiceRef      = useRef<SpeechSynthesisVoice | null>(null)
   const inputRef          = useRef<HTMLTextAreaElement>(null)
   const isAtBottomRef     = useRef(true)
-  const ttsVoiceRef       = useRef<string>('en-IN-NeerjaNeural')
-  const ttsSpeedRef       = useRef<number>(1.0)    // adjust here if needed
-  const ttsStabilityRef   = useRef<number>(0.80)
-  const ttsVolumeRef      = useRef<number>(1.0)
   const audioStopRef      = useRef<(() => void) | null>(null)
   const speakingRef       = useRef(false)
   const vuRef             = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -363,20 +358,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   // Hydrate chat history from localStorage on mount — survives reloads
   useEffect(() => { setMessages(loadHistory()) }, [])
   useEffect(() => { saveHistory(messages) }, [messages])
-
-  // Load TTS voice — localStorage is instant; server is the authoritative fallback
-  useEffect(() => {
-    try {
-      const local = localStorage.getItem('krishna_voice')
-      if (local) ttsVoiceRef.current = local
-    } catch {}
-    fetch('/api/settings').then(r => r.json()).then(s => {
-      if (s?.ttsVoice) {
-        ttsVoiceRef.current = s.ttsVoice
-        try { localStorage.setItem('krishna_voice', s.ttsVoice) } catch {}
-      }
-    }).catch(() => {})
-  }, [])
 
   // Pick best browser fallback voice (JARVIS-like)
   useEffect(() => {
@@ -428,7 +409,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const stopListening = useCallback(() => {
     listeningRef.current = false
     if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
-    setVolume(0)
     // Stop Web Speech API
     if (webSpeechRef.current) {
       try { webSpeechRef.current.stop() } catch {}
@@ -449,10 +429,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setListening(false)
     setTranscript('')
     if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
-    setVolume(0)
   }, [stopTTS, stopListening])
 
-  // ── TTS: browser Web Speech API (reliable cross-platform) ────────────────
+  // ── TTS: browser speech starts immediately after the text response ───────
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
 
@@ -462,36 +441,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
     setGlobal('talking')
     speakingRef.current = true
-
-    try {
-      const response = await fetch('/api/jarvis/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: clean, voice: ttsVoiceRef.current, speed: ttsSpeedRef.current, stability: ttsStabilityRef.current, volume: ttsVolumeRef.current }),
-        signal: AbortSignal.timeout(12000),
-      })
-      if (response.ok && speakingRef.current) {
-        const audio = new Audio(URL.createObjectURL(await response.blob()))
-        audio.volume = ttsVolumeRef.current
-        let finish: (() => void) | null = null
-        const ended = new Promise<void>(resolve => { finish = resolve })
-        audioStopRef.current = () => { audio.pause(); finish?.() }
-        audio.onended = () => finish?.()
-        audio.onerror = () => finish?.()
-        await audio.play()
-        await ended
-        URL.revokeObjectURL(audio.src)
-        audioStopRef.current = null
-        if (speakingRef.current) {
-          speakingRef.current = false
-          setGlobal('idle')
-          if (voiceSessionRef.current && !listeningRef.current) {
-            setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 400)
-          }
-        }
-        return
-      }
-    } catch {}
 
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const sentences = toSentences(clean)
@@ -595,7 +544,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       stream.getTracks().forEach(t => t.stop())
       audioCtx.close().catch(() => {})
       if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
-      setVolume(0)
       setListening(false)
       listeningRef.current = false
 
@@ -644,7 +592,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       if (!listeningRef.current) { clearInterval(vuRef.current!); vuRef.current = null; return }
       analyser.getByteFrequencyData(buf)
       const avg = buf.reduce((a, b) => a + b, 0) / buf.length
-      setVolume(Math.min(100, avg * 3))
       if (avg > 10) lastSoundAt = Date.now()
       const silentFor = Date.now() - lastSoundAt
       const recordedFor = Date.now() - startedAt
@@ -756,14 +703,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     sendToKrishna(text)
   }
 
-  const isSpeaking = speakingRef.current
-  const stateColor = listening ? '#FF3B30' : isProcessing ? '#0A84FF' : isSpeaking ? '#34C759' : '#5856D6'
-  const stateLabel = listening
-    ? 'listening'
-    : isProcessing ? 'processing'
-    : isSpeaking ? 'speaking'
-    : 'standby'
-
   return (
     <AnimatePresence>
       {expanded && (
@@ -772,14 +711,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.98 }}
           transition={{ duration: 0.22 }}
-          className="fixed inset-0 z-[9900] overflow-hidden bg-[#05080b] text-white"
-          aria-label="Krishna command interface"
+          className="fixed bottom-24 right-4 z-[9900] w-[min(calc(100vw-2rem),620px)] overflow-hidden rounded-xl border border-cyan-200/25 bg-[#041018]/95 text-white shadow-[0_0_42px_rgba(0,210,255,0.18)] backdrop-blur-xl sm:right-6"
+          aria-label="Krishna transcript console"
         >
-          <div className="absolute inset-0 bg-cover bg-center opacity-70" style={{ backgroundImage: "url('/krishna/hud-reference.png')" }} />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,225,255,0.12),transparent_34%),linear-gradient(90deg,rgba(2,8,12,0.88),transparent_45%,rgba(2,8,12,0.82))]" />
-
-          <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-5 py-4 sm:px-8">
-            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.28em] text-cyan-100/70">
+          <header className="flex items-center justify-between border-b border-cyan-200/15 px-3 py-2">
+            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] text-cyan-100/70">
               <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_#22d3ee]" />
               KRISHNA / COMMAND CORE
               {hasOpenWindows && <span className="hidden text-white/35 sm:inline">/ CONTEXT LINKED</span>}
@@ -794,44 +730,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
             </div>
           </header>
 
-          <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 pb-28 pt-16">
-            <div className="relative grid h-[min(62vw,520px)] w-[min(62vw,520px)] min-h-[280px] min-w-[280px] place-items-center rounded-full border border-cyan-200/30 shadow-[0_0_50px_rgba(34,211,238,0.24),inset_0_0_50px_rgba(34,211,238,0.12)]">
-              <div className="absolute inset-3 rounded-full border border-dashed border-cyan-300/40" />
-              <div className="absolute inset-10 rounded-full border border-cyan-200/30" />
-              <motion.div className="absolute inset-16 rounded-full border-[10px] border-cyan-300/20"
-                animate={{ rotate: listening ? 360 : isProcessing ? -180 : 0 }}
-                transition={{ duration: listening ? 3 : 5, repeat: Infinity, ease: 'linear' }} />
-              <motion.button
-                onClick={toggleListening}
-                disabled={isProcessing && !speakingRef.current}
-                className="relative grid h-[44%] w-[44%] place-items-center rounded-full border border-cyan-100/75 bg-[radial-gradient(circle,rgba(20,230,255,0.95),rgba(0,104,175,0.78)_52%,rgba(1,12,28,0.96)_72%)] shadow-[0_0_45px_rgba(0,224,255,0.8),inset_0_0_30px_rgba(255,255,255,0.45)]"
-                animate={{ scale: listening || isSpeaking ? [1, 1.08, 1] : [1, 1.025, 1] }}
-                transition={{ duration: listening ? 0.8 : 2.8, repeat: Infinity }}
-                title={listening ? 'Stop listening' : 'Talk to Krishna'}
-              >
-                <span className="font-mono text-4xl font-light tracking-tighter text-white sm:text-6xl">K</span>
-                <span className="absolute bottom-4 font-mono text-[8px] tracking-[0.28em] text-cyan-50/80">{stateLabel.toUpperCase()}</span>
-              </motion.button>
-              <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap font-mono text-[10px] tracking-[0.24em] text-cyan-100/70">
-                {listening ? 'VOICE CHANNEL OPEN' : isProcessing ? 'REASONING IN PROGRESS' : 'TAP CORE TO SPEAK'}
-              </div>
-            </div>
-
-            {listening && (
-              <div className="mt-10 flex items-end gap-1" aria-label="Voice level">
-                {Array.from({ length: 16 }).map((_, i) => (
-                  <motion.span key={i} className="w-1 rounded-full bg-cyan-300"
-                    style={{ height: `${8 + ((i * 7) % 20)}px`, opacity: volume > i * 6 ? 1 : 0.2 }}
-                    animate={{ scaleY: volume > i * 6 ? [0.65, 1.45, 0.65] : 1 }}
-                    transition={{ duration: 0.35, repeat: Infinity, delay: i * 0.035 }} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <aside className="absolute bottom-5 left-4 right-4 z-10 mx-auto flex max-w-3xl flex-col overflow-hidden rounded-xl border border-cyan-200/25 bg-[#041018]/85 shadow-[0_0_30px_rgba(0,210,255,0.13)] backdrop-blur-xl sm:bottom-7">
+          <aside className="flex flex-col overflow-hidden">
             <div className="flex items-center justify-between border-b border-cyan-200/15 px-3 py-2 font-mono text-[9px] tracking-[0.18em] text-cyan-100/60">
-              <span className="flex items-center gap-2"><Activity className="h-3 w-3" /> LIVE TRANSCRIPT</span>
+              <span>LIVE TRANSCRIPT</span>
               <span>{messages.length ? `${messages.length} MESSAGES` : 'READY'}</span>
             </div>
             <MessageScroller ref={scrollRef} className="max-h-32 min-h-14 px-3 py-2 sm:max-h-40">
@@ -866,8 +767,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
             </div>
           </aside>
 
-          <div className="absolute bottom-8 left-6 hidden items-center gap-2 font-mono text-[9px] tracking-[0.18em] text-cyan-100/45 lg:flex"><Command className="h-3 w-3" /> ⌘K CLOSE</div>
-          <div className="absolute bottom-8 right-6 hidden items-center gap-3 text-cyan-100/45 lg:flex"><Settings2 className="h-3 w-3" /><Power className="h-3 w-3" /><Radio className="h-3 w-3" /></div>
         </motion.section>
       )}
     </AnimatePresence>
