@@ -4,6 +4,9 @@ import { routeObject, routeText } from './ai-router'
 import { getLiveBusinessSnapshot } from './business-snapshot'
 import { prepareAgentWithLearning, storeAgentPattern } from './agent-learning'
 import { decomposeTask } from './task-templates'
+import { generatePDF } from './pdf-generator'
+import { generateImage } from './image-generator'
+import { generateVideo } from './video-generator'
 
 const StatusSchema = z.object({
   progressNote: z.string().describe('1-2 sentences, first person, summarising what you just produced.'),
@@ -108,7 +111,15 @@ Description: ${issue.description}
 Prior work and founder comments on this ticket (read these — address any founder request):
 ${priorWork}
 
-Produce the COMPLETE deliverable for this ticket now. Write the actual work product in full, not a summary of it. For a plan: use clear sections with concrete steps, owners, dates, channels, budget split, and KPIs. For copy: write the actual copy. For analysis: give the actual numbers and the recommendation. Aim for something the founder could act on immediately. Markdown headings and bullets are fine.`
+Produce the COMPLETE deliverable for this ticket now. Write the actual work product in full, not a summary of it. For a plan: use clear sections with concrete steps, owners, dates, channels, budget split, and KPIs. For copy: write the actual copy. For analysis: give the actual numbers and the recommendation. Aim for something the founder could act on immediately. Markdown headings and bullets are fine.
+
+IMPORTANT: If the task requires creating visual content (images, videos, PDFs), you MUST include a GENERATE instruction at the end of your deliverable in this exact format:
+
+- For images: GENERATE_IMAGE: {"prompt": "description of image", "aspectRatio": "1:1", "style": "product"}
+- For videos: GENERATE_VIDEO: {"template": "BrandVideo", "data": {"text": "text overlay"}, "duration": 15}
+- For PDFs: GENERATE_PDF: {"template": "report", "data": {"title": "title", "sections": []}, "title": "filename"}
+
+The system will automatically generate these assets and attach them to the ticket.`
 
   // GENERATE DELIVERABLE
   let deliverable: string
@@ -120,6 +131,49 @@ Produce the COMPLETE deliverable for this ticket now. Write the actual work prod
   }
   if (deliverable.length < 40) {
     return { ok: false, message: `${agent.name} returned an empty deliverable — try again` }
+  }
+
+  // DETECT AND EXECUTE MULTIMODAL GENERATION
+  const multimodalResults: string[] = []
+  
+  const imageMatch = deliverable.match(/GENERATE_IMAGE:\s*({[\s\S]*?})/)
+  if (imageMatch) {
+    try {
+      const params = JSON.parse(imageMatch[1])
+      const result = await generateImage(organizationId, params.prompt, params.aspectRatio || '1:1', params.style || 'product')
+      multimodalResults.push(`✅ Generated Image: ${result.url}`)
+      deliverable = deliverable.replace(imageMatch[0], '').trim()
+    } catch (e: any) {
+      multimodalResults.push(`⚠️ Image generation failed: ${e.message}`)
+    }
+  }
+  
+  const pdfMatch = deliverable.match(/GENERATE_PDF:\s*({[\s\S]*?})/)
+  if (pdfMatch) {
+    try {
+      const params = JSON.parse(pdfMatch[1])
+      const result = await generatePDF(organizationId, params.template || 'report', params.data, params.title)
+      multimodalResults.push(`✅ Generated PDF: ${result.url}`)
+      deliverable = deliverable.replace(pdfMatch[0], '').trim()
+    } catch (e: any) {
+      multimodalResults.push(`⚠️ PDF generation failed: ${e.message}`)
+    }
+  }
+  
+  const videoMatch = deliverable.match(/GENERATE_VIDEO:\s*({[\s\S]*?})/)
+  if (videoMatch) {
+    try {
+      const params = JSON.parse(videoMatch[1])
+      const result = await generateVideo(organizationId, params.template || 'BrandVideo', params.data, params.duration || 15)
+      multimodalResults.push(`✅ Generated Video: ${result.url}`)
+      deliverable = deliverable.replace(videoMatch[0], '').trim()
+    } catch (e: any) {
+      multimodalResults.push(`⚠️ Video generation failed: ${e.message}`)
+    }
+  }
+  
+  if (multimodalResults.length > 0) {
+    deliverable += '\n\n### Generated Assets:\n' + multimodalResults.join('\n')
   }
 
   // DECIDE STATUS
