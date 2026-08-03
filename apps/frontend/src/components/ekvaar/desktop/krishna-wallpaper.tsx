@@ -3,14 +3,17 @@
 import { motion } from 'framer-motion'
 import { useKrishnaState } from './jarvis'
 
-const STATE_COPY = {
-  idle: 'CENTRAL INTELLIGENCE / READY',
-  listening: 'CENTRAL INTELLIGENCE / LISTENING',
-  thinking: 'CENTRAL INTELLIGENCE / PROCESSING',
-  talking: 'CENTRAL INTELLIGENCE / SPEAKING',
-} as const
-
 const radialMarks = Array.from({ length: 48 }, (_, index) => index)
+const particles = Array.from({ length: 120 }, (_, index) => {
+  const angle = index * 2.399963229728653
+  const radius = 138 + ((index * 43) % 150)
+  return {
+    cx: 300 + Math.cos(angle) * radius,
+    cy: 300 + Math.sin(angle) * radius,
+    delay: (index % 13) * 0.12,
+    size: index % 9 === 0 ? 2.6 : index % 4 === 0 ? 1.7 : 1.1,
+  }
+})
 
 export function KrishnaWallpaper({ onActivate }: { onActivate: () => void }) {
   const state = useKrishnaState()
@@ -59,6 +62,23 @@ export function KrishnaWallpaper({ onActivate }: { onActivate: () => void }) {
               <path d="M300 70 A230 230 0 0 1 513 214" fill="none" stroke="rgba(34,211,238,0.85)" strokeWidth="3" strokeDasharray="58 14 4 10" />
               <path d="M87 386 A230 230 0 0 1 180 110" fill="none" stroke="rgba(165,243,252,0.42)" strokeWidth="2" strokeDasharray="24 14" />
             </motion.g>
+            <motion.g animate={{ rotate: active ? 360 : 0 }} transition={{ duration: speed * 1.25, repeat: Infinity, ease: 'linear' }} style={{ transformOrigin: '300px 300px' }}>
+              <ellipse cx="300" cy="300" rx="230" ry="106" fill="none" stroke="rgba(34,211,238,0.36)" strokeWidth="1.4" transform="rotate(-31 300 300)" />
+              <ellipse cx="300" cy="300" rx="205" ry="82" fill="none" stroke="rgba(165,243,252,0.24)" strokeWidth="1" transform="rotate(43 300 300)" />
+            </motion.g>
+            <g>
+              {particles.map((particle, index) => (
+                <motion.circle
+                  key={index}
+                  cx={particle.cx}
+                  cy={particle.cy}
+                  r={particle.size}
+                  fill={index % 10 === 0 ? '#cffafe' : '#22d3ee'}
+                  animate={{ opacity: active ? [0.15, 0.95, 0.22] : [0.12, 0.6, 0.12], r: [particle.size * 0.65, particle.size, particle.size * 0.65] }}
+                  transition={{ duration: active ? 1.1 + (index % 5) * 0.16 : 3 + (index % 5) * 0.25, delay: particle.delay, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              ))}
+            </g>
             <circle cx="300" cy="300" r="191" fill="rgba(2,12,20,0.25)" stroke="rgba(103,232,249,0.42)" strokeWidth="1" />
             <circle cx="300" cy="300" r="168" fill="none" stroke="rgba(103,232,249,0.24)" strokeWidth="1" strokeDasharray="8 12" />
             <path d="M300 105 L314 121 L300 137 L286 121 Z" fill="rgba(165,243,252,0.9)" filter="url(#krishna-glow)" />
@@ -73,16 +93,10 @@ export function KrishnaWallpaper({ onActivate }: { onActivate: () => void }) {
             <circle cx="300" cy="300" r="7" fill="#ecfeff" filter="url(#krishna-glow)" />
           </svg>
 
-          <div className="absolute inset-0 grid place-items-center">
-            <div className="mt-44 text-center font-mono text-[9px] tracking-[0.34em] text-cyan-50/80">{STATE_COPY[state]}</div>
-          </div>
           <span className="absolute left-1/2 top-1/2 h-px w-[72%] -translate-x-1/2 bg-gradient-to-r from-transparent via-cyan-100/30 to-transparent" />
           <span className="absolute left-1/2 top-1/2 h-[72%] w-px -translate-y-1/2 bg-gradient-to-b from-transparent via-cyan-100/30 to-transparent" />
         </motion.button>
       </div>
-
-      <div className="absolute left-6 top-1/2 hidden -translate-y-1/2 font-mono text-[10px] tracking-[0.2em] text-cyan-100/45 lg:block">NEURAL LINK<br /><span className="text-cyan-200/75">01 / ONLINE</span></div>
-      <div className="absolute right-6 top-1/2 hidden -translate-y-1/2 text-right font-mono text-[10px] tracking-[0.2em] text-cyan-100/45 lg:block">VOICE BUS<br /><span className="text-cyan-200/75">LOW LATENCY</span></div>
     </section>
   )
 }
