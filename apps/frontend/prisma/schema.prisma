@@ -50,6 +50,9 @@ model Organization {
   workflows      Workflow[]
   workspaces     Workspace[]
   artifacts      Artifact[]
+  patterns       AgentPattern[]
+  knowledge      AgentKnowledge[]
+  taskTemplates  TaskTemplate[]
   
   context        OrganizationContext?
   commerceLinks  CommerceObjectLink[]
@@ -396,6 +399,11 @@ model Agent {
   currentWorkflowId String?
   memoryVectorIds   String?
 
+  // Learning System
+  qualityScore      Float    @default(0.5)
+  learningHistory   String?  // JSON: { totalTasks, successfulTasks, improvedTasks }
+  constraints       String?  // JSON array of learned constraints
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   manager Agent?  @relation("AgentHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
@@ -408,6 +416,8 @@ model Agent {
   events         Event[]
   capabilities   Capability[]
   workspaces     AgentWorkspace[]
+  patterns       AgentPattern[]
+  knowledge      AgentKnowledge[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -421,7 +431,7 @@ model Issue {
   code         String // PAP-39
   title        String
   description  String
-  status       String   @default("BACKLOG") // BACKLOG | IN_PROGRESS | IN_REVIEW | DONE | BLOCKED
+  status       String   @default("BACKLOG") // BACKLOG | IN_PROGRESS | IN_REVIEW | DONE | BLOCKED | MILESTONE_REVIEW
   priority     String   @default("MEDIUM") // P0 | P1 | P2 | P3
   type         String   @default("TASK") // TASK | BUG | FEATURE | CAMPAIGN | APPROVAL | RESEARCH
   assigneeId   String?
@@ -432,10 +442,20 @@ model Issue {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Learning & Milestone System
+  parentIssueId String?
+  milestone     Int     @default(0) // 0, 40, 60, 80, 100
+  milestoneData String? // JSON: { "40": {...}, "60": {...} }
+  iterations    Int     @default(0)
+  constraints   String? // JSON array of negative constraints from rejections
+  planningPhase String  @default("EXECUTE") // PLAN | REVIEW | EXECUTE
+
   organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignee  Agent?         @relation("IssueAssignee", fields: [assigneeId], references: [id])
   createdBy Agent?         @relation("IssueCreator", fields: [createdById], references: [id])
   comments  IssueComment[]
+  parentIssue Issue?        @relation("Subtasks", fields: [parentIssueId], references: [id], onDelete: SetNull)
+  subtasks    Issue[]       @relation("Subtasks")
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -888,16 +908,79 @@ model Artifact {
   organizationId String
   workspaceId     String?
   title           String
-  type            String // PDF, EXCEL, PNG
+  type            String // PDF, EXCEL, PNG, VIDEO
   mimeType        String   @default("application/octet-stream")
   storageLocation String
-  status          String   @default("READY")
+  status          String   @default("READY") // READY | PROCESSING | FAILED
+  templateId      String?  // Reference to template used
+  generatedBy     String?  // Agent code who generated it
+  parameters      String?  // JSON: generation parameters
   createdAt       DateTime @default(now())
 
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+}
+
+// ============ AGENT LEARNING SYSTEM ============
+
+model AgentPattern {
+  id              String   @id @default(cuid())
+  organizationId  String
+  agentCode       String
+  taskType        String
+  context         String   // JSON: task context when pattern occurred
+  approach        String   // JSON: what the agent did
+  outcome         String   // SUCCESS | REJECTED | REVISED
+  rejectionReason String?  // JSON array
+  correction      String?  // What fixed it
+  qualityScore    Float    @default(0.5)
+  timestamp       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        Agent        @relation(fields: [agentCode], references: [code])
+
+  @@index([agentCode, taskType])
+  @@index([agentCode, outcome])
+  @@index([agentCode, qualityScore])
+}
+
+model AgentKnowledge {
+  id            String   @id @default(cuid())
+  organizationId String
+  agentCode     String
+  sourceAgent   String?  // If learned from another agent
+  pattern       String   // JSON: the learned pattern
+  qualityScore  Float
+  learned       Boolean  @default(false)
+  appliedCount  Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        Agent        @relation(fields: [agentCode], references: [code])
+
+  @@index([agentCode])
+}
+
+model TaskTemplate {
+  id            String   @id @default(cuid())
+  organizationId String
+  name          String
+  type          String   // CAMPAIGN_LAUNCH | PRODUCT_LAUNCH | REPORT | ...
+  department     String
+  structure      String   // JSON: task breakdown structure
+  source        String   @default("MANUAL") // MANUAL | AGENT_LEARNING
+  successRate   Float    @default(0.5)
+  priority      String   @default("NORMAL")
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId, type])
 }
 
 // ============ V2 PROVIDER MANAGER ============
