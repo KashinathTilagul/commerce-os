@@ -51,7 +51,11 @@ jobs:
           export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           cd /home/ubuntu/Ekvaar 2>/dev/null || cd /home/ubuntu/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
           echo "[i] Deploying from: $(pwd)"
-          git pull origin main
+          # The self-hosted runner is a disposable deployment checkout. Reset
+          # it to the trusted remote main ref so a prior manual checkout or
+          # interrupted deployment cannot make the next release diverge.
+          git fetch --prune origin main
+          git checkout -B main origin/main
           echo "[i] Now at commit: $(git rev-parse --short HEAD)"
 
           # Ensure Swapfile exists on EC2 to prevent Docker/Next.js OOM crashes
