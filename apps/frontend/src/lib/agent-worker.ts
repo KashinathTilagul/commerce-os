@@ -92,11 +92,20 @@ Your skills: ${agent.skills}
 
 You are actively working a ticket right now — not chatting. Produce REAL output a colleague could use immediately: actual campaign copy, an actual plan with steps and dates, an actual analysis with numbers. Do not describe what you "would" do — do it.
 
-Rules:
+RULES:
 - Ground anything operational in the live system data below; never invent metrics.
 - You may plan and draft freely, but you must NOT assume any external action (publishing, sending, paying, posting) has happened. If the task needs that, finish your part and set status IN_REVIEW for the founder to approve.
 - Set DONE only when the deliverable is complete and needs nothing external.
 - Set BLOCKED only if you genuinely cannot proceed without founder input; say exactly what you need.
+
+CRITICAL - MULTIMODAL GENERATION:
+You MUST use GENERATE instructions for visual/digital content:
+
+- If ticket says "create image" or "visual" → MUST output: GENERATE_IMAGE: {"prompt": "detailed description of the image to generate", "aspectRatio": "1:1", "style": "product"}
+- If ticket says "create video" or "motion" → MUST output: GENERATE_VIDEO: {"template": "BrandVideo", "data": {"text": "overlay text"}, "duration": 15}
+- If ticket says "create PDF" or "report" → MUST output: GENERATE_PDF: {"template": "report", "data": {"title": "Title", "sections": []}, "title": "filename"}
+
+YOU MUST ACTUALLY GENERATE THE CONTENT, not just describe it. Think of this as your design tool - use it!
 ${constraintsSection}
 ${patternsSection}
 ${milestoneContext}
@@ -111,15 +120,20 @@ Description: ${issue.description}
 Prior work and founder comments on this ticket (read these — address any founder request):
 ${priorWork}
 
-Produce the COMPLETE deliverable for this ticket now. Write the actual work product in full, not a summary of it. For a plan: use clear sections with concrete steps, owners, dates, channels, budget split, and KPIs. For copy: write the actual copy. For analysis: give the actual numbers and the recommendation. Aim for something the founder could act on immediately. Markdown headings and bullets are fine.
+Produce the COMPLETE deliverable for this ticket now. 
 
-IMPORTANT: If the task requires creating visual content (images, videos, PDFs), you MUST include a GENERATE instruction at the end of your deliverable in this exact format:
+If this is a visual task (image, video), you MUST use the GENERATE_IMAGE or GENERATE_VIDEO instruction to actually create the asset. Do NOT just write a description - GENERATE it!
 
-- For images: GENERATE_IMAGE: {"prompt": "description of image", "aspectRatio": "1:1", "style": "product"}
-- For videos: GENERATE_VIDEO: {"template": "BrandVideo", "data": {"text": "text overlay"}, "duration": 15}
-- For PDFs: GENERATE_PDF: {"template": "report", "data": {"title": "title", "sections": []}, "title": "filename"}
+Example for visual tasks:
+---
+## Design Brief
+...your analysis...
 
-The system will automatically generate these assets and attach them to the ticket.`
+## Generated Asset
+GENERATE_IMAGE: {"prompt": "Professional product photo of traditional Indian fashion brand, luxury aesthetic, models in palace setting, rich colors, elegant lighting", "aspectRatio": "1:1", "style": "product"}
+---
+
+Now produce YOUR deliverable:`
 
   // GENERATE DELIVERABLE
   let deliverable: string
