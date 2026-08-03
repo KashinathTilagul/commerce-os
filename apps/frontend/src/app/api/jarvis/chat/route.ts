@@ -25,6 +25,10 @@ const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('assign_task'), assignee: z.string().describe('Agent code, name, role, or department, e.g. "CMO", "Mira", "marketing"'), task: z.string().describe('What the agent should do'), priority: z.string().optional().describe('P0 | P1 | P2 | P3') }),
   z.object({ type: z.literal('message_team'), text: z.string().describe('The message to post'), channel: z.string().optional().describe('Discord channel id or name') }),
   z.object({ type: z.literal('analyze'), question: z.string().describe('A data question to compute from the real business database — orders, revenue, products, customers, campaigns, issues, agents.') }),
+  z.object({ type: z.literal('create_project_doc'), brief: z.string(), objectives: z.array(z.string()).optional(), successCriteria: z.array(z.string()).optional() }),
+  z.object({ type: z.literal('generate_pdf'), template: z.string().optional(), data: z.record(z.any()), title: z.string() }),
+  z.object({ type: z.literal('generate_image'), prompt: z.string(), aspectRatio: z.enum(['1:1', '16:9', '9:16']).optional(), style: z.enum(['product', 'lifestyle', 'abstract']).optional() }),
+  z.object({ type: z.literal('generate_video'), template: z.string(), data: z.record(z.any()), duration: z.number().optional() }),
   z.object({ type: z.literal('close_window') }),
   z.object({ type: z.literal('none') }),
 ])
@@ -354,6 +358,84 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         if (action.channel) input.channel_id = sanitizeInput(action.channel, { maxLength: 100 })
         const result = await executeTool({ organizationId: organizationId, toolkitSlug: 'discord', toolSlug: 'discord_send_message', agentCode: 'FOUNDER', agentName: 'Founder', input })
         return { success: result.success, message: result.success ? 'Message posted to Discord' : result.error }
+      }
+
+      case 'create_project_doc': {
+        const brief = sanitizeInput(action.brief || '', { maxLength: 500 })
+        if (!brief) return { success: false, message: 'No project brief provided' }
+        
+        const { parseIntent } = await import('@/lib/intent-parser')
+        const { decomposeTask } = await import('@/lib/task-templates')
+        
+        const intent = parseIntent(brief)
+        
+        const knowledgeNode = await db.knowledgeNode.create({
+          data: {
+            organizationId,
+            type: 'PROJECT_DOC',
+            title: action.brief.slice(0, 100),
+            summary: brief,
+            metadata: JSON.stringify({
+              objectives: action.objectives || [],
+              successCriteria: action.successCriteria || [],
+              department: intent.department,
+              taskType: intent.taskType,
+              priority: intent.priority
+            }),
+            businessObjectType: 'PROJECT',
+            businessObjectId: `PROJ-${Date.now()}`,
+            source: 'FOUNDER',
+            sourceProvider: 'krishna',
+            confidence: 'VERIFIED'
+          }
+        })
+        
+        await db.event.create({
+          data: {
+            organizationId, type: 'PROJECT_DOC_CREATED', actorName: 'Krishna',
+            summary: `Created project doc: ${action.brief.slice(0, 60)}`,
+            payload: JSON.stringify({ nodeId: knowledgeNode.id, department: intent.department }),
+            severity: 'INFO',
+          },
+        })
+        
+        return { success: true, message: `Project doc created and routed to ${intent.department}`, nodeId: knowledgeNode.id, department: intent.department }
+      }
+
+      case 'generate_pdf': {
+        const { generatePDF } = await import('@/lib/pdf-generator')
+        const result = await generatePDF({
+          template: action.template || 'report',
+          data: action.data || {},
+          title: sanitizeInput(action.title || 'Untitled', { maxLength: 200 }),
+          organizationId: organizationId,
+          generatedBy: 'FOUNDER'
+        })
+        return { success: true, message: 'PDF generated', artifactId: result.artifactId, downloadUrl: result.downloadUrl }
+      }
+
+      case 'generate_image': {
+        const { generateImage } = await import('@/lib/image-generator')
+        const result = await generateImage({
+          prompt: sanitizeInput(action.prompt, { maxLength: 2000 }),
+          aspectRatio: action.aspectRatio || '1:1',
+          style: action.style || 'product',
+          organizationId: organizationId,
+          generatedBy: 'FOUNDER'
+        })
+        return { success: true, message: 'Image generated', artifactId: result.artifactId, imageUrl: result.imageUrl }
+      }
+
+      case 'generate_video': {
+        const { generateVideo } = await import('@/lib/video-generator')
+        const result = await generateVideo({
+          template: sanitizeInput(action.template, { maxLength: 100 }),
+          data: action.data || {},
+          duration: action.duration || 15,
+          organizationId: organizationId,
+          generatedBy: 'FOUNDER'
+        })
+        return { success: true, message: 'Video generated', artifactId: result.artifactId, videoUrl: result.videoUrl }
       }
 
       default:
