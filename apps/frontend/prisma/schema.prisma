@@ -374,7 +374,7 @@ model BrandCheck {
 model Agent {
   id             String  @id @default(cuid())
   organizationId String
-  code           String // FOUNDER | CEO | CMO | CTO | CFO | COO | CCO | CSM | GROWTH | RESEARCH | HR | LEGAL
+  code           String  @unique // FOUNDER | CEO | CMO | CTO | CFO | COO | CCO | CSM | GROWTH | RESEARCH | HR | LEGAL
   name           String // Display name
   role           String // Chief Executive Officer, etc.
   status         String  @default("IDLE") // ACTIVE | IDLE | RUNNING | PAUSED | ERROR
