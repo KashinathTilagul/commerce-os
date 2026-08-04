@@ -280,26 +280,19 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       }
     } catch {}
 
-    // ── 2. Fallback to browser SpeechSynthesis tuned specifically to selected voiceId ──
+    // ── 2. Fallback to continuous, natural browser SpeechSynthesis ──
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      const sentences = toSentences(clean)
-      for (const sentence of sentences) {
-        if (!speakingRef.current) break
-        await new Promise<void>((resolve) => {
-          const u = new SpeechSynthesisUtterance(sentence)
-          applyVoiceToUtterance(u, window.speechSynthesis, voiceId)
-          let done = false
-          const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
-          audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
-          u.onend = finish
-          u.onerror = (e) => { console.error('[TTS Error]', e); finish() }
-          setTimeout(finish, sentence.length * 100 + 3000)
-          window.speechSynthesis.speak(u)
-        })
-        if (speakingRef.current && sentences.indexOf(sentence) < sentences.length - 1) {
-          await new Promise(r => setTimeout(r, 180))
-        }
-      }
+      await new Promise<void>((resolve) => {
+        const u = new SpeechSynthesisUtterance(clean)
+        applyVoiceToUtterance(u, window.speechSynthesis, voiceId)
+        let done = false
+        const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
+        audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
+        u.onend = finish
+        u.onerror = (e) => { console.error('[TTS Error]', e); finish() }
+        setTimeout(finish, clean.length * 90 + 4000)
+        window.speechSynthesis.speak(u)
+      })
     }
     speakingRef.current = false
     setGlobal('idle')
@@ -310,7 +303,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         }
       }, 500)
     }
-  }, [muted, stopTTS, stopListening])
+  }, [muted, stopTTS, stopListening, startListening])
 
   const startListening = useCallback(async () => {
     if (typeof window === 'undefined' || listeningRef.current || speakingRef.current) return
