@@ -37,28 +37,36 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
   try {
     const bedrockKey = process.env.AWS_BEARER_TOKEN_BEDROCK
     const openRouterKey = process.env.OPENROUTER_API_KEY
-    let imageBuffer: Buffer
+    let imageBuffer: Buffer | null = null
     let mimeType = 'image/png'
+    let bedrockError = ''
 
     if (bedrockKey) {
-      // Use the API-key provider, matching the Bedrock credentials deployed for
-      // agent text generation. The AWS SDK credential chain cannot use that key.
-      const bedrock = createAmazonBedrock({ apiKey: bedrockKey, region: process.env.AWS_REGION || 'us-east-1' })
-      const result = await generateModelImage({
-        model: bedrock.image('amazon.nova-canvas-v1:0'),
-        prompt: enhancedPrompt,
-        size: `${dimensions.width}x${dimensions.height}`,
-        n: 1,
-        providerOptions: {
-          bedrock: {
-            quality: 'standard',
-            cfgScale: 8,
-            style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM',
+      try {
+        // Use the API-key provider, matching the Bedrock credentials deployed
+        // for agent text generation. An invalid key falls through to OpenRouter.
+        const bedrock = createAmazonBedrock({ apiKey: bedrockKey, region: process.env.AWS_REGION || 'us-east-1' })
+        const result = await generateModelImage({
+          model: bedrock.image('amazon.nova-canvas-v1:0'),
+          prompt: enhancedPrompt,
+          size: `${dimensions.width}x${dimensions.height}`,
+          n: 1,
+          providerOptions: {
+            bedrock: {
+              quality: 'standard',
+              cfgScale: 8,
+              style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM',
+            },
           },
-        },
-      })
-      imageBuffer = Buffer.from(result.image.uint8Array)
-    } else if (openRouterKey) {
+        })
+        imageBuffer = Buffer.from(result.image.uint8Array)
+      } catch (error: any) {
+        bedrockError = error?.message || 'unknown Bedrock error'
+        console.warn('[Image Generator] Bedrock failed; trying OpenRouter:', bedrockError)
+      }
+    }
+
+    if (!imageBuffer && openRouterKey) {
       // OpenRouter is the deployed image fallback when no Bedrock key exists.
       // Its image API returns real base64 image bytes, not a descriptive card.
       const response = await fetch('https://openrouter.ai/api/v1/images', {
@@ -77,8 +85,12 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
       if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OpenRouter returned ${response.status}`)
       imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
       mimeType = payload.data[0].media_type || mimeType
-    } else {
-      throw new Error('No image provider is configured. Set AWS_BEARER_TOKEN_BEDROCK or OPENROUTER_API_KEY.')
+    }
+
+    if (!imageBuffer) {
+      throw new Error(bedrockError
+        ? `Bedrock failed (${bedrockError}); OpenRouter is not configured or did not return an image.`
+        : 'No image provider is configured. Set AWS_BEARER_TOKEN_BEDROCK or OPENROUTER_API_KEY.')
     }
     
     // Store artifact
@@ -110,8 +122,8 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
       imageUrl: `/api/artifacts/${artifact.id}`
     }
   } catch (error: any) {
-    console.error('[Image Generator] Nova Canvas error:', error)
-    throw new Error(`Nova Canvas image generation failed: ${error?.message || 'unknown error'}`)
+    console.error('[Image Generator] Image generation error:', error)
+    throw new Error(`Image generation failed: ${error?.message || 'unknown error'}`)
   }
 }
 
