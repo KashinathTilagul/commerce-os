@@ -1,641 +1,219 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, useRef, useEffect } from 'react'
-import { Cpu, Activity, Send, Zap, TrendingUp, Sparkles, Edit3, Save, X, Loader2, AlertTriangle } from 'lucide-react'
+import { useState } from 'react'
+import { Activity, AlertTriangle, CheckCircle2, CircleDot, Loader2, Play, Send, Sparkles } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { PageHeader, KpiCard, StatusPill } from '../shared'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Progress } from '@/components/ui/progress'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { formatINR, formatINRFull, timeAgo } from '@/lib/ekvaar'
+import { Textarea } from '@/components/ui/textarea'
+import { timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
 import { useAppSubscription } from '@/lib/cpu-websocket'
 
-interface ChatMessage {
-  id: string
-  from: 'agent' | 'founder'
-  text: string
-  ts: number
+const STATUS_LABEL: Record<string, string> = {
+  BACKLOG: 'Queued',
+  IN_PROGRESS: 'In progress',
+  IN_REVIEW: 'Needs review',
+  MILESTONE_REVIEW: 'Milestone review',
+  BLOCKED: 'Blocked',
+  DONE: 'Done',
 }
 
-function AgentSkeleton() {
+function latestOutput(issue: any) {
+  const lastComment = issue.comments?.[issue.comments.length - 1]
+  return lastComment?.body || issue.description || 'No update yet.'
+}
+
+function WorkCard({ issue, onOpen, onRun, running }: { issue: any; onOpen: () => void; onRun: () => void; running: boolean }) {
+  const canRun = Boolean(issue.assignee && !issue.assignee.isHuman && ['BACKLOG', 'IN_PROGRESS'].includes(issue.status))
+
   return (
-    <Card>
+    <Card className="group border-border/80 transition-colors hover:border-foreground/40">
       <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className="h-11 w-11 rounded-full bg-muted animate-pulse" />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
-            <div className="h-3 w-16 bg-muted rounded animate-pulse" />
-            <div className="h-5 w-16 bg-muted rounded animate-pulse mt-2" />
+        <button className="w-full text-left" onClick={onOpen}>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="font-mono text-[10px] text-muted-foreground">{issue.code}</span>
+            <StatusPill status={issue.status} />
           </div>
-        </div>
-        <div className="mt-3 pt-3 border-t border-border space-y-2">
-          <div className="h-3 w-20 bg-muted rounded animate-pulse" />
-          <div className="h-4 w-full bg-muted rounded animate-pulse" />
+          <h3 className="line-clamp-2 text-sm font-medium leading-snug">{issue.title}</h3>
+          <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-muted-foreground">{latestOutput(issue)}</p>
+        </button>
+        <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
+          <button className="flex min-w-0 items-center gap-2 text-left" onClick={onOpen}>
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] text-white" style={{ background: issue.assignee?.avatarColor || '#6b7280' }}>
+              {issue.assignee?.name?.[0] || '?'}
+            </span>
+            <span className="truncate text-[10px] text-muted-foreground">{issue.assignee?.name || 'Unassigned'}</span>
+          </button>
+          {canRun && (
+            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px]" onClick={onRun} disabled={running}>
+              {running ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+              Run
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
   )
 }
 
-function safeDiv(a: number, b: number): number {
-  return b > 0 ? a / b : 0
-}
-
 export function DigitalEmployeesHub() {
-  const [selected, setSelected] = useState<any | null>(null)
-  const [chatInput, setChatInput] = useState('')
-  const [messages, setMessages] = useState<Record<string, ChatMessage[]>>({})
-  const [agentTyping, setAgentTyping] = useState(false)
-  const [editMode, setEditMode] = useState(false)
-  const [editData, setEditData] = useState<any>(null)
-  const [saving, setSaving] = useState(false)
-  const [working, setWorking] = useState(false)
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const chatEndRef = useRef<HTMLDivElement>(null)
+  const [selectedAgentId, setSelectedAgentId] = useState('')
+  const [mission, setMission] = useState('')
+  const [delegating, setDelegating] = useState(false)
+  const [runningIssueId, setRunningIssueId] = useState<string | null>(null)
+  const [selectedIssue, setSelectedIssue] = useState<any | null>(null)
   const queryClient = useQueryClient()
 
-  const { data: agents = [], isLoading, error } = useQuery<any[]>({
+  const { data: agents = [], isLoading: agentsLoading } = useQuery<any[]>({
     queryKey: ['agents'],
     queryFn: async () => {
-      const r = await fetch('/api/agents')
-      if (!r.ok) throw new Error('Failed')
-      return r.json()
+      const response = await fetch('/api/agents')
+      if (!response.ok) throw new Error('Failed to fetch agents')
+      return response.json()
     },
-    staleTime: 10000,
-    refetchInterval: 15000, // keep cards live when Krishna assigns tasks elsewhere
-    refetchOnWindowFocus: true,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  })
+  const { data: issues = [], isLoading: issuesLoading, error } = useQuery<any[]>({
+    queryKey: ['issues'],
+    queryFn: async () => {
+      const response = await fetch('/api/issues')
+      if (!response.ok) throw new Error('Failed to fetch work')
+      return response.json()
+    },
+    staleTime: 10_000,
+    refetchInterval: 15_000,
   })
 
   useAppSubscription('agents')
+  useAppSubscription('issues')
 
-  const activeCount = agents.filter((a) => a.status === 'ACTIVE' || a.status === 'RUNNING').length
-  const totalSpend = agents.reduce((s, a) => s + a.tokenSpend, 0)
-  const totalBudget = agents.reduce((s, a) => s + a.tokenBudget, 0)
-  const avgUtilization = Math.round(safeDiv(totalSpend, totalBudget) * 100)
-  const humanCount = agents.filter((a) => a.isHuman).length
+  const executableAgents = agents.filter((agent) => !agent.isHuman)
+  const active = issues.filter((issue) => ['BACKLOG', 'IN_PROGRESS'].includes(issue.status))
+  const decisions = issues.filter((issue) => ['IN_REVIEW', 'MILESTONE_REVIEW', 'BLOCKED'].includes(issue.status))
+  const completed = issues.filter((issue) => issue.status === 'DONE')
+  const selectedAgent = executableAgents.find((agent) => agent.id === selectedAgentId)
 
-  // Scroll chat to bottom when new messages arrive
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, agentTyping, selected])
-
-  // Org hierarchy: top-level = Chiefs & Founder (no manager); reports grouped under their manager id
-  const topLevel = agents.filter((a: any) => !a.managerId)
-  const reportsByManager: Record<string, any[]> = {}
-  for (const a of agents) {
-    if (a.managerId) (reportsByManager[a.managerId] ??= []).push(a)
+  const refreshWork = () => {
+    queryClient.invalidateQueries({ queryKey: ['agents'] })
+    queryClient.invalidateQueries({ queryKey: ['issues'] })
+    queryClient.invalidateQueries({ queryKey: ['events'] })
   }
 
-  // Edit handlers
-  const handleStartEdit = () => {
-    setEditData({
-      name: selected.name,
-      role: selected.role,
-      primeDirective: selected.primeDirective,
-      description: selected.description,
-      skills: selected.skills,
-      status: selected.status,
-      avatarColor: selected.avatarColor,
-    })
-    setEditMode(true)
-  }
-
-  const handleSaveEdit = async () => {
-    if (!selected || !editData) return
-    const previousData = { ...selected }
-    
-    queryClient.setQueryData<any[]>(['agents'], (old = []) =>
-      old.map(a => a.id === selected.id ? { ...a, ...editData } : a)
-    )
-    setSelected({ ...selected, ...editData })
-    
-    setSaving(true)
+  const handleDelegate = async () => {
+    if (!selectedAgent || !mission.trim() || delegating) return
+    setDelegating(true)
     try {
-      const r = await fetch(`/api/agents/${selected.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData),
-      })
-      if (!r.ok) {
-        queryClient.setQueryData<any[]>(['agents'], (old = []) =>
-          old.map(a => a.id === selected.id ? previousData : a)
-        )
-        setSelected(previousData)
-        throw new Error('Failed')
-      }
-      const updated = await r.json()
-      toast.success('Agent updated', `${updated.name} profile saved`)
-      queryClient.invalidateQueries({ queryKey: ['agents'] })
-      queryClient.invalidateQueries({ queryKey: ['events'] })
-      setSelected(updated)
-      setEditMode(false)
-      setEditData(null)
-    } catch {
-      toast.error('Save failed', 'Could not update agent')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleCancelEdit = () => {
-    setEditMode(false)
-    setEditData(null)
-  }
-
-  const handleSendChat = async () => {
-    if (!chatInput.trim() || agentTyping || !selected) return
-    const text = chatInput.trim()
-    setChatInput('')
-    
-    // Add founder message immediately
-    const founderMsg: ChatMessage = { id: `f-${Date.now()}`, from: 'founder', text, ts: Date.now() }
-    setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), founderMsg] }))
-    
-    setAgentTyping(true)
-    try {
-      const r = await fetch(`/api/agents/${selected.id}/chat`, {
+      const response = await fetch(`/api/agents/${selectedAgent.id}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text }),
+        body: JSON.stringify({ message: mission.trim() }),
       })
-      const data = await r.json()
-      
-      const reply = data.reply || data.error || 'Connection failed.'
-      const agentMsg: ChatMessage = { id: `a-${Date.now()}`, from: 'agent', text: reply, ts: Date.now() }
-      
-      setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), agentMsg] }))
-      if (data.reply) {
-        if (data.issueCode) {
-          toast.success(`${selected.name} took it on — ${data.issueCode}`, 'Deliverable is on the ticket in the Issues app.')
-          queryClient.invalidateQueries({ queryKey: ['agents'] })
-          queryClient.invalidateQueries({ queryKey: ['issues'] })
-        } else {
-          toast.info(`${selected.name} responded`, reply.slice(0, 60) + (reply.length > 60 ? '…' : ''))
-        }
-      } else {
-        toast.error('Agent offline', reply)
-      }
-    } catch (e) {
-      const errorMsg: ChatMessage = { id: `a-${Date.now()}`, from: 'agent', text: 'Error: Could not reach agent.', ts: Date.now() }
-      setMessages((prev) => ({ ...prev, [selected.code]: [...(prev[selected.code] || []), errorMsg] }))
-      toast.error('Connection failed', 'Could not reach agent')
+      const result = await response.json()
+      if (!response.ok || !result.issueCode) throw new Error(result.error || result.reply || 'Could not delegate work')
+      toast.success(`${result.issueCode} assigned to ${selectedAgent.name}`, 'The agent is working now. Its output will appear below.')
+      setMission('')
+      refreshWork()
+    } catch (error: any) {
+      toast.error('Delegation failed', error.message || 'Could not reach the agent')
     } finally {
-      setAgentTyping(false)
+      setDelegating(false)
     }
   }
 
-  const renderAgentCard = (a: any, i: number) => (
-    <motion.div
-      key={a.id}
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: i * 0.04 }}
-    >
-      <Card className="cursor-pointer hover:border-foreground/40 transition-colors h-full" onClick={() => setSelected(a)}>
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="relative">
-              <div className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-display tracking-tight text-white" style={{ background: a.avatarColor }}>
-                {a.name?.[0]}
-              </div>
-              <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${statusRing(a.status)}`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="font-display text-sm tracking-tight truncate">{a.role}</span>
-              </div>
-              <div className="text-[10px] font-mono text-muted-foreground">{a.name}</div>
-              <div className="mt-1.5"><StatusPill status={a.status} /></div>
-            </div>
-          </div>
-
-          {a.currentTask ? (
-            <div className="mt-3 pt-3 border-t border-border">
-              <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-1">Working on</div>
-              <div className="text-xs leading-snug line-clamp-2">{a.currentTask}</div>
-            </div>
-          ) : (
-            <div className="mt-3 pt-3 border-t border-border text-[10px] text-muted-foreground">
-              Last heartbeat: {timeAgo(a.lastHeartbeat)}
-            </div>
-          )}
-
-          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px]">
-            <div>
-              <div className="text-muted-foreground">Tasks Today</div>
-              <div className="font-mono text-sm">{a.tasksToday}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Success</div>
-              <div className="font-mono text-sm">{a.successRate}%</div>
-            </div>
-          </div>
-
-          {!a.isHuman && (
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-[10px] mb-1">
-                <span className="text-muted-foreground">Budget</span>
-                <span className="font-mono">{Math.round(safeDiv(a.tokenSpend, a.tokenBudget) * 100)}%</span>
-              </div>
-              <Progress value={safeDiv(a.tokenSpend, a.tokenBudget) * 100} className="h-1" />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </motion.div>
-  )
-
-  const handleRunWork = async () => {
-    if (!selected || working) return
-    setWorking(true)
+  const handleRun = async (issue: any) => {
+    if (!issue.assignee || runningIssueId) return
+    setRunningIssueId(issue.id)
     try {
-      const r = await fetch(`/api/agents/${selected.id}/work`, { method: 'POST' })
-      const data = await r.json()
-      if (r.ok && data.ok) {
-        if (data.issueCode) {
-          toast.success(`${selected.name} worked ${data.issueCode}`, `Status → ${data.newStatus}. Open the Issues app to see the deliverable.`)
-        } else {
-          toast.info(data.message || 'No open tickets', `${selected.name} has nothing assigned right now.`)
-        }
-        queryClient.invalidateQueries({ queryKey: ['agents'] })
-        queryClient.invalidateQueries({ queryKey: ['issues'] })
-        queryClient.invalidateQueries({ queryKey: ['events'] })
-      } else {
-        toast.error('Agent could not work', data.message || 'Unknown error')
-      }
-    } catch {
-      toast.error('Connection failed', 'Could not reach agent')
+      const response = await fetch(`/api/agents/${issue.assignee.id}/work`, { method: 'POST' })
+      const result = await response.json()
+      if (!response.ok || !result.ok) throw new Error(result.message || 'Could not run agent')
+      toast.success(`${issue.assignee.name} updated ${result.issueCode || issue.code}`, result.newStatus ? `Status: ${STATUS_LABEL[result.newStatus] || result.newStatus}` : result.message)
+      refreshWork()
+    } catch (error: any) {
+      toast.error('Run failed', error.message || 'Could not reach the agent')
     } finally {
-      setWorking(false)
+      setRunningIssueId(null)
+    }
+  }
+
+  const handleStatus = async (status: string) => {
+    if (!selectedIssue) return
+    try {
+      const response = await fetch(`/api/issues/${selectedIssue.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!response.ok) throw new Error('Could not update status')
+      setSelectedIssue((issue: any) => ({ ...issue, status }))
+      toast.success(`${selectedIssue.code} updated`, `Status: ${STATUS_LABEL[status] || status}`)
+      refreshWork()
+    } catch {
+      toast.error('Update failed', 'Could not change the work status')
     }
   }
 
   return (
     <div>
       <PageHeader
-        eyebrow="Digital Employees Hub"
-        title="The Digital C-Suite"
-        description="Your digital workforce — Chiefs who manage specialist teams beneath them. Instruct any of them directly, or let Krishna delegate. Each has a Soul (system prompt), skills, memory, and metrics, and works real tickets on demand."
-        actions={
-          <Badge variant="outline" className="gap-1.5">
-            <span className="h-1.5 w-1.5 bg-arav rounded-full animate-pulse-soft" />
-            {activeCount} of {agents.length} active
-          </Badge>
-        }
+        eyebrow="Digital Employees"
+        title="Workboard"
+        description="Give an outcome to the right employee. Track the live work, read the deliverable, and decide what happens next."
+        actions={<span className="flex items-center gap-2 font-mono text-[10px] text-muted-foreground"><span className="h-2 w-2 rounded-full bg-arav animate-pulse-soft" />{executableAgents.filter((agent) => ['ACTIVE', 'RUNNING'].includes(agent.status)).length} online</span>}
       />
 
-      <div className="px-4 lg:px-8 py-8 space-y-6">
-        {error && (
-          <Card className="border-agni/40 bg-agni/5">
-            <CardContent className="p-4 flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-agni" />
-              <div>
-                <div className="font-medium text-sm">Unable to load agents</div>
-                <div className="text-xs text-muted-foreground">Check your connection and try again.</div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      <div className="space-y-8 px-4 py-8 lg:px-8">
+        {error && <Card className="border-agni/40 bg-agni/5"><CardContent className="flex items-center gap-3 p-4"><AlertTriangle className="h-5 w-5 text-agni" /><div><div className="text-sm font-medium">Workboard unavailable</div><div className="text-xs text-muted-foreground">Refresh the page and try again.</div></div></CardContent></Card>}
 
-        {/* KPIs */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Total Agents" value={isLoading ? '—' : `${agents.length - humanCount} AI · ${humanCount} Human`} accent="#1F3A5F" icon={<Cpu className="h-4 w-4" />} />
-          <KpiCard label="Active Now" value={isLoading ? '—' : String(activeCount)} accent="#2F4F3A" icon={<Activity className="h-4 w-4" />} />
-          <KpiCard label="Token Spend" value={isLoading ? '—' : formatINR(totalSpend)} delta={avgUtilization} deltaLabel="of budget used" accent="#C8302A" icon={<Zap className="h-4 w-4" />} />
-          <KpiCard label="Avg Success Rate" value={isLoading ? '—' : `${agents.length > 0 ? (agents.reduce((s, a) => s + a.successRate, 0) / agents.length).toFixed(1) : 0}%`} accent="#D4859B" icon={<TrendingUp className="h-4 w-4" />} />
-        </div>
-
-        {/* Departments */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {[1, 2, 3, 4, 5, 6].map(i => <AgentSkeleton key={i} />)}
-          </div>
-        ) : topLevel.map((chief: any) => {
-          const reports = reportsByManager[chief.id] || []
-          const isOpen = expanded[chief.id] ?? false
-          return (
-            <div key={chief.id}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-baseline gap-2">
-                  <h2 className="font-display text-base tracking-tight">{chief.role}</h2>
-                  <span className="text-[10px] font-mono text-muted-foreground">{chief.name}</span>
-                </div>
-                {reports.length > 0 && (
-                  <button
-                    onClick={() => setExpanded(e => ({ ...e, [chief.id]: !isOpen }))}
-                    className="text-[10px] tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {reports.length} {reports.length === 1 ? 'report' : 'reports'} {isOpen ? '▲' : '▾'}
-                  </button>
-                )}
-              </div>
-              {/* Chief card */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {renderAgentCard(chief, 0)}
-              </div>
-              {/* Reports (expandable) */}
-              {isOpen && reports.length > 0 && (
-                <div className="mt-3 ml-3 pl-4 border-l border-border">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {reports.map((a: any, i: number) => renderAgentCard(a, i))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )
-        })}
-
-        {/* Architecture explainer */}
-        <Card className="bg-noor text-rui border-0">
-          <CardContent className="p-8">
-            <div className="text-[10px] tracking-[0.3em] uppercase text-rui/50 mb-3">Heartbeat Engine</div>
-            <div className="font-display text-xl tracking-tight mb-4">Agents wake autonomously. They don't wait for prompts.</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-              <div>
-                <div className="text-[10px] tracking-wider uppercase text-arav mb-2">Routines</div>
-                <p className="text-rui/70 leading-relaxed">Scheduled cron jobs. CMO runs a daily metrics review at 9 AM. CFO audits expenses every Monday.</p>
-              </div>
-              <div>
-                <div className="text-[10px] tracking-wider uppercase text-gulabi mb-2">Event Triggers</div>
-                <p className="text-rui/70 leading-relaxed">Wake when a dependent task finishes or a metric drops. Stripe webhook fails → CTO wakes instantly.</p>
-              </div>
-              <div>
-                <div className="text-[10px] tracking-wider uppercase text-agni mb-2">Mentions</div>
-                <p className="text-rui/70 leading-relaxed">Tagged in an Issue comment by another agent or human. CEO assigns PAP-39 → CMO wakes immediately.</p>
-              </div>
+        <Card className="overflow-hidden border-neel/20 bg-gradient-to-br from-neel/[0.08] via-background to-arav/[0.06]">
+          <CardContent className="p-5 sm:p-6">
+            <div className="mb-4 flex items-center gap-2"><Sparkles className="h-4 w-4 text-neel" /><div><div className="text-sm font-medium">Delegate an outcome</div><div className="text-xs text-muted-foreground">Describe the result you need. The employee opens a ticket and starts the work.</div></div></div>
+            <div className="grid gap-3 md:grid-cols-[220px_1fr_auto]">
+              <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+                <SelectTrigger><SelectValue placeholder={agentsLoading ? 'Loading employees…' : 'Choose employee'} /></SelectTrigger>
+                <SelectContent>{executableAgents.map((agent) => <SelectItem key={agent.id} value={agent.id}>{agent.name} · {agent.role}</SelectItem>)}</SelectContent>
+              </Select>
+              <Textarea className="min-h-10 resize-none" rows={1} value={mission} onChange={(event) => setMission(event.target.value)} placeholder="Example: Prepare a launch plan for the new collection and flag decisions I need to make." />
+              <Button className="gap-1.5" onClick={handleDelegate} disabled={!selectedAgentId || !mission.trim() || delegating}>{delegating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}{delegating ? 'Delegating' : 'Delegate'}</Button>
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <KpiCard label="Active work" value={issuesLoading ? '—' : String(active.length)} accent="#1F3A5F" icon={<Activity className="h-4 w-4" />} />
+          <KpiCard label="Your decisions" value={issuesLoading ? '—' : String(decisions.filter((issue) => issue.status !== 'BLOCKED').length)} accent="#D4859B" icon={<CircleDot className="h-4 w-4" />} />
+          <KpiCard label="Blocked" value={issuesLoading ? '—' : String(decisions.filter((issue) => issue.status === 'BLOCKED').length)} accent="#C8302A" icon={<AlertTriangle className="h-4 w-4" />} />
+          <KpiCard label="Completed" value={issuesLoading ? '—' : String(completed.length)} accent="#2F4F3A" icon={<CheckCircle2 className="h-4 w-4" />} />
+        </div>
+
+        <section>
+          <div className="mb-3 flex items-center justify-between"><div><h2 className="font-display text-lg tracking-tight">Active work</h2><p className="text-xs text-muted-foreground">Latest output is shown on every ticket.</p></div><span className="font-mono text-[10px] text-muted-foreground">{active.length} open</span></div>
+          {issuesLoading ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map((item) => <Card key={item}><CardContent className="h-44 animate-pulse bg-muted/30" /></Card>)}</div> : active.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{active.map((issue, index) => <motion.div key={issue.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}><WorkCard issue={issue} onOpen={() => setSelectedIssue(issue)} onRun={() => handleRun(issue)} running={runningIssueId === issue.id} /></motion.div>)}</div> : <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">No active work. Delegate an outcome above to start.</CardContent></Card>}
+        </section>
+
+        <section>
+          <div className="mb-3"><h2 className="font-display text-lg tracking-tight">Decision queue</h2><p className="text-xs text-muted-foreground">Only work that needs your approval or unblocking appears here.</p></div>
+          {decisions.length ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{decisions.map((issue) => <WorkCard key={issue.id} issue={issue} onOpen={() => setSelectedIssue(issue)} onRun={() => handleRun(issue)} running={runningIssueId === issue.id} />)}</div> : <Card className="border-dashed"><CardContent className="p-6 text-sm text-muted-foreground">Clear. No approvals or blockers waiting for you.</CardContent></Card>}
+        </section>
       </div>
 
-      {/* Agent profile dialog */}
-      <Dialog open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); setEditMode(false); setEditData(null) } }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-          {selected && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <div
-                    className="h-14 w-14 rounded-full flex items-center justify-center text-lg font-display tracking-tight text-white"
-                    style={{ background: editMode ? editData?.avatarColor : selected.avatarColor }}
-                  >
-                    {editMode ? editData?.name?.[0] : selected.name?.[0]}
-                  </div>
-                  <div className="flex-1">
-                    {editMode ? (
-                      <Input
-                        className="font-display text-xl h-8"
-                        value={editData?.name || ''}
-                        onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                        placeholder="Agent name"
-                      />
-                    ) : (
-                      <DialogTitle className="font-display text-2xl tracking-tight">{selected.name}</DialogTitle>
-                    )}
-                    <DialogDescription className="font-mono text-xs">
-                      {selected.code} · {editMode ? (
-                        <Input className="inline-flex h-6 w-48 text-xs font-mono" value={editData?.role || ''} onChange={(e) => setEditData({ ...editData, role: e.target.value })} />
-                      ) : selected.role}
-                    </DialogDescription>
-                  </div>
-                  <div className="ml-auto flex items-center gap-2">
-                    {editMode ? (
-                      <Select value={editData?.status} onValueChange={(v) => setEditData({ ...editData, status: v })}>
-                        <SelectTrigger className="h-6 w-28 text-[10px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ACTIVE">Active</SelectItem>
-                          <SelectItem value="RUNNING">Running</SelectItem>
-                          <SelectItem value="IDLE">Idle</SelectItem>
-                          <SelectItem value="PAUSED">Paused</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <StatusPill status={selected.status} />
-                    )}
-                  </div>
-                </div>
-              </DialogHeader>
-
-              {/* Edit / Save / Cancel buttons */}
-              <div className="flex justify-end gap-2 -mt-2 mb-2">
-                {editMode ? (
-                  <>
-                    <Button variant="outline" size="sm" className="gap-1.5 h-7" onClick={handleCancelEdit} disabled={saving}>
-                      <X className="h-3 w-3" /> Cancel
-                    </Button>
-                    <Button size="sm" className="gap-1.5 h-7 bg-arav hover:bg-arav" onClick={handleSaveEdit} disabled={saving}>
-                      {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
-                    </Button>
-                  </>
-                ) : (
-                  <Button variant="outline" size="sm" className="gap-1.5 h-7" onClick={handleStartEdit}>
-                    <Edit3 className="h-3 w-3" /> Edit Soul & Skills
-                  </Button>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                {/* Prime Directive / Soul */}
-                <div>
-                  <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2 flex items-center gap-1">
-                    <Sparkles className="h-3 w-3" /> Prime Directive (Soul)
-                  </div>
-                  {editMode ? (
-                    <Textarea
-                      className="text-sm leading-relaxed"
-                      rows={4}
-                      value={editData?.primeDirective || ''}
-                      onChange={(e) => setEditData({ ...editData, primeDirective: e.target.value })}
-                      placeholder="The agent's core mission and soul..."
-                    />
-                  ) : (
-                    <p className="text-sm leading-relaxed italic bg-muted/30 p-3 rounded-md">"{selected.primeDirective}"</p>
-                  )}
-                </div>
-
-                {/* Description */}
-                <div>
-                  <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Description</div>
-                  {editMode ? (
-                    <Textarea
-                      className="text-sm leading-relaxed"
-                      rows={3}
-                      value={editData?.description || ''}
-                      onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                      placeholder="Agent responsibilities and bio..."
-                    />
-                  ) : (
-                    <p className="text-sm leading-relaxed">{selected.description}</p>
-                  )}
-                </div>
-
-                {/* Skills */}
-                <div>
-                  <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Skills</div>
-                  {editMode ? (
-                    <Input
-                      className="text-sm"
-                      value={editData?.skills || ''}
-                      onChange={(e) => setEditData({ ...editData, skills: e.target.value })}
-                      placeholder="Comma-separated skills..."
-                    />
-                  ) : (
-                    <div className="flex flex-wrap gap-1.5">
-                      {selected.skills && selected.skills.split(',').filter(Boolean).map((s: string) => (
-                        <span key={s} className="inline-flex items-center px-2 py-0.5 text-[10px] tracking-wider uppercase rounded-sm bg-muted text-foreground">
-                          {s.replace(/_/g, ' ').trim()}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {selected.currentTask && (
-                  <div>
-                    <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Currently Working On</div>
-                    <div className="text-sm p-3 bg-muted/50 rounded-md">{selected.currentTask}</div>
-                  </div>
-                )}
-
-                {!selected.isHuman && (
-                  <Button
-                    size="sm"
-                    className="w-full gap-1.5 bg-arav hover:bg-arav/90"
-                    onClick={handleRunWork}
-                    disabled={working}
-                  >
-                    {working ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                    {working ? 'Working…' : 'Work on assigned ticket'}
-                  </Button>
-                )}
-
-                <div className="grid grid-cols-4 gap-3">
-                  <div>
-                    <div className="text-[10px] tracking-wider uppercase text-muted-foreground">Tasks Today</div>
-                    <div className="font-display text-lg mt-0.5">{selected.tasksToday}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] tracking-wider uppercase text-muted-foreground">Lifetime Tasks</div>
-                    <div className="font-display text-lg mt-0.5">{selected.tasksTotal.toLocaleString('en-IN')}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] tracking-wider uppercase text-muted-foreground">Success Rate</div>
-                    <div className="font-display text-lg mt-0.5">{selected.successRate}%</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] tracking-wider uppercase text-muted-foreground">Last Heartbeat</div>
-                    <div className="text-xs mt-1.5">{timeAgo(selected.lastHeartbeat)}</div>
-                  </div>
-                </div>
-
-                {!selected.isHuman && (
-                  <div>
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="text-muted-foreground">Token Budget</span>
-                      <span className="font-mono">{formatINRFull(selected.tokenSpend)} / {formatINRFull(selected.tokenBudget)}</span>
-                    </div>
-                    <Progress value={safeDiv(selected.tokenSpend, selected.tokenBudget) * 100} className="h-1.5" />
-                    <div className="text-[10px] text-muted-foreground mt-1">
-                      {Math.round(safeDiv(selected.tokenSpend, selected.tokenBudget) * 100)}% utilized · {safeDiv(selected.tokenSpend, selected.tokenBudget) >= 0.8 ? 'Approaching threshold' : 'Within bounds'}
-                    </div>
-                  </div>
-                )}
-
-                {/* Direct chat interface */}
-                <div>
-                  <div className="text-[10px] tracking-wider uppercase text-muted-foreground mb-2">Direct Chat</div>
-                  <div className="border border-border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
-                    {/* Initial agent message */}
-                    {(messages[selected.code] || []).length === 0 && (
-                      <div className="flex items-start gap-2">
-                        <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] text-white flex-shrink-0" style={{ background: selected.avatarColor }}>
-                          {selected.name?.[0]}
-                        </div>
-                        <div className="text-xs bg-muted/50 p-2 rounded-md">
-                          Heartbeat complete. Analyzed today's data. Ready for next assignment.
-                        </div>
-                      </div>
-                    )}
-                    {/* Conversation */}
-                    {(messages[selected.code] || []).map((m) => (
-                      <div key={m.id} className={`flex items-start gap-2 ${m.from === 'founder' ? 'flex-row-reverse' : ''}`}>
-                        <div
-                          className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] text-white flex-shrink-0"
-                          style={{ background: m.from === 'founder' ? '#0A0A0A' : selected.avatarColor }}
-                        >
-                          {m.from === 'founder' ? 'F' : selected.name?.[0]}
-                        </div>
-                        <div
-                          className={`text-xs p-2 rounded-md max-w-[80%] ${
-                            m.from === 'founder' ? 'bg-foreground text-background' : 'bg-muted/50'
-                          }`}
-                        >
-                          {m.text}
-                        </div>
-                      </div>
-                    ))}
-                    {agentTyping && (
-                      <div className="flex items-start gap-2">
-                        <div className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] text-white flex-shrink-0" style={{ background: selected.avatarColor }}>
-                          {selected.name?.[0]}
-                        </div>
-                        <div className="text-xs bg-muted/50 p-2 rounded-md flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 bg-muted-foreground/60 rounded-full animate-pulse" />
-                          <span className="h-1.5 w-1.5 bg-muted-foreground/60 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }} />
-                          <span className="h-1.5 w-1.5 bg-muted-foreground/60 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }} />
-                        </div>
-                      </div>
-                    )}
-                    <div ref={chatEndRef} />
-                  </div>
-                  <div className="mt-2 flex gap-2">
-                    <input
-                      className="flex-1 px-3 py-1.5 text-xs border border-border rounded-md bg-background"
-                      placeholder={`Message ${selected.name}…`}
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && chatInput.trim() && !agentTyping) {
-                          handleSendChat()
-                        }
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      className="gap-1.5 h-8"
-                      disabled={!chatInput.trim() || agentTyping}
-                      onClick={handleSendChat}
-                    >
-                      <Send className="h-3 w-3" /> Send
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+      <Dialog open={Boolean(selectedIssue)} onOpenChange={(open) => !open && setSelectedIssue(null)}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          {selectedIssue && <>
+            <DialogHeader><div className="flex items-center justify-between gap-3 pr-6"><div><DialogTitle className="font-display text-xl tracking-tight">{selectedIssue.title}</DialogTitle><DialogDescription className="mt-1 font-mono text-[10px]">{selectedIssue.code} · {selectedIssue.assignee?.name || 'Unassigned'} · {timeAgo(selectedIssue.updatedAt)}</DialogDescription></div><StatusPill status={selectedIssue.status} /></div></DialogHeader>
+            <p className="rounded-md bg-muted/40 p-3 text-sm leading-relaxed">{selectedIssue.description}</p>
+            <div className="flex flex-wrap gap-2"><Select value={selectedIssue.status} onValueChange={handleStatus}><SelectTrigger className="h-8 w-44 text-xs"><SelectValue /></SelectTrigger><SelectContent>{['BACKLOG', 'IN_PROGRESS', 'IN_REVIEW', 'MILESTONE_REVIEW', 'BLOCKED', 'DONE'].map((status) => <SelectItem key={status} value={status}>{STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select>{selectedIssue.assignee && !selectedIssue.assignee.isHuman && <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={() => handleRun(selectedIssue)} disabled={runningIssueId === selectedIssue.id}>{runningIssueId === selectedIssue.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}Run employee</Button>}</div>
+            <div><div className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">Work log</div><div className="space-y-3">{selectedIssue.comments?.length ? selectedIssue.comments.map((comment: any) => <div key={comment.id} className="border-l-2 border-border pl-3"><div className="mb-1 flex items-center gap-2 text-[10px] text-muted-foreground"><span className="font-medium text-foreground">{comment.authorName}</span><span>{timeAgo(comment.createdAt)}</span></div><p className="whitespace-pre-wrap text-xs leading-relaxed">{comment.body}</p></div>) : <p className="text-sm text-muted-foreground">No work logged yet.</p>}</div></div>
+            {selectedIssue.status === 'BLOCKED' && <div className="flex items-start gap-2 rounded-md bg-agni/10 p-3 text-xs text-agni"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />Open the ticket, make the needed decision, then move it back to In progress.</div>}
+          </>}
         </DialogContent>
       </Dialog>
     </div>
   )
-}
-
-function statusRing(status: string): string {
-  const map: Record<string, string> = {
-    ACTIVE: 'bg-arav',
-    RUNNING: 'bg-neel animate-pulse-soft',
-    TRAINING: 'bg-gulabi animate-pulse-soft',
-    IDLE: 'bg-muted-foreground/40',
-    PAUSED: 'bg-agni',
-    ERROR: 'bg-agni',
-    ALERT: 'bg-agni animate-pulse-soft',
-  }
-  return map[status] || 'bg-muted-foreground/40'
 }
