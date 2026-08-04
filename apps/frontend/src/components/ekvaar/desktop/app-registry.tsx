@@ -6,7 +6,7 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Music, Activity, Brain, Factory
+  AlertTriangle, Music, Activity, Brain
 } from 'lucide-react'
 
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
@@ -31,7 +31,6 @@ import { SpotifyApp } from '@/components/ekvaar/modules/spotify'
 import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
 import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
 import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
-import { QikinkApp } from '@/components/ekvaar/modules/qikink'
 import { OSManifest } from '@/lib/os-desktop/manifest'
 
 // To bridge legacy metadata that isn't in OSManifest yet
@@ -317,22 +316,6 @@ export const APPS: AppDef[] = [
     entryPoint: CampaignsModule,
     permissions: [],
     gradient: 'linear-gradient(135deg, #0A0A0A 0%, #C8302A 100%)',
-    glyphColor: '#F5F1EA',
-    menuItems: []
-  },
-  {
-    id: 'qikink',
-    name: 'Qikink Operations',
-    shortName: 'Qikink',
-    version: '1.0.0',
-    icon: Factory as any,
-    iconVariant: 'qikink',
-    category: 'business',
-    requiredCapabilities: [],
-    organizationOnly: ['ekvaar'],
-    entryPoint: QikinkApp,
-    permissions: [],
-    gradient: 'linear-gradient(135deg, #111827 0%, #0F766E 55%, #F97316 100%)',
     glyphColor: '#F5F1EA',
     menuItems: []
   },
