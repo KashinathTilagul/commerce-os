@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useThemeStore } from '@/lib/theme-store'
 import { toast } from '@/components/ekvaar/desktop/toast'
+import { WORKABLE_VOICES, applyVoiceToUtterance } from '@/lib/voice-config'
 import { useEffect, useState, useRef } from 'react'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -295,30 +296,13 @@ export function Settings() {
                     handleChange('ttsVoice', v)
                   }}
                 >
-                  <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <div className="px-2 py-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Pocket TTS — kyutai Local Neural</div>
-                    <SelectItem value="charles">Charles — English Male</SelectItem>
-                    <SelectItem value="eve">Eve — English Female</SelectItem>
-                    <SelectItem value="anna">Anna — English Female (warm)</SelectItem>
-                    <SelectItem value="alba">Alba — English Female (clear)</SelectItem>
-                    <SelectItem value="estelle">Estelle — English Female</SelectItem>
-                    <SelectItem value="lola">Lola — English Female</SelectItem>
-                    <SelectItem value="giovanni">Giovanni — Male</SelectItem>
-                    <SelectItem value="rafael">Rafael — Male</SelectItem>
-                    <div className="px-2 py-1 text-[10px] font-mono text-muted-foreground uppercase tracking-wider border-t border-border mt-1 pt-2">Edge TTS — Cloud Neural</div>
-                    <SelectItem value="en-IN-NeerjaNeural">Neerja — Indian English Female</SelectItem>
-                    <SelectItem value="en-IN-PrabhatNeural">Prabhat — Indian English Male</SelectItem>
-                    <SelectItem value="hi-IN-SwaraNeural">Swara — Hindi Female</SelectItem>
-                    <SelectItem value="hi-IN-MadhurNeural">Madhur — Hindi Male</SelectItem>
-                    <SelectItem value="en-US-AndrewNeural">Andrew — US English Male</SelectItem>
-                    <SelectItem value="en-US-EmmaNeural">Emma — US English Female</SelectItem>
-                    <SelectItem value="en-US-BrianNeural">Brian — US English Male (deep)</SelectItem>
-                    <SelectItem value="en-US-AvaNeural">Ava — US English Female (warm)</SelectItem>
-                    <SelectItem value="en-GB-RyanNeural">Ryan — British Male</SelectItem>
-                    <SelectItem value="en-GB-SoniaNeural">Sonia — British Female</SelectItem>
-                    <SelectItem value="en-AU-WilliamNeural">William — Australian Male</SelectItem>
-                    <SelectItem value="en-AU-NatashaNeural">Natasha — Australian Female</SelectItem>
+                    {WORKABLE_VOICES.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <VoicePreviewButton voice={localVoice} />
@@ -582,8 +566,6 @@ function Row({ label, desc, children }: { label: string; desc: string; children:
 function VoicePreviewButton({ voice }: { voice: string }) {
   const [playing, setPlaying] = useState(false)
 
-  // Non-async: speechSynthesis.speak() must be called synchronously inside the
-  // click handler or browsers (Safari, Chrome autoplay policy) will block it.
   const play = () => {
     if (playing) return
     setPlaying(true)
@@ -591,72 +573,29 @@ function VoicePreviewButton({ voice }: { voice: string }) {
     const text = 'Hello. I am Krishna, the intelligence layer of your Business OS.'
     const synth = window.speechSynthesis
 
-    // ── 1. Start browser TTS immediately (synchronous — preserves user gesture) ──
     synth.cancel()
+
+    // ── 1. Try server neural voice ──
     fetch('/api/jarvis/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice, speed: 1.0, stability: 0.80, volume: 1.0 }),
-      signal: AbortSignal.timeout(8000),
+      body: JSON.stringify({ text, voice, speed: 1.0, volume: 1.0 }),
+      signal: AbortSignal.timeout(4000),
     }).then(async res => {
-      if (!res.ok) throw new Error('TTS unavailable')
+      if (!res.ok) throw new Error('Neural TTS unavailable')
       const audio = new Audio(URL.createObjectURL(await res.blob()))
       audio.volume = 1
       audio.onended = () => { URL.revokeObjectURL(audio.src); done() }
+      audio.onerror = () => done()
       await audio.play()
-    }).then(() => synth.cancel()).catch(() => {
-      const fallback = new SpeechSynthesisUtterance(text)
-      fallback.onend = done
-      fallback.onerror = done
-      synth.speak(fallback)
+    }).catch(() => {
+      // ── 2. Fallback to browser SpeechSynthesis tuned to selected voice ──
+      const u = new SpeechSynthesisUtterance(text)
+      applyVoiceToUtterance(u, synth, voice)
+      u.onend = done
+      u.onerror = done
+      synth.speak(u)
     })
-    return
-
-    const u = new SpeechSynthesisUtterance(text)
-    u.volume = 1.0
-    const isPocket = !voice.includes('-')
-    const isFemale = isPocket
-      ? /eve|anna|alba|estelle|lola/i.test(voice)
-      : /Neerja|Emma|Ava|Sonia|Natasha|Swara/i.test(voice)
-    const lang = isPocket ? 'en-US'
-      : voice.startsWith('hi-IN') ? 'hi'
-      : voice.startsWith('en-IN') ? 'en-IN'
-      : voice.startsWith('en-GB') ? 'en-GB'
-      : voice.startsWith('en-AU') ? 'en-AU' : 'en-US'
-    const genderHint = isFemale ? 'female' : 'male'
-    const allVoices = synth.getVoices()
-    const pickVoice = (l: string) =>
-      allVoices.find(v => v.lang.startsWith(l) && v.name.toLowerCase().includes(genderHint)) ||
-      allVoices.find(v => v.lang.startsWith(l))
-    const best = pickVoice(lang) || pickVoice('en-GB') || pickVoice('en') || allVoices[0] || null
-    if (best) u.voice = best
-    if (voice.startsWith('hi-IN'))      { u.rate = 0.88; u.pitch = isFemale ? 1.1  : 0.85 }
-    else if (voice.startsWith('en-IN')) { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.88 }
-    else if (lang === 'en-GB')          { u.rate = 0.88; u.pitch = isFemale ? 1.0  : 0.80 }
-    else if (voice.startsWith('en-AU')) { u.rate = 0.92; u.pitch = isFemale ? 1.05 : 0.85 }
-    else                                { u.rate = 0.90; u.pitch = isFemale ? 1.05 : 0.82 }
-    u.onend = done
-    u.onerror = done
-    synth.speak(u)
-
-    // ── 2. Concurrently try server TTS — upgrades to neural voice if FastAPI is up ──
-    fetch('/api/jarvis/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice, speed: 1.0, stability: 0.80, volume: 1.0 }),
-      signal: AbortSignal.timeout(8000),
-    }).then(async res => {
-      if (!res.ok) return
-      const buf = await res.arrayBuffer()
-      synth.cancel() // stop browser TTS — neural voice takes over
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
-      const audioBuffer = await audioCtx.decodeAudioData(buf)
-      const source = audioCtx.createBufferSource()
-      source.buffer = audioBuffer
-      source.connect(audioCtx.destination)
-      source.onended = () => { done(); audioCtx.close().catch(() => {}) }
-      source.start(0)
-    }).catch(() => { /* browser TTS already playing — no-op */ })
   }
 
   return (

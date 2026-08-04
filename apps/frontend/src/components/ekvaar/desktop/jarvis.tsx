@@ -7,6 +7,9 @@ import { useWindowStore } from '@/lib/window-store'
 import { APPS } from './app-registry'
 import { toast } from './toast'
 import { MessageScroller, Message, Bubble } from '@/components/ui/chat'
+import { getSelectedVoiceId, applyVoiceToUtterance } from '@/lib/voice-config'
+import type { FrameDebug, TrackerStatus, Pose } from '@/lib/hand-tracker'
+import { PINCH_ON } from '@/lib/hand-tracker'
 import { GestureControl } from './gesture-control'
 export { GestureControl }
 
@@ -244,16 +247,47 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     if (!clean) { setGlobal('idle'); return }
     setGlobal('talking')
     speakingRef.current = true
+
+    const voiceId = getSelectedVoiceId()
+
+    // ── 1. Try server neural TTS first (if neural API is available) ──
+    try {
+      const res = await fetch('/api/jarvis/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: clean, voice: voiceId, speed: 1.0 }),
+        signal: AbortSignal.timeout(4000),
+      })
+      if (res.ok) {
+        const audio = new Audio(URL.createObjectURL(await res.blob()))
+        audio.volume = 1
+        audioStopRef.current = () => { audio.pause(); URL.revokeObjectURL(audio.src) }
+        await new Promise<void>((resolve) => {
+          audio.onended = () => resolve()
+          audio.onerror = () => resolve()
+          audio.play().catch(() => resolve())
+        })
+        speakingRef.current = false
+        setGlobal('idle')
+        if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
+          setTimeout(() => {
+            if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
+              startListening()
+            }
+          }, 500)
+        }
+        return
+      }
+    } catch {}
+
+    // ── 2. Fallback to browser SpeechSynthesis tuned specifically to selected voiceId ──
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const sentences = toSentences(clean)
       for (const sentence of sentences) {
         if (!speakingRef.current) break
         await new Promise<void>((resolve) => {
           const u = new SpeechSynthesisUtterance(sentence)
-          u.voice = bestVoiceRef.current
-          u.rate = 1.0
-          u.pitch = 1.0
-          u.volume = 1.0
+          applyVoiceToUtterance(u, window.speechSynthesis, voiceId)
           let done = false
           const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
           audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
@@ -263,7 +297,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           window.speechSynthesis.speak(u)
         })
         if (speakingRef.current && sentences.indexOf(sentence) < sentences.length - 1) {
-          await new Promise(r => setTimeout(r, 200))
+          await new Promise(r => setTimeout(r, 180))
         }
       }
     }
