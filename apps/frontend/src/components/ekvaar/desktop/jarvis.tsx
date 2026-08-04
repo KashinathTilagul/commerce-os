@@ -128,6 +128,79 @@ export function KrishnaMenuBarIcon({ onClick }: { onClick: () => void }) {
   )
 }
 
+const STATE_LIQUID_GRADIENT: Record<KrishnaState, { bg: string; glow: string; border: string }> = {
+  idle: {
+    bg: 'radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.45) 0%, rgba(34, 211, 238, 0.35) 45%, rgba(15, 23, 42, 0.8) 100%)',
+    glow: 'rgba(34, 211, 238, 0.35)',
+    border: 'rgba(255, 255, 255, 0.3)',
+  },
+  listening: {
+    bg: 'radial-gradient(circle at 40% 30%, rgba(255, 150, 180, 0.7) 0%, rgba(244, 63, 94, 0.5) 50%, rgba(20, 10, 20, 0.9) 100%)',
+    glow: 'rgba(244, 63, 94, 0.5)',
+    border: 'rgba(255, 200, 220, 0.4)',
+  },
+  thinking: {
+    bg: 'radial-gradient(circle at 30% 40%, rgba(216, 180, 254, 0.7) 0%, rgba(168, 85, 247, 0.5) 50%, rgba(20, 10, 30, 0.9) 100%)',
+    glow: 'rgba(168, 85, 247, 0.5)',
+    border: 'rgba(233, 213, 255, 0.4)',
+  },
+  talking: {
+    bg: 'radial-gradient(circle at 35% 35%, rgba(167, 243, 208, 0.7) 0%, rgba(16, 185, 129, 0.5) 50%, rgba(10, 25, 20, 0.9) 100%)',
+    glow: 'rgba(16, 185, 129, 0.5)',
+    border: 'rgba(187, 247, 208, 0.4)',
+  },
+}
+
+// Organic Apple Liquid Glass Intelligence Sphere (renders inside Krishna Assistant Window)
+function KrishnaLiquidSphere({ state }: { state: KrishnaState }) {
+  const theme = STATE_LIQUID_GRADIENT[state] || STATE_LIQUID_GRADIENT.idle
+
+  return (
+    <div className="relative flex items-center justify-center py-3">
+      {/* Background Liquid Ambient Glow */}
+      <motion.div
+        className="absolute h-32 w-32 rounded-full filter blur-2xl opacity-50 pointer-events-none"
+        style={{ background: theme.glow }}
+        animate={{
+          scale: state === 'listening' ? [1, 1.3, 1] : state === 'talking' ? [1, 1.2, 1] : [1, 1.1, 1],
+          opacity: state === 'idle' ? [0.3, 0.6, 0.3] : 0.7,
+        }}
+        transition={{ duration: state === 'listening' ? 1 : 2.5, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* Main Apple Liquid Sphere */}
+      <motion.div
+        className="relative flex h-20 w-20 items-center justify-center rounded-full backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.5),inset_0_1px_2px_rgba(255,255,255,0.4)]"
+        style={{
+          background: theme.bg,
+          border: `1px solid ${theme.border}`,
+        }}
+        animate={{
+          scale: state === 'listening' ? [1, 1.06, 1] : state === 'talking' ? [1, 1.04, 1] : [1, 1.02, 1],
+          rotate: state === 'thinking' ? 360 : 0,
+        }}
+        transition={{
+          scale: { duration: state === 'listening' ? 0.8 : 2, repeat: Infinity, ease: 'easeInOut' },
+          rotate: { duration: 10, repeat: Infinity, ease: 'linear' },
+        }}
+      >
+        {/* Inner Liquid Lens Gradient */}
+        <div className="absolute inset-1 rounded-full border border-white/25 bg-gradient-to-b from-white/20 via-transparent to-black/20 pointer-events-none" />
+
+        {/* Core Liquid Glow Bead */}
+        <motion.div
+          className="h-8 w-8 rounded-full bg-white/30 backdrop-blur-md shadow-[0_0_18px_rgba(255,255,255,0.6)]"
+          animate={{
+            scale: state === 'idle' ? [0.9, 1.15, 0.9] : state === 'listening' ? [1, 1.35, 1] : [1, 1.2, 1],
+            opacity: [0.7, 1, 0.7],
+          }}
+          transition={{ duration: state === 'listening' ? 0.7 : 1.8, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </motion.div>
+    </div>
+  )
+}
+
 
 
 // ─── Main Krishna panel ─────────────────────────────────────────────────────
@@ -530,6 +603,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
               </button>
             </div>
           </header>
+
+          {/* Organic Apple Liquid Intelligence Sphere */}
+          <div className="border-b border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent">
+            <KrishnaLiquidSphere state={gState} />
+          </div>
 
           {/* Liquid Voice Status Indicator when active */}
           {gState !== 'idle' && (
