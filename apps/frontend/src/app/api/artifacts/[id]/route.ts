@@ -44,7 +44,9 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': artifact.mimeType,
-        'Content-Disposition': `attachment; filename="${artifact.title}.${getFileExtension(artifact.mimeType, artifact.type)}"`,
+        // Generated assets are consumed inside the workboard. Inline keeps media
+        // previewable while the direct URL remains available for download/share.
+        'Content-Disposition': `inline; filename="${artifact.title}.${getFileExtension(artifact.mimeType, artifact.type)}"`,
         'Content-Length': fileBuffer.length.toString()
       }
     })

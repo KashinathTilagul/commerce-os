@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import {
-  LayoutDashboard, Inbox, Users, GitBranch, Terminal as TerminalIcon,
+  LayoutDashboard, Inbox, Users, Terminal as TerminalIcon,
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
@@ -12,7 +12,6 @@ import {
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
 import { FounderInbox } from '@/components/ekvaar/modules/founder-inbox'
 import { DigitalEmployeesHub } from '@/components/ekvaar/modules/digital-employees-hub'
-import { IssuesModule } from '@/components/ekvaar/modules/issues'
 import { TerminalModule } from '@/components/ekvaar/modules/terminal'
 import { Settings } from '@/components/ekvaar/modules/settings'
 import { Files } from '@/components/ekvaar/modules/files'
@@ -134,21 +133,6 @@ export const APPS: AppDef[] = [
     entryPoint: DigitalEmployeesHub,
     permissions: [],
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #0A0A0A 100%)',
-    glyphColor: '#F5F1EA',
-    menuItems: [{ label: 'File', items: ['Close Window'] }]
-  },
-  {
-    id: 'issues',
-    name: 'Issues',
-    shortName: 'Issues',
-    version: '1.0.0',
-    icon: GitBranch as any,
-    iconVariant: 'issues',
-    category: 'core',
-    requiredCapabilities: [],
-    entryPoint: IssuesModule,
-    permissions: [],
-    gradient: 'linear-gradient(135deg, #2F4F3A 0%, #1F3A5F 100%)',
     glyphColor: '#F5F1EA',
     menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
