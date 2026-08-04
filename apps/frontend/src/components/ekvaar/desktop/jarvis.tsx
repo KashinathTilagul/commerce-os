@@ -101,200 +101,27 @@ export function useKrishnaState(): KrishnaState {
 }
 
 const STATE_COLOR: Record<KrishnaState, string> = {
-  idle: '#00F0FF', listening: '#FF007A', thinking: '#A855F7', talking: '#10B981',
+  idle: '#22d3ee', listening: '#f43f5e', thinking: '#a855f7', talking: '#10b981',
 }
 
-// ─── 2050 Cybernetic Canvas Audio/Neural Visualizer ─────────────────────────────
-function KrishnaVisualizerCanvas({ state, analyser }: { state: KrishnaState; analyser: AnalyserNode | null }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    let animId: number
-    let angle = 0
-    const freqData = new Uint8Array(analyser ? analyser.frequencyBinCount : 32)
-
-    const render = () => {
-      const w = canvas.width
-      const h = canvas.height
-      const cx = w / 2
-      const cy = h / 2
-      ctx.clearRect(0, 0, w, h)
-
-      let avgVolume = 0
-      if (analyser) {
-        analyser.getByteFrequencyData(freqData)
-        avgVolume = freqData.reduce((a, b) => a + b, 0) / freqData.length
-      }
-
-      angle += 0.025
-
-      if (state === 'idle') {
-        // Holographic 2050 Core Reactor Orb
-        ctx.save()
-        ctx.translate(cx, cy)
-
-        // Outer concentric orbital ring
-        ctx.rotate(angle * 0.4)
-        ctx.beginPath()
-        ctx.arc(0, 0, 34, 0, Math.PI * 2)
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)'
-        ctx.lineWidth = 1.5
-        ctx.setLineDash([8, 12])
-        ctx.stroke()
-
-        // Counter-rotating telemetry ring
-        ctx.rotate(-angle * 0.9)
-        ctx.beginPath()
-        ctx.arc(0, 0, 26, 0, Math.PI * 2)
-        ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)'
-        ctx.setLineDash([4, 6])
-        ctx.stroke()
-        ctx.restore()
-
-        // Core Quantum Radial Glow
-        const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 22)
-        grad.addColorStop(0, 'rgba(0, 240, 255, 0.95)')
-        grad.addColorStop(0.5, 'rgba(168, 85, 247, 0.45)')
-        grad.addColorStop(1, 'rgba(0, 240, 255, 0)')
-        ctx.beginPath()
-        ctx.arc(cx, cy, 18 + Math.sin(angle * 2) * 3, 0, Math.PI * 2)
-        ctx.fillStyle = grad
-        ctx.fill()
-      } else if (state === 'listening') {
-        // Real-time Dynamic Audio Spectrum Sonar Ring
-        const volFactor = Math.min(avgVolume / 50, 2.5)
-        const radius = 22 + volFactor * 12
-
-        // Outer expanding wave ring
-        ctx.beginPath()
-        ctx.arc(cx, cy, radius * 1.5, 0, Math.PI * 2)
-        ctx.strokeStyle = `rgba(255, 0, 122, ${Math.max(0.1, 0.5 - volFactor * 0.15)})`
-        ctx.lineWidth = 1
-        ctx.stroke()
-
-        // Radial equalizer frequency spikes
-        const bars = 32
-        for (let i = 0; i < bars; i++) {
-          const rad = (i / bars) * Math.PI * 2 + angle
-          const val = (freqData[i % freqData.length] || 15) / 255
-          const len = 10 + val * 26 * (1 + volFactor)
-          const x1 = cx + Math.cos(rad) * radius
-          const y1 = cy + Math.sin(rad) * radius
-          const x2 = cx + Math.cos(rad) * (radius + len)
-          const y2 = cy + Math.sin(rad) * (radius + len)
-
-          ctx.beginPath()
-          ctx.moveTo(x1, y1)
-          ctx.lineTo(x2, y2)
-          ctx.strokeStyle = i % 2 === 0 ? '#00F0FF' : '#FF007A'
-          ctx.lineWidth = 2
-          ctx.stroke()
-        }
-
-        ctx.beginPath()
-        ctx.arc(cx, cy, radius, 0, Math.PI * 2)
-        ctx.fillStyle = 'rgba(0, 240, 255, 0.85)'
-        ctx.shadowColor = '#00F0FF'
-        ctx.shadowBlur = 15
-        ctx.fill()
-        ctx.shadowBlur = 0
-      } else if (state === 'thinking') {
-        // Sci-Fi Neural Matrix Grid & Laser Orbitals
-        ctx.save()
-        ctx.translate(cx, cy)
-        ctx.rotate(angle * 2.2)
-        for (let i = 0; i < 4; i++) {
-          ctx.rotate(Math.PI / 2)
-          ctx.beginPath()
-          ctx.moveTo(0, 0)
-          ctx.lineTo(30, 0)
-          ctx.strokeStyle = i % 2 === 0 ? 'rgba(0, 240, 255, 0.85)' : 'rgba(168, 85, 247, 0.85)'
-          ctx.lineWidth = 2
-          ctx.stroke()
-
-          ctx.beginPath()
-          ctx.arc(30, 0, 4, 0, Math.PI * 2)
-          ctx.fillStyle = '#00F0FF'
-          ctx.fill()
-        }
-        ctx.restore()
-
-        // Central Quantum Core
-        ctx.beginPath()
-        ctx.arc(cx, cy, 14 + Math.cos(angle * 4) * 4, 0, Math.PI * 2)
-        ctx.fillStyle = '#A855F7'
-        ctx.shadowColor = '#A855F7'
-        ctx.shadowBlur = 18
-        ctx.fill()
-        ctx.shadowBlur = 0
-      } else if (state === 'talking') {
-        // Multi-frequency undulating audio sine wave
-        ctx.beginPath()
-        ctx.moveTo(10, cy)
-        for (let x = 10; x < w - 10; x += 4) {
-          const sine = Math.sin((x * 0.05) + angle * 3) * 16 * (0.4 + Math.sin(x * 0.02))
-          ctx.lineTo(x, cy + sine)
-        }
-        ctx.strokeStyle = '#10B981'
-        ctx.lineWidth = 2.5
-        ctx.shadowColor = '#10B981'
-        ctx.shadowBlur = 14
-        ctx.stroke()
-        ctx.shadowBlur = 0
-
-        // Secondary laser sine wave
-        ctx.beginPath()
-        ctx.moveTo(10, cy)
-        for (let x = 10; x < w - 10; x += 4) {
-          const sine = Math.cos((x * 0.04) - angle * 2) * 10
-          ctx.lineTo(x, cy + sine)
-        }
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)'
-        ctx.lineWidth = 1.5
-        ctx.stroke()
-      }
-
-      animId = requestAnimationFrame(render)
-    }
-
-    render()
-    return () => cancelAnimationFrame(animId)
-  }, [state, analyser])
-
-  return (
-    <div className="relative flex items-center justify-center py-1">
-      <canvas ref={canvasRef} width={340} height={80} className="w-full max-w-[340px] h-[80px] rounded-lg" />
-    </div>
-  )
-}
-
-// Futuristic top bar status icon
+// Sleek Apple Liquid Glass top bar status icon
 export function KrishnaMenuBarIcon({ onClick }: { onClick: () => void }) {
   const state = useKrishnaState()
   const color = STATE_COLOR[state]
   return (
     <button
-      title="Krishna AI 2050 Core"
+      title="Krishna AI"
       onClick={onClick}
-      className="group relative p-1.5 rounded-md hover:bg-cyan-500/15 transition-all flex items-center justify-center"
+      className="group relative p-1.5 rounded-full hover:bg-white/10 transition-all flex items-center justify-center"
     >
-      <div className="relative flex items-center justify-center h-4 w-4">
+      <div className="relative flex items-center justify-center h-3.5 w-3.5">
         <motion.div
-          className="absolute inset-0 rounded-full border border-cyan-400/40"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-        />
-        <motion.div
-          style={{ width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 10px ${color}` }}
+          style={{ width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 8px ${color}` }}
           animate={{
-            scale: state === 'idle' ? [1, 1.2, 1] : state === 'talking' ? [1, 1.4, 1] : [1, 1.3, 1],
-            opacity: state === 'idle' ? [0.75, 1, 0.75] : 1,
+            scale: state === 'idle' ? [1, 1.2, 1] : state === 'talking' ? [1, 1.35, 1] : [1, 1.25, 1],
+            opacity: state === 'idle' ? [0.7, 1, 0.7] : 1,
           }}
-          transition={{ duration: state === 'idle' ? 2 : state === 'listening' ? 0.5 : 0.3, repeat: Infinity }}
+          transition={{ duration: state === 'idle' ? 2.2 : state === 'listening' ? 0.6 : 0.4, repeat: Infinity }}
         />
       </div>
     </button>
@@ -666,128 +493,129 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     <AnimatePresence>
       {expanded && (
         <motion.section
-          initial={{ opacity: 0, y: 25, scale: 0.95 }}
+          initial={{ opacity: 0, y: 20, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 25, scale: 0.95 }}
-          transition={{ type: 'spring', damping: 24, stiffness: 320 }}
-          className="fixed bottom-20 right-4 z-[9900] w-[min(calc(100vw-2rem),540px)] overflow-hidden rounded-2xl border border-cyan-500/35 bg-[#020814]/94 text-cyan-50 shadow-[0_0_60px_rgba(0,240,255,0.25),inset_0_0_20px_rgba(0,240,255,0.05)] backdrop-blur-2xl sm:right-6"
-          aria-label="Krishna Cybernetic HUD 2050"
+          exit={{ opacity: 0, y: 20, scale: 0.96 }}
+          transition={{ type: 'spring', damping: 26, stiffness: 340 }}
+          className="fixed bottom-20 right-4 z-[9900] w-[min(calc(100vw-2rem),460px)] overflow-hidden rounded-3xl border border-white/15 bg-[#0a0a0c]/80 text-white shadow-[0_20px_60px_rgba(0,0,0,0.6),0_1px_0_rgba(255,255,255,0.1)_inset] backdrop-blur-3xl sm:right-6"
+          aria-label="Krishna AI Assistant"
         >
-          <span className="absolute top-1.5 left-2 font-mono text-[9px] text-cyan-400/40 select-none pointer-events-none">◤</span>
-          <span className="absolute top-1.5 right-2 font-mono text-[9px] text-cyan-400/40 select-none pointer-events-none">◥</span>
-          <span className="absolute bottom-1.5 left-2 font-mono text-[9px] text-cyan-400/40 select-none pointer-events-none">◣</span>
-          <span className="absolute bottom-1.5 right-2 font-mono text-[9px] text-cyan-400/40 select-none pointer-events-none">◢</span>
-
-          <header className="flex items-center justify-between border-b border-cyan-500/20 bg-cyan-950/30 px-4 py-2.5">
-            <div className="flex items-center gap-2.5 font-mono text-[10px] tracking-[0.2em] text-cyan-300">
-              <span className="relative flex h-2 w-2">
-                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${
-                  gState === 'listening' ? 'bg-pink-500' : gState === 'talking' ? 'bg-emerald-400' : gState === 'thinking' ? 'bg-purple-400' : 'bg-cyan-400'
+          {/* Apple Liquid Header */}
+          <header className="flex items-center justify-between border-b border-white/10 px-4 py-3 bg-white/[0.03]">
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex h-2.5 w-2.5 items-center justify-center">
+                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${
+                  gState === 'listening' ? 'bg-rose-400' : gState === 'talking' ? 'bg-emerald-400' : gState === 'thinking' ? 'bg-purple-400' : 'bg-cyan-400'
                 }`} />
-                <span className={`relative inline-flex h-2 w-2 rounded-full ${
-                  gState === 'listening' ? 'bg-pink-500' : gState === 'talking' ? 'bg-emerald-400' : gState === 'thinking' ? 'bg-purple-400' : 'bg-cyan-400'
+                <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+                  gState === 'listening' ? 'bg-rose-400' : gState === 'talking' ? 'bg-emerald-400' : gState === 'thinking' ? 'bg-purple-400' : 'bg-cyan-400'
                 }`} />
-              </span>
-              <span>KRISHNA // HUD 2050</span>
+              </div>
+              <span className="font-medium text-sm text-white/90">Krishna AI</span>
               {activeWindowName && (
-                <span className="hidden text-cyan-400/50 sm:inline">
-                  [ {activeWindowName.toUpperCase()} ]
+                <span className="text-xs text-white/40 font-normal">
+                  · {activeWindowName}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setMessages([])} className="rounded p-1.5 text-cyan-400/60 hover:bg-cyan-500/15 hover:text-cyan-200" title="Clear HUD stream">
+              <button onClick={() => setMessages([])} className="rounded-full p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition-colors" title="Clear chat history">
                 <RotateCcw className="h-3.5 w-3.5" />
               </button>
-              <button onClick={() => setMuted(m => !m)} className="rounded p-1.5 text-cyan-400/60 hover:bg-cyan-500/15 hover:text-cyan-200" title={muted ? 'Unmute Krishna' : 'Mute Krishna'}>
+              <button onClick={() => setMuted(m => !m)} className="rounded-full p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition-colors" title={muted ? 'Unmute' : 'Mute'}>
                 {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
               </button>
-              <button onClick={closePanel} className="rounded p-1.5 text-cyan-400/60 hover:bg-red-500/20 hover:text-red-300" title="Close HUD">
+              <button onClick={closePanel} className="rounded-full p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition-colors" title="Close">
                 <X className="h-4 w-4" />
               </button>
             </div>
           </header>
 
-          <div className="relative border-b border-cyan-500/15 bg-gradient-to-b from-cyan-950/25 to-transparent px-4 py-1">
-            <div className="flex items-center justify-between font-mono text-[9px] tracking-widest text-cyan-400/60">
-              <span className="flex items-center gap-1.5"><Sparkles className="h-3 w-3 text-cyan-400" /> NEURAL FREQUENCY SPECTRUM</span>
-              <span className="uppercase text-cyan-300 font-semibold">{gState} MODE</span>
+          {/* Liquid Voice Status Indicator when active */}
+          {gState !== 'idle' && (
+            <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.02] px-4 py-2 text-xs text-white/70">
+              <span className="flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                <span className="capitalize">{gState}...</span>
+              </span>
+              <div className="flex items-center gap-1">
+                {[0.4, 0.8, 0.5, 0.9, 0.6].map((h, i) => (
+                  <motion.span
+                    key={i}
+                    className="w-0.5 rounded-full bg-cyan-400"
+                    animate={{ height: gState === 'talking' || gState === 'listening' ? [6, 16, 6] : 8 }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
+                  />
+                ))}
+              </div>
             </div>
-            <KrishnaVisualizerCanvas state={gState} analyser={analyserNode} />
-          </div>
+          )}
 
-          <div className="flex items-center gap-1.5 overflow-x-auto border-b border-cyan-500/15 px-3 py-2 no-scrollbar">
+          {/* Quick Action Chips */}
+          <div className="flex items-center gap-1.5 overflow-x-auto border-b border-white/5 px-3 py-2 no-scrollbar">
             {QUICK_COMMANDS.map((cmd) => (
               <button
                 key={cmd.label}
                 onClick={() => sendToKrishna(cmd.prompt)}
                 disabled={isProcessing}
-                className="shrink-0 rounded-full border border-cyan-500/25 bg-cyan-950/40 px-2.5 py-1 font-mono text-[10px] text-cyan-200 hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-50 transition-all disabled:opacity-40"
+                className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-white/80 hover:border-white/25 hover:bg-white/15 hover:text-white transition-all disabled:opacity-40"
               >
                 {cmd.label}
               </button>
             ))}
           </div>
 
+          {/* Stream Console */}
           <aside className="flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-cyan-500/15 px-4 py-1.5 font-mono text-[9px] tracking-[0.18em] text-cyan-400/60">
-              <span>HOLOGRAPHIC STREAM</span>
-              <span>{messages.length ? `${messages.length} TELEMETRY NODES` : 'SYSTEM STANDBY'}</span>
-            </div>
-            <MessageScroller ref={scrollRef} className="max-h-44 min-h-20 px-4 py-3 sm:max-h-48">
+            <MessageScroller ref={scrollRef} className="max-h-48 min-h-24 px-4 py-3 sm:max-h-52">
               {messages.slice(-4).map((m, i) => (
                 <Message key={`${m.ts}-${i}`} isKrishna={m.role === 'krishna'} className="mb-2">
                   <Bubble
                     isKrishna={m.role === 'krishna'}
-                    className="max-w-[88%] text-[11px] font-sans leading-relaxed"
+                    className="max-w-[85%] text-xs leading-relaxed rounded-2xl px-3.5 py-2.5"
                     style={m.role === 'krishna'
-                      ? { background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.25)', color: '#E0F7FA', boxShadow: '0 0 15px rgba(0,240,255,0.1)' }
-                      : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#FFFFFF' }}
+                      ? { background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.12)', color: '#F5F1EA' }
+                      : { background: 'rgba(34, 211, 238, 0.2)', border: '1px solid rgba(34, 211, 238, 0.3)', color: '#FFFFFF' }}
                   >
-                    {m.role === 'krishna' && (
-                      <div className="mb-1 flex items-center gap-1.5 font-mono text-[9px] font-semibold text-cyan-300">
-                        <Cpu className="h-3 w-3 text-cyan-400" />
-                        <span>KRISHNA AI</span>
-                      </div>
-                    )}
                     {m.text}
                   </Bubble>
                 </Message>
               ))}
               {listening && transcript && (
-                <div className="my-1.5 flex items-center justify-end gap-2 px-2 py-1 font-mono text-xs text-pink-300 italic">
-                  <Radio className="h-3 w-3 animate-pulse text-pink-400" />
+                <div className="my-1.5 flex items-center justify-end gap-2 px-2 py-1 text-xs text-rose-300 italic">
+                  <Radio className="h-3 w-3 animate-pulse text-rose-400" />
                   <span>{transcript}</span>
                 </div>
               )}
               {isProcessing && (
-                <div className="my-1.5 flex items-center gap-2 px-2 py-1 font-mono text-[10px] tracking-widest text-cyan-300">
+                <div className="my-1.5 flex items-center gap-2 px-2 py-1 text-xs text-white/50">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
-                  <span>NEURAL PROCESSING IN PROGRESS...</span>
+                  <span>Krishna is analyzing...</span>
                 </div>
               )}
               {!messages.length && !transcript && (
-                <p className="px-2 py-3 text-center font-mono text-[10px] tracking-widest text-cyan-400/40">
-                  SPEAK OR TYPE A COMMAND TO ENGAGE KRISHNA AI 2050
+                <p className="px-2 py-4 text-center text-xs text-white/40">
+                  Speak or type a command for Krishna AI
                 </p>
               )}
               <div ref={messagesEndRef} />
             </MessageScroller>
 
-            <div className="flex items-center gap-3 border-t border-cyan-500/20 bg-cyan-950/30 p-3">
+            {/* Apple Liquid Glass Input Pill Dock */}
+            <div className="flex items-center gap-2 border-t border-white/10 bg-white/[0.02] p-3">
               <button
                 onClick={toggleListening}
                 disabled={isProcessing && !speakingRef.current}
-                className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full border transition-all duration-300 ${
+                className={`relative grid h-9 w-9 shrink-0 place-items-center rounded-full transition-all ${
                   listening
-                    ? 'border-pink-500 bg-pink-500/25 text-pink-200 shadow-[0_0_25px_rgba(255,0,122,0.6)]'
+                    ? 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.5)]'
                     : speakingRef.current
-                    ? 'border-emerald-400 bg-emerald-500/25 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.6)]'
-                    : 'border-cyan-400/40 bg-cyan-500/10 text-cyan-200 hover:border-cyan-300 hover:bg-cyan-500/20 shadow-[0_0_15px_rgba(0,240,255,0.25)]'
+                    ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
                 }`}
-                title={listening ? 'Deactivate mic' : 'Activate mic'}
+                title={listening ? 'Stop listening' : 'Start voice'}
               >
-                {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
               </button>
               <textarea
                 ref={inputRef}
@@ -795,16 +623,16 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTextSend() } }}
-                className="h-10 min-w-0 flex-1 resize-none rounded-lg border border-cyan-500/20 bg-black/40 px-3 py-2.5 font-mono text-xs text-cyan-50 outline-none placeholder:text-cyan-400/35 focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/40"
-                placeholder={isProcessing ? 'COMPUTING REASONING...' : 'Enter a command for Krishna AI...'}
+                className="h-9 min-w-0 flex-1 resize-none rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs text-white outline-none placeholder:text-white/40 focus:border-white/30 focus:bg-white/10 transition-all"
+                placeholder={isProcessing ? 'Thinking...' : 'Ask Krishna anything...'}
               />
               <button
                 onClick={handleTextSend}
                 disabled={!inputText.trim() || isProcessing}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-cyan-400/40 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300 hover:bg-cyan-500/35 hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all disabled:opacity-35"
-                title="Send command"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-white hover:bg-white/25 disabled:opacity-30 transition-all"
+                title="Send"
               >
-                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin text-cyan-300" /> : <Send className="h-4 w-4 text-cyan-200" />}
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </button>
             </div>
           </aside>
