@@ -6,7 +6,7 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Music, Activity, Brain
+  AlertTriangle, Music, Activity, Brain, Rocket
 } from 'lucide-react'
 
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
@@ -31,6 +31,7 @@ import { SpotifyApp } from '@/components/ekvaar/modules/spotify'
 import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
 import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
 import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
+import { ProductLaunches } from '@/components/ekvaar/modules/product-launches'
 import { OSManifest } from '@/lib/os-desktop/manifest'
 
 // To bridge legacy metadata that isn't in OSManifest yet
@@ -194,6 +195,21 @@ export const APPS: AppDef[] = [
     gradient: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)',
     glyphColor: '#F5F1EA',
     menuItems: [{ label: 'File', items: ['Close Window'] }]
+  },
+  {
+    id: 'product-launches',
+    name: 'Product Launches',
+    shortName: 'Launches',
+    version: '1.0.0',
+    icon: Rocket as any,
+    iconVariant: 'launches',
+    category: 'business',
+    requiredCapabilities: [],
+    entryPoint: ProductLaunches,
+    permissions: [],
+    gradient: 'linear-gradient(135deg, #1F3A5F 0%, #2F4F3A 55%, #C8302A 100%)',
+    glyphColor: '#F5F1EA',
+    menuItems: []
   },
   
   // Utilities

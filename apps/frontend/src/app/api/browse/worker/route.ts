@@ -121,10 +121,45 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'jobId and status are required' }, { status: 400 })
     }
 
+    const job = await db.browseJob.findUnique({ where: { id: jobId } })
+    if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 })
+    const actionData = job.actionData ? JSON.parse(job.actionData) : {}
+
     if (status === 'COMPLETE') {
-      await completeBrowseJob(jobId, result || '')
+      // Qikink launches may only advance when the local companion proves it made a draft.
+      // A generic browser summary is not sufficient evidence for an external product record.
+      if (job.action === 'qikink-product-draft') {
+        const proof = typeof result === 'string' ? JSON.parse(result) : result
+        const qikinkProductId = proof?.qikinkProductId
+        if (!qikinkProductId) {
+          await failBrowseJob(jobId, 'Qikink draft completion requires qikinkProductId and proof.')
+          await db.productLaunch.updateMany({
+            where: { id: actionData.launchId, organizationId: job.organizationId },
+            data: { status: 'BLOCKED', blockedReason: 'Qikink worker returned no draft product ID or proof.' },
+          })
+          return NextResponse.json({ error: 'qikinkProductId is required for Qikink draft completion' }, { status: 400 })
+        }
+        await completeBrowseJob(jobId, JSON.stringify(proof))
+        await db.productLaunch.updateMany({
+          where: { id: actionData.launchId, organizationId: job.organizationId },
+          data: {
+            status: 'AWAITING_QIKINK_PUSH',
+            qikinkProductId: String(qikinkProductId),
+            browserProof: JSON.stringify(proof),
+            blockedReason: null,
+          },
+        })
+      } else {
+        await completeBrowseJob(jobId, typeof result === 'string' ? result : JSON.stringify(result || {}))
+      }
     } else if (status === 'FAILED') {
       await failBrowseJob(jobId, error || 'Unknown error')
+      if (job.action === 'qikink-product-draft') {
+        await db.productLaunch.updateMany({
+          where: { id: actionData.launchId, organizationId: job.organizationId },
+          data: { status: 'BLOCKED', blockedReason: error || 'Qikink browser job failed.' },
+        })
+      }
     } else {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }

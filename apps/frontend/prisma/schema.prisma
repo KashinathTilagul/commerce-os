@@ -53,6 +53,7 @@ model Organization {
   patterns       AgentPattern[]
   knowledge      AgentKnowledge[]
   taskTemplates  TaskTemplate[]
+  productLaunches ProductLaunch[]
   
   context        OrganizationContext?
   commerceLinks  CommerceObjectLink[]
@@ -161,6 +162,34 @@ model Product {
 
   @@unique([organizationId, sku])
   @@index([organizationId])
+}
+
+// ============ PRODUCT LAUNCHES ============
+
+model ProductLaunch {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  code               String
+  title              String
+  productType        String
+  templateKey        String   @default("apparel-standard")
+  status             String   @default("RESEARCHING") // RESEARCHING | DESIGN_REVIEW | SKU_PLANNED | QIKINK_DRAFTING | AWAITING_QIKINK_PUSH | QIKINK_PUSHED | SHOPIFY_ENRICHING | LIVE | QA_FAILED | BLOCKED | CANCELLED
+  designArtifactId   String?
+  designBrief        String?
+  skuPlan            String?  // JSON: variants, pricing, category portfolio allocation
+  qikinkProductId    String?
+  shopifyProductId   String?
+  shopifyHandle      String?
+  browserJobId       String?
+  browserProof       String?  // JSON: screenshots, extracted ids, operator summary
+  blockedReason      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
 }
 
 // ============ SALES ============
