@@ -411,7 +411,13 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
     // Stop Web Speech API
     if (webSpeechRef.current) {
-      try { webSpeechRef.current.stop() } catch {}
+      try {
+        webSpeechRef.current.onresult = null
+        webSpeechRef.current.onerror = null
+        webSpeechRef.current.onend = null
+        webSpeechRef.current.stop()
+        webSpeechRef.current.abort?.()
+      } catch {}
       webSpeechRef.current = null
     }
     // Stop MediaRecorder
@@ -436,6 +442,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     if (muted) { setGlobal('idle'); return }
 
     stopTTS()
+    stopListening()
     const clean = toSpeech(text)
     if (!clean) { setGlobal('idle'); return }
 
@@ -469,15 +476,22 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     speakingRef.current = false
     setGlobal('idle')
 
-    if (voiceSessionRef.current && !listeningRef.current) {
-      setTimeout(() => { if (voiceSessionRef.current && !listeningRef.current) startListening() }, 400)
+    if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
+      setTimeout(() => {
+        if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
+          startListening()
+        }
+      }, 500)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [muted, stopTTS])
+  }, [muted, stopTTS, stopListening])
 
   // ── STT: dual system — Web Speech API (instant) + Whisper (quality) ─────
   const startListening = useCallback(async () => {
-    if (typeof window === 'undefined' || listeningRef.current) return
+    if (typeof window === 'undefined' || listeningRef.current || speakingRef.current) return
+    if (typeof window !== 'undefined' && window.speechSynthesis?.speaking) return
+
+    stopTTS()
 
     // Get mic access — echo cancellation stops the mic from re-hearing Krishna's own voice
     let stream: MediaStream
@@ -491,7 +505,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       return
     }
 
-    stopTTS()
     listeningRef.current = true
     voiceSessionRef.current = true
     webSpeechFinal.current = ''
@@ -508,6 +521,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       rec.lang = 'en-IN'
       webSpeechRef.current = rec
       rec.onresult = (e: any) => {
+        if (!listeningRef.current || speakingRef.current) return
         let interim = ''
         let final = ''
         for (let i = 0; i < e.results.length; i++) {
@@ -540,6 +554,17 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
 
     recorder.onstop = async () => {
+      if (webSpeechRef.current) {
+        try {
+          webSpeechRef.current.onresult = null
+          webSpeechRef.current.onerror = null
+          webSpeechRef.current.onend = null
+          webSpeechRef.current.stop()
+          webSpeechRef.current.abort?.()
+        } catch {}
+        webSpeechRef.current = null
+      }
+
       // Tear down audio infra
       stream.getTracks().forEach(t => t.stop())
       audioCtx.close().catch(() => {})
@@ -578,9 +603,13 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
       // Silence is a pause, not the end of a hands-free conversation.
       setGlobal('idle')
-      setTimeout(() => {
-        if (voiceSessionRef.current && !listeningRef.current) startListening()
-      }, 300)
+      if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
+        setTimeout(() => {
+          if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
+            startListening()
+          }
+        }, 300)
+      }
     }
 
     recorder.start(250) // collect data every 250ms
