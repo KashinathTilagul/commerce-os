@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Loader2, Volume2, VolumeX, Mic, MicOff, Send, Hand } from 'lucide-react'
+import { X, Loader2, Volume2, VolumeX, Mic, MicOff, Send, Hand, Sparkles, RotateCcw, Cpu, Zap, Activity, Radio, ChevronRight } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
 import { APPS } from './app-registry'
 import { toast } from './toast'
@@ -108,28 +108,202 @@ export function useKrishnaState(): KrishnaState {
 }
 
 const STATE_COLOR: Record<KrishnaState, string> = {
-  idle: '#5856D6', listening: '#FF3B30', thinking: '#0A84FF', talking: '#34C759',
+  idle: '#00F0FF', listening: '#FF007A', thinking: '#A855F7', talking: '#10B981',
 }
 
-// Small pulsing dot for the top menu bar — replaces the old floating 3D orb,
-// which didn't read well shrunk to icon size. Click still opens Krishna.
+// ─── 2050 Cybernetic Canvas Audio/Neural Visualizer ─────────────────────────────
+function KrishnaVisualizerCanvas({ state, analyser }: { state: KrishnaState; analyser: AnalyserNode | null }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    let animId: number
+    let angle = 0
+    const freqData = new Uint8Array(analyser ? analyser.frequencyBinCount : 32)
+
+    const render = () => {
+      const w = canvas.width
+      const h = canvas.height
+      const cx = w / 2
+      const cy = h / 2
+      ctx.clearRect(0, 0, w, h)
+
+      let avgVolume = 0
+      if (analyser) {
+        analyser.getByteFrequencyData(freqData)
+        avgVolume = freqData.reduce((a, b) => a + b, 0) / freqData.length
+      }
+
+      angle += 0.025
+
+      if (state === 'idle') {
+        // Holographic 2050 Core Reactor Orb
+        ctx.save()
+        ctx.translate(cx, cy)
+
+        // Outer concentric orbital ring
+        ctx.rotate(angle * 0.4)
+        ctx.beginPath()
+        ctx.arc(0, 0, 34, 0, Math.PI * 2)
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)'
+        ctx.lineWidth = 1.5
+        ctx.setLineDash([8, 12])
+        ctx.stroke()
+
+        // Counter-rotating telemetry ring
+        ctx.rotate(-angle * 0.9)
+        ctx.beginPath()
+        ctx.arc(0, 0, 26, 0, Math.PI * 2)
+        ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)'
+        ctx.setLineDash([4, 6])
+        ctx.stroke()
+        ctx.restore()
+
+        // Core Quantum Radial Glow
+        const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 22)
+        grad.addColorStop(0, 'rgba(0, 240, 255, 0.95)')
+        grad.addColorStop(0.5, 'rgba(168, 85, 247, 0.45)')
+        grad.addColorStop(1, 'rgba(0, 240, 255, 0)')
+        ctx.beginPath()
+        ctx.arc(cx, cy, 18 + Math.sin(angle * 2) * 3, 0, Math.PI * 2)
+        ctx.fillStyle = grad
+        ctx.fill()
+      } else if (state === 'listening') {
+        // Real-time Dynamic Audio Spectrum Sonar Ring
+        const volFactor = Math.min(avgVolume / 50, 2.5)
+        const radius = 22 + volFactor * 12
+
+        // Outer expanding wave ring
+        ctx.beginPath()
+        ctx.arc(cx, cy, radius * 1.5, 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(255, 0, 122, ${Math.max(0.1, 0.5 - volFactor * 0.15)})`
+        ctx.lineWidth = 1
+        ctx.stroke()
+
+        // Radial equalizer frequency spikes
+        const bars = 32
+        for (let i = 0; i < bars; i++) {
+          const rad = (i / bars) * Math.PI * 2 + angle
+          const val = (freqData[i % freqData.length] || 15) / 255
+          const len = 10 + val * 26 * (1 + volFactor)
+          const x1 = cx + Math.cos(rad) * radius
+          const y1 = cy + Math.sin(rad) * radius
+          const x2 = cx + Math.cos(rad) * (radius + len)
+          const y2 = cy + Math.sin(rad) * (radius + len)
+
+          ctx.beginPath()
+          ctx.moveTo(x1, y1)
+          ctx.lineTo(x2, y2)
+          ctx.strokeStyle = i % 2 === 0 ? '#00F0FF' : '#FF007A'
+          ctx.lineWidth = 2
+          ctx.stroke()
+        }
+
+        ctx.beginPath()
+        ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.85)'
+        ctx.shadowColor = '#00F0FF'
+        ctx.shadowBlur = 15
+        ctx.fill()
+        ctx.shadowBlur = 0
+      } else if (state === 'thinking') {
+        // Sci-Fi Neural Matrix Grid & Laser Orbitals
+        ctx.save()
+        ctx.translate(cx, cy)
+        ctx.rotate(angle * 2.2)
+        for (let i = 0; i < 4; i++) {
+          ctx.rotate(Math.PI / 2)
+          ctx.beginPath()
+          ctx.moveTo(0, 0)
+          ctx.lineTo(30, 0)
+          ctx.strokeStyle = i % 2 === 0 ? 'rgba(0, 240, 255, 0.85)' : 'rgba(168, 85, 247, 0.85)'
+          ctx.lineWidth = 2
+          ctx.stroke()
+
+          ctx.beginPath()
+          ctx.arc(30, 0, 4, 0, Math.PI * 2)
+          ctx.fillStyle = '#00F0FF'
+          ctx.fill()
+        }
+        ctx.restore()
+
+        // Central Quantum Core
+        ctx.beginPath()
+        ctx.arc(cx, cy, 14 + Math.cos(angle * 4) * 4, 0, Math.PI * 2)
+        ctx.fillStyle = '#A855F7'
+        ctx.shadowColor = '#A855F7'
+        ctx.shadowBlur = 18
+        ctx.fill()
+        ctx.shadowBlur = 0
+      } else if (state === 'talking') {
+        // Multi-frequency undulating audio sine wave
+        ctx.beginPath()
+        ctx.moveTo(10, cy)
+        for (let x = 10; x < w - 10; x += 4) {
+          const sine = Math.sin((x * 0.05) + angle * 3) * 16 * (0.4 + Math.sin(x * 0.02))
+          ctx.lineTo(x, cy + sine)
+        }
+        ctx.strokeStyle = '#10B981'
+        ctx.lineWidth = 2.5
+        ctx.shadowColor = '#10B981'
+        ctx.shadowBlur = 14
+        ctx.stroke()
+        ctx.shadowBlur = 0
+
+        // Secondary laser sine wave
+        ctx.beginPath()
+        ctx.moveTo(10, cy)
+        for (let x = 10; x < w - 10; x += 4) {
+          const sine = Math.cos((x * 0.04) - angle * 2) * 10
+          ctx.lineTo(x, cy + sine)
+        }
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)'
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+      }
+
+      animId = requestAnimationFrame(render)
+    }
+
+    render()
+    return () => cancelAnimationFrame(animId)
+  }, [state, analyser])
+
+  return (
+    <div className="relative flex items-center justify-center py-1">
+      <canvas ref={canvasRef} width={340} height={80} className="w-full max-w-[340px] h-[80px] rounded-lg" />
+    </div>
+  )
+}
+
+// Futuristic top bar status icon
 export function KrishnaMenuBarIcon({ onClick }: { onClick: () => void }) {
   const state = useKrishnaState()
   const color = STATE_COLOR[state]
   return (
     <button
-      title="Krishna AI"
+      title="Krishna AI 2050 Core"
       onClick={onClick}
-      className="p-1 rounded hover:bg-white/15 transition-colors flex items-center justify-center"
+      className="group relative p-1.5 rounded-md hover:bg-cyan-500/15 transition-all flex items-center justify-center"
     >
-      <motion.div
-        style={{ width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}` }}
-        animate={{
-          scale: state === 'idle' ? [1, 1.15, 1] : state === 'talking' ? [1, 1.35, 1] : [1, 1.25, 1],
-          opacity: state === 'idle' ? [0.7, 1, 0.7] : 1,
-        }}
-        transition={{ duration: state === 'idle' ? 2.2 : state === 'listening' ? 0.6 : 0.4, repeat: Infinity }}
-      />
+      <div className="relative flex items-center justify-center h-4 w-4">
+        <motion.div
+          className="absolute inset-0 rounded-full border border-cyan-400/40"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
+        />
+        <motion.div
+          style={{ width: 8, height: 8, borderRadius: '50%', background: color, boxShadow: `0 0 10px ${color}` }}
+          animate={{
+            scale: state === 'idle' ? [1, 1.2, 1] : state === 'talking' ? [1, 1.4, 1] : [1, 1.3, 1],
+            opacity: state === 'idle' ? [0.75, 1, 0.75] : 1,
+          }}
+          transition={{ duration: state === 'idle' ? 2 : state === 'listening' ? 0.5 : 0.3, repeat: Infinity }}
+        />
+      </div>
     </button>
   )
 }
@@ -337,10 +511,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const [listening, setListening] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [micSupported, setMicSupported] = useState(true)
+  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null)
 
   const recorderRef       = useRef<MediaRecorder | null>(null)
-  const webSpeechRef      = useRef<any>(null)          // Web Speech API instance
-  const webSpeechFinal    = useRef<string>('')         // latest Web Speech final transcript
+  const webSpeechRef      = useRef<any>(null)
+  const webSpeechFinal    = useRef<string>('')
   const listeningRef      = useRef(false)
   const voiceSessionRef   = useRef(false)
   const sendRef           = useRef<(text: string) => void>(() => {})
@@ -348,18 +523,15 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const messagesEndRef    = useRef<HTMLDivElement>(null)
   const bestVoiceRef      = useRef<SpeechSynthesisVoice | null>(null)
   const inputRef          = useRef<HTMLTextAreaElement>(null)
-  const isAtBottomRef     = useRef(true)
   const audioStopRef      = useRef<(() => void) | null>(null)
   const speakingRef       = useRef(false)
   const vuRef             = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
 
-  // Hydrate chat history from localStorage on mount — survives reloads
   useEffect(() => { setMessages(loadHistory()) }, [])
   useEffect(() => { saveHistory(messages) }, [messages])
 
-  // Pick best browser fallback voice (JARVIS-like)
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
     const pick = () => {
@@ -373,21 +545,18 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   useEffect(() => { setMicSupported(typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia) }, [])
 
-  // Scroll anchor
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const onScroll = () => { isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40 }
+    const onScroll = () => {}
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
   }, [])
 
   useEffect(() => {
-    // Always follow the conversation — this is a small panel, new turns should never go unseen
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, transcript, isProcessing])
 
-  // Trigger from dock / keyboard
   useEffect(() => {
     if (trigger && trigger > 0) { if (expanded) closePanel(); else openPanel() }
   }, [trigger])
@@ -398,18 +567,16 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     return () => window.removeEventListener('keydown', down, true)
   }, [expanded])
 
-  // ── Stop TTS immediately ─────────────────────────────────────────────────
   const stopTTS = useCallback(() => {
     if (audioStopRef.current) { audioStopRef.current(); audioStopRef.current = null }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
     speakingRef.current = false
   }, [])
 
-  // ── Stop mic/recording ───────────────────────────────────────────────────
   const stopListening = useCallback(() => {
     listeningRef.current = false
+    setAnalyserNode(null)
     if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
-    // Stop Web Speech API
     if (webSpeechRef.current) {
       try {
         webSpeechRef.current.onresult = null
@@ -420,7 +587,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       } catch {}
       webSpeechRef.current = null
     }
-    // Stop MediaRecorder
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
       try { recorderRef.current.stop() } catch {}
     }
@@ -434,21 +600,18 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setGlobal('idle')
     setListening(false)
     setTranscript('')
+    setAnalyserNode(null)
     if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
   }, [stopTTS, stopListening])
 
-  // ── TTS: browser speech starts immediately after the text response ───────
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
-
     stopTTS()
     stopListening()
     const clean = toSpeech(text)
     if (!clean) { setGlobal('idle'); return }
-
     setGlobal('talking')
     speakingRef.current = true
-
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const sentences = toSentences(clean)
       for (const sentence of sentences) {
@@ -472,10 +635,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         }
       }
     }
-
     speakingRef.current = false
     setGlobal('idle')
-
     if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
       setTimeout(() => {
         if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
@@ -483,17 +644,12 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         }
       }, 500)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [muted, stopTTS, stopListening])
 
-  // ── STT: dual system — Web Speech API (instant) + Whisper (quality) ─────
   const startListening = useCallback(async () => {
     if (typeof window === 'undefined' || listeningRef.current || speakingRef.current) return
     if (typeof window !== 'undefined' && window.speechSynthesis?.speaking) return
-
     stopTTS()
-
-    // Get mic access — echo cancellation stops the mic from re-hearing Krishna's own voice
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -504,15 +660,12 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       voiceSessionRef.current = false
       return
     }
-
     listeningRef.current = true
     voiceSessionRef.current = true
     webSpeechFinal.current = ''
     setListening(true)
     setTranscript('')
     setGlobal('listening')
-
-    // ── Web Speech API — real-time display + fallback transcript ─────────
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (SR) {
       const rec = new SR()
@@ -536,15 +689,12 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       rec.onend = () => {}
       try { rec.start() } catch {}
     }
-
-    // ── VAD via AudioContext + VU meter display ───────────────────────────
     const audioCtx = new AudioContext()
     const analyser = audioCtx.createAnalyser()
     analyser.fftSize = 512
     audioCtx.createMediaStreamSource(stream).connect(analyser)
+    setAnalyserNode(analyser)
     const buf = new Uint8Array(analyser.frequencyBinCount)
-
-    // ── MediaRecorder for Whisper quality ────────────────────────────────
     const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
       : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
       : MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''
@@ -552,7 +702,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     recorderRef.current = recorder
     const chunks: Blob[] = []
     recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data) }
-
     recorder.onstop = async () => {
       if (webSpeechRef.current) {
         try {
@@ -564,21 +713,15 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         } catch {}
         webSpeechRef.current = null
       }
-
-      // Tear down audio infra
       stream.getTracks().forEach(t => t.stop())
       audioCtx.close().catch(() => {})
+      setAnalyserNode(null)
       if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
       setListening(false)
       listeningRef.current = false
-
       const webSpeechText = webSpeechFinal.current.trim()
       webSpeechFinal.current = ''
-
-      // Web Speech transcript is already in hand — use it immediately, no network wait.
-      // Only fall back to the Whisper roundtrip if Web Speech gave us nothing.
       let finalText = webSpeechText
-
       if (!finalText && chunks.length) {
         try {
           const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
@@ -594,14 +737,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           }
         } catch {}
       }
-
       setTranscript('')
       if (finalText) {
         sendRef.current(finalText)
-        return  // sendToKrishna manages state from here
+        return
       }
-
-      // Silence is a pause, not the end of a hands-free conversation.
       setGlobal('idle')
       if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
         setTimeout(() => {
@@ -611,10 +751,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         }, 300)
       }
     }
-
-    recorder.start(250) // collect data every 250ms
-
-    // VAD loop — VU meter + silence detection
+    recorder.start(250)
     let lastSoundAt = Date.now()
     const startedAt = Date.now()
     vuRef.current = setInterval(() => {
@@ -629,33 +766,27 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
       }
     }, 80)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stopTTS])
 
-  // Keep sendRef always pointing to latest sendToKrishna (stale closure guard)
   const toggleListening = useCallback(() => {
     if (listeningRef.current) {
-      // User manually stops — end voice session
       voiceSessionRef.current = false
       stopListening()
       setListening(false)
       setGlobal('idle')
       setTranscript('')
     } else {
-      // Interrupt TTS if playing, then start listening
       stopTTS()
       startListening()
     }
   }, [startListening, stopListening, stopTTS])
 
-  // ── Send to Krishna API ──────────────────────────────────────────────────
   const sendToKrishna = useCallback(async (text: string) => {
     if (!text.trim() || isProcessing) return
     setIsProcessing(true)
     setMessages(prev => [...prev, { role: 'user', text, ts: Date.now() }])
     setInputText('')
     setGlobal('thinking')
-
     try {
       const res = await fetch('/api/jarvis/chat', {
         method: 'POST',
@@ -669,10 +800,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'API error')
       const reply = data.spoken || "I'm here."
-      const spoken = reply
       setMessages(prev => [...prev, { role: 'krishna', text: reply, ts: Date.now() }])
       setIsProcessing(false)
-
       if (data.action?.type === 'open_app') {
         const app = APPS.find(a =>
           a.id === data.action.app ||
@@ -684,12 +813,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         const active = useWindowStore.getState().activeId
         if (active) useWindowStore.getState().close(active)
       }
-
-      await speakText(spoken)
+      await speakText(reply)
     } catch (e: any) {
-      // ponytail: this used to swallow the real error and show a fake
-      // "I'm here" reply — meaning a broken AI provider looked identical
-      // to a working one from the founder's side. Show what actually broke.
       const fallback = e?.message && e.message !== 'API error'
         ? `Krishna hit an error: ${e.message}`
         : "Krishna couldn't reach the server. Check your connection and try again."
@@ -706,16 +831,11 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const openPanel = useCallback(() => {
     setExpanded(true)
     voiceSessionRef.current = true
-
     setMessages(m => {
       if (m.length > 0) return m
       const h = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
       const g = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : h < 21 ? 'Good evening' : 'Good night'
-      const greets = [
-        `${g}. Online and ready.`,
-        `${g}. How can I help?`,
-        `${g}. What do you need?`,
-      ]
+      const greets = [`${g}. Online and ready.`, `${g}. How can I help?`, `${g}. What do you need?`]
       const msg = greets[Math.floor(Math.random() * greets.length)]
       return [...m, { role: 'krishna', text: msg, ts: Date.now(), id: Date.now().toString() }]
     })
@@ -732,66 +852,156 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     sendToKrishna(text)
   }
 
+  const QUICK_COMMANDS = [
+    { label: '⚡ System Status', prompt: 'Give me a system status summary.' },
+    { label: '📈 Brand Health', prompt: 'What is our current brand health score?' },
+    { label: '💰 Revenue Read', prompt: 'Show revenue and sales orders.' },
+    { label: '🤖 Digital Employees', prompt: 'Who are our active digital employees?' },
+  ]
+
   return (
     <AnimatePresence>
       {expanded && (
         <motion.section
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.98 }}
-          transition={{ duration: 0.22 }}
-          className="fixed bottom-24 right-4 z-[9900] w-[min(calc(100vw-2rem),620px)] overflow-hidden rounded-xl border border-cyan-200/25 bg-[#041018]/95 text-white shadow-[0_0_42px_rgba(0,210,255,0.18)] backdrop-blur-xl sm:right-6"
-          aria-label="Krishna transcript console"
+          initial={{ opacity: 0, y: 25, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 25, scale: 0.95 }}
+          transition={{ type: 'spring', damping: 24, stiffness: 320 }}
+          className="fixed bottom-20 right-4 z-[9900] w-[min(calc(100vw-2rem),540px)] overflow-hidden rounded-2xl border border-cyan-500/35 bg-[#020814]/94 text-cyan-50 shadow-[0_0_60px_rgba(0,240,255,0.25),inset_0_0_20px_rgba(0,240,255,0.05)] backdrop-blur-2xl sm:right-6"
+          aria-label="Krishna Cybernetic HUD 2050"
         >
-          <header className="flex items-center justify-between border-b border-cyan-200/15 px-3 py-2">
-            <div className="flex items-center gap-3 font-mono text-[10px] tracking-[0.18em] text-cyan-100/70">
-              <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_12px_#22d3ee]" />
-              KRISHNA / COMMAND CORE
-              {hasOpenWindows && <span className="hidden text-white/35 sm:inline">/ CONTEXT LINKED</span>}
+          <span className="absolute top-1.5 left-2 font-mono text-[9px] text-cyan-400/40 select-none pointer-events-none">◤</span>
+          <span className="absolute top-1.5 right-2 font-mono text-[9px] text-cyan-400/40 select-none pointer-events-none">◥</span>
+          <span className="absolute bottom-1.5 left-2 font-mono text-[9px] text-cyan-400/40 select-none pointer-events-none">◣</span>
+          <span className="absolute bottom-1.5 right-2 font-mono text-[9px] text-cyan-400/40 select-none pointer-events-none">◢</span>
+
+          <header className="flex items-center justify-between border-b border-cyan-500/20 bg-cyan-950/30 px-4 py-2.5">
+            <div className="flex items-center gap-2.5 font-mono text-[10px] tracking-[0.2em] text-cyan-300">
+              <span className="relative flex h-2 w-2">
+                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${
+                  gState === 'listening' ? 'bg-pink-500' : gState === 'talking' ? 'bg-emerald-400' : gState === 'thinking' ? 'bg-purple-400' : 'bg-cyan-400'
+                }`} />
+                <span className={`relative inline-flex h-2 w-2 rounded-full ${
+                  gState === 'listening' ? 'bg-pink-500' : gState === 'talking' ? 'bg-emerald-400' : gState === 'thinking' ? 'bg-purple-400' : 'bg-cyan-400'
+                }`} />
+              </span>
+              <span>KRISHNA // HUD 2050</span>
+              {activeWindowName && (
+                <span className="hidden text-cyan-400/50 sm:inline">
+                  [ {activeWindowName.toUpperCase()} ]
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setMuted(m => !m)} className="rounded p-2 text-white/55 hover:bg-cyan-300/10 hover:text-cyan-100" title={muted ? 'Unmute Krishna' : 'Mute Krishna'}>
-                {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+              <button onClick={() => setMessages([])} className="rounded p-1.5 text-cyan-400/60 hover:bg-cyan-500/15 hover:text-cyan-200" title="Clear HUD stream">
+                <RotateCcw className="h-3.5 w-3.5" />
               </button>
-              <button onClick={closePanel} className="rounded p-2 text-white/55 hover:bg-red-400/10 hover:text-red-200" title="Close Krishna">
-                <X className="h-5 w-5" />
+              <button onClick={() => setMuted(m => !m)} className="rounded p-1.5 text-cyan-400/60 hover:bg-cyan-500/15 hover:text-cyan-200" title={muted ? 'Unmute Krishna' : 'Mute Krishna'}>
+                {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+              </button>
+              <button onClick={closePanel} className="rounded p-1.5 text-cyan-400/60 hover:bg-red-500/20 hover:text-red-300" title="Close HUD">
+                <X className="h-4 w-4" />
               </button>
             </div>
           </header>
 
-          <aside className="flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between border-b border-cyan-200/15 px-3 py-2 font-mono text-[9px] tracking-[0.18em] text-cyan-100/60">
-              <span>LIVE TRANSCRIPT</span>
-              <span>{messages.length ? `${messages.length} MESSAGES` : 'READY'}</span>
+          <div className="relative border-b border-cyan-500/15 bg-gradient-to-b from-cyan-950/25 to-transparent px-4 py-1">
+            <div className="flex items-center justify-between font-mono text-[9px] tracking-widest text-cyan-400/60">
+              <span className="flex items-center gap-1.5"><Sparkles className="h-3 w-3 text-cyan-400" /> NEURAL FREQUENCY SPECTRUM</span>
+              <span className="uppercase text-cyan-300 font-semibold">{gState} MODE</span>
             </div>
-            <MessageScroller ref={scrollRef} className="max-h-32 min-h-14 px-3 py-2 sm:max-h-40">
-              {messages.slice(-3).map((m, i) => (
-                <Message key={`${m.ts}-${i}`} isKrishna={m.role === 'krishna'} className="mb-1">
+            <KrishnaVisualizerCanvas state={gState} analyser={analyserNode} />
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto border-b border-cyan-500/15 px-3 py-2 no-scrollbar">
+            {QUICK_COMMANDS.map((cmd) => (
+              <button
+                key={cmd.label}
+                onClick={() => sendToKrishna(cmd.prompt)}
+                disabled={isProcessing}
+                className="shrink-0 rounded-full border border-cyan-500/25 bg-cyan-950/40 px-2.5 py-1 font-mono text-[10px] text-cyan-200 hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-50 transition-all disabled:opacity-40"
+              >
+                {cmd.label}
+              </button>
+            ))}
+          </div>
+
+          <aside className="flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between border-b border-cyan-500/15 px-4 py-1.5 font-mono text-[9px] tracking-[0.18em] text-cyan-400/60">
+              <span>HOLOGRAPHIC STREAM</span>
+              <span>{messages.length ? `${messages.length} TELEMETRY NODES` : 'SYSTEM STANDBY'}</span>
+            </div>
+            <MessageScroller ref={scrollRef} className="max-h-44 min-h-20 px-4 py-3 sm:max-h-48">
+              {messages.slice(-4).map((m, i) => (
+                <Message key={`${m.ts}-${i}`} isKrishna={m.role === 'krishna'} className="mb-2">
                   <Bubble
                     isKrishna={m.role === 'krishna'}
-                    className="max-w-[88%] text-[11px] text-cyan-50/90"
+                    className="max-w-[88%] text-[11px] font-sans leading-relaxed"
                     style={m.role === 'krishna'
-                      ? { background: 'rgba(34,211,238,0.10)', borderColor: 'rgba(165,243,252,0.24)' }
-                      : { background: 'rgba(255,255,255,0.08)', border: '0.5px solid rgba(165,243,252,0.16)' }}
+                      ? { background: 'rgba(0,240,255,0.08)', border: '1px solid rgba(0,240,255,0.25)', color: '#E0F7FA', boxShadow: '0 0 15px rgba(0,240,255,0.1)' }
+                      : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', color: '#FFFFFF' }}
                   >
+                    {m.role === 'krishna' && (
+                      <div className="mb-1 flex items-center gap-1.5 font-mono text-[9px] font-semibold text-cyan-300">
+                        <Cpu className="h-3 w-3 text-cyan-400" />
+                        <span>KRISHNA AI</span>
+                      </div>
+                    )}
                     {m.text}
                   </Bubble>
                 </Message>
               ))}
-              {listening && transcript && <p className="px-2 py-1 text-right font-mono text-xs italic text-cyan-100/80">{transcript}</p>}
-              {isProcessing && <p className="px-2 py-1 font-mono text-[10px] tracking-widest text-cyan-200/65">KRISHNA IS ANALYZING...</p>}
-              {!messages.length && !transcript && <p className="px-2 py-1 font-mono text-[10px] tracking-widest text-cyan-100/45">SPEAK OR TYPE A COMMAND</p>}
+              {listening && transcript && (
+                <div className="my-1.5 flex items-center justify-end gap-2 px-2 py-1 font-mono text-xs text-pink-300 italic">
+                  <Radio className="h-3 w-3 animate-pulse text-pink-400" />
+                  <span>{transcript}</span>
+                </div>
+              )}
+              {isProcessing && (
+                <div className="my-1.5 flex items-center gap-2 px-2 py-1 font-mono text-[10px] tracking-widest text-cyan-300">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
+                  <span>NEURAL PROCESSING IN PROGRESS...</span>
+                </div>
+              )}
+              {!messages.length && !transcript && (
+                <p className="px-2 py-3 text-center font-mono text-[10px] tracking-widest text-cyan-400/40">
+                  SPEAK OR TYPE A COMMAND TO ENGAGE KRISHNA AI 2050
+                </p>
+              )}
               <div ref={messagesEndRef} />
             </MessageScroller>
-            <div className="flex items-center gap-2 border-t border-cyan-200/15 p-2">
-              <button onClick={toggleListening} disabled={isProcessing && !speakingRef.current} className="grid h-10 w-10 shrink-0 place-items-center rounded border border-cyan-200/30 text-cyan-100 hover:bg-cyan-300/15 disabled:opacity-40" title={listening ? 'Stop listening' : 'Start listening'}>
-                {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+
+            <div className="flex items-center gap-3 border-t border-cyan-500/20 bg-cyan-950/30 p-3">
+              <button
+                onClick={toggleListening}
+                disabled={isProcessing && !speakingRef.current}
+                className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-full border transition-all duration-300 ${
+                  listening
+                    ? 'border-pink-500 bg-pink-500/25 text-pink-200 shadow-[0_0_25px_rgba(255,0,122,0.6)]'
+                    : speakingRef.current
+                    ? 'border-emerald-400 bg-emerald-500/25 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.6)]'
+                    : 'border-cyan-400/40 bg-cyan-500/10 text-cyan-200 hover:border-cyan-300 hover:bg-cyan-500/20 shadow-[0_0_15px_rgba(0,240,255,0.25)]'
+                }`}
+                title={listening ? 'Deactivate mic' : 'Activate mic'}
+              >
+                {listening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </button>
-              <textarea ref={inputRef} rows={1} value={inputText} onChange={e => setInputText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTextSend() } }}
-                className="h-10 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 font-mono text-xs text-cyan-50 outline-none placeholder:text-cyan-100/35"
-                placeholder={isProcessing ? 'PROCESSING...' : 'Enter a command for Krishna...'} />
-              <button onClick={handleTextSend} disabled={!inputText.trim() || isProcessing} className="grid h-10 w-10 shrink-0 place-items-center rounded border border-cyan-200/35 bg-cyan-300/15 text-cyan-50 hover:bg-cyan-300/30 disabled:opacity-35" title="Send command">
-                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={inputText}
+                onChange={e => setInputText(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleTextSend() } }}
+                className="h-10 min-w-0 flex-1 resize-none rounded-lg border border-cyan-500/20 bg-black/40 px-3 py-2.5 font-mono text-xs text-cyan-50 outline-none placeholder:text-cyan-400/35 focus:border-cyan-400/60 focus:ring-1 focus:ring-cyan-400/40"
+                placeholder={isProcessing ? 'COMPUTING REASONING...' : 'Enter a command for Krishna AI...'}
+              />
+              <button
+                onClick={handleTextSend}
+                disabled={!inputText.trim() || isProcessing}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-cyan-400/40 bg-cyan-500/20 text-cyan-100 hover:border-cyan-300 hover:bg-cyan-500/35 hover:shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all disabled:opacity-35"
+                title="Send command"
+              >
+                {isProcessing ? <Loader2 className="h-4 w-4 animate-spin text-cyan-300" /> : <Send className="h-4 w-4 text-cyan-200" />}
               </button>
             </div>
           </aside>
