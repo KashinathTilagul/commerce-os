@@ -36,6 +36,11 @@ else
     sudo certbot renew
 fi
 
+# 4. Prepare storage directories for generated artifacts
+echo "[*] Creating storage directories..."
+mkdir -p apps/frontend/storage/{pdf,images,videos,templates}
+chmod -R 777 apps/frontend/storage 2>/dev/null || true
+
 # 5. Build and Deploy Containers
 echo "[*] Starting Docker Containers..."
 docker compose build

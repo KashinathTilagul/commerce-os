@@ -6,12 +6,12 @@ import path from 'path'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authResult = await requireOrganization()
   if (!authResult.success) return authResult.response
   
-  const artifactId = params.id
+  const { id: artifactId } = await params
   
   try {
     // Get artifact from database
@@ -44,7 +44,7 @@ export async function GET(
       status: 200,
       headers: {
         'Content-Type': artifact.mimeType,
-        'Content-Disposition': `attachment; filename="${artifact.title}.${getFileExtension(artifact.type)}"`,
+        'Content-Disposition': `attachment; filename="${artifact.title}.${getFileExtension(artifact.mimeType, artifact.type)}"`,
         'Content-Length': fileBuffer.length.toString()
       }
     })
@@ -57,12 +57,15 @@ export async function GET(
   }
 }
 
-function getFileExtension(type: string): string {
-  switch (type) {
-    case 'PDF': return 'pdf'
-    case 'PNG': return 'png'
-    case 'VIDEO': return 'mp4'
-    case 'EXCEL': return 'xlsx'
-    default: return 'bin'
-  }
+const MIME_TO_EXT: Record<string, string> = {
+  'image/png': 'png',
+  'image/svg+xml': 'svg',
+  'application/pdf': 'pdf',
+  'video/mp4': 'mp4',
+  'text/html': 'html',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+}
+
+function getFileExtension(mimeType: string, type: string): string {
+  return MIME_TO_EXT[mimeType] || { PDF: 'pdf', PNG: 'png', VIDEO: 'mp4', EXCEL: 'xlsx' }[type] || 'bin'
 }

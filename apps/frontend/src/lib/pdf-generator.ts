@@ -73,7 +73,7 @@ export async function generatePDF(options: PDFGenerationOptions): Promise<{ arti
   
   return {
     artifactId: artifact.id,
-    downloadUrl: `/api/artifacts/${artifact.id}/download`
+    downloadUrl: `/api/artifacts/${artifact.id}`
   }
 }
 

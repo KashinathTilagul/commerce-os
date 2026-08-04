@@ -7,6 +7,7 @@ services:
       - "3000"
     volumes:
       - ./apps/frontend/db:/app/db
+      - ./apps/frontend/storage:/app/storage
     environment:
       - DATABASE_URL=file:///app/db/custom.db
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
@@ -17,7 +18,7 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - COMPOSIO_API_KEY=${COMPOSIO_API_KEY}
       - AWS_REGION=${AWS_REGION:-us-east-1}
-      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-amazon.nova-pro-v1:0}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-zai.glm-5}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GROQ_API_KEY=${GROQ_API_KEY}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}

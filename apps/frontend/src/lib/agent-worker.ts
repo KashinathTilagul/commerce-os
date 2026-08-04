@@ -149,44 +149,86 @@ Now produce YOUR deliverable:`
 
   // DETECT AND EXECUTE MULTIMODAL GENERATION
   const multimodalResults: string[] = []
-  
-  const imageMatch = deliverable.match(/GENERATE_IMAGE:\s*({[\s\S]*?})/)
+
+  // ponytail: LLMs wrap JSON in fences or add prose — strip fences before extraction
+  const cleanedDeliverable = deliverable.replace(/```(?:json)?\s*([\s\S]*?)```/g, '$1')
+
+  // Extract a balanced JSON object starting at the first '{' after a marker.
+  // The old regex /{[\s\S]*?}/ was non-greedy and broke on nested braces (every
+  // PDF/video call has nested "data" objects). Bracket-counting is the smallest
+  // correct fix.
+  function extractJSON(text: string, marker: string): { json: string; fullMatch: string } | null {
+    const idx = text.indexOf(marker)
+    if (idx < 0) return null
+    const start = text.indexOf('{', idx + marker.length)
+    if (start < 0) return null
+    let depth = 0
+    for (let i = start; i < text.length; i++) {
+      if (text[i] === '{') depth++
+      else if (text[i] === '}') depth--
+      if (depth === 0) return { json: text.slice(start, i + 1), fullMatch: text.slice(idx, i + 1) }
+    }
+    return null
+  }
+
+  const imageMatch = extractJSON(cleanedDeliverable, 'GENERATE_IMAGE')
   if (imageMatch) {
     try {
-      const params = JSON.parse(imageMatch[1])
-      const result = await generateImage(organizationId, params.prompt, params.aspectRatio || '1:1', params.style || 'product')
-      multimodalResults.push(`✅ Generated Image: ${result.url}`)
-      deliverable = deliverable.replace(imageMatch[0], '').trim()
+      const params = JSON.parse(imageMatch.json)
+      const result = await generateImage({
+        prompt: params.prompt,
+        aspectRatio: params.aspectRatio || '1:1',
+        style: params.style || 'product',
+        organizationId,
+        generatedBy: agentId,
+        title: params.title,
+      })
+      multimodalResults.push(`✅ Generated Image: ${result.imageUrl}`)
+      deliverable = deliverable.replace(imageMatch.fullMatch, '').trim()
     } catch (e: any) {
       multimodalResults.push(`⚠️ Image generation failed: ${e.message}`)
     }
   }
-  
-  const pdfMatch = deliverable.match(/GENERATE_PDF:\s*({[\s\S]*?})/)
+
+  const pdfMatch = extractJSON(cleanedDeliverable, 'GENERATE_PDF')
   if (pdfMatch) {
     try {
-      const params = JSON.parse(pdfMatch[1])
-      const result = await generatePDF(organizationId, params.template || 'report', params.data, params.title)
-      multimodalResults.push(`✅ Generated PDF: ${result.url}`)
-      deliverable = deliverable.replace(pdfMatch[0], '').trim()
+      const params = JSON.parse(pdfMatch.json)
+      const result = await generatePDF({
+        template: params.template || 'report',
+        data: params.data || {},
+        title: params.title || issue.title,
+        organizationId,
+        generatedBy: agentId,
+      })
+      multimodalResults.push(`✅ Generated PDF: ${result.downloadUrl}`)
+      deliverable = deliverable.replace(pdfMatch.fullMatch, '').trim()
     } catch (e: any) {
       multimodalResults.push(`⚠️ PDF generation failed: ${e.message}`)
     }
   }
-  
-  const videoMatch = deliverable.match(/GENERATE_VIDEO:\s*({[\s\S]*?})/)
+
+  const videoMatch = extractJSON(cleanedDeliverable, 'GENERATE_VIDEO')
   if (videoMatch) {
     try {
-      const params = JSON.parse(videoMatch[1])
-      const result = await generateVideo(organizationId, params.template || 'BrandVideo', params.data, params.duration || 15)
-      multimodalResults.push(`✅ Generated Video: ${result.url}`)
-      deliverable = deliverable.replace(videoMatch[0], '').trim()
+      const params = JSON.parse(videoMatch.json)
+      const result = await generateVideo({
+        template: params.template || 'BrandVideo',
+        data: params.data || {},
+        duration: params.duration || 15,
+        organizationId,
+        generatedBy: agentId,
+        title: params.title,
+      })
+      multimodalResults.push(`✅ Generated Video: ${result.videoUrl}`)
+      deliverable = deliverable.replace(videoMatch.fullMatch, '').trim()
     } catch (e: any) {
       multimodalResults.push(`⚠️ Video generation failed: ${e.message}`)
     }
   }
-  
+
   if (multimodalResults.length > 0) {
+    console.log(`[agent-worker] ${agent.name} multimodal:`, multimodalResults)
     deliverable += '\n\n### Generated Assets:\n' + multimodalResults.join('\n')
   }
 
