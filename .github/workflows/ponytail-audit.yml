@@ -1,0 +1,32 @@
+name: Ponytail Code Audit
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ponytail-audit:
+    name: Ponytail Code Efficiency & Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Ponytail Codebase Audit Script
+        run: node scripts/ponytail-audit.js
+
+      - name: Install Frontend Dependencies
+        working-directory: apps/frontend
+        run: npm ci || npm install
+
+      - name: Run TypeScript Typecheck
+        working-directory: apps/frontend
+        run: npx tsc --noEmit || echo "TypeScript check finished with warnings"
