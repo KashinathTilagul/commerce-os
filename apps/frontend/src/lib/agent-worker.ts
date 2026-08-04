@@ -149,6 +149,7 @@ Now produce YOUR deliverable:`
 
   // DETECT AND EXECUTE MULTIMODAL GENERATION
   const multimodalResults: string[] = []
+  const multimodalFailures: string[] = []
 
   // ponytail: LLMs wrap JSON in fences or add prose — strip fences before extraction
   const cleanedDeliverable = deliverable.replace(/```(?:json)?\s*([\s\S]*?)```/g, '$1')
@@ -186,7 +187,7 @@ Now produce YOUR deliverable:`
       multimodalResults.push(`✅ Generated Image: ${result.imageUrl}`)
       deliverable = deliverable.replace(imageMatch.fullMatch, '').trim()
     } catch (e: any) {
-      multimodalResults.push(`⚠️ Image generation failed: ${e.message}`)
+      multimodalFailures.push(`Image generation failed: ${e.message}`)
     }
   }
 
@@ -204,7 +205,7 @@ Now produce YOUR deliverable:`
       multimodalResults.push(`✅ Generated PDF: ${result.downloadUrl}`)
       deliverable = deliverable.replace(pdfMatch.fullMatch, '').trim()
     } catch (e: any) {
-      multimodalResults.push(`⚠️ PDF generation failed: ${e.message}`)
+      multimodalFailures.push(`PDF generation failed: ${e.message}`)
     }
   }
 
@@ -223,7 +224,7 @@ Now produce YOUR deliverable:`
       multimodalResults.push(`✅ Generated Video: ${result.videoUrl}`)
       deliverable = deliverable.replace(videoMatch.fullMatch, '').trim()
     } catch (e: any) {
-      multimodalResults.push(`⚠️ Video generation failed: ${e.message}`)
+      multimodalFailures.push(`Video generation failed: ${e.message}`)
     }
   }
 
@@ -244,6 +245,16 @@ Now produce YOUR deliverable:`
     work = object
   } catch {
     work = { progressNote: `Drafted the deliverable for ${issue.code}.`, newStatus: 'IN_REVIEW' }
+  }
+
+  // A media request without its actual artifact is not a completed deliverable.
+  // Keep the failure visible and require a configuration/access fix instead.
+  if (multimodalFailures.length > 0) {
+    work = {
+      progressNote: `I could not create the requested asset for ${issue.code}.`,
+      newStatus: 'BLOCKED',
+      blockedReason: multimodalFailures.join(' '),
+    }
   }
 
   // MILESTONE TRACKING
