@@ -14,7 +14,6 @@ import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
 import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
 import { Jarvis } from '@/components/ekvaar/desktop/jarvis'
-import { GestureControl } from '@/components/ekvaar/desktop/gesture-control'
 import { KrishnaWallpaper } from '@/components/ekvaar/desktop/krishna-wallpaper'
 import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
 import { DesktopWidgets } from '@/components/ekvaar/desktop/desktop-widgets'
@@ -125,7 +124,6 @@ export default function Desktop() {
       <ToastContainer />
       <Launchpad open={launchpadOpen} onClose={() => setLaunchpadOpen(false)} />
       <Spotlight open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
-      <GestureControl onBackgroundPinch={() => setJarvisTrigger(t => t + 1)} />
       <Jarvis trigger={jarvisTrigger} hasOpenWindows={windows.length > 0} />
     </div>
   )
