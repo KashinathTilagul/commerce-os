@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Loader2, Volume2, VolumeX, Mic, MicOff, Send, Hand, Sparkles, RotateCcw, Cpu, Zap, Activity, Radio, ChevronRight } from 'lucide-react'
 import { useWindowStore } from '@/lib/window-store'
-import { APPS } from './app-registry'
 import { toast } from './toast'
 import { MessageScroller, Message, Bubble } from '@/components/ui/chat'
 import { getSelectedVoiceId, applyVoiceToUtterance } from '@/lib/voice-config'
@@ -12,6 +11,16 @@ import type { FrameDebug, TrackerStatus, Pose } from '@/lib/hand-tracker'
 import { PINCH_ON } from '@/lib/hand-tracker'
 import { GestureControl } from './gesture-control'
 export { GestureControl }
+
+const APP_NAMES: Record<string, string> = {
+  command: 'Command Center', inbox: 'Inbox', agents: 'Agents', issues: 'Issues',
+  terminal: 'Terminal', activity: 'Activity', settings: 'Settings', files: 'Files',
+  integrations: 'Integrations', calculator: 'Calculator', notes: 'Notes',
+  calendar: 'Calendar', music: 'Spotify', sales: 'Sales & Orders', finance: 'Finance',
+  inventory: 'Inventory Ops', community: 'Community', campaigns: 'Campaigns',
+  guardian: 'Brand Intelligence', ai: 'AI Systems', risk: 'Risk Center', health: 'Health Monitor',
+  memory: 'Memory Explorer', launches: 'Product Launches', explorer: 'Workspace Explorer'
+}
 
 type KrishnaState = 'idle' | 'listening' | 'thinking' | 'talking'
 interface Msg { role: 'user' | 'krishna'; text: string; ts: number; id?: string }
@@ -162,7 +171,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const speakingRef       = useRef(false)
   const vuRef             = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const activeWindowName = activeId ? APPS.find(a => a.id === activeId)?.name || activeId : null
+  const activeWindowName = activeId ? (APP_NAMES[activeId] || activeId) : null
 
   useEffect(() => { setMessages(loadHistory()) }, [])
   useEffect(() => { saveHistory(messages) }, [messages])
@@ -180,17 +189,10 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   useEffect(() => { setMicSupported(typeof window !== 'undefined' && !!navigator.mediaDevices?.getUserMedia) }, [])
 
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const onScroll = () => {}
-    el.addEventListener('scroll', onScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [])
-
+  // Auto-scroll chat stream to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, transcript, isProcessing])
+  }, [messages, isProcessing, transcript])
 
   useEffect(() => {
     if (trigger && trigger > 0) { if (expanded) closePanel(); else openPanel() }
@@ -199,7 +201,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   useEffect(() => {
     const down = (e: KeyboardEvent) => { if (e.key === 'Escape' && expanded) closePanel() }
     window.addEventListener('keydown', down, true)
-    return () => window.removeEventListener('keydown', down, true)
+    return () => { window.removeEventListener('keydown', down, true) }
   }, [expanded])
 
   const stopTTS = useCallback(() => {
@@ -311,32 +313,36 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     stopTTS()
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      })
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch {
-      toast.error('Microphone blocked', 'Allow mic access in browser settings')
-      voiceSessionRef.current = false
+      toast.error('Microphone error', 'Could not access your microphone.')
+      setGlobal('idle')
       return
     }
-    listeningRef.current = true
-    voiceSessionRef.current = true
-    webSpeechFinal.current = ''
-    setListening(true)
-    setTranscript('')
-    setGlobal('listening')
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (SR) {
-      const rec = new SR()
-      rec.continuous = true
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (AudioCtx) {
+        const ctx = new AudioCtx()
+        const src = ctx.createMediaStreamSource(stream)
+        const ana = ctx.createAnalyser()
+        ana.fftSize = 64
+        src.connect(ana)
+        setAnalyserNode(ana)
+      }
+    } catch {}
+
+    const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (SpeechRec) {
+      const rec = new SpeechRec()
+      rec.continuous = false
       rec.interimResults = true
-      rec.lang = 'en-IN'
+      rec.lang = 'en-US'
       webSpeechRef.current = rec
+      webSpeechFinal.current = ''
       rec.onresult = (e: any) => {
-        if (!listeningRef.current || speakingRef.current) return
         let interim = ''
-        let final = ''
-        for (let i = 0; i < e.results.length; i++) {
+        for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript
           if (e.results[i].isFinal) final += t
           else interim += t
