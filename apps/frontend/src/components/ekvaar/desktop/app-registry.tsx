@@ -408,12 +408,10 @@ export const APPS: AppDef[] = [
   },
 ]
 
-export const APP_MAP: Record<string, AppDef> = new Proxy({} as Record<string, AppDef>, {
-  get(_, prop: string) {
-    const map = Object.fromEntries(APPS.map((app) => [app.id, app]))
-    return map[prop]
-  }
-})
+export const APP_MAP: Record<string, AppDef> = APPS.reduce((acc, app) => {
+  acc[app.id] = app
+  return acc
+}, {} as Record<string, AppDef>)
 
 // Hook for fetching dynamically available apps based on organization capabilities
 export function useAvailableApps() {
