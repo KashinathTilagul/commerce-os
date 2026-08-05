@@ -6,11 +6,11 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Music, Activity, Brain, Rocket
+  AlertTriangle, Music, Activity, Brain, Rocket, Loader2
 } from 'lucide-react'
 
 import dynamic from 'next/dynamic'
-import { Loader2 } from 'lucide-react'
+import { OSManifest } from '@/lib/os-desktop/manifest'
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full w-full bg-background text-muted-foreground gap-2 p-8">
@@ -42,8 +42,6 @@ const HealthMonitor = dynamic(() => import('@/components/ekvaar/modules/health-m
 const WorkspaceExplorer = dynamic(() => import('@/components/ekvaar/modules/workspace-explorer').then(m => m.WorkspaceExplorer), { loading: LoadingFallback })
 const MemoryExplorer = dynamic(() => import('@/components/ekvaar/modules/memory-explorer').then(m => m.MemoryExplorer), { loading: LoadingFallback })
 const ProductLaunches = dynamic(() => import('@/components/ekvaar/modules/product-launches').then(m => m.ProductLaunches), { loading: LoadingFallback })
-
-import { OSManifest } from '@/lib/os-desktop/manifest'
 
 // To bridge legacy metadata that isn't in OSManifest yet
 export interface AppDef extends OSManifest {
