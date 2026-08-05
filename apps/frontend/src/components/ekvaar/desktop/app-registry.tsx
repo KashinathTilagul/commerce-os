@@ -9,29 +9,40 @@ import {
   AlertTriangle, Music, Activity, Brain, Rocket
 } from 'lucide-react'
 
-import { CommandCenter } from '@/components/ekvaar/modules/command-center'
-import { FounderInbox } from '@/components/ekvaar/modules/founder-inbox'
-import { DigitalEmployeesHub } from '@/components/ekvaar/modules/digital-employees-hub'
-import { TerminalModule } from '@/components/ekvaar/modules/terminal'
-import { Settings } from '@/components/ekvaar/modules/settings'
-import { Files } from '@/components/ekvaar/modules/files'
-import { Integrations } from '@/components/ekvaar/modules/integrations'
-import { Calculator } from '@/components/ekvaar/modules/calculator'
-import { Notes } from '@/components/ekvaar/modules/notes'
-import { CalendarApp } from '@/components/ekvaar/modules/calendar'
-import { SalesOrders } from '@/components/ekvaar/modules/sales-orders'
-import { FinanceModule } from '@/components/ekvaar/modules/finance'
-import { InventoryOps } from '@/components/ekvaar/modules/inventory-ops'
-import { CommunityModule } from '@/components/ekvaar/modules/community'
-import { CampaignsModule } from '@/components/ekvaar/modules/campaigns'
-import { BrandIntelligence } from '@/components/ekvaar/modules/brand-intelligence'
-import { AIInfrastructure } from '@/components/ekvaar/modules/ai-infrastructure'
-import { RiskCenter } from '@/components/ekvaar/modules/risk-center'
-import { SpotifyApp } from '@/components/ekvaar/modules/spotify'
-import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
-import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
-import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
-import { ProductLaunches } from '@/components/ekvaar/modules/product-launches'
+import dynamic from 'next/dynamic'
+import { Loader2 } from 'lucide-react'
+
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center h-full w-full bg-background text-muted-foreground gap-2 p-8">
+    <Loader2 className="h-5 w-5 animate-spin" />
+    <span className="text-xs">Loading module...</span>
+  </div>
+)
+
+const CommandCenter = dynamic(() => import('@/components/ekvaar/modules/command-center').then(m => m.CommandCenter), { loading: LoadingFallback })
+const FounderInbox = dynamic(() => import('@/components/ekvaar/modules/founder-inbox').then(m => m.FounderInbox), { loading: LoadingFallback })
+const DigitalEmployeesHub = dynamic(() => import('@/components/ekvaar/modules/digital-employees-hub').then(m => m.DigitalEmployeesHub), { loading: LoadingFallback })
+const TerminalModule = dynamic(() => import('@/components/ekvaar/modules/terminal').then(m => m.TerminalModule), { loading: LoadingFallback })
+const Settings = dynamic(() => import('@/components/ekvaar/modules/settings').then(m => m.Settings), { loading: LoadingFallback })
+const Files = dynamic(() => import('@/components/ekvaar/modules/files').then(m => m.Files), { loading: LoadingFallback })
+const Integrations = dynamic(() => import('@/components/ekvaar/modules/integrations').then(m => m.Integrations), { loading: LoadingFallback })
+const Calculator = dynamic(() => import('@/components/ekvaar/modules/calculator').then(m => m.Calculator), { loading: LoadingFallback })
+const Notes = dynamic(() => import('@/components/ekvaar/modules/notes').then(m => m.Notes), { loading: LoadingFallback })
+const CalendarApp = dynamic(() => import('@/components/ekvaar/modules/calendar').then(m => m.CalendarApp), { loading: LoadingFallback })
+const SalesOrders = dynamic(() => import('@/components/ekvaar/modules/sales-orders').then(m => m.SalesOrders), { loading: LoadingFallback })
+const FinanceModule = dynamic(() => import('@/components/ekvaar/modules/finance').then(m => m.FinanceModule), { loading: LoadingFallback })
+const InventoryOps = dynamic(() => import('@/components/ekvaar/modules/inventory-ops').then(m => m.InventoryOps), { loading: LoadingFallback })
+const CommunityModule = dynamic(() => import('@/components/ekvaar/modules/community').then(m => m.CommunityModule), { loading: LoadingFallback })
+const CampaignsModule = dynamic(() => import('@/components/ekvaar/modules/campaigns').then(m => m.CampaignsModule), { loading: LoadingFallback })
+const BrandIntelligence = dynamic(() => import('@/components/ekvaar/modules/brand-intelligence').then(m => m.BrandIntelligence), { loading: LoadingFallback })
+const AIInfrastructure = dynamic(() => import('@/components/ekvaar/modules/ai-infrastructure').then(m => m.AIInfrastructure), { loading: LoadingFallback })
+const RiskCenter = dynamic(() => import('@/components/ekvaar/modules/risk-center').then(m => m.RiskCenter), { loading: LoadingFallback })
+const SpotifyApp = dynamic(() => import('@/components/ekvaar/modules/spotify').then(m => m.SpotifyApp), { loading: LoadingFallback })
+const HealthMonitor = dynamic(() => import('@/components/ekvaar/modules/health-monitor').then(m => m.HealthMonitor), { loading: LoadingFallback })
+const WorkspaceExplorer = dynamic(() => import('@/components/ekvaar/modules/workspace-explorer').then(m => m.WorkspaceExplorer), { loading: LoadingFallback })
+const MemoryExplorer = dynamic(() => import('@/components/ekvaar/modules/memory-explorer').then(m => m.MemoryExplorer), { loading: LoadingFallback })
+const ProductLaunches = dynamic(() => import('@/components/ekvaar/modules/product-launches').then(m => m.ProductLaunches), { loading: LoadingFallback })
+
 import { OSManifest } from '@/lib/os-desktop/manifest'
 
 // To bridge legacy metadata that isn't in OSManifest yet
