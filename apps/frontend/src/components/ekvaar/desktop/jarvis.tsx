@@ -9,7 +9,6 @@ import { MessageScroller, Message, Bubble } from '@/components/ui/chat'
 import { getSelectedVoiceId, applyVoiceToUtterance } from '@/lib/voice-config'
 import type { FrameDebug, TrackerStatus, Pose } from '@/lib/hand-tracker'
 import { PINCH_ON } from '@/lib/hand-tracker'
-import { GestureControl } from './gesture-control'
 
 const APP_NAMES: Record<string, string> = {
   command: 'Command Center', inbox: 'Inbox', agents: 'Agents', issues: 'Issues',
