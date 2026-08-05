@@ -102,18 +102,3 @@ export function parseIntent(prompt: string): Intent {
     confidence: Math.max(0.5, confidence)
   }
 }
-
-export function routeToDepartment(prompt: string): string {
-  const intent = parseIntent(prompt)
-  return intent.department
-}
-
-export function extractTaskType(prompt: string): string {
-  const intent = parseIntent(prompt)
-  return intent.taskType
-}
-
-export function extractPriority(prompt: string): string {
-  const intent = parseIntent(prompt)
-  return intent.priority
-}

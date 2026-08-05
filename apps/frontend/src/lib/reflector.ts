@@ -11,6 +11,8 @@ type AgentState = {
   failures: number
 }
 
+// ponytail: global in-memory state — not persisted across restarts, O(n) linear scans on cleanup, 
+// single-container assumption. Upgrade to Redis if horizontal scaling or persistence required.
 const state = new Map<string, AgentState>()
 
 export const ReflectorState = state

@@ -1,9 +1,14 @@
-// Local Storage Manager - File storage for artifacts
 import { promises as fs } from 'fs'
 import path from 'path'
 import { z } from 'zod'
 
 const STORAGE_ROOT = path.join(process.cwd(), 'storage')
+
+// ponytail: storage paths are deterministic — single mapping object
+const ARTIFACT_DIRS: Record<ArtifactType, string> = { PDF: 'pdf', PNG: 'images', VIDEO: 'videos', EXCEL: 'templates' }
+const ARTIFACT_EXTS: Record<ArtifactType, string> = { PDF: '.pdf', PNG: '.png', VIDEO: '.mp4', EXCEL: '.xlsx' }
+const getStorageDir = (type: ArtifactType) => ARTIFACT_DIRS[type]
+const getArtifactExt = (type: ArtifactType) => ARTIFACT_EXTS[type]
 
 export const ArtifactTypeSchema = z.enum(['PDF', 'PNG', 'VIDEO', 'EXCEL'])
 export type ArtifactType = z.infer<typeof ArtifactTypeSchema>
@@ -27,10 +32,7 @@ async function ensureDirectoryExists(dir: string): Promise<void> {
 
 export async function initializeStorage(): Promise<void> {
   await ensureDirectoryExists(STORAGE_ROOT)
-  await ensureDirectoryExists(path.join(STORAGE_ROOT, 'pdf'))
-  await ensureDirectoryExists(path.join(STORAGE_ROOT, 'images'))
-  await ensureDirectoryExists(path.join(STORAGE_ROOT, 'videos'))
-  await ensureDirectoryExists(path.join(STORAGE_ROOT, 'templates'))
+  await Promise.all(Object.values(ARTIFACT_DIRS).map(dir => ensureDirectoryExists(path.join(STORAGE_ROOT, dir))))
 }
 
 export async function storeArtifact(
@@ -41,11 +43,8 @@ export async function storeArtifact(
 ): Promise<StorageMetadata> {
   await initializeStorage()
   
-  const subdir = type === 'PDF' ? 'pdf' : type === 'PNG' ? 'images' : type === 'VIDEO' ? 'videos' : 'templates'
-  const dir = path.join(STORAGE_ROOT, subdir)
-  
-  const ext = type === 'PDF' ? '.pdf' : type === 'PNG' ? '.png' : type === 'VIDEO' ? '.mp4' : '.xlsx'
-  const filename = customFilename || `${id}${ext}`
+  const dir = path.join(STORAGE_ROOT, getStorageDir(type))
+  const filename = customFilename || `${id}${getArtifactExt(type)}`
   const filepath = path.join(dir, filename)
   
   await fs.writeFile(filepath, content)
@@ -63,9 +62,7 @@ export async function storeArtifact(
 }
 
 export async function getArtifact(id: string, type: ArtifactType): Promise<Buffer | null> {
-  const subdir = type === 'PDF' ? 'pdf' : type === 'PNG' ? 'images' : type === 'VIDEO' ? 'videos' : 'templates'
-  const ext = type === 'PDF' ? '.pdf' : type === 'PNG' ? '.png' : type === 'VIDEO' ? '.mp4' : '.xlsx'
-  const filepath = path.join(STORAGE_ROOT, subdir, `${id}${ext}`)
+  const filepath = path.join(STORAGE_ROOT, getStorageDir(type), `${id}${getArtifactExt(type)}`)
   
   try {
     return await fs.readFile(filepath)
@@ -76,9 +73,7 @@ export async function getArtifact(id: string, type: ArtifactType): Promise<Buffe
 }
 
 export async function deleteArtifact(id: string, type: ArtifactType): Promise<boolean> {
-  const subdir = type === 'PDF' ? 'pdf' : type === 'PNG' ? 'images' : type === 'VIDEO' ? 'videos' : 'templates'
-  const ext = type === 'PDF' ? '.pdf' : type === 'PNG' ? '.png' : type === 'VIDEO' ? '.mp4' : '.xlsx'
-  const filepath = path.join(STORAGE_ROOT, subdir, `${id}${ext}`)
+  const filepath = path.join(STORAGE_ROOT, getStorageDir(type), `${id}${getArtifactExt(type)}`)
   
   try {
     await fs.unlink(filepath)
@@ -92,14 +87,13 @@ export async function listArtifacts(type?: ArtifactType): Promise<string[]> {
   await initializeStorage()
   
   if (type) {
-    const subdir = type === 'PDF' ? 'pdf' : type === 'PNG' ? 'images' : type === 'VIDEO' ? 'videos' : 'templates'
-    const dir = path.join(STORAGE_ROOT, subdir)
+    const dir = path.join(STORAGE_ROOT, getStorageDir(type))
     const files = await fs.readdir(dir)
     return files.map(f => f.replace(/\.[^.]+$/, ''))
   }
   
   const allFiles: string[] = []
-  for (const subdir of ['pdf', 'images', 'videos', 'templates']) {
+  for (const subdir of Object.values(ARTIFACT_DIRS)) {
     const dir = path.join(STORAGE_ROOT, subdir)
     const files = await fs.readdir(dir)
     allFiles.push(...files.map(f => f.replace(/\.[^.]+$/, '')))
@@ -109,6 +103,5 @@ export async function listArtifacts(type?: ArtifactType): Promise<string[]> {
 }
 
 export function getStoragePath(type: ArtifactType, filename: string): string {
-  const subdir = type === 'PDF' ? 'pdf' : type === 'PNG' ? 'images' : type === 'VIDEO' ? 'videos' : 'templates'
-  return path.join(STORAGE_ROOT, subdir, filename)
+  return path.join(STORAGE_ROOT, getStorageDir(type), filename)
 }

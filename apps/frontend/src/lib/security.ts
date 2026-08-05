@@ -24,6 +24,8 @@ export const RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
   chat: { windowMs: 60000, maxRequests: 20 },
 }
 
+// ponytail: in-memory rate limits — single-container assumption, lost on restart. 
+// Use Redis + Upstash for multi-instance deployments.
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 export function checkRateLimit(ip: string, path: string): { allowed: boolean; retryAfter: number } {
