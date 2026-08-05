@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Command } from 'lucide-react'
 import { APPS } from './app-registry'
 
-const APP_BY_ID = new Map(APPS.map(a => [a.id, a]))
 import { AppIcon } from './app-icon'
 import { useWindowStore } from '@/lib/window-store'
 
@@ -27,6 +26,8 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
   const [selected, setSelected] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const appById = useMemo(() => new Map(APPS.map(a => [a.id, a])), [])
+
   useEffect(() => {
     if (open) {
       setQuery('')
@@ -43,7 +44,7 @@ export function Spotlight({ open, onClose }: SpotlightProps) {
     if (!q) {
       // Fallback to quick actions if query is empty
       const quick = QUICK_ACTIONS.map(a => {
-        const app = APP_BY_ID.get(a.id)
+        const app = appById.get(a.id)
         if (!app) return null
         return { ...app, hint: a.hint }
       }).filter(Boolean)
