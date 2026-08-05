@@ -26,8 +26,8 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   const activeId = useWindowStore(s => s.activeId)
   const focus = useWindowStore(s => s.focus)
   const minimize = useWindowStore(s => s.minimize)
-  const _hiddenApps = useWindowStore(s => s.hiddenApps)
-  const _customNames = useWindowStore(s => s.customNames)
+  const rawHiddenApps = useWindowStore(s => s.hiddenApps)
+  const rawCustomNames = useWindowStore(s => s.customNames)
   const dockOrder = useWindowStore(s => s.dockOrder)
   const hideApp = useWindowStore(s => s.hideApp)
   const showApp = useWindowStore(s => s.showApp)
@@ -36,8 +36,8 @@ export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
   const moveAppRight = useWindowStore(s => s.moveAppRight)
   const renameApp = useWindowStore(s => s.renameApp)
   const resetAll = useWindowStore(s => s.resetVisibility)
-  const hiddenApps = _hiddenApps || []
-  const customNames = _customNames || {}
+  const hiddenApps = rawHiddenApps || []
+  const customNames = rawCustomNames || {}
 
   const { apps: availableApps, coreAppIds, utilityAppIds, businessAppIds, marketplaceAppIds } = useAvailableApps()
 

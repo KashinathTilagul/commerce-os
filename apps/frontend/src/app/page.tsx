@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 
-const Desktop = dynamic(() => import('./_desktop'), { ssr: false })
+const Desktop = dynamic(() => import('./desktop-view'), { ssr: false })
 
 export default function Page() {
   return <Desktop />
