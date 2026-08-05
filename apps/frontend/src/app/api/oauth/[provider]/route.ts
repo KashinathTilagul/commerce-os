@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { getOAuthToken, revokeOAuthToken, isTokenValid, getProviderConfig, storeOAuthToken } from '@/lib/oauth'

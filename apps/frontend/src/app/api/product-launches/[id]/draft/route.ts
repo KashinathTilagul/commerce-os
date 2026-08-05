@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { queueQikinkDraft } from '@/lib/product-launches'

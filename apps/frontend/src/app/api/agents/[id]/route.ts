@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 
+export const dynamic = 'force-dynamic'
+
 // PATCH /api/agents/[id] — update agent soul, skills, description, primeDirective, status
 export async function PATCH(
   req: NextRequest,

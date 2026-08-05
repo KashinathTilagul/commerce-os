@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError } from '@/lib/security'
 import { requireOrganization } from '@/lib/auth-guard'

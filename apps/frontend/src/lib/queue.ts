@@ -1,7 +1,30 @@
 /**
- * EKVAAR OS — Distributed Agent Runtime Queue & Outbox Engine (Phase 4)
- * Manages Redis + BullMQ job delivery, transactional outbox events, & worker retries.
+ * EKVAAR OS — Distributed Agent Runtime Queue (BullMQ + Redis)
  */
+
+import { Queue, Worker, type Job } from 'bullmq'
+import IORedis from 'ioredis'
+
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
+
+// Lazy singleton — avoids connection during Next.js SSR/edge compilation
+let _connection: IORedis | null = null
+function getConnection(): IORedis {
+  if (!_connection) {
+    _connection = new IORedis(REDIS_URL, { maxRetriesPerRequest: null })
+  }
+  return _connection
+}
+
+let _queue: Queue | null = null
+function getQueue(): Queue {
+  if (!_queue) {
+    _queue = new Queue('agent-jobs', { connection: getConnection() })
+  }
+  return _queue
+}
+
+// ── Types ──
 
 export interface AgentJobPayload {
   jobId: string
@@ -10,75 +33,49 @@ export interface AgentJobPayload {
   agentRole: string
   taskType: string
   mission: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   createdAt: string
 }
 
-export interface ResearchAgentOutput {
-  competitors: Array<{
-    name: string
-    product: string
-    pricing: string
-    campaignAngle: string
-    channel: string
-    evidence: string
-  }>
-  structuredFindings: string
+// ── Public API ──
+
+export async function enqueueAgentJob(payload: AgentJobPayload): Promise<{ success: boolean; jobId: string }> {
+  const job = await getQueue().add(payload.taskType, payload, {
+    jobId: payload.jobId,
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 5000 },
+  })
+  return { success: true, jobId: job.id! }
 }
 
-export class DistributedAgentQueue {
-  private queue: AgentJobPayload[] = []
-  private deadLetterQueue: AgentJobPayload[] = []
-
-  async enqueueJob(payload: AgentJobPayload): Promise<{ success: boolean; jobId: string }> {
-    this.queue.push(payload)
-    console.log(`[BullMQ Queue] Enqueued job ${payload.jobId} for agent ${payload.agentRole} (${payload.organizationId})`)
-    return { success: true, jobId: payload.jobId }
-  }
-
-  async processResearchTask(payload: AgentJobPayload): Promise<ResearchAgentOutput> {
-    console.log(`[Agent Worker] Executing Research Task ${payload.jobId}: "${payload.mission}"`)
-
-    // Research Agent Task Logic: Analyze competitor launches
-    const researchResults: ResearchAgentOutput = {
-      competitors: [
-        {
-          name: 'Competitor A',
-          product: 'AI Workflow Pro',
-          pricing: '$49/mo',
-          campaignAngle: 'Automate your entire backend in 1-click',
-          channel: 'LinkedIn Ads & ProductHunt',
-          evidence: 'Launched Q2 with 1,200 upvotes and top product badge.',
-        },
-        {
-          name: 'Competitor B',
-          product: 'AgentOps Suite',
-          pricing: '$99/mo',
-          campaignAngle: 'Enterprise AI Governance & Audit Controls',
-          channel: 'Direct Sales & Tech Events',
-          evidence: 'Announced Series A funding & SOC2 compliance.',
-        },
-        {
-          name: 'Competitor C',
-          product: 'FlowEngine',
-          pricing: '$29/mo',
-          campaignAngle: 'Lightweight Automation for Solopreneurs',
-          channel: 'Twitter/X & Youtube Tutorials',
-          evidence: 'Grew to 5,000 active users in 60 days.',
-        },
-      ],
-      structuredFindings: 'Market trend favors transparent pricing and native AI agent governance.',
-    }
-
-    return researchResults
-  }
-
-  getStats() {
-    return {
-      pending: this.queue.length,
-      deadLetter: this.deadLetterQueue.length,
-    }
-  }
+export async function getQueueStats() {
+  const q = getQueue()
+  const [waiting, active, completed, failed] = await Promise.all([
+    q.getWaitingCount(),
+    q.getActiveCount(),
+    q.getCompletedCount(),
+    q.getFailedCount(),
+  ])
+  return { waiting, active, completed, failed }
 }
 
-export const agentQueue = new DistributedAgentQueue()
+// ── Worker (call once from a dedicated process or API route, not at import time) ──
+
+let _worker: Worker | null = null
+
+export function startAgentWorker(
+  processor: (job: Job<AgentJobPayload>) => Promise<unknown>,
+): Worker {
+  if (_worker) return _worker
+  _worker = new Worker<AgentJobPayload>('agent-jobs', processor, {
+    connection: getConnection(),
+    concurrency: 5,
+  })
+  _worker.on('failed', (job, err) => {
+    console.error(`[AgentWorker] Job ${job?.id} failed:`, err.message)
+  })
+  _worker.on('completed', (job) => {
+    console.log(`[AgentWorker] Job ${job.id} completed`)
+  })
+  return _worker
+}

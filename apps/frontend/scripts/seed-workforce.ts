@@ -48,7 +48,7 @@ const AGENTS = [
     department: 'TECHNOLOGY',
     primeDirective: 'Keep the OS infrastructure online. Write, review, and deploy code. Integrate third-party APIs.',
     description: 'Manages software deployments, integrates Shopify/Stripe, and monitors server health.',
-    skills: 'python,node,api_integration,git,react_development,sqlite_management',
+    skills: 'python,node,api_integration,git,react_development,postgresql_management',
     avatarColor: '#1F3A5F',
     tokenBudget: 70000,
     tokenSpend: 38900,

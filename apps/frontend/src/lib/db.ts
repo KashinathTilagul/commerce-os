@@ -1,36 +1,19 @@
 import { PrismaClient } from '@prisma/client'
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
-import fs from 'fs'
-import path from 'path'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-const rawDbUrl = process.env.DATABASE_URL || ''
-const isPostgres = rawDbUrl.startsWith('postgres://') || rawDbUrl.startsWith('postgresql://')
-
-function createPrismaInstance(): PrismaClient {
-  if (isPostgres) {
-    return new PrismaClient({ log: ['query'] })
-  }
-
-  const dbUrl = rawDbUrl ? rawDbUrl.replace('file:', '') : (() => {
-    const frontendDb = path.join(process.cwd(), 'apps', 'frontend', 'dev.db')
-    if (fs.existsSync(frontendDb)) return frontendDb
-    return path.join(process.cwd(), 'dev.db')
-  })()
-
-  const dbDir = path.dirname(dbUrl)
-  if (dbDir && !fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true })
-  }
-
-  const adapter = new PrismaBetterSqlite3({ url: dbUrl })
-  return new PrismaClient({ adapter, log: ['query'] })
+function createPrismaClient(): PrismaClient {
+  const connectionString = process.env.DATABASE_URL || 'postgresql://ekvaar:ekvaar_dev_2026@localhost:5432/ekvaar'
+  const pool = new Pool({ connectionString })
+  const adapter = new PrismaPg(pool)
+  return new PrismaClient({ adapter })
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaInstance()
+export const db = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 

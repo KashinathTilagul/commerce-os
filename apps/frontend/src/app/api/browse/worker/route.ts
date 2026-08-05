@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { dequeueBrowseJob, completeBrowseJob, failBrowseJob } from '@/lib/browse-queue'
 import { db } from '@/lib/db'

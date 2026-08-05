@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { ROSTER } from '@/lib/agent-roster'
 
+export const dynamic = 'force-dynamic'
+
 // Idempotently build the digital-employees org (Chiefs + specialists, with
 // hierarchy) for every user. Guarded by CRON_SECRET like /api/cron/watchdog;
 // triggered once from the box after a deploy. Safe to re-run.
