@@ -9,75 +9,7 @@ interface AppIconProps {
 /**
  * macOS Big Sur app icon replicas.
  * Structure: Squircle (flex-center) → BackgroundLayer (absolute) → HighlightLayer (absolute) → Glyph (relative, z-10, centered)
- */
-export function AppIcon({ variant, size = 56, className = '' }: AppIconProps) {
-  return (
-    <div
-      className={`relative ${className}`}
-      style={{ width: size, height: size }}
-    >
-      <Squircle size={size}>
-        <IconVariant variant={variant} size={size} />
-      </Squircle>
-    </div>
-  )
-}
 
-function Squircle({ size, children }: { size: number; children: React.ReactNode }) {
-  const r = size * 0.27 // macOS squircle — 27% CSS border-radius approximates the superellipse
-  return (
-    <div
-      className="relative overflow-hidden flex items-center justify-center"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: r,
-        boxShadow: `
-          0 1px 2px rgba(0,0,0,0.18),
-          0 4px 10px rgba(0,0,0,0.28),
-          inset 0 1px 0 rgba(255,255,255,0.30),
-          inset 0 -1px 0 rgba(0,0,0,0.10)
-        `,
-      }}
-    >
-      {children}
-    </div>
-  )
-}
-
-function IconVariant({ variant, size }: { variant: string; size: number }) {
-  switch (variant) {
-    case 'launchpad':     return <LaunchpadIcon size={size} />
-    case 'health':        return <HealthIcon size={size} />
-    case 'memory':        return <BooksIcon size={size} />
-    case 'drive':         return <BrowserIcon size={size} />
-    case 'board-room':    return <BoardRoomIcon size={size} />
-    case 'inbox':         return <MailIcon size={size} />
-    case 'agents':        return <ContactsIcon size={size} />
-    case 'issues':        return <RemindersIcon size={size} />
-    case 'terminal':      return <TerminalIcon size={size} />
-    case 'settings':      return <SettingsIcon size={size} />
-    case 'files':         return <FinderIcon size={size} />
-    case 'browser':       return <BrowserIcon size={size} />
-    case 'integrations':  return <IntegrationsIcon size={size} />
-    case 'calculator':    return <CalculatorIcon size={size} />
-    case 'notes':         return <NotesIcon size={size} />
-    case 'calendar':      return <CalendarIcon size={size} />
-    case 'music':         return <MusicIcon size={size} />
-    case 'house':         return <BoxesIcon size={size} />
-    case 'sales':         return <SalesIcon size={size} />
-    case 'finance':       return <WalletIcon size={size} />
-    case 'inventory':     return <InventoryIcon size={size} />
-    case 'qikink':        return <QikinkIcon size={size} />
-    case 'community':     return <CommunityIcon size={size} />
-    case 'campaigns':     return <NewsIcon size={size} />
-    case 'guardian':      return <ShieldIcon size={size} />
-    case 'ai':            return <CpuIcon size={size} />
-    case 'risk':          return <RiskIcon size={size} />
-    case 'spotify':       return <MusicIcon size={size} />
-    default:              return <GenericIcon size={size} />
-  }
-}
 
 // ============ LAYER HELPERS ============
 
@@ -720,3 +652,73 @@ function RiskIcon({ size }: { size: number }) {
     </>
   )
 }
+
+function IconVariant({ variant, size }: { variant: string; size: number }) {
+  switch (variant) {
+    case 'launchpad':     return <LaunchpadIcon size={size} />
+    case 'health':        return <HealthIcon size={size} />
+    case 'memory':        return <BooksIcon size={size} />
+    case 'drive':         return <BrowserIcon size={size} />
+    case 'board-room':    return <BoardRoomIcon size={size} />
+    case 'inbox':         return <MailIcon size={size} />
+    case 'agents':        return <ContactsIcon size={size} />
+    case 'issues':        return <RemindersIcon size={size} />
+    case 'terminal':      return <TerminalIcon size={size} />
+    case 'settings':      return <SettingsIcon size={size} />
+    case 'files':         return <FinderIcon size={size} />
+    case 'browser':       return <BrowserIcon size={size} />
+    case 'integrations':  return <IntegrationsIcon size={size} />
+    case 'calculator':    return <CalculatorIcon size={size} />
+    case 'notes':         return <NotesIcon size={size} />
+    case 'calendar':      return <CalendarIcon size={size} />
+    case 'music':         return <MusicIcon size={size} />
+    case 'house':         return <BoxesIcon size={size} />
+    case 'sales':         return <SalesIcon size={size} />
+    case 'finance':       return <WalletIcon size={size} />
+    case 'inventory':     return <InventoryIcon size={size} />
+    case 'qikink':        return <QikinkIcon size={size} />
+    case 'community':     return <CommunityIcon size={size} />
+    case 'campaigns':     return <NewsIcon size={size} />
+    case 'guardian':      return <ShieldIcon size={size} />
+    case 'ai':            return <CpuIcon size={size} />
+    case 'risk':          return <RiskIcon size={size} />
+    case 'spotify':       return <MusicIcon size={size} />
+    default:              return <GenericIcon size={size} />
+  }
+}
+
+function Squircle({ size, children }: { size: number; children: React.ReactNode }) {
+  const r = size * 0.27
+  return (
+    <div
+      className="relative overflow-hidden flex items-center justify-center"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: r,
+        boxShadow: `
+          0 1px 2px rgba(0,0,0,0.18),
+          0 4px 10px rgba(0,0,0,0.28),
+          inset 0 1px 0 rgba(255,255,255,0.30),
+          inset 0 -1px 0 rgba(0,0,0,0.10)
+        `,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function AppIcon({ variant, size = 56, className = '' }: AppIconProps) {
+  return (
+    <div
+      className={`relative ${className}`}
+      style={{ width: size, height: size }}
+    >
+      <Squircle size={size}>
+        <IconVariant variant={variant} size={size} />
+      </Squircle>
+    </div>
+  )
+}
+
