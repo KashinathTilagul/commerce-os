@@ -143,7 +143,7 @@ async function runSmokeTests() {
 
   // Check if server is running on target URL
   const ping = await checkHttpEndpoint('/api/health', 'Ping')
-  
+
   if (ping.passed) {
     console.log(`[*] Live server detected at ${TARGET_URL}. Running HTTP suite...\n`)
     const tests = [
