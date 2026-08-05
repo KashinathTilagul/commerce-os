@@ -1,19 +1,30 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
-import Database from 'better-sqlite3'
-
+import fs from 'fs'
+import path from 'path'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// In Next.js, process.cwd() is the project root (apps/frontend)
-const dbUrl = process.env.DATABASE_URL?.replace('file:', '') || './dev.db'
+// Resolve SQLite database path with fallback checks for monorepo roots
+function resolveDatabasePath(): string {
+  if (process.env.DATABASE_URL) {
+    return process.env.DATABASE_URL.replace('file:', '')
+  }
 
-// Ensure directory exists for better-sqlite3
-import fs from 'fs'
-import path from 'path'
+  const frontendDb = path.join(process.cwd(), 'apps', 'frontend', 'dev.db')
+  if (fs.existsSync(frontendDb)) {
+    return frontendDb
+  }
+
+  const localDb = path.join(process.cwd(), 'dev.db')
+  return localDb
+}
+
+const dbUrl = resolveDatabasePath()
 const dbDir = path.dirname(dbUrl)
+
 if (dbDir && !fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true })
 }
@@ -29,12 +40,7 @@ export const db =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 
-// Event log retention — without this, Event rows (which can contain up to a
-// few hundred characters of chat/conversation content) grow forever; the
-// only prior cleanup path was full account deletion. This is a long-running
-// Node server (next start, not serverless), so a module-scope interval
-// persists for the process lifetime, same pattern as the rate-limit cleanup
-// in lib/security.ts.
+// Event log retention — without this, Event rows grow forever
 const EVENT_RETENTION_DAYS = 90
 const globalForCleanup = globalThis as unknown as { eventCleanupStarted?: boolean }
 if (!globalForCleanup.eventCleanupStarted) {
