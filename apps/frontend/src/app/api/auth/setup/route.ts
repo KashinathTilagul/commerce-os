@@ -7,9 +7,13 @@ export async function GET() {
   try {
     const count = await db.user.count()
     return NextResponse.json({ hasUsers: count > 0 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Setup Check Error:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    const isConnRefused = error?.code === 'ECONNREFUSED' || error?.message?.includes('ECONNREFUSED')
+    const message = isConnRefused
+      ? 'Database connection failed: Could not connect to PostgreSQL server on localhost:5432. Ensure PostgreSQL is running.'
+      : (error?.message || 'Internal Server Error')
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
 
