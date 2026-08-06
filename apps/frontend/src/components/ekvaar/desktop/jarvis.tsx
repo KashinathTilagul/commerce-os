@@ -239,72 +239,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
   }, [stopTTS, stopListening])
 
-  const speakText = useCallback(async (text: string) => {
-    if (muted) { setGlobal('idle'); return }
-    stopTTS()
-    stopListening()
-    const clean = toSpeech(text)
-    if (!clean) { setGlobal('idle'); return }
-    setGlobal('talking')
-    speakingRef.current = true
-
-    const voiceId = getSelectedVoiceId()
-
-    // ── 1. Try server neural TTS first (if neural API is available) ──
-    try {
-      const res = await fetch('/api/jarvis/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: clean, voice: voiceId, speed: 1.0 }),
-        signal: AbortSignal.timeout(4000),
-      })
-      if (res.ok) {
-        const audio = new Audio(URL.createObjectURL(await res.blob()))
-        audio.volume = 1
-        audioStopRef.current = () => { audio.pause(); URL.revokeObjectURL(audio.src) }
-        await new Promise<void>((resolve) => {
-          audio.onended = () => resolve()
-          audio.onerror = () => resolve()
-          audio.play().catch(() => resolve())
-        })
-        speakingRef.current = false
-        setGlobal('idle')
-        if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
-          setTimeout(() => {
-            if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
-              startListening()
-            }
-          }, 500)
-        }
-        return
-      }
-    } catch {}
-
-    // ── 2. Fallback to continuous, natural browser SpeechSynthesis ──
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      await new Promise<void>((resolve) => {
-        const u = new SpeechSynthesisUtterance(clean)
-        applyVoiceToUtterance(u, window.speechSynthesis, voiceId)
-        let done = false
-        const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
-        audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
-        u.onend = finish
-        u.onerror = (e) => { console.error('[TTS Error]', e); finish() }
-        setTimeout(finish, clean.length * 90 + 4000)
-        window.speechSynthesis.speak(u)
-      })
-    }
-    speakingRef.current = false
-    setGlobal('idle')
-    if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
-      setTimeout(() => {
-        if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
-          startListening()
-        }
-      }, 500)
-    }
-  }, [muted, stopTTS, stopListening, startListening])
-
   const startListening = useCallback(async () => {
     if (typeof window === 'undefined' || listeningRef.current || speakingRef.current) return
     if (typeof window !== 'undefined' && window.speechSynthesis?.speaking) return
@@ -340,6 +274,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       webSpeechFinal.current = ''
       rec.onresult = (e: any) => {
         let interim = ''
+        let final = ''
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript
           if (e.results[i].isFinal) final += t
