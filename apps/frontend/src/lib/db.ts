@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
@@ -7,7 +8,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL || 'postgresql://ekvaar:ekvaar_dev_2026@localhost:5432/ekvaar'
+  const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:dVyyDQ6X2oWBQzR3@db.guxaxhofeglqkmrhahsw.supabase.co:5432/postgres'
   const pool = new Pool({ connectionString })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })
