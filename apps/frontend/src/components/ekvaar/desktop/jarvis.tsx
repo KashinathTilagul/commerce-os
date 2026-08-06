@@ -240,14 +240,23 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   }, [stopTTS, stopListening])
 
   const startListening = useCallback(async () => {
-    if (typeof window === 'undefined' || listeningRef.current || speakingRef.current) return
-    if (typeof window !== 'undefined' && window.speechSynthesis?.speaking) return
+    if (typeof window === 'undefined') return
+    if (listeningRef.current) return
+    if (window.speechSynthesis?.speaking) window.speechSynthesis.cancel()
     stopTTS()
+
+    listeningRef.current = true
+    setListening(true)
+    setGlobal('listening')
+
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    } catch {
-      toast.error('Microphone error', 'Could not access your microphone.')
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } })
+    } catch (e) {
+      console.error('[Mic Error]', e)
+      toast.error('Microphone error', 'Could not access your microphone. Please allow mic access in your browser.')
+      listeningRef.current = false
+      setListening(false)
       setGlobal('idle')
       return
     }
@@ -267,27 +276,31 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (SpeechRec) {
       const rec = new SpeechRec()
-      rec.continuous = false
+      rec.continuous = true
       rec.interimResults = true
       rec.lang = 'en-US'
       webSpeechRef.current = rec
       webSpeechFinal.current = ''
       rec.onresult = (e: any) => {
         let interim = ''
-        let final = ''
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript
-          if (e.results[i].isFinal) final += t
-          else interim += t
+          if (e.results[i].isFinal) {
+            webSpeechFinal.current = (webSpeechFinal.current + ' ' + t).trim()
+          } else {
+            interim += t
+          }
         }
-        if (final) webSpeechFinal.current = final.trim()
-        setTranscript(final || interim || '…')
+        setTranscript(webSpeechFinal.current || interim || 'Listening…')
       }
-      rec.onerror = () => {}
+      rec.onerror = (err: any) => {
+        console.warn('[WebSpeech Warning]', err.error)
+      }
       rec.onend = () => {}
       try { rec.start() } catch {}
     }
-    const audioCtx = new AudioContext()
+
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
     const analyser = audioCtx.createAnalyser()
     analyser.fftSize = 512
     audioCtx.createMediaStreamSource(stream).connect(analyser)
@@ -349,7 +362,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         }, 300)
       }
     }
-    recorder.start(250)
+
+    try { recorder.start(250) } catch {}
     let lastSoundAt = Date.now()
     const startedAt = Date.now()
     vuRef.current = setInterval(() => {
@@ -359,7 +373,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       if (avg > 10) lastSoundAt = Date.now()
       const silentFor = Date.now() - lastSoundAt
       const recordedFor = Date.now() - startedAt
-      if (silentFor > 2000 && recordedFor > 700) {
+      if (silentFor > 2200 && recordedFor > 800) {
         clearInterval(vuRef.current!); vuRef.current = null
         if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
       }
@@ -410,17 +424,31 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     // ── 2. Fallback to continuous, natural browser SpeechSynthesis ──
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       await new Promise<void>((resolve) => {
-        window.speechSynthesis.cancel()
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+          window.speechSynthesis.cancel()
+        }
         window.speechSynthesis.resume()
-        const u = new SpeechSynthesisUtterance(clean)
-        applyVoiceToUtterance(u, window.speechSynthesis, voiceId)
-        let done = false
-        const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
-        audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
-        u.onend = finish
-        u.onerror = (e) => { console.error('[TTS Error]', e); finish() }
-        setTimeout(finish, clean.length * 90 + 4000)
-        window.speechSynthesis.speak(u)
+
+        setTimeout(() => {
+          const u = new SpeechSynthesisUtterance(clean)
+          applyVoiceToUtterance(u, window.speechSynthesis, voiceId)
+          let done = false
+          const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
+          audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
+          u.onend = finish
+          u.onerror = (e: any) => {
+            if (e.error !== 'canceled' && e.error !== 'interrupted') {
+              console.warn('[TTS Warning]', e.error || e)
+            }
+            finish()
+          }
+          setTimeout(finish, clean.length * 90 + 4000)
+          try {
+            window.speechSynthesis.speak(u)
+          } catch {
+            finish()
+          }
+        }, 50)
       })
     }
     speakingRef.current = false

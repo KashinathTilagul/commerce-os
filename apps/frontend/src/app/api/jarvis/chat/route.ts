@@ -147,7 +147,16 @@ AVAILABLE ACTIONS:
 
     } catch (e: any) {
       console.error(`[Krishna] Core error:`, e.message)
-      spoken = `I'm having trouble reaching my intelligence core, sir. ${e.message}`
+      try {
+        const { routeText } = await import('@/lib/ai-router')
+        const { text } = await routeText('fast', {
+          system: 'You are JARVIS, executive assistant to the Founder. Reply in 1-2 short, professional sentences.',
+          prompt: sanitizeInput(message, { maxLength: 1000 }),
+        })
+        spoken = text.trim() || "I am online, Founder. How can I assist you?"
+      } catch {
+        spoken = "My intelligence core is connecting, Founder. Please check your AI provider keys in Settings."
+      }
     }
 
     // ── Assignment safety net ────────────────────────────────────────────
