@@ -385,7 +385,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         body: JSON.stringify({ text: clean, voice: voiceId, speed: 1.0 }),
         signal: AbortSignal.timeout(4000),
       })
-      if (res.ok) {
+      if (res.ok && res.headers.get('content-type')?.includes('audio')) {
         const audio = new Audio(URL.createObjectURL(await res.blob()))
         audio.volume = 1
         audioStopRef.current = () => { audio.pause(); URL.revokeObjectURL(audio.src) }
@@ -410,6 +410,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     // ── 2. Fallback to continuous, natural browser SpeechSynthesis ──
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       await new Promise<void>((resolve) => {
+        window.speechSynthesis.cancel()
+        window.speechSynthesis.resume()
         const u = new SpeechSynthesisUtterance(clean)
         applyVoiceToUtterance(u, window.speechSynthesis, voiceId)
         let done = false
