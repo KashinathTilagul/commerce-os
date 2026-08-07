@@ -446,6 +446,8 @@ model Agent {
   workspaces     AgentWorkspace[]
   patterns       AgentPattern[]
   knowledge      AgentKnowledge[]
+  runs           AgentRun[]
+  wakeRequests   AgentWakeRequest[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -1215,4 +1217,72 @@ model AIExecutionLog {
   createdAt          DateTime @default(now())
   
   organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ============ PAPERCLIP RUNTIME: RUNS, STEPS, WAKE REQUESTS ============
+
+model AgentRun {
+  id              String    @id @default(cuid())
+  organizationId  String
+  agentId         String
+  triggerType     String    // ASSIGNMENT | MENTION | SCHEDULE | APPROVAL_RESOLVED | MANUAL | AUTOMATION | COALESCED
+  triggerRef      String?   // issueId, commentId, approvalId, or null for manual
+  status          String    @default("QUEUED") // QUEUED | STARTING | RUNNING | COMPLETED | FAILED | CANCELLED
+  startedAt       DateTime?
+  completedAt     DateTime?
+  durationMs      Int?
+  inputTokens     Int       @default(0)
+  outputTokens    Int       @default(0)
+  cachedTokens    Int       @default(0)
+  estimatedCost   Decimal   @default(0) @db.Decimal(12, 4)
+  model           String?
+  provider        String?
+  issueId         String?
+  error           String?
+  outputSummary   String?
+  executionPlan   String?   // JSON array of planned steps (observability, not raw reasoning)
+  createdAt       DateTime  @default(now())
+
+  agent         Agent              @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  steps         AgentRunStep[]
+  wakeRequests  AgentWakeRequest[] @relation("CoalescedRun")
+
+  @@index([agentId, status])
+  @@index([organizationId])
+  @@index([status])
+}
+
+model AgentRunStep {
+  id            String    @id @default(cuid())
+  runId         String
+  sequence      Int
+  type          String    // CONTEXT_LOAD | PLAN | TOOL_CALL | DELEGATE | COMMENT | STATUS_UPDATE | ARTIFACT | ERROR
+  toolName      String?
+  status        String    @default("RUNNING") // RUNNING | COMPLETED | FAILED | SKIPPED
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  inputSummary  String?
+  outputSummary String?
+  error         String?
+
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}
+
+model AgentWakeRequest {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  agentId            String
+  triggerType        String    // ASSIGNMENT | MENTION | SCHEDULE | APPROVAL_RESOLVED | MANUAL
+  triggerRef         String?
+  receivedAt         DateTime  @default(now())
+  coalescedIntoRunId String?
+  status             String    @default("PENDING") // PENDING | ENQUEUED | COALESCED | PROCESSED
+
+  agent        Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  coalescedRun AgentRun? @relation("CoalescedRun", fields: [coalescedIntoRunId], references: [id])
+
+  @@index([agentId, status])
+  @@index([status])
 }

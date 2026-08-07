@@ -1,27 +1,26 @@
 export const dynamic = 'force-dynamic'
+
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
-import { createGoal, getDueGoals } from '@/lib/goal-engine'
 import { db } from '@/lib/db'
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
-  const { searchParams } = new URL(req.url)
-  const dueOnly = searchParams.get('due') === 'true'
+  try {
+    const goals = await db.goal.findMany({
+      where: { organizationId: auth.organizationId },
+      include: {
+        iterations: { orderBy: { iteration: 'desc' }, take: 5 },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
 
-  if (dueOnly) {
-    const due = await getDueGoals()
-    return NextResponse.json(due)
+    return NextResponse.json({ goals })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Failed to fetch goals' }, { status: 500 })
   }
-
-  const goals = await db.goal.findMany({
-    where: { organizationId: auth.organizationId },
-    include: { iterations: { orderBy: { createdAt: 'desc' }, take: 10 } },
-    orderBy: { createdAt: 'desc' },
-  })
-  return NextResponse.json(goals)
 }
 
 export async function POST(req: NextRequest) {
@@ -30,26 +29,23 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { title, metric, targetValue, unit, mode, agentCode, skillSlug, interval, deadline } = body
+    const { title, metric, targetValue, unit, mode, agentCode } = body
 
-    if (!title || !metric || targetValue === undefined || !mode || !agentCode) {
-      return NextResponse.json({ error: 'Missing required goal fields' }, { status: 400 })
-    }
-
-    const goal = await createGoal(auth.organizationId, {
-      title,
-      metric,
-      targetValue: Number(targetValue),
-      unit: unit || '',
-      mode: mode === 'MAINTAIN' ? 'MAINTAIN' : 'ACHIEVE',
-      agentCode,
-      skillSlug: skillSlug || null,
-      interval: interval ? Number(interval) : 86400,
-      deadline: deadline ? new Date(deadline) : undefined,
+    const goal = await db.goal.create({
+      data: {
+        organizationId: auth.organizationId,
+        title,
+        metric: metric || 'general_metric',
+        targetValue: parseFloat(targetValue) || 100,
+        unit: unit || '',
+        mode: mode || 'ACHIEVE',
+        agentCode: agentCode || 'CEO',
+        status: 'ACTIVE',
+      },
     })
 
-    return NextResponse.json(goal)
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+    return NextResponse.json({ goal }, { status: 201 })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message || 'Failed to create goal' }, { status: 500 })
   }
 }
