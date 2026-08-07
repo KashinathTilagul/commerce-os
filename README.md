@@ -174,6 +174,27 @@ EKVAAR OS integrates Paperclip's exact workforce operating model, providing auto
 
 ---
 
+## 🌐 Production Deployment (Self-Hosted Domain)
+
+EKVAAR OS is deployed on dedicated infrastructure under the primary business domain (`os.ekvaar.com`) using Docker Compose and Caddy / Nginx reverse proxies with automated SSL certificate renewal.
+
+### Deploying to Production Server
+
+```bash
+# Execute production build and health check pipeline
+./deploy.sh
+```
+
+The automated deployment script performs:
+1. Pre-flight Docker & container environment verification.
+2. Production secret verification (`NEXTAUTH_SECRET`, `JWT_SECRET`).
+3. Automated storage directory provisioning.
+4. Port allocation and Certbot SSL certificate renewal.
+5. Container image compilation and health check polling (`/api/health`).
+6. Production smoke test suite execution.
+
+---
+
 ## 🎨 EKVAAR Brand Palette
 
 | Token | Name | Hex | Role |
