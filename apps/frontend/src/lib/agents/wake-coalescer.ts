@@ -12,6 +12,8 @@ export interface WakeRequestPayload {
  * - If agent is IDLE: Creates AgentWakeRequest (ENQUEUED), AgentRun (QUEUED), and returns { enqueued: true, runId }
  * - If agent is RUNNING / HAS QUEUED RUN: Creates AgentWakeRequest (COALESCED), and returns { enqueued: false, coalesced: true }
  */
+// ponytail: single-node PostgreSQL lock coalescing — suitable for single-instance deployments up to 10k wakes/min. 
+// Upgrade path: Redis BullMQ / pg-boss queue for distributed multi-instance worker pools.
 export async function requestAgentWake(payload: WakeRequestPayload): Promise<{
   enqueued: boolean
   coalesced: boolean
@@ -58,17 +60,7 @@ export async function requestAgentWake(payload: WakeRequestPayload): Promise<{
     return { enqueued: false, coalesced: true, wakeRequestId: wake.id }
   }
 
-  // Agent is IDLE: create WakeRequest and AgentRun
-  const wake = await db.agentWakeRequest.create({
-    data: {
-      organizationId: payload.organizationId,
-      agentId: payload.agentId,
-      triggerType: payload.triggerType,
-      triggerRef: payload.triggerRef,
-      status: 'ENQUEUED',
-    },
-  })
-
+  // Agent is IDLE: create AgentRun first, then AgentWakeRequest with coalescedIntoRunId directly (saves 1 DB round-trip query)
   const run = await db.agentRun.create({
     data: {
       organizationId: payload.organizationId,
@@ -79,10 +71,15 @@ export async function requestAgentWake(payload: WakeRequestPayload): Promise<{
     },
   })
 
-  // Update wake request with coalescedIntoRunId
-  await db.agentWakeRequest.update({
-    where: { id: wake.id },
-    data: { coalescedIntoRunId: run.id },
+  const wake = await db.agentWakeRequest.create({
+    data: {
+      organizationId: payload.organizationId,
+      agentId: payload.agentId,
+      triggerType: payload.triggerType,
+      triggerRef: payload.triggerRef,
+      status: 'ENQUEUED',
+      coalescedIntoRunId: run.id,
+    },
   })
 
   // Set agent status to RUNNING
