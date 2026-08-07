@@ -1,14 +1,17 @@
-# 🌌 EKVAAR OS
+# 🌌 Fashion OS
 
-**India's First All-Time Fashion House — Operating System**
+**Open-Source Retail & E-Commerce Fashion Operating System**  
+*Created & Maintained by [EKVAAR](https://github.com/KashinathTilagul/Ekvaar)*
 
+[![Open Source](https://img.shields.io/badge/Open%20Source-MIT-brightgreen?style=for-the-badge)](https://github.com/KashinathTilagul/Ekvaar)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16%20App%20Router-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Prisma 7](https://img.shields.io/badge/Prisma-7.9-indigo?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-blue?style=for-the-badge&logo=postgresql)](https://supabase.com/)
-[![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-CSS%20v4-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 
-EKVAAR OS is a macOS-inspired desktop operating system built to run **EKVAAR**, India's premier fashion house, from a single unified interface. It combines business management (sales, inventory, finance, campaigns), autonomous digital employees (Paperclip operating model), and a conversational voice AI named Krishna.
+**Fashion OS** is a self-hostable, open-source desktop operating system built for retail and online fashion businesses. Wrapped in an ultra-premium **Liquid Glass macOS Desktop Architecture** and powered by an autonomous **Paperclip Digital Employee Control Plane**, Fashion OS provides fashion founders and e-commerce teams with a single unified workspace to orchestrate sales, inventory, finance, marketing campaigns, automated AI workforces, and customer drops.
+
+Originally created by **EKVAAR** as its core operating infrastructure, Fashion OS is open-sourced for any online fashion brand to deploy on their own domain and infrastructure.
 
 ---
 
@@ -17,8 +20,8 @@ EKVAAR OS is a macOS-inspired desktop operating system built to run **EKVAAR**, 
 ```mermaid
 graph TD
     A["🖥️ Liquid Glass macOS Desktop Shell"] --> B["⚡ Paperclip Workforce Control Plane"]
-    A --> C["🎙️ Krishna Voice AI Sidecar"]
-    A --> D["📊 Business Operations Modules"]
+    A --> C["🎙️ Voice AI Assistant Sidecar"]
+    A --> D["📊 Fashion Retail Operations Modules"]
     B --> E["🤖 Agent Heartbeat & Execution Traces"]
     B --> F["🛡️ Governance Policy & Budget Enforcer"]
     B --> G["🔄 Atomic Wake Request Coalescer"]
@@ -32,23 +35,23 @@ graph TD
 
 ## 🖥️ Desktop OS Environment
 
-### 1. macOS Shell Architecture
+### 1. macOS Desktop Shell Architecture
 - **Window Management**: Multi-window environment supporting dragging, resizing, minimizing, maximizing, and z-index depth layering.
-- **Top Menu Bar**: Live clock, unread notification panel, system metrics, audio volume slider, WiFi status, battery level indicator, and Krishna AI launch buttons.
-- **Spotlight Search (`Cmd+K`)**: Global fuzzy search across apps, business metrics, digital employees, and system commands.
+- **Top Menu Bar**: Live clock, unread notification panel, system metrics, audio volume slider, WiFi status, battery level indicator, and AI Assistant quick-launch buttons.
+- **Spotlight Search (`Cmd+K`)**: Global fuzzy search across apps, sales metrics, inventory SKUs, digital employees, and system tools.
 - **Launchpad (`F4` / `Cmd+L`)**: Full-screen grid view of all installed business and utility applications.
-- **Liquid Glass Aesthetics**: Custom design system (`glass-system.tsx`) featuring vibrant HSL color palettes, frosted glass blur, and dynamic micro-animations.
+- **Liquid Glass System**: Custom UI system (`glass-system.tsx`) featuring vibrant HSL color palettes, frosted glass blur, and dynamic micro-animations.
 
-### 2. Krishna — Conversational Voice AI Assistant
+### 2. Conversational Voice AI Assistant
 - **Voice Loop**: Hands-free speech recognition (STT) with silence auto-detection (2.2s pause threshold).
-- **Jarvis-Style Speech Pacing**: Sentence-chunked SpeechSynthesis (TTS) with smooth audio queueing.
+- **Natural Speech Pacing**: Sentence-chunked SpeechSynthesis (TTS) with smooth audio queueing.
 - **Multi-Model Intelligence**: Backed by an AI Router supporting Claude 3.5 Sonnet, OpenAI GPT-4o, and local Ollama models with automatic fallback chaining.
 
 ---
 
 ## 🤖 Digital Employees & Workforce Control Plane
 
-EKVAAR OS integrates Paperclip's exact workforce operating model, providing autonomous digital employees with full operational transparency.
+Fashion OS integrates Paperclip's exact workforce operating model, providing autonomous digital employees with full operational transparency for retail teams.
 
 ### 10 Core Control Plane Views
 1. **Overview**: Executive dashboard showing active agent count, total token burn, live activity feed, and pending governance approvals.
@@ -72,7 +75,7 @@ EKVAAR OS integrates Paperclip's exact workforce operating model, providing auto
 
 ---
 
-## 🛍️ Business Operations Modules
+## 🛍️ Retail & Fashion Operations Modules
 
 | Application | Description | Key Features |
 | :--- | :--- | :--- |
@@ -96,9 +99,9 @@ EKVAAR OS integrates Paperclip's exact workforce operating model, providing auto
 | **Terminal** | Live system event stream, agent worker logs, and command execution |
 | **Activity Monitor** | Real-time CPU, memory, and database connection pool utilization |
 | **Files** | Integrated document explorer for brand assets, reports, and designs |
-| **Notes** | Persistent founder notebook with markdown formatting |
+| **Notes** | Persistent notebook with markdown formatting |
 | **Calendar** | Business schedule, product drop dates, and marketing events |
-| **Music** | EKVAAR Sound — ambient Web Audio player with brand soundscapes |
+| **Music** | Ambient Web Audio player with customizable soundscapes |
 | **Calculator** | Financial & margin calculator with quick formula presets |
 | **Settings** | Desktop theme customization, accent colors, notifications, governance rules |
 
@@ -169,46 +172,33 @@ EKVAAR OS integrates Paperclip's exact workforce operating model, providing auto
    npm run dev
    ```
 
-6. **Access EKVAAR OS**:
+6. **Access Fashion OS**:
    Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🌐 Production Deployment (Self-Hosted Domain)
+## 🌐 Self-Hosted Production Deployment
 
-EKVAAR OS is deployed on dedicated infrastructure under the primary business domain (`os.ekvaar.com`) using Docker Compose and Caddy / Nginx reverse proxies with automated SSL certificate renewal.
+Fashion OS is designed for single-command self-hosted deployment on any custom domain or infrastructure using Docker Compose, Caddy / Nginx reverse proxies, and automated SSL certificate renewal.
 
-### Deploying to Production Server
+### Deploying to Custom Production Domain
 
 ```bash
 # Execute production build and health check pipeline
 ./deploy.sh
 ```
 
-The automated deployment script performs:
+The deployment script performs:
 1. Pre-flight Docker & container environment verification.
 2. Production secret verification (`NEXTAUTH_SECRET`, `JWT_SECRET`).
 3. Automated storage directory provisioning.
 4. Port allocation and Certbot SSL certificate renewal.
-5. Container image compilation and health check polling (`/api/health`).
+5. Container compilation and health check polling (`/api/health`).
 6. Production smoke test suite execution.
 
 ---
 
-## 🎨 EKVAAR Brand Palette
+## 📄 License & Open-Source Attribution
 
-| Token | Name | Hex | Role |
-| :--- | :--- | :--- | :--- |
-| `noor` | Noor | `#0A0A0A` | Primary Dark Background |
-| `rui` | Rui | `#F5F1EA` | Primary Light Text & Accents |
-| `agni` | Agni | `#C8302A` | Action & Brand Red |
-| `neel` | Neel | `#1F3A5F` | Data & Navy Accents |
-| `arav` | Arav | `#2F4F3A` | Growth & Forest Accents |
-| `gulabi` | Gulabi | `#D4859B` | Community & Rose Highlights |
-
----
-
-## 📄 License & Attribution
-
-Built with ❤️ for **EKVAAR — India's First All-Time Fashion House**.  
-Designed & Developed by **Kashinath Tilagul** (Founder, EKVAAR).
+Created & Maintained by **EKVAAR** (Root Owner & Lead Maintainer).  
+Open-source software released under the **MIT License** for retail and online fashion businesses worldwide.
