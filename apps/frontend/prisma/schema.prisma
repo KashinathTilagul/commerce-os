@@ -1275,9 +1275,59 @@ model AgentWakeRequest {
   id                 String    @id @default(cuid())
   organizationId     String
   agentId            String
-  triggerType        String    // ASSIGNMENT | MENTION | SCHEDULE | APPROVAL_RESOLVED | MANUAL
+  triggerType        String
   triggerRef         String?
+  status             String    @default("ENQUEUED") // ENQUEUED | COALESCED | PROCESSED
+  coalescedIntoRunId String?
   receivedAt         DateTime  @default(now())
+
+// ============ INTERNAL CHAT SYSTEM (Discord-style) ============
+
+model Channel {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  type           ChannelType @default(COMPANY)
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messages     Message[]
+
+  @@index([organizationId])
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  channelId       String
+  parentMessageId String?  // self-relation for threading (null = top-level)
+  threadTitle     String?  // only set on parent message when thread is created
+  authorType      AuthorType
+  authorId        String
+  content         String
+  metadata        Json?    // { attachments: string[], mentions: string[] }
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  channel       Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  parentMessage Message? @relation("ThreadReplies", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies       Message[] @relation("ThreadReplies")
+
+  @@index([channelId])
+  @@index([parentMessageId])
+}
+
+enum ChannelType {
+  COMPANY
+  DEPARTMENT
+  AGENT
+}
+
+enum AuthorType {
+  AGENT
+  USER
+}
   coalescedIntoRunId String?
   status             String    @default("PENDING") // PENDING | ENQUEUED | COALESCED | PROCESSED
 

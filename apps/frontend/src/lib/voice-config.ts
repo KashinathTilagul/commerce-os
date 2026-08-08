@@ -27,12 +27,13 @@ export const WORKABLE_VOICES: VoiceOption[] = [
 ]
 
 export function getSelectedVoiceId(): string {
-  if (typeof window === 'undefined') return 'en-IN-NeerjaNeural'
+  if (typeof window === 'undefined') return 'en-IN-PrabhatNeural'
   try {
-    return localStorage.getItem('krishna_voice') || 'en-IN-NeerjaNeural'
+    return localStorage.getItem('krishna_voice') || 'en-IN-PrabhatNeural'
   } catch {
-    return 'en-IN-NeerjaNeural'
+    return 'en-IN-PrabhatNeural'
   }
+}
 }
 
 export function getVoiceProfile(voiceId: string) {
@@ -47,8 +48,9 @@ export function getVoiceProfile(voiceId: string) {
       pitch = isFemale ? 1.15 : 0.82
       rate = 0.88
     } else if (lang.startsWith('en-IN')) {
-      pitch = isFemale ? 1.1 : 0.85
-      rate = 0.90
+      // Krishna — warm, human Indian male voice (Prabhat)
+      pitch = isFemale ? 1.08 : 0.90
+      rate = isFemale ? 0.92 : 0.88
     } else if (lang.startsWith('en-GB')) {
       pitch = isFemale ? 1.05 : 0.80
       rate = 0.88

@@ -20,7 +20,7 @@ const LoadingFallback = () => (
 )
 
 const CommandCenter = dynamic(() => import('@/components/ekvaar/modules/command-center').then(m => m.CommandCenter), { loading: LoadingFallback })
-const FounderInbox = dynamic(() => import('@/components/ekvaar/modules/founder-inbox').then(m => m.FounderInbox), { loading: LoadingFallback })
+const Chat = dynamic(() => import('@/components/ekvaar/modules/chat').then(m => m.Chat), { loading: LoadingFallback })
 const DigitalEmployeesHub = dynamic(() => import('@/components/ekvaar/modules/digital-employees-hub').then(m => m.DigitalEmployeesHub), { loading: LoadingFallback })
 const TerminalModule = dynamic(() => import('@/components/ekvaar/modules/terminal').then(m => m.TerminalModule), { loading: LoadingFallback })
 const Settings = dynamic(() => import('@/components/ekvaar/modules/settings').then(m => m.Settings), { loading: LoadingFallback })

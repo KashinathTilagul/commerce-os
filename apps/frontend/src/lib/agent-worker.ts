@@ -26,7 +26,7 @@ export interface WorkResult {
 const MILESTONE_CHECKPOINTS = [40, 60, 80, 100]
 const MAX_ITERATIONS = 3
 
-export async function runAgentWork(organizationId: string, agentId: string, targetIssueId?: string): Promise<WorkResult> {
+export async function runAgentWork(organizationId: string, agentId: string, targetIssueId?: string, chatContext?: { channelId: string; threadId?: string }): Promise<WorkResult> {
   const agent = await db.agent.findFirst({ where: { id: agentId, organizationId } })
   if (!agent) return { ok: false, message: 'Agent not found' }
   if (agent.isHuman) return { ok: false, message: 'Human team member — not an executable agent' }
@@ -53,10 +53,23 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
   const issue = targetIssueId
     ? candidates.find(i => i.id === targetIssueId)
     : candidates.find(i => i.status === 'BACKLOG' || i.status === 'IN_PROGRESS') || candidates.find(needsFounderReply)
-  
+
   if (!issue) {
     await db.agent.update({ where: { id: agentId }, data: { status: 'IDLE', currentTask: 'Checked in – no open tickets' } })
     return { ok: true, message: `${agent.name} has no open tickets` }
+  }
+
+  // CHAT CONTEXT (thread-scoped, capped at 15 messages)
+  let chatHistoryBlock = ''
+  if (chatContext?.threadId) {
+    const threadMessages = await db.message.findMany({
+      where: { channelId: chatContext.channelId, parentMessageId: chatContext.threadId },
+      orderBy: { createdAt: 'asc' },
+      take: 15,
+    })
+    if (threadMessages.length > 0) {
+      chatHistoryBlock = '\n\nTHREAD CONTEXT (last 15 messages):\n' + threadMessages.map(m => `[${m.authorType}]: ${m.content.slice(0, 200)}`).join('\n')
+    }
   }
 
   // GET LEARNING (deterministic)
@@ -115,7 +128,7 @@ ${milestoneContext}
 ${refContext}
 
 # LIVE SYSTEM CONTEXT
-${liveContext}`
+${liveContext}${chatHistoryBlock}`
 
   const prompt = `TICKET ${issue.code} — ${issue.title}
 Priority: ${issue.priority}
