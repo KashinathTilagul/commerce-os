@@ -11,6 +11,7 @@ export interface ImageGenerationOptions {
   organizationId: string
   generatedBy?: string
   title?: string
+  referenceImage?: string // url or artifact id (max 2 supported upstream)
 }
 
 const IMAGE_PROMPT_TEMPLATES: Record<string, string> = {
@@ -46,18 +47,14 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
         // Use the API-key provider, matching the Bedrock credentials deployed
         // for agent text generation. An invalid key falls through to OpenRouter.
         const bedrock = createAmazonBedrock({ apiKey: bedrockKey, region: process.env.AWS_REGION || 'us-east-1' })
+        const bedrockOpts: any = { quality: 'standard', cfgScale: 8, style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM' }
+        if (options.referenceImage) bedrockOpts.image = options.referenceImage
         const result = await generateModelImage({
           model: bedrock.image('amazon.nova-canvas-v1:0'),
           prompt: enhancedPrompt,
           size: `${dimensions.width}x${dimensions.height}`,
           n: 1,
-          providerOptions: {
-            bedrock: {
-              quality: 'standard',
-              cfgScale: 8,
-              style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM',
-            },
-          },
+          providerOptions: { bedrock: bedrockOpts },
         })
         imageBuffer = Buffer.from(result.image.uint8Array)
       } catch (error: any) {

@@ -467,10 +467,11 @@ model Issue {
   assigneeId   String?
   createdById  String?
   department   String?
-  blocksIds    String? // comma-separated issue codes this blocks
-  blockedByIds String? // comma-separated issue codes blocking this
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+   blocksIds    String? // comma-separated issue codes this blocks
+   blockedByIds String? // comma-separated issue codes blocking this
+   attachments  Json?   // max 2 references: [{id,url,type,name,size}]
+   createdAt    DateTime @default(now())
+   updatedAt    DateTime @updatedAt
 
   // Learning & Milestone System
   parentIssueId String?

@@ -55,7 +55,7 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
     : candidates.find(i => i.status === 'BACKLOG' || i.status === 'IN_PROGRESS') || candidates.find(needsFounderReply)
   
   if (!issue) {
-    await db.agent.update({ where: { id: agentId }, data: { status: 'IDLE', currentTask: null } })
+    await db.agent.update({ where: { id: agentId }, data: { status: 'IDLE', currentTask: 'Checked in – no open tickets' } })
     return { ok: true, message: `${agent.name} has no open tickets` }
   }
 
@@ -86,6 +86,9 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
     ? `\n\nMILESTONE: You are at ${currentMilestone}%. Submit work at ${nextMilestone}% checkpoint for manager review.`
     : '\n\nMILESTONE: You are at 100%. Submit for founder review.'
 
+  const refs = (issue as any).attachments?.slice(0,2) || []
+  const refContext = refs.length ? `\n\nREFERENCES (use up to 2, describe exact placement/transfer in GENERATE_*):\n${refs.map((r:any,i:number)=>`${i+1}. ${r.type} ${r.name}: ${r.url}`).join('\n')}` : ''
+
   const system = `You are ${agent.name}, the ${agent.role} (${agent.department}) for this organization.
 Your prime directive: ${agent.primeDirective}
 Your skills: ${agent.skills}
@@ -99,16 +102,17 @@ RULES:
 - Set BLOCKED only if you genuinely cannot proceed without founder input; say exactly what you need.
 
 CRITICAL - MULTIMODAL GENERATION:
-You MUST use GENERATE instructions for visual/digital content:
+You MUST use GENERATE instructions for visual/digital content. When references are attached, include referenceImage/referenceVideo/referenceStyleGuide and describe exact usage (placement, style transfer, colors, layout).
 
-- If ticket says "create image" or "visual" → MUST output: GENERATE_IMAGE: {"prompt": "detailed description of the image to generate", "aspectRatio": "1:1", "style": "product"}
-- If ticket says "create video" or "motion" → MUST output: GENERATE_VIDEO: {"template": "BrandVideo", "data": {"text": "overlay text"}, "duration": 15}
-- If ticket says "create PDF" or "report" → MUST output: GENERATE_PDF: {"template": "report", "data": {"title": "Title", "sections": []}, "title": "filename"}
+- Image: GENERATE_IMAGE: {"prompt":"...", "aspectRatio":"1:1", "style":"product", "referenceImage":"url or id", "referenceDescription":"front logo 20% top-left"}
+- Video: GENERATE_VIDEO: {"template":"BrandVideo", "data":{...}, "duration":15, "referenceImage":"..."}
+- PDF: GENERATE_PDF: {"template":"report", "data":{...}, "title":"...", "referenceStyleGuide":"..."}
 
 YOU MUST ACTUALLY GENERATE THE CONTENT, not just describe it. Think of this as your design tool - use it!
 ${constraintsSection}
 ${patternsSection}
 ${milestoneContext}
+${refContext}
 
 # LIVE SYSTEM CONTEXT
 ${liveContext}`
@@ -122,7 +126,7 @@ ${priorWork}
 
 Produce the COMPLETE deliverable for this ticket now. 
 
-If this is a visual task (image, video), you MUST use the GENERATE_IMAGE or GENERATE_VIDEO instruction to actually create the asset. Do NOT just write a description - GENERATE it!
+Use references if attached — describe exact placement/transfer in the GENERATE_* block.
 
 Example for visual tasks:
 ---
@@ -183,6 +187,7 @@ Now produce YOUR deliverable:`
         organizationId,
         generatedBy: agentId,
         title: params.title,
+        referenceImage: params.referenceImage,
       })
       multimodalResults.push(`✅ Generated Image: ${result.imageUrl}`)
       deliverable = deliverable.replace(imageMatch.fullMatch, '').trim()

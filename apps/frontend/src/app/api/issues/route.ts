@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireOrganization } from '@/lib/auth-guard'
+import { requestAgentWake } from '@/lib/agents/wake-coalescer'
+import { enqueueAgentJob } from '@/lib/queue'
 
 export async function GET() {
   const auth = await requireOrganization()
@@ -62,6 +64,17 @@ export async function POST(req: NextRequest) {
         severity: 'INFO',
       },
     })
+
+    // Auto-wake agent on assignment (root trigger for automation)
+    if (input.assigneeId) {
+      const agent = await db.agent.findFirst({ where: { id: input.assigneeId, organizationId: auth.organizationId } })
+      if (agent && !agent.isHuman) {
+        const wake = await requestAgentWake({ organizationId: auth.organizationId, agentId: input.assigneeId, triggerType: 'ISSUE_ASSIGNED' })
+        if (wake.runId && !wake.coalesced) {
+          await enqueueAgentJob({ jobId: wake.runId, organizationId: auth.organizationId, agentId: input.assigneeId, agentRole: agent.role, taskType: 'ISSUE', mission: agent.primeDirective || input.title, createdAt: new Date().toISOString() })
+        }
+      }
+    }
 
     return NextResponse.json(issue)
   } catch (e: any) {
