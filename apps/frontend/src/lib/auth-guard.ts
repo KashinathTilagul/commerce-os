@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth"
 import { Session } from "next-auth"
 import { NextResponse } from "next/server"
 import { authOptions } from "./auth"
+import { db } from "./db"
 import { createApiError } from "./security"
 
 type AuthResult =
@@ -46,15 +47,21 @@ export async function requireOrganization(): Promise<OrgAuthResult> {
     return { success: false, response: createApiError("Unauthorized", 401) }
   }
 
-  if (!session.user.organizationId) {
+  const membership = session.user.id
+    ? await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { organizationId: true, organization: { select: { id: true } } },
+      })
+    : null
+
+  if (!membership?.organizationId || !membership.organization) {
     return { success: false, response: createApiError("Organization required", 403) }
   }
 
   return { 
     success: true, 
     user: session.user, 
-    organizationId: session.user.organizationId,
+    organizationId: membership.organizationId,
     session
   }
 }
-
