@@ -8,7 +8,8 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL || 'postgresql://postgres.guxaxhofeglqkmrhahsw:dVyyDQ6X2oWBQzR3@aws-0-ap-south-1.pooler.supabase.com:6543/postgres'
+  const connectionString = process.env.DATABASE_URL
+  if (!connectionString) throw new Error('DATABASE_URL is required')
   const pool = new Pool({
     connectionString,
     connectionTimeoutMillis: 10000,
