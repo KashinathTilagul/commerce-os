@@ -6,18 +6,12 @@ on:
       - main
   workflow_dispatch:
 
-# Never run two deploys at once — they race on the same Docker Compose project
-# and tear down each other's containers. Let the running one finish; a newer
-# push waits and supersedes any other queued run.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
   deploy:
-    # Runs directly on the AWS EC2 box (self-hosted runner registered there) —
-    # no SSH hop needed since the runner already lives on the deploy target,
-    # and self-hosted runners don't consume metered Actions minutes.
     runs-on: self-hosted
 
     steps:
@@ -122,17 +116,12 @@ jobs:
           curl -fsS https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt \
             -o db/supabase-ca.crt
 
-          # Restore the current image with the corrected database endpoint before
-          # the full rebuild so configuration-only fixes do not extend an outage.
           if /usr/bin/sudo docker image inspect ekvaar-frontend >/dev/null 2>&1; then
             /usr/bin/sudo docker compose up -d --no-build --force-recreate frontend nginx || true
           fi
 
           echo "[i] Disk before cleanup:"; df -h / || true
 
-          # The runner uses Docker's legacy builder. Reclaim unused images,
-          # stopped containers, networks, and cache before allocating space for
-          # the next image; running Ekvaar containers are kept.
           /usr/bin/sudo docker system prune -af || true
           /usr/bin/sudo apt-get clean || true
           /usr/bin/sudo journalctl --vacuum-size=100M || true
