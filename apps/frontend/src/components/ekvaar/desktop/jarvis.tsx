@@ -151,6 +151,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const [inputText, setInputText] = useState('')
   const [transcript, setTranscript] = useState('')
   const [muted, setMuted] = useState(false)
+  const [displayTitle, setDisplayTitle] = useState('Krishna AI')
   const [listening, setListening] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [micSupported, setMicSupported] = useState(true)
@@ -202,6 +203,15 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     window.addEventListener('keydown', down, true)
     return () => { window.removeEventListener('keydown', down, true) }
   }, [expanded])
+
+  useEffect(() => {
+    if (gState === 'talking') {
+      setDisplayTitle('J.A.R.V.I.S.')
+      const t = setTimeout(() => setDisplayTitle('Krishna AI'), 2000)
+      return () => clearTimeout(t)
+    }
+    setDisplayTitle('Krishna AI')
+  }, [gState])
 
   const stopTTS = useCallback(() => {
     if (audioStopRef.current) { audioStopRef.current(); audioStopRef.current = null }
@@ -561,27 +571,68 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           initial={{ opacity: 0, y: 20, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.96 }}
-          transition={{ type: 'spring', damping: 26, stiffness: 340 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 300 }}
           className="fixed bottom-20 right-4 z-[9900] w-[min(calc(100vw-2rem),460px)] overflow-hidden rounded-3xl border border-white/15 bg-[#0a0a0c]/80 text-white shadow-[0_20px_60px_rgba(0,0,0,0.6),0_1px_0_rgba(255,255,255,0.1)_inset] backdrop-blur-3xl sm:right-6"
           aria-label="Krishna AI Assistant"
         >
           {/* Apple Liquid Header */}
           <header className="flex items-center justify-between border-b border-white/10 px-4 py-3 bg-white/[0.03]">
             <div className="flex items-center gap-2.5">
-              <div className="relative flex h-2.5 w-2.5 items-center justify-center">
-                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${
-                  gState === 'listening' ? 'bg-rose-400' : gState === 'talking' ? 'bg-emerald-400' : gState === 'thinking' ? 'bg-purple-400' : 'bg-cyan-400'
-                }`} />
-                <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
-                  gState === 'listening' ? 'bg-rose-400' : gState === 'talking' ? 'bg-emerald-400' : gState === 'thinking' ? 'bg-purple-400' : 'bg-cyan-400'
-                }`} />
+              <motion.div
+                className="relative flex h-6 w-6 items-center justify-center"
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+              >
+                <motion.div
+                  className="absolute rounded-full"
+                  style={{ width: 22, height: 22, border: '1.5px solid #22d3ee' }}
+                  animate={{
+                    scale: gState === 'idle' ? [1, 1.15, 1] : gState === 'listening' ? [1, 1.2, 0.9, 1.1, 1] : gState === 'thinking' ? [1, 1.1, 1] : [1, 1.3, 0.95, 1.15, 1],
+                    opacity: gState === 'idle' ? [0.4, 0.8, 0.4] : 0.7,
+                    borderColor: gState === 'listening' ? ['#22d3ee', '#f43f5e', '#22d3ee'] : gState === 'thinking' ? ['#a855f7', '#6366f1', '#a855f7'] : gState === 'talking' ? ['#10b981', '#22d3ee', '#10b981'] : '#22d3ee',
+                    rotate: gState === 'thinking' ? [0, 90, 180, 270, 360] : 0,
+                  }}
+                  transition={{ duration: gState === 'idle' ? 3 : gState === 'listening' ? 1.2 : gState === 'thinking' ? 4 : 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                />
+                <motion.div
+                  className="absolute rounded-full"
+                  style={{ width: 16, height: 16, border: '1.5px solid #22d3ee' }}
+                  animate={{
+                    scale: gState === 'idle' ? [1, 1.1, 1] : gState === 'listening' ? [0.9, 1.1, 0.85, 1.05, 1] : gState === 'thinking' ? [1, 1.05, 1] : [1, 1.2, 0.9, 1.1, 1],
+                    opacity: gState === 'idle' ? [0.5, 0.9, 0.5] : 0.8,
+                    borderColor: gState === 'listening' ? ['#22d3ee', '#22d3ee', '#f43f5e', '#22d3ee'] : gState === 'thinking' ? ['#a855f7', '#6366f1', '#a855f7'] : gState === 'talking' ? ['#10b981', '#22d3ee', '#10b981'] : '#22d3ee',
+                    rotate: gState === 'thinking' ? [0, -90, -180, -270, -360] : 0,
+                  }}
+                  transition={{ duration: gState === 'idle' ? 2.5 : gState === 'listening' ? 1 : gState === 'thinking' ? 3.5 : 1.3, repeat: Infinity, ease: 'easeInOut', delay: gState === 'thinking' ? 0.3 : 0 }}
+                />
+                <motion.div
+                  className="rounded-full"
+                  style={{ width: 10, height: 10, background: '#22d3ee' }}
+                  animate={{
+                    scale: gState === 'idle' ? [1, 1.15, 1] : gState === 'listening' ? [1, 1.2, 0.85, 1.1, 1] : gState === 'thinking' ? [1, 1.1, 1] : [1, 1.25, 0.9, 1.15, 1],
+                    opacity: gState === 'idle' ? [0.7, 1, 0.7] : 1,
+                    background: gState === 'listening' ? ['#22d3ee', '#f43f5e', '#22d3ee'] : gState === 'thinking' ? ['#a855f7', '#6366f1', '#a855f7'] : gState === 'talking' ? ['#10b981', '#22d3ee', '#10b981'] : '#22d3ee',
+                  }}
+                  transition={{ duration: gState === 'idle' ? 2 : gState === 'listening' ? 0.8 : gState === 'thinking' ? 3 : 1.1, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              </motion.div>
+              <div className="flex items-center">
+                <AnimatePresence mode="wait">
+                  <motion.span
+                    key={displayTitle}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.3 }}
+                    className="font-medium text-sm text-white/90"
+                  >
+                    {displayTitle}
+                  </motion.span>
+                </AnimatePresence>
+                {activeWindowName && (
+                  <span className="text-xs text-white/40 font-normal">· {activeWindowName}</span>
+                )}
               </div>
-              <span className="font-medium text-sm text-white/90">Krishna AI</span>
-              {activeWindowName && (
-                <span className="text-xs text-white/40 font-normal">
-                  · {activeWindowName}
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-1">
               <button onClick={() => setMessages([])} className="rounded-full p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition-colors" title="Clear chat history">
@@ -600,18 +651,19 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
           {/* Liquid Voice Status Indicator when active */}
           {gState !== 'idle' && (
-            <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.02] px-4 py-2 text-xs text-white/70">
+            <div className="flex items-center justify-between border-b border-white/5 bg-white/[0.02] px-4 py-2 text-xs" style={{ color: STATE_COLOR[gState] }}>
               <span className="flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                <Sparkles className="h-3.5 w-3.5" style={{ color: STATE_COLOR[gState] }} />
                 <span className="capitalize">{gState}...</span>
               </span>
-              <div className="flex items-center gap-1">
-                {[0.4, 0.8, 0.5, 0.9, 0.6].map((h, i) => (
-                  <motion.span
+              <div className="relative flex h-4 w-4 items-center justify-center">
+                {[0, 1, 2].map((i) => (
+                  <motion.div
                     key={i}
-                    className="w-0.5 rounded-full bg-cyan-400"
-                    animate={{ height: gState === 'talking' || gState === 'listening' ? [6, 16, 6] : 8 }}
-                    transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.1 }}
+                    className="absolute rounded-full"
+                    style={{ width: 6 + i * 4, height: 6 + i * 4, border: '1px solid', borderColor: STATE_COLOR[gState] }}
+                    animate={{ scale: [1, 2.5], opacity: [0.8, 0] }}
+                    transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.4, ease: 'easeOut' }}
                   />
                 ))}
               </div>
@@ -675,10 +727,10 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
                 disabled={isProcessing && !speakingRef.current}
                 className={`relative grid h-9 w-9 shrink-0 place-items-center rounded-full transition-all ${
                   listening
-                    ? 'bg-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.5)]'
+                    ? 'bg-rose-500 text-white shadow-[0_0_20px_rgba(244,63,94,0.6)]'
                     : speakingRef.current
-                    ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                    : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+                    ? 'bg-cyan-400 text-white shadow-[0_0_20px_rgba(34,211,238,0.6)]'
+                    : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white border border-cyan-500/20'
                 }`}
                 title={listening ? 'Stop listening' : 'Start voice'}
               >
@@ -703,6 +755,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
               </button>
             </div>
           </aside>
+          <div className="absolute inset-0 pointer-events-none" style={{ background: 'repeating-linear-gradient(to bottom, transparent 0px, transparent 1px, rgba(34,211,238,0.015) 1px, rgba(34,211,238,0.015) 3px)' }} />
 
         </motion.section>
       )}
