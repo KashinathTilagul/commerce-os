@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { getServerSession } from "next-auth"
-import { authOptions } from "./auth"
-import { db } from "./db"
 import { filterSensitiveData } from "./sensitive-data"
 
 export { filterSensitiveData } from "./sensitive-data"
@@ -158,17 +155,3 @@ setInterval(() => {
     }
   }
 }, 60000)
-
-export async function requireCapability(capabilityName: string): Promise<boolean> {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.organizationId) return false
-  
-  const capability = await db.capability.findFirst({
-    where: { 
-      organizationId: session.user.organizationId,
-      name: capabilityName
-    }
-  })
-  
-  return !!capability
-}
