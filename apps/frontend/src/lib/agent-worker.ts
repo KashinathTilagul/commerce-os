@@ -8,6 +8,7 @@ import { generatePDF } from './pdf-generator'
 import { generateImage } from './image-generator'
 import { generateVideo } from './video-generator'
 import { syncCampaignItemAfterWork } from './campaign-execution'
+import { extractExactReply } from './work-request-planner'
 
 const StatusSchema = z.object({
   progressNote: z.string().describe('1-2 sentences, first person, summarising what you just produced.'),
@@ -177,17 +178,22 @@ Now produce YOUR deliverable:`
 
   // GENERATE DELIVERABLE
   let deliverable: string
-  try {
-    const r = await routeText('reasoning', { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
-    deliverable = r.text.trim()
-  } catch (e: any) {
-    if (campaignRun) await db.agentRun.update({
-      where: { id: campaignRun.id },
-      data: { status: 'FAILED', error: e?.message || String(e), completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
-    })
-    return { ok: false, message: `Agent core error: ${e?.message || e}` }
+  const exactReply = issue.campaignItem?.type === 'ANSWER' ? extractExactReply(issue.description) : null
+  if (exactReply) {
+    deliverable = exactReply
+  } else {
+    try {
+      const r = await routeText('reasoning', { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
+      deliverable = r.text.trim()
+    } catch (e: any) {
+      if (campaignRun) await db.agentRun.update({
+        where: { id: campaignRun.id },
+        data: { status: 'FAILED', error: e?.message || String(e), completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
+      })
+      return { ok: false, message: `Agent core error: ${e?.message || e}` }
+    }
   }
-  if (deliverable.length < 40) {
+  if (deliverable.length < 40 && !exactReply) {
     if (campaignRun) await db.agentRun.update({
       where: { id: campaignRun.id },
       data: { status: 'FAILED', error: 'Empty deliverable', completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
@@ -323,9 +329,9 @@ Now produce YOUR deliverable:`
   
   // Post the work as heartbeat
   const milestonePrefix = currentMilestone < 100 ? `[${currentMilestone}% → ${newMilestone}%] ` : ''
-  const bodyText = work.newStatus === 'BLOCKED'
+  const bodyText = exactReply || (work.newStatus === 'BLOCKED'
     ? `${milestonePrefix}${work.progressNote}\n\n⛔ BLOCKED — needs founder: ${work.blockedReason || 'input required'}`
-    : `${milestonePrefix}${work.progressNote}\n\n— — —\n${deliverable}`
+    : `${milestonePrefix}${work.progressNote}\n\n— — —\n${deliverable}`)
   await db.issueComment.create({
     data: { issueId: issue.id, authorId: agentId, authorName: agent.name, body: bodyText, kind: 'HEARTBEAT' },
   })
