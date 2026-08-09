@@ -68,6 +68,16 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
     },
   })
 
+  const runCampaign = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/campaign-launches/${id}/run`, { method: 'POST' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Campaign could not resume')
+      return data
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign-launches'] }),
+  })
+
   const selected = campaigns.find((campaign) => campaign.id === selectedId) ?? campaigns[0]
   const completed = selected?.items.filter((item) => item.status === 'COMPLETED').length ?? 0
   const running = selected?.items.filter((item) => ['READY', 'RUNNING', 'LEASED'].includes(item.status)).length ?? 0
@@ -153,7 +163,19 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                   <h2 className="mt-1 font-display text-lg">{selected.title}</h2>
                   <p className="mt-1 line-clamp-2 max-w-3xl text-[11px] leading-5 text-muted-foreground">{selected.brief}</p>
                 </div>
-                <Status status={selected.status} />
+                <div className="flex items-center gap-2">
+                  {!['APPROVAL_PENDING', 'APPROVED', 'PUBLISHING', 'PUBLISHED', 'CANCELLED'].includes(selected.status) && (
+                    <button
+                      onClick={() => runCampaign.mutate(selected.id)}
+                      disabled={runCampaign.isPending}
+                      className="flex items-center gap-1.5 rounded-lg border border-cyan-300/20 bg-cyan-300/[0.06] px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.1em] text-cyan-200 hover:bg-cyan-300/10 disabled:opacity-50"
+                    >
+                      {runCampaign.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Activity className="h-3 w-3" />}
+                      Run / Resume
+                    </button>
+                  )}
+                  <Status status={selected.status} />
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-3 py-4">
                 <Metric value={`${completed}/${selected.items.length}`} label="Completed" icon={<Check className="h-3 w-3" />} />

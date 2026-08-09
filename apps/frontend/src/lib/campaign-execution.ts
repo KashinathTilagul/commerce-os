@@ -42,31 +42,6 @@ export async function syncCampaignItemAfterWork(organizationId: string, issueId:
       }
     }
 
-    const remaining = await tx.campaignLaunchItem.count({
-      where: { launchId: item.launchId, status: { notIn: ['COMPLETED', 'CANCELLED'] } },
-    })
-    if (remaining === 0) {
-      const krishna = await tx.agent.findFirst({ where: { organizationId, code: 'CEO' } })
-      if (!krishna) throw new Error('Krishna is missing from the workforce roster')
-      await tx.campaignLaunch.update({
-        where: { id: item.launchId },
-        data: { status: 'APPROVAL_PENDING', version: { increment: 1 } },
-      })
-      await tx.approval.upsert({
-        where: { organizationId_code: { organizationId, code: `APR-${item.launch.code}` } },
-        update: {},
-        create: {
-          organizationId,
-          code: `APR-${item.launch.code}`,
-          type: 'CAMPAIGN',
-          title: `Approve ${item.launch.title}`,
-          description: 'Krishna and the assigned employees completed the campaign packet. Review before any external publishing.',
-          requesterId: krishna.id,
-          launchId: item.launchId,
-          itemCode: '14',
-        },
-      })
-    }
     return item.launchId
   })
 }

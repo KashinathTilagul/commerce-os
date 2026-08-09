@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { requireOrganization } from '@/lib/auth-guard'
 import { campaignLaunchesEnabled } from '@/lib/campaign-feature'
 import { createCampaignLaunch, listCampaignLaunches } from '@/lib/campaign-launches'
+import { runCampaignLaunch } from '@/lib/campaign-runner'
 
 const CreateCampaignSchema = z.object({
   title: z.string().trim().min(3).max(160),
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid campaign launch' }, { status: 400 })
     }
     const launch = await createCampaignLaunch({ organizationId: auth.organizationId, ...parsed.data })
+    void runCampaignLaunch(auth.organizationId, launch.id).catch((error) => console.error('[CampaignRunner]', error))
     return NextResponse.json(launch, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not create campaign launch'
