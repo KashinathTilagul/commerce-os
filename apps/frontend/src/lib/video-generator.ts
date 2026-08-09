@@ -5,6 +5,7 @@ import path from 'path'
 import { promises as fs } from 'fs'
 import { storeArtifact, initializeStorage } from './storage'
 import { db } from './db'
+import { createHash } from 'node:crypto'
 
 const execAsync = promisify(exec)
 
@@ -85,6 +86,8 @@ export async function generateVideo(options: VideoGenerationOptions): Promise<{ 
         storageLocation: metadata.path,
         status: 'READY',
         generatedBy: options.generatedBy,
+        contentHash: createHash('sha256').update(videoBuffer).digest('hex'),
+        byteSize: videoBuffer.length,
         parameters: JSON.stringify({
           template: options.template,
           duration,
@@ -145,6 +148,8 @@ export async function generateVideo(options: VideoGenerationOptions): Promise<{ 
         storageLocation: metadata.path,
         status: 'READY',
         generatedBy: options.generatedBy,
+        contentHash: createHash('sha256').update(buffer).digest('hex'),
+        byteSize: buffer.length,
         parameters: JSON.stringify({ template: options.template, duration, data: options.data, fallback: true })
       }
     })

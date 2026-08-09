@@ -4,6 +4,7 @@ import chromium from '@sparticuz/chromium'
 import { renderTemplate } from './template-engine'
 import { storeArtifact, initializeStorage } from './storage'
 import { db } from './db'
+import { createHash } from 'node:crypto'
 
 export interface PDFGenerationOptions {
   template: string
@@ -67,6 +68,8 @@ export async function generatePDF(options: PDFGenerationOptions): Promise<{ arti
       storageLocation: metadata.path,
       status: 'READY',
       generatedBy: options.generatedBy,
+      contentHash: createHash('sha256').update(pdfBuffer).digest('hex'),
+      byteSize: pdfBuffer.length,
       parameters: JSON.stringify({ template: options.template, data: options.data })
     }
   })

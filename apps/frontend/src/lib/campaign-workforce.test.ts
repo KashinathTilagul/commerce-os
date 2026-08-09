@@ -5,6 +5,7 @@ import { ROSTER } from './agent-roster'
 import { syncAgentRoster } from './agent-roster-sync'
 import { nextCampaignLaunchCode } from './campaign-launch-code'
 import { campaignOutboxKey } from './campaign-outbox-key'
+import { hashCampaignEvidence } from './campaign-evidence-hash'
 import { CAMPAIGN_ITEMS, CAMPAIGN_VALIDATIONS } from './campaign-blueprint'
 import {
   assertAcyclicDependencies,
@@ -46,6 +47,13 @@ test('allocates tenant-local campaign codes and stable outbox IDs', () => {
     campaignOutboxKey('launch-1', 'CAMPAIGN_LAUNCH_CREATED', 1),
     'campaign-launch-created-launch-1-v1',
   )
+})
+
+test('hashes frozen campaign evidence independently of object key order', () => {
+  const first = { launch: { code: 'CL-001', title: 'Launch' }, items: [{ code: '01', status: 'COMPLETED' }] }
+  const reordered = { items: [{ status: 'COMPLETED', code: '01' }], launch: { title: 'Launch', code: 'CL-001' } }
+  assert.equal(hashCampaignEvidence(first), hashCampaignEvidence(reordered))
+  assert.notEqual(hashCampaignEvidence(first), hashCampaignEvidence({ ...first, items: [{ code: '01', status: 'BLOCKED' }] }))
 })
 
 test('campaign blueprint is a complete acyclic 14-item employee workflow', () => {

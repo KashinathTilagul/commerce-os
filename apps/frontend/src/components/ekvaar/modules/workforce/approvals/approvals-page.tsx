@@ -11,6 +11,7 @@ import { invalidateWorkforceState } from '@/lib/query-invalidation'
 export function ApprovalsPage() {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<'PENDING' | 'APPROVED' | 'REJECTED'>('PENDING')
+  const [notes, setNotes] = useState<Record<string, string>>({})
 
   const { data: approvalsData, isLoading } = useQuery({
     queryKey: ['workforce-approvals'],
@@ -24,18 +25,20 @@ export function ApprovalsPage() {
   })
 
   const resolveMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: 'APPROVED' | 'REJECTED' | 'REVISION_REQUESTED' }) => {
+    mutationFn: async ({ id, status, note }: { id: string; status: 'APPROVED' | 'REJECTED' | 'REVISION_REQUESTED'; note?: string }) => {
       const res = await fetch(`/api/approvals/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, note: note?.trim() || undefined }),
       })
-      if (!res.ok) throw new Error('Failed to resolve approval')
-      return res.json()
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to resolve approval')
+      return data
     },
     onSuccess: (_, variables) => {
       toast.success(`Approval ${variables.status.toLowerCase()}`)
       invalidateWorkforceState(queryClient)
+      queryClient.invalidateQueries({ queryKey: ['campaign-launches'] })
     },
     onError: (err: any) => {
       toast.error(err.message || 'Resolution failed')
@@ -109,12 +112,15 @@ export function ApprovalsPage() {
                   <div><strong className="text-foreground">Requested by:</strong> {app.requester?.name || 'Agent'} ({app.requester?.role})</div>
                   {app.description && <div className="text-foreground/90 leading-relaxed bg-white/[0.02] p-2.5 rounded-lg border border-white/[0.04]">{app.description}</div>}
                   {app.amount > 0 && <div><strong className="text-foreground">Amount:</strong> ₹{app.amount}</div>}
+                  {app.campaignLaunch && <div className="rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] p-2.5"><div><strong className="text-foreground">Campaign:</strong> {app.campaignLaunch.code} · {app.campaignLaunch.status}</div>{app.campaignRevision && <div className="mt-1"><strong className="text-foreground">Evidence:</strong> revision {app.campaignRevision.revisionNum} · <span className="font-mono">{app.campaignRevision.versionHash.slice(0, 12)}</span></div>}</div>}
                 </div>
 
                 {app.status === 'PENDING' ? (
-                  <div className="flex items-center justify-end gap-2 border-t border-white/[0.06] pt-3">
+                  <div className="space-y-3 border-t border-white/[0.06] pt-3">
+                    <textarea value={notes[app.id] || ''} onChange={(event) => setNotes((current) => ({ ...current, [app.id]: event.target.value }))} placeholder="Optional founder direction, required when requesting a revision" className="min-h-16 w-full resize-none rounded-lg border border-white/[0.08] bg-black/20 px-3 py-2 text-[11px] outline-none focus:border-cyan-300/25" />
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
-                      onClick={() => resolveMutation.mutate({ id: app.id, status: 'REJECTED' })}
+                      onClick={() => resolveMutation.mutate({ id: app.id, status: 'REJECTED', note: notes[app.id] })}
                       disabled={resolveMutation.isPending}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-md text-[11px] text-red-400 hover:bg-red-500/10 transition-colors"
                     >
@@ -122,21 +128,22 @@ export function ApprovalsPage() {
                       Reject
                     </button>
                     <button
-                      onClick={() => resolveMutation.mutate({ id: app.id, status: 'REVISION_REQUESTED' })}
-                      disabled={resolveMutation.isPending}
+                      onClick={() => resolveMutation.mutate({ id: app.id, status: 'REVISION_REQUESTED', note: notes[app.id] })}
+                      disabled={resolveMutation.isPending || !notes[app.id]?.trim()}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-md text-[11px] text-amber-400 hover:bg-amber-500/10 transition-colors"
                     >
                       <RefreshCw className="h-3.5 w-3.5" />
                       Request Revision
                     </button>
                     <button
-                      onClick={() => resolveMutation.mutate({ id: app.id, status: 'APPROVED' })}
+                      onClick={() => resolveMutation.mutate({ id: app.id, status: 'APPROVED', note: notes[app.id] })}
                       disabled={resolveMutation.isPending}
                       className="glass-l2 flex items-center gap-1 px-4 py-1.5 rounded-md text-[11px] font-medium text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />
                       Approve
                     </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="border-t border-white/[0.06] pt-2 text-[10px] text-muted-foreground flex items-center justify-between">

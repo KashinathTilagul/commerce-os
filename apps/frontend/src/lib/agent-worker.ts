@@ -61,6 +61,20 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
     return { ok: true, message: `${agent.name} has no open tickets` }
   }
 
+  const runStartedAt = new Date()
+  const campaignRun = issue.campaignItem ? await db.agentRun.create({
+    data: {
+      organizationId,
+      agentId,
+      triggerType: 'ASSIGNMENT',
+      triggerRef: issue.id,
+      status: 'RUNNING',
+      startedAt: runStartedAt,
+      issueId: issue.id,
+      campaignItemId: issue.campaignItem.id,
+    },
+  }) : null
+
   if (issue.campaignItem) {
     await db.campaignLaunchItem.update({
       where: { id: issue.campaignItem.id },
@@ -167,9 +181,17 @@ Now produce YOUR deliverable:`
     const r = await routeText('reasoning', { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
     deliverable = r.text.trim()
   } catch (e: any) {
+    if (campaignRun) await db.agentRun.update({
+      where: { id: campaignRun.id },
+      data: { status: 'FAILED', error: e?.message || String(e), completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
+    })
     return { ok: false, message: `Agent core error: ${e?.message || e}` }
   }
   if (deliverable.length < 40) {
+    if (campaignRun) await db.agentRun.update({
+      where: { id: campaignRun.id },
+      data: { status: 'FAILED', error: 'Empty deliverable', completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
+    })
     return { ok: false, message: `${agent.name} returned an empty deliverable — try again` }
   }
 
@@ -354,6 +376,17 @@ Now produce YOUR deliverable:`
       summary: `${agent.name} worked ${issue.code} → ${work.newStatus} (${newMilestone}%)`,
       payload: JSON.stringify({ code: issue.code, status: work.newStatus, milestone: newMilestone }),
       severity: work.newStatus === 'BLOCKED' ? 'WARN' : 'INFO',
+    },
+  })
+
+  if (campaignRun) await db.agentRun.update({
+    where: { id: campaignRun.id },
+    data: {
+      status: work.newStatus === 'BLOCKED' ? 'FAILED' : 'COMPLETED',
+      error: work.newStatus === 'BLOCKED' ? work.blockedReason || 'Campaign item blocked' : null,
+      outputSummary: deliverable.slice(0, 1000),
+      completedAt: new Date(),
+      durationMs: Date.now() - runStartedAt.getTime(),
     },
   })
 
