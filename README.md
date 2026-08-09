@@ -136,15 +136,17 @@ Fashion OS integrates Paperclip's exact workforce operating model, providing aut
 
 | Layer | Technology |
 | :--- | :--- |
-| **Framework** | Next.js 16 (App Router, Turbopack) |
-| **Language** | TypeScript 5.0 |
+| **Framework** | Next.js App Router (Turbopack) |
+| **Language** | TypeScript |
+| **Runtime** | Node.js >= 18 |
 | **Styling** | Tailwind CSS v4 + Liquid Glass System (`glass-system.tsx`) |
 | **Animation** | Framer Motion |
 | **State Management** | Zustand |
-| **Database** | PostgreSQL via Prisma 7.9 (Supabase Transaction Pooler) |
+| **Database** | PostgreSQL via Prisma ORM (Supabase Transaction Pooler) |
 | **Authentication** | NextAuth v4 (Credentials) |
 | **AI Models** | Anthropic Claude, OpenAI GPT-4o, Local Ollama via AI Router |
 | **Voice Processing** | Web Speech API (STT) + SpeechSynthesis (TTS) |
+| **Deployment** | Docker Compose + Caddy / Nginx |
 
 ---
 

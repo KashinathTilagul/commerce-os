@@ -4,7 +4,19 @@ This document represents the absolute authoritative specification of the EKVAAR 
 
 ---
 
-## 1. System Topology & Process Layout
+## 1. Layered Architecture
+
+EKVAAR OS operates on a strict 5-layer architecture. Data strictly flows down for storage and up for presentation.
+
+1. **Interaction Layer (I/O)**: The only layer the Founder sees. Responsible for capturing raw intent (voice/text) and rendering dynamic, ephemeral components (Outputs, Metrics, Alerts).
+2. **Kernel Layer (KRISHNA)**: The central nervous system. Intercepts intent, retrieves context, plans execution graphs, and manages global state routing.
+3. **Execution Layer**: The active state machine. Manages the lifecycles of Missions, Initiatives, Projects, and Tasks. Operates the workforce (Agents and Persons).
+4. **Governance Layer**: The rulebook. Operates strictly in the background to govern execution. Houses the Decision Registry, Metrics Engine, and Knowledge Vault.
+5. **Persistence Layer**: The absolute bottom layer. An immutable graph and vector database where the primitive objects are stored.
+
+---
+
+## 2. System Topology & Process Layout
 
 ```mermaid
 graph TD
@@ -23,7 +35,7 @@ graph TD
 
 ---
 
-## 2. Exhaustive Repository Directory Tree
+## 3. Exhaustive Repository Directory Tree
 
 Below is the structured list of all active files and modules inside the repository (legacy temporary directories like `apps/backend/` and `src/` are fully deprecated and removed):
 
@@ -144,7 +156,7 @@ EKVAAR/
 
 ---
 
-## 3. Core Layer Subsystems (Exhaustive)
+## 4. Core Layer Subsystems (Exhaustive)
 
 ### Layer 1: Interaction Layer (I/O)
 *   **Aesthetics**: Follows the Tahoe Design System (ultra-thick blur, liquid edges, dark surfaces, and styled borders).
@@ -171,7 +183,7 @@ EKVAAR/
 
 ---
 
-## 4. Object Ownership Model
+## 5. Object Ownership Model
 
 Every Core Object has strict ownership and modification rights.
 
@@ -188,7 +200,7 @@ Every Core Object has strict ownership and modification rights.
 
 ---
 
-## 5. Relationship Graph
+## 6. Relationship Graph
 
 EKVAAR OS operates as a directed acyclic graph (DAG):
 
@@ -203,7 +215,7 @@ EKVAAR OS operates as a directed acyclic graph (DAG):
 
 ---
 
-## 6. Source of Truth Map
+## 7. Source of Truth Map
 
 No data is duplicated. Every object has exactly one authoritative subsystem:
 
@@ -216,7 +228,7 @@ No data is duplicated. Every object has exactly one authoritative subsystem:
 
 ---
 
-## 7. Memory Architecture
+## 8. Memory Architecture
 
 * **What gets remembered**: Approved Outputs, locked Decisions, resolved Tasks, Meeting transcripts, verified Metrics.
 * **What does not**: Intermediate Agent scratchpads, draft iterations, aborted Tasks, parsing errors, raw audio buffers.
@@ -225,7 +237,7 @@ No data is duplicated. Every object has exactly one authoritative subsystem:
 
 ---
 
-## 8. Permission Architecture
+## 9. Permission Architecture
 
 EKVAAR operates on a strict Role-Based Access Control (RBAC) model.
 
@@ -242,7 +254,7 @@ EKVAAR operates on a strict Role-Based Access Control (RBAC) model.
 
 ---
 
-## 9. Event Architecture
+## 10. Event Architecture
 
 The OS is entirely event-driven. Subsystems only react to emitted events via the Event Bus.
 
@@ -261,7 +273,7 @@ The OS is entirely event-driven. Subsystems only react to emitted events via the
 
 ---
 
-## 10. V1 System Blueprint
+## 11. V1 System Blueprint
 
 To prevent feature creep, Version 1 of EKVAAR OS will strictly contain:
 
@@ -278,3 +290,59 @@ To prevent feature creep, Version 1 of EKVAAR OS will strictly contain:
 - Initiative and Project objects.
 - Multi-user RBAC.
 - Metric telemetry engines.
+
+---
+
+## 12. Krishna Architecture
+
+KRISHNA is broken down into 5 independent subsystems running concurrently:
+
+**1. Intent Parser**
+* **Purpose**: Translates raw human input into machine commands.
+* **Inputs**: Voice/Text string.
+* **Outputs**: Structured `CommandObject` (Action, Target, Constraints).
+* **Dependencies**: None.
+
+**2. Context Engine**
+* **Purpose**: Retrieves the necessary background information before execution begins.
+* **Inputs**: `CommandObject`.
+* **Outputs**: `EnrichedCommand` (Command + relevant Knowledge + Constraints).
+* **Dependencies**: Knowledge Vault, Decision Registry.
+
+**3. Planning Engine**
+* **Purpose**: Breaks a complex intent down into the Execution Flow graph.
+* **Inputs**: `EnrichedCommand`.
+* **Outputs**: A mapped DAG of (Initiatives → Projects → Tasks).
+* **Dependencies**: Execution State Engine.
+
+**4. Agent Router**
+* **Purpose**: Assigns executable leaf-nodes (Tasks) to the correct resource.
+* **Inputs**: Unassigned Tasks.
+* **Outputs**: Active Agent executions.
+* **Dependencies**: Entity Directory.
+
+**5. Memory Engine**
+* **Purpose**: Closes the loop by storing results.
+* **Inputs**: Approved Outputs, Locked Decisions.
+* **Outputs**: Indexed vectors in the Knowledge Vault.
+* **Dependencies**: Artifact Store.
+
+---
+
+## 13. Intent → Execution Pipeline
+
+**Example: Founder says "Launch Luxe Collection."**
+
+1. **Ingest**: Interaction Layer captures audio, converts to text.
+2. **Parse**: Intent Parser identifies goal: `Create Mission: Launch Luxe Collection`.
+3. **Contextualize**: Context Engine retrieves past launch playbooks and the brand guidelines for "Luxe".
+4. **Plan**: Planning Engine generates the tree:
+   - *Mission*: Launch Luxe Collection
+   - *Initiative*: Marketing Campaign
+   - *Project*: Social Media Assets
+   - *Task*: Draft Instagram Ad Copy
+5. **Route**: Agent Router assigns "Draft Instagram Ad Copy" to the `Copywriter Agent`.
+6. **Execute**: Agent consumes the brand guidelines (Knowledge) and completes the Task.
+7. **Deliver**: Agent creates an `Output` object (the copy).
+8. **Approve**: Interaction Layer surfaces the `Output` to the Founder.
+9. **Finalize**: Founder approves. Memory Engine permanently indexes the `Output` into the Knowledge Vault, and the Task is marked `Completed`.

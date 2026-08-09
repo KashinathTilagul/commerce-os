@@ -188,3 +188,14 @@ EKVAAR OS is built for velocity.
 - **Keyboard-First**: Every primary OS action can be executed without a mouse.
 - **Command Palette (`CMD+K`)**: Doubles as the Search input and a mechanical quick-action router (e.g., typing `/new-mission`).
 - **Expert Workflows**: Bypassing KRISHNA's voice synthesis entirely in favor of rapid keystroke commands for maximum throughput.
+
+---
+
+## 15. V1 Desktop UX Blueprint
+
+To ensure V1 launches effectively without bogging down in complex window management rendering:
+
+- **Full Screen Only**: Split-view windowing is deferred. V1 apps and widgets will open purely Full Screen over the Desktop void.
+- **No Workspaces**: Context filtering is deferred. V1 operates in a single, unified "Founder Workspace."
+- **Keyboard Navigation**: V1 will prioritize the `CMD+K` command palette over complex voice-UI visualization to ensure the interaction loop is stable and fast.
+- **Summary**: The V1 UX is brutally utilitarian. It is a text/voice terminal (KRISHNA) sitting in front of 3 full-screen monolithic applications.
