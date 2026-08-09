@@ -75,6 +75,10 @@ jobs:
             echo "[x] DATABASE_URL must be set to the Supabase PostgreSQL connection string."
             exit 1
           fi
+          if [[ "$DATABASE_URL" == postgresql://postgres:*@db.guxaxhofeglqkmrhahsw.supabase.co:5432/* ]]; then
+            DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:${DATABASE_URL#postgresql://postgres:}"
+            DATABASE_URL="${DATABASE_URL/@db.guxaxhofeglqkmrhahsw.supabase.co:5432/@aws-0-ap-south-1.pooler.supabase.com:5432}"
+          fi
           QIKINK_CLIENT_ID="${QIKINK_CLIENT_ID:-$(existing_env QIKINK_CLIENT_ID)}"
           QIKINK_CLIENT_SECRET="${QIKINK_CLIENT_SECRET:-$(existing_env QIKINK_CLIENT_SECRET)}"
           BROWSER_WORKER_KEY="${BROWSER_WORKER_KEY:-$(existing_env BROWSER_WORKER_KEY)}"
@@ -111,6 +115,12 @@ jobs:
             "OPENAI_API_KEY=${OPENAI_API_KEY}" \
             "BROWSER_HEADLESS=true" \
             > .env
+
+          # Restore the current image with the corrected database endpoint before
+          # the full rebuild so configuration-only fixes do not extend an outage.
+          if /usr/bin/sudo docker image inspect ekvaar-frontend >/dev/null 2>&1; then
+            /usr/bin/sudo docker compose up -d --no-build frontend nginx || true
+          fi
 
           echo "[i] Disk before cleanup:"; df -h / || true
 
