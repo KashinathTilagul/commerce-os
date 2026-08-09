@@ -6,7 +6,7 @@ import { syncAgentRoster } from './agent-roster-sync'
 import { nextCampaignLaunchCode } from './campaign-launch-code'
 import { campaignOutboxKey } from './campaign-outbox-key'
 import { hashCampaignEvidence } from './campaign-evidence-hash'
-import { planWorkRequest } from './work-request-planner'
+import { extractExactReply, planWorkRequest } from './work-request-planner'
 import { CAMPAIGN_ITEMS, CAMPAIGN_VALIDATIONS } from './campaign-blueprint'
 import {
   assertAcyclicDependencies,
@@ -63,6 +63,12 @@ test('plans only the work requested and reserves the full graph for campaigns', 
   assert.deepEqual(planWorkRequest('Create an image and a PDF report').items.map((item) => item.type), ['IMAGE', 'PDF'])
   assert.deepEqual(planWorkRequest('What is current revenue?').items.map((item) => item.type), ['FINANCE_QUERY'])
   assert.equal(planWorkRequest('Launch a new collection campaign on Instagram and Shopify').items.length, 14)
+})
+
+test('extracts exact reply requests without spending another model call', () => {
+  assert.equal(extractExactReply('Reply with exactly: TESTING'), 'TESTING')
+  assert.equal(extractExactReply('Get me the output as a reply as: READY, this is a test'), 'READY, this is a test')
+  assert.equal(extractExactReply('What is current revenue?'), null)
 })
 
 test('campaign blueprint is a complete acyclic 14-item employee workflow', () => {

@@ -17,6 +17,10 @@ export interface WorkValidationDefinition {
 
 const FULL_CAMPAIGN = /(?:\b(?:launch|run|build|plan)\b.{0,45}\b(?:campaign|collection launch|product launch)\b)|(?:\b(?:campaign|collection)\b.{0,45}\b(?:launch|rollout|go live)\b)/i
 
+export function extractExactReply(request: string) {
+  return request.match(/(?:reply with exactly|output as (?:a )?reply as)\s*:?\s*(.+)$/i)?.[1]?.trim() || null
+}
+
 const SPECIALISTS = [
   { match: /\b(revenue|profit|margin|cash|finance|cost|budget|sales)\b/i, assigneeCode: 'CFO', type: 'FINANCE_QUERY', title: 'Finance answer' },
   { match: /\b(order|inventory|shipment|delivery|supplier|operations|stock)\b/i, assigneeCode: 'OPS_MANAGER', type: 'OPERATIONS_QUERY', title: 'Operations answer' },
