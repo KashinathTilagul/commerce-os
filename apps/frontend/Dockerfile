@@ -7,14 +7,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
-# Keep npm's download cache out of the image layer. On the small production
-# runner it otherwise consumes several GB while the next image is built.
-RUN npm install --legacy-peer-deps --no-audit --no-fund \
-    && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --legacy-peer-deps
 COPY . .
 # Dummy URL for prisma generate only — runtime uses the real DATABASE_URL from docker-compose
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
 FROM node:22-slim AS runner
 WORKDIR /app
