@@ -61,6 +61,7 @@ model Organization {
   knowledgeEdges KnowledgeEdge[]
   prompts        Prompt[]
   aiExecutionLogs AIExecutionLog[]
+  channels       Channel[]
 }
 
 model User {
@@ -447,7 +448,6 @@ model Agent {
   patterns       AgentPattern[]
   knowledge      AgentKnowledge[]
   runs           AgentRun[]
-  wakeRequests   AgentWakeRequest[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -1246,7 +1246,6 @@ model AgentRun {
 
   agent         Agent              @relation(fields: [agentId], references: [id], onDelete: Cascade)
   steps         AgentRunStep[]
-  wakeRequests  AgentWakeRequest[] @relation("CoalescedRun")
 
   @@index([agentId, status])
   @@index([organizationId])
@@ -1280,6 +1279,10 @@ model AgentWakeRequest {
   status             String    @default("ENQUEUED") // ENQUEUED | COALESCED | PROCESSED
   coalescedIntoRunId String?
   receivedAt         DateTime  @default(now())
+
+  @@index([agentId, status])
+  @@index([status])
+}
 
 // ============ INTERNAL CHAT SYSTEM (Discord-style) ============
 
@@ -1327,13 +1330,4 @@ enum ChannelType {
 enum AuthorType {
   AGENT
   USER
-}
-  coalescedIntoRunId String?
-  status             String    @default("PENDING") // PENDING | ENQUEUED | COALESCED | PROCESSED
-
-  agent        Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  coalescedRun AgentRun? @relation("CoalescedRun", fields: [coalescedIntoRunId], references: [id])
-
-  @@index([agentId, status])
-  @@index([status])
 }
