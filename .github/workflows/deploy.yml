@@ -82,9 +82,6 @@ jobs:
           if [[ "$DATABASE_URL" == postgresql://postgres:*@aws-0-ap-south-1.pooler.supabase.com:5432/* ]]; then
             DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:${DATABASE_URL#postgresql://postgres:}"
           fi
-          if [[ "$DATABASE_URL" == *@aws-0-ap-south-1.pooler.supabase.com:5432/* && "$DATABASE_URL" != *sslmode=* ]]; then
-            DATABASE_URL="${DATABASE_URL}$([[ "$DATABASE_URL" == *\?* ]] && echo '&' || echo '?')uselibpqcompat=true&sslmode=require"
-          fi
           QIKINK_CLIENT_ID="${QIKINK_CLIENT_ID:-$(existing_env QIKINK_CLIENT_ID)}"
           QIKINK_CLIENT_SECRET="${QIKINK_CLIENT_SECRET:-$(existing_env QIKINK_CLIENT_SECRET)}"
           BROWSER_WORKER_KEY="${BROWSER_WORKER_KEY:-$(existing_env BROWSER_WORKER_KEY)}"
@@ -121,6 +118,9 @@ jobs:
             "OPENAI_API_KEY=${OPENAI_API_KEY}" \
             "BROWSER_HEADLESS=true" \
             > .env
+
+          curl -fsS https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt \
+            -o db/supabase-ca.crt
 
           # Restore the current image with the corrected database endpoint before
           # the full rebuild so configuration-only fixes do not extend an outage.
