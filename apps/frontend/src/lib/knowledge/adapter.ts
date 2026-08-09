@@ -1,6 +1,5 @@
 import { db } from '@/lib/db'
 import { KnowledgeNodeInput, RelationshipType } from './types'
-import { dispatchEvent } from '@/lib/events/dispatcher'
 
 export class KnowledgeAdapter {
   static async upsertNode(input: KnowledgeNodeInput) {
@@ -37,10 +36,13 @@ export class KnowledgeAdapter {
     })
 
     // Emit event
-    await dispatchEvent('KNOWLEDGE_NODE_UPSERTED', 'KNOWLEDGE_ADAPTER', {
-      nodeId: node.id,
-      organizationId: node.organizationId,
-      status: existing ? 'UPDATED' : 'CREATED'
+    await db.systemEvent.create({
+      data: {
+        type: 'KNOWLEDGE_NODE_UPSERTED',
+        source: 'KNOWLEDGE_ADAPTER',
+        organizationId: node.organizationId,
+        payload: JSON.stringify({ nodeId: node.id, status: existing ? 'UPDATED' : 'CREATED' }),
+      },
     })
 
     return { status: existing ? 'UPDATED' : 'CREATED', node }
@@ -106,10 +108,13 @@ export class KnowledgeAdapter {
   static async rebuildNode(businessObjectType: string, businessObjectId: string, organizationId: string) {
     // This will trigger the Knowledge Pipeline to re-fetch the business object
     // and re-run ingestion. To be hooked up to KnowledgePipeline.
-    await dispatchEvent('KNOWLEDGE_REBUILD_REQUESTED', 'KNOWLEDGE_ADAPTER', {
-      businessObjectType,
-      businessObjectId,
-      organizationId
+    await db.systemEvent.create({
+      data: {
+        type: 'KNOWLEDGE_REBUILD_REQUESTED',
+        source: 'KNOWLEDGE_ADAPTER',
+        organizationId,
+        payload: JSON.stringify({ businessObjectType, businessObjectId }),
+      },
     })
   }
 }

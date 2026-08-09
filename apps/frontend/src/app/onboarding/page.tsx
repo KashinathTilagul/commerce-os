@@ -156,7 +156,7 @@ export default function OnboardingPage() {
     return <div className="min-h-screen bg-[#f3efe6] flex items-center justify-center p-6"><div className="max-w-md rounded-2xl border border-[#c75a40]/30 bg-white p-7 text-center"><div className="font-semibold text-[#17231d]">Setup could not be loaded</div><div className="text-sm text-[#913b28] mt-2">{error}</div><Button className="mt-5" onClick={() => window.location.reload()}>Retry</Button></div></div>
   }
 
-  const connectedCount = Array.isArray(data?.integrations) ? data.integrations.filter((integration) => integration.isConnected).length
+  const connectedCount = Array.isArray(data?.integrations) ? data.integrations.filter((integration) => integration.isConnected).length : 0
 
   return (
     <main className="min-h-screen bg-[#f3efe6] text-[#17231d] overflow-hidden relative">

@@ -19,7 +19,6 @@ async function getComposio() {
       return null // No real key — fall back to demo mode
     }
     composioClient = new Composio({ apiKey })
-    console.log('COMPOSIO: Successfully initialized Composio client')
     return composioClient
   } catch (error) {
     console.error('COMPOSIO: Error initializing Composio client:', error)
@@ -430,7 +429,6 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
         (toolkitSlug !== 'shopify' || (acc.authConfig?.id || acc.authConfigId) === SHOPIFY_AUTH_CONFIG_ID)
       )
       if (active) {
-        console.log(`[initiateConnection] Already connected for ${toolkitSlug}, entityId ${entity}: ${active.id}`)
         return { redirectUrl: null, connectedAccountId: active.id }
       }
     } catch (listErr: any) {
@@ -453,7 +451,6 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
       return { redirectUrl: null, error: `No auth config found for "${ckToolkit}" on Composio.${detail} Please add this integration on your Composio dashboard first.` }
     }
     const authConfigId = match.id
-    console.log(`[initiateConnection] Resolved auth config for ${toolkitSlug}: ${authConfigId}`)
 
     // Step 3: Create the connection link (OAuth redirect)
     const callbackUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/integrations/callback?toolkit=${toolkitSlug}`

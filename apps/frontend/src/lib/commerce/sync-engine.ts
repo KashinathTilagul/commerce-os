@@ -1,7 +1,6 @@
 import { CommerceProvider } from './provider'
 import { CommerceHub } from './hub'
 import { db } from '@/lib/db'
-import { dispatchEvent } from '@/lib/events/dispatcher'
 
 export class SyncEngine {
   constructor(private provider: CommerceProvider, private organizationId: string) {}
@@ -86,30 +85,40 @@ export class SyncEngine {
       const duration = Date.now() - startTime
       await this.updateState(entity, 'IDLE', { processed, failed, duration }, undefined)
       
-      await dispatchEvent(`${entity}S_SYNCED`, 'SYNC_ENGINE', {
-        provider: this.provider.providerName,
-        organizationId: this.organizationId,
-        processed,
-        failed,
-        duration,
+      await db.systemEvent.create({
+        data: {
+          type: `${entity}S_SYNCED`,
+          source: 'SYNC_ENGINE',
+          organizationId: this.organizationId,
+          payload: JSON.stringify({ provider: this.provider.providerName, processed, failed, duration }),
+        },
       })
 
       return { processed, failed, duration }
 
     } catch (error: any) {
       await this.updateState(entity, 'ERROR', undefined, error.message)
-      await dispatchEvent('SYNC_FAILED', 'SYNC_ENGINE', {
-        provider: this.provider.providerName,
-        organizationId: this.organizationId,
-        entity,
-        error: error.message
+      await db.systemEvent.create({
+        data: {
+          type: 'SYNC_FAILED',
+          source: 'SYNC_ENGINE',
+          organizationId: this.organizationId,
+          payload: JSON.stringify({ provider: this.provider.providerName, entity, error: error.message }),
+        },
       })
       throw error
     }
   }
 
   async runFullSync() {
-    await dispatchEvent('SYNC_STARTED', 'SYNC_ENGINE', { provider: this.provider.providerName, organizationId: this.organizationId })
+    await db.systemEvent.create({
+      data: {
+        type: 'SYNC_STARTED',
+        source: 'SYNC_ENGINE',
+        organizationId: this.organizationId,
+        payload: JSON.stringify({ provider: this.provider.providerName }),
+      },
+    })
     
     const results = {
       products: await this.runSync('PRODUCT'),
@@ -117,7 +126,14 @@ export class SyncEngine {
       orders: await this.runSync('ORDER'),
     }
 
-    await dispatchEvent('SYNC_COMPLETED', 'SYNC_ENGINE', { provider: this.provider.providerName, organizationId: this.organizationId, results })
+    await db.systemEvent.create({
+      data: {
+        type: 'SYNC_COMPLETED',
+        source: 'SYNC_ENGINE',
+        organizationId: this.organizationId,
+        payload: JSON.stringify({ provider: this.provider.providerName, results }),
+      },
+    })
     
     return results
   }

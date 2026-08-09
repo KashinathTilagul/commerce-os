@@ -247,7 +247,6 @@ Now produce YOUR deliverable:`
   }
 
   if (multimodalResults.length > 0) {
-    console.log(`[agent-worker] ${agent.name} multimodal:`, multimodalResults)
     deliverable += '\n\n### Generated Assets:\n' + multimodalResults.join('\n')
   }
 

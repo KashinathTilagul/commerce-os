@@ -1,5 +1,4 @@
 // Task decomposition templates - Deterministic task breakdown
-import { db } from './db'
 
 const TASK_TEMPLATES: Record<string, {
   subtasks: Array<{ title: string; dept: string; order: number }>
@@ -86,66 +85,13 @@ export interface SubtaskDefinition {
 
 export function decomposeTask(taskType: string, projectContext: Record<string, any>): SubtaskDefinition[] {
   const template = TASK_TEMPLATES[taskType] || TASK_TEMPLATES['CONTENT_CREATION']
-  
+
   return template.subtasks.map(task => ({
-    ...task,
+    title: task.title,
+    department: task.dept,
+    order: task.order,
     dependsOn: template.dependencies
       .filter(d => d[1] === task.order)
       .map(d => d[0])
   }))
-}
-
-export async function getLearnedTemplate(organizationId: string, taskType: string): Promise<SubtaskDefinition[] | null> {
-  const template = await db.taskTemplate.findFirst({
-    where: {
-      organizationId,
-      type: taskType,
-      status: 'ACTIVE',
-      successRate: { gte: 0.7 }
-    },
-    orderBy: { successRate: 'desc' }
-  })
-  
-  if (!template) return null
-  
-  try {
-    const structure = JSON.parse(template.structure)
-    return structure.subtasks || null
-  } catch {
-    return null
-  }
-}
-
-export async function saveLearnedTemplate(
-  organizationId: string,
-  name: string,
-  type: string,
-  structure: SubtaskDefinition[],
-  qualityScore: number
-): Promise<void> {
-  const existing = await db.taskTemplate.findFirst({
-    where: { organizationId, name }
-  })
-  
-  if (existing) {
-    await db.taskTemplate.update({
-      where: { id: existing.id },
-      data: {
-        structure: JSON.stringify({ subtasks: structure }),
-        successRate: (existing.successRate + qualityScore) / 2,
-        source: 'AGENT_LEARNING'
-      }
-    })
-  } else {
-    await db.taskTemplate.create({
-      data: {
-        organizationId,
-        name,
-        type,
-        structure: JSON.stringify({ subtasks: structure }),
-        successRate: qualityScore,
-        source: 'AGENT_LEARNING'
-      }
-    })
-  }
 }

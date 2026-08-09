@@ -143,7 +143,6 @@ AVAILABLE ACTIONS:
 
       spoken = object.spoken
       action = object.action
-      console.log(`[Krishna] Structured response via ${provider}/${model}`)
 
     } catch (e: any) {
       console.error(`[Krishna] Core error:`, e.message)
@@ -180,7 +179,6 @@ AVAILABLE ACTIONS:
         if (extracted.isAssignment && extracted.task) {
           action = { type: 'assign_task', assignee: extracted.assignee, task: extracted.task, priority: extracted.priority }
           netEngaged = true
-          console.log('[Krishna] Assignment safety net engaged')
         }
       } catch (e: any) {
         console.error('[Krishna] Safety net failed:', e.message)

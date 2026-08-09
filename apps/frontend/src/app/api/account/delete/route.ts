@@ -14,7 +14,6 @@ export async function POST(req: NextRequest) {
 
     const userId = session.user.id
 
-    console.log(`[DELETE ACCOUNT] Deleting account for user: ${userId}`)
 
     const user = await db.user.findUnique({ where: { id: userId }, select: { organizationId: true } })
     const organizationId = user?.organizationId
@@ -48,7 +47,6 @@ export async function POST(req: NextRequest) {
       await tx.user.delete({ where: { id: userId } })
     })
 
-    console.log(`[DELETE ACCOUNT] Successfully deleted account: ${userId}`)
 
     return NextResponse.json({ 
       success: true, 

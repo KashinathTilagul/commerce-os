@@ -75,7 +75,6 @@ export function startAgentWorker(
     console.error(`[AgentWorker] Job ${job?.id} failed:`, err.message)
   })
   _worker.on('completed', (job) => {
-    console.log(`[AgentWorker] Job ${job.id} completed`)
   })
   return _worker
 }
