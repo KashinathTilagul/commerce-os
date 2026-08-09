@@ -7,6 +7,7 @@ import { decomposeTask } from './task-templates'
 import { generatePDF } from './pdf-generator'
 import { generateImage } from './image-generator'
 import { generateVideo } from './video-generator'
+import { syncCampaignItemAfterWork } from './campaign-execution'
 
 const StatusSchema = z.object({
   progressNote: z.string().describe('1-2 sentences, first person, summarising what you just produced.'),
@@ -41,7 +42,8 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
     orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
     include: { 
       comments: { orderBy: { createdAt: 'asc' }, take: 20 },
-      subtasks: true
+      subtasks: true,
+      campaignItem: true,
     },
   })
   
@@ -57,6 +59,13 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
   if (!issue) {
     await db.agent.update({ where: { id: agentId }, data: { status: 'IDLE', currentTask: 'Checked in – no open tickets' } })
     return { ok: true, message: `${agent.name} has no open tickets` }
+  }
+
+  if (issue.campaignItem) {
+    await db.campaignLaunchItem.update({
+      where: { id: issue.campaignItem.id },
+      data: { status: 'RUNNING', attemptCount: { increment: 1 } },
+    })
   }
 
   // CHAT CONTEXT (thread-scoped, capped at 15 messages)
@@ -274,6 +283,10 @@ Now produce YOUR deliverable:`
     }
   }
 
+  if (issue.campaignItem && work.newStatus !== 'BLOCKED') {
+    work.newStatus = 'DONE'
+  }
+
   // MILESTONE TRACKING
   let newMilestone = currentMilestone
   if (currentMilestone < 100 && work.newStatus === 'IN_PROGRESS') {
@@ -303,6 +316,7 @@ Now produce YOUR deliverable:`
       milestone: newMilestone
     } 
   })
+  await syncCampaignItemAfterWork(organizationId, issue.id, work.newStatus)
 
   // STORE LEARNING PATTERN
   const outcome = work.newStatus === 'DONE' ? 'SUCCESS' : work.newStatus === 'BLOCKED' ? 'REJECTED' : 'SUCCESS'
