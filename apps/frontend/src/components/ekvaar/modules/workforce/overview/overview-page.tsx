@@ -45,6 +45,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
   const [prompt, setPrompt] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [planNotice, setPlanNotice] = useState('')
   const { data: campaigns = [], isLoading, error } = useQuery<Campaign[]>({
     queryKey: ['campaign-launches'],
     queryFn: async () => {
@@ -79,6 +80,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
     onSuccess: (campaign) => {
       setPrompt('')
       setSelectedId(campaign.id)
+      setPlanNotice(`${campaign.plan?.label ?? 'Work assigned'} · ${campaign.plan?.itemCount ?? 1} employee task${campaign.plan?.itemCount === 1 ? '' : 's'}`)
       queryClient.invalidateQueries({ queryKey: ['campaign-launches'] })
       queryClient.invalidateQueries({ queryKey: ['workforce-issues'] })
     },
@@ -121,8 +123,8 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
             <div className="mb-1 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.18em] text-cyan-300/70">
               <Sparkles className="h-3 w-3" /> Krishna Command
             </div>
-            <h1 className="font-display text-xl tracking-tight">Campaign Control Center</h1>
-            <p className="mt-1 text-[12px] text-muted-foreground">Give Krishna the outcome. Employees plan, execute, validate, and return one founder packet.</p>
+            <h1 className="font-display text-xl tracking-tight">Krishna Work Center</h1>
+            <p className="mt-1 text-[12px] text-muted-foreground">Ask for an answer, email, report, asset, business update, or a complete launch. Krishna assigns only the work required.</p>
           </div>
           <button onClick={() => onNavigate('approvals')} className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-[11px] text-muted-foreground hover:bg-white/[0.05] hover:text-foreground">
             <ShieldCheck className="h-3.5 w-3.5" /> Founder Inbox
@@ -138,27 +140,28 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
               <Bot className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="mb-2 text-[12px] font-medium">What should the company launch?</div>
+              <div className="mb-2 text-[12px] font-medium">What should Krishna handle?</div>
               <textarea
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 onKeyDown={(event) => {
                   if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && prompt.trim().length >= 10) createCampaign.mutate(prompt.trim())
                 }}
-                placeholder="Example: Launch a timeless monsoon collection campaign for oversized tees, with original visuals, margin-safe offer, Instagram, reels, Meta ads and Shopify draft."
+                placeholder="Ask anything: current revenue, an investor email, a PDF report, an image, a video, or an end-to-end campaign launch."
                 className="min-h-24 w-full resize-none rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-[13px] leading-6 outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-cyan-300/35"
               />
               <div className="mt-3 flex items-center justify-between gap-3">
-                <span className="text-[10px] text-muted-foreground">No external publishing occurs without founder approval.</span>
+                <span className="text-[10px] text-muted-foreground">Krishna plans the smallest useful employee workflow before assigning it.</span>
                 <button
                   disabled={prompt.trim().length < 10 || createCampaign.isPending}
                   onClick={() => createCampaign.mutate(prompt.trim())}
                   className="flex items-center gap-2 rounded-lg bg-cyan-300 px-4 py-2 text-[11px] font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {createCampaign.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  Brief Krishna
+                  Assign work
                 </button>
               </div>
+              {planNotice && <div className="mt-3 text-[10px] text-emerald-300/80">Plan created: {planNotice}</div>}
               {createCampaign.error && <div className="mt-3 text-[11px] text-red-300">{createCampaign.error.message}</div>}
             </div>
           </div>
@@ -171,15 +174,15 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
           <GlassPanel level={2} className="rounded-2xl p-10 text-center">
             <Activity className="mx-auto h-6 w-6 text-muted-foreground" />
             <div className="mt-3 text-[13px]">No campaign is running.</div>
-            <div className="mt-1 text-[11px] text-muted-foreground">Brief Krishna above to activate the employee workflow.</div>
+            <div className="mt-1 text-[11px] text-muted-foreground">Ask Krishna above to plan and assign the right employee.</div>
           </GlassPanel>
         ) : (
           <div className="grid gap-5 xl:grid-cols-[250px_minmax(0,1fr)]">
             <div className="space-y-2">
-              <div className="mb-3 text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Campaigns</div>
+              <div className="mb-3 text-[9px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Work requests</div>
               {campaigns.map((campaign) => (
                 <button key={campaign.id} onClick={() => { setSelectedId(campaign.id); setSelectedItemId(null) }} className={`w-full rounded-xl border p-3 text-left transition ${selected?.id === campaign.id ? 'border-cyan-300/25 bg-cyan-300/[0.06]' : 'border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.04]'}`}>
-                  <div className="flex items-center justify-between gap-2"><span className="font-mono text-[10px] text-cyan-300/80">{campaign.code}</span><Status status={campaign.status} /></div>
+                  <div className="flex items-center justify-between gap-2"><span className="font-mono text-[10px] text-cyan-300/80">{campaign.code}</span><Status status={campaign.items.length < 14 && campaign.status === 'PUBLISHED' ? 'COMPLETED' : campaign.status} /></div>
                   <div className="mt-2 line-clamp-2 text-[12px] leading-5">{campaign.title}</div>
                   <div className="mt-2 text-[9px] text-muted-foreground">{campaign.items.filter((item) => item.status === 'COMPLETED').length}/{campaign.items.length} complete</div>
                 </button>
@@ -204,7 +207,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                       Run / Resume
                     </button>
                   )}
-                  <Status status={selected.status} />
+                  <Status status={selected.items.length < 14 && selected.status === 'PUBLISHED' ? 'COMPLETED' : selected.status} />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3 py-4">
@@ -244,7 +247,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                   </div>
                 </div>
               )}
-              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {selected.items.length === 14 && <div className="mt-4 grid gap-3 lg:grid-cols-2">
                 <div className="rounded-xl border border-white/[0.07] bg-black/10 p-4">
                   <div className="mb-3 flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5" /> Independent checks</div>
                   <div className="grid grid-cols-2 gap-2">
@@ -259,7 +262,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                   </div>
                   {verifyShopify.error && <div className="mt-2 text-[9px] text-red-300">{verifyShopify.error.message}</div>}
                 </div>
-              </div>
+              </div>}
               <button onClick={() => onNavigate('issues')} className="mt-4 flex items-center gap-1.5 text-[10px] text-cyan-300/80 hover:text-cyan-200">Open employee work log <ArrowRight className="h-3 w-3" /></button>
             </GlassPanel>}
           </div>

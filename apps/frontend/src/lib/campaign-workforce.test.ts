@@ -6,6 +6,7 @@ import { syncAgentRoster } from './agent-roster-sync'
 import { nextCampaignLaunchCode } from './campaign-launch-code'
 import { campaignOutboxKey } from './campaign-outbox-key'
 import { hashCampaignEvidence } from './campaign-evidence-hash'
+import { planWorkRequest } from './work-request-planner'
 import { CAMPAIGN_ITEMS, CAMPAIGN_VALIDATIONS } from './campaign-blueprint'
 import {
   assertAcyclicDependencies,
@@ -54,6 +55,14 @@ test('hashes frozen campaign evidence independently of object key order', () => 
   const reordered = { items: [{ status: 'COMPLETED', code: '01' }], launch: { title: 'Launch', code: 'CL-001' } }
   assert.equal(hashCampaignEvidence(first), hashCampaignEvidence(reordered))
   assert.notEqual(hashCampaignEvidence(first), hashCampaignEvidence({ ...first, items: [{ code: '01', status: 'BLOCKED' }] }))
+})
+
+test('plans only the work requested and reserves the full graph for campaigns', () => {
+  assert.deepEqual(planWorkRequest('Reply with exactly TESTING').items.map((item) => item.type), ['ANSWER'])
+  assert.deepEqual(planWorkRequest('Write an email for an investor').items.map((item) => item.type), ['CONTENT'])
+  assert.deepEqual(planWorkRequest('Create an image and a PDF report').items.map((item) => item.type), ['IMAGE', 'PDF'])
+  assert.deepEqual(planWorkRequest('What is current revenue?').items.map((item) => item.type), ['FINANCE_QUERY'])
+  assert.equal(planWorkRequest('Launch a new collection campaign on Instagram and Shopify').items.length, 14)
 })
 
 test('campaign blueprint is a complete acyclic 14-item employee workflow', () => {

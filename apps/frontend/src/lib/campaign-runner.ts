@@ -92,7 +92,11 @@ export async function runCampaignLaunch(organizationId: string, launchId: string
   if (validationOutstanding > 0) return { status: 'EXECUTING' as const }
 
   const packet = await db.campaignLaunchItem.findFirst({ where: { launchId, code: '14' } })
-  if (!packet?.assigneeId || !packet.issueId) throw new Error('Founder packet assignment is incomplete')
+  if (!packet) {
+    await db.campaignLaunch.update({ where: { id: launchId }, data: { status: 'PUBLISHED', completedAt: new Date(), version: { increment: 1 } } })
+    return { status: 'PUBLISHED' as const }
+  }
+  if (!packet.assigneeId || !packet.issueId) throw new Error('Founder packet assignment is incomplete')
   if (packet.status !== 'COMPLETED') {
     const claimed = await db.campaignLaunchItem.updateMany({ where: { id: packet.id, status: 'READY' }, data: { status: 'LEASED', leaseOwnerId: packet.assigneeId, leaseExpiresAt: new Date(Date.now() + 10 * 60 * 1000) } })
     if (claimed.count !== 1) return { status: 'EXECUTING' as const }
