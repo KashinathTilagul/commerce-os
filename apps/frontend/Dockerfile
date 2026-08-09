@@ -1,13 +1,17 @@
 FROM node:22-slim AS builder
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --legacy-peer-deps
+# Enable Corepack for reproducible installs
+RUN corepack enable && corepack prepare bun@1.3.12 --activate
+
+COPY package.json bun.lock ./
+RUN --mount=type=cache,target=/root/.bun/install-cache \
+    bun install --frozen-lockfile
 COPY . .
 # Dummy URL for prisma generate only — runtime uses the real DATABASE_URL from docker-compose
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
-RUN node node_modules/.bin/prisma generate
-RUN node node_modules/next/dist/bin/next build --webpack
+RUN --mount=type=cache,target=/app/.next/cache \
+    bun run build
 
 FROM node:22-slim AS runner
 WORKDIR /app
@@ -23,7 +27,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgbm1 libasound2 libpango-1.0-0 libcairo2 libxshmfence1 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /app ./
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.mjs ./
+COPY --from=builder /app/prisma ./prisma
 
 # Storage dirs for generated artifacts (images, PDFs, videos)
 RUN mkdir -p /app/storage/pdf /app/storage/images /app/storage/videos /app/storage/templates \

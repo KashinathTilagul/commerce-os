@@ -1,0 +1,29 @@
+node_modules
+.next
+.git
+.gitignore
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+README.md
+.env*
+.env.*
+*.log
+coverage
+.vscode
+.idea
+__pycache__
+*.pyc
+storage
+db
+prisma/migrations
+scripts
+.github
+docs
+Branding
+Employee Photos
+download
+mini-services
+upload
+data
+Employee Photos
