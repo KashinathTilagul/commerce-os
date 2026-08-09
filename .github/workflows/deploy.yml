@@ -24,6 +24,7 @@ jobs:
       - name: Deploy
         env:
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
@@ -69,6 +70,11 @@ jobs:
           }
 
           QIKINK_MODE="${QIKINK_MODE:-$(existing_env QIKINK_MODE)}"
+          DATABASE_URL="${DATABASE_URL:-$(existing_env DATABASE_URL)}"
+          if [ -z "$DATABASE_URL" ] || [[ "$DATABASE_URL" != postgresql://* ]]; then
+            echo "[x] DATABASE_URL must be set to the Supabase PostgreSQL connection string."
+            exit 1
+          fi
           QIKINK_CLIENT_ID="${QIKINK_CLIENT_ID:-$(existing_env QIKINK_CLIENT_ID)}"
           QIKINK_CLIENT_SECRET="${QIKINK_CLIENT_SECRET:-$(existing_env QIKINK_CLIENT_SECRET)}"
           BROWSER_WORKER_KEY="${BROWSER_WORKER_KEY:-$(existing_env BROWSER_WORKER_KEY)}"
@@ -79,7 +85,7 @@ jobs:
           OPENAI_API_KEY="${OPENAI_API_KEY:-$(existing_env OPENAI_API_KEY)}"
 
           printf '%s\n' \
-            "DATABASE_URL=file:///app/db/custom.db" \
+            "DATABASE_URL=${DATABASE_URL}" \
             "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
             "NEXTAUTH_URL=https://os.ekvaar.com" \
             "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
