@@ -138,6 +138,8 @@ EKVAAR/
 │       │   │   ├── GraphContext.jsx
 │       │   │   ├── OSContext.jsx
 │       │   │   └── WorkflowEngineContext.jsx
+│       │   └── utils/
+│       └── public/
 ```
 
 ---
@@ -166,3 +168,113 @@ EKVAAR/
     - Execution mapping references: `decisions` -> `missions` -> `tasks` -> `plans` -> `outputs`.
     - Telemetry tracking: `graph_entities` & `graph_relationships` representing semantic graph connections.
 *   **`ekvaar_memory.db` Database**: Appended logs mapping `threads`, `messages`, and context tag nodes.
+
+---
+
+## 4. Object Ownership Model
+
+Every Core Object has strict ownership and modification rights.
+
+* **Mission**: Owned by Founder. Modified by Founder/KRISHNA. Archived by Founder. Relationships: Parent to Initiatives.
+* **Initiative**: Owned by Leadership/KRISHNA. Modified by Leadership. Relationships: Parent to Projects, constrained by Decisions.
+* **Project**: Owned by Person/Agent (Project Manager). Modified by Owner. Relationships: Parent to Tasks.
+* **Task**: Owned by Agent/Person (Executor). Modified by Owner. Relationships: Triggers Output.
+* **Output**: Owned by System. Immutable once approved. Modified via versioning (new Output). Relationships: Upstreams into Knowledge.
+* **Decision**: Owned by Founder/Leadership. Global governance constraint. Cannot be archived, only superseded.
+* **Knowledge**: Owned by System. Systematically updated by approved Outputs and external data.
+* **Metric**: Owned by System. Updated automatically via Event triggers.
+* **Agent**: Owned by KRISHNA. Spawned and terminated by the Kernel.
+* **Person**: Managed by OS Identity System.
+
+---
+
+## 5. Relationship Graph
+
+EKVAAR OS operates as a directed acyclic graph (DAG):
+
+- **Mission** `contains` **Initiatives**.
+- **Initiative** `contains` **Projects**.
+- **Project** `contains` **Tasks**.
+- **Task** `creates` **Output**.
+- **Output** `updates` **Knowledge** and `alters` **Metrics**.
+- **Decision** `constrains` (Mission, Initiative, Project, Task, Agent).
+- **Knowledge** `contextualizes` (Mission, Initiative, Project, Task, Agent).
+- **Agent/Person** `executes` **Task**.
+
+---
+
+## 6. Source of Truth Map
+
+No data is duplicated. Every object has exactly one authoritative subsystem:
+
+- **Knowledge** → Knowledge Vault (Vector/Semantic Database)
+- **Decision** → Decision Registry (Immutable Append-Only Ledger)
+- **Mission / Initiative / Project / Task** → Execution State Engine (Graph Database)
+- **Output** → Artifact Store (Blob Storage)
+- **Metric** → Telemetry Engine (Time-Series Database)
+- **Agent / Person** → Entity Directory
+
+---
+
+## 7. Memory Architecture
+
+* **What gets remembered**: Approved Outputs, locked Decisions, resolved Tasks, Meeting transcripts, verified Metrics.
+* **What does not**: Intermediate Agent scratchpads, draft iterations, aborted Tasks, parsing errors, raw audio buffers.
+* **How decisions are stored**: Appended to the immutable Decision Registry with cryptographic/timestamp hashing to ensure an unbreakable chain of command.
+* **How institutional memory is preserved**: Memory is decoupled from human brains. When an Agent or Person begins a Task, the Context Engine automatically injects the exact Knowledge required. If an employee leaves, the operating system retains the exact context of how every Output was generated.
+
+---
+
+## 8. Permission Architecture
+
+EKVAAR operates on a strict Role-Based Access Control (RBAC) model.
+
+* **Founder**: 
+  - *View*: Global. *Edit*: Global. *Approve*: Global. *Archive*: Global. *Ownership*: Root.
+* **Leadership**: 
+  - *View*: Domain-specific. *Edit*: Owned Initiatives/Projects. *Approve*: Owned Outputs. *Archive*: Domain-specific.
+* **Employee**: 
+  - *View*: Relevant Projects. *Edit*: Assigned Tasks. *Approve*: None (must request).
+* **Vendor**: 
+  - *View*: Only assigned Tasks. *Edit*: Only assigned Outputs.
+* **AI Agent**: 
+  - *View*: Systematically granted via Context Engine (Read-Only). *Edit*: Only assigned Outputs. *Approve*: None.
+
+---
+
+## 9. Event Architecture
+
+The OS is entirely event-driven. Subsystems only react to emitted events via the Event Bus.
+
+**Core Events:**
+* `INTENT_RECEIVED`
+* `COMMAND_PARSED`
+* `MISSION_CREATED`
+* `TASK_ASSIGNED`
+* `TASK_BLOCKED`
+* `OUTPUT_SUBMITTED`
+* `OUTPUT_APPROVED`
+* `OUTPUT_REJECTED`
+* `DECISION_LOCKED`
+* `KNOWLEDGE_INDEXED`
+* `METRIC_THRESHOLD_CROSSED`
+
+---
+
+## 10. V1 System Blueprint
+
+To prevent feature creep, Version 1 of EKVAAR OS will strictly contain:
+
+**Included in V1:**
+- **Layer 1 & 2**: Text/Voice Interaction Layer + simplified KRISHNA Kernel (Intent Parser + Agent Router).
+- **Layer 3**: Basic Execution Flow (Missions → Tasks → Outputs). *Initiatives and Projects are skipped in V1 to reduce friction.*
+- **Layer 4**: Single Knowledge Vault (Basic Retrieval-Augmented Generation). Decisions and Metrics are deferred.
+- **Layer 5**: Single generalized Database.
+- **Roles**: "Founder Mode" only (Global permissions). Multi-user and permissions are stripped from V1.
+- **Agents**: A single General-Purpose Agent rather than a routed swarm.
+
+**Excluded from V1:**
+- Complex Planning Engines (No automatic multi-tier DAG generation).
+- Initiative and Project objects.
+- Multi-user RBAC.
+- Metric telemetry engines.

@@ -171,3 +171,20 @@ When the Founder knows exactly what *Knowledge* node they want, routing it throu
 - **Midday (Deep Work):** The Founder shifts into specific Workspaces (e.g., "Brand"). The Desktop remains blank, but the Founder spends hours inside the *Knowledge Vault* editing Outputs, or in *Telemetry* reviewing data.
 - **Evening (Brain Dump):** The Founder closes all Apps. The Desktop returns to the blank KRISHNA interface. The Founder speaks a stream-of-consciousness dump of the day's events, which KRISHNA silently indexes into Knowledge and overnight Tasks.
 - **Weekly Review:** The Founder shifts to the "Strategy" Workspace and opens the *Mission Control* application full-screen to analyze the holistic execution graph of the company.
+
+---
+
+## 13. Context Preservation
+
+The OS must never lose the Founder's train of thought.
+- **Restoration**: If the Founder closes the Knowledge Vault mid-edit to check a Critical Notification, reopening the Vault restores the exact cursor position, unsaved draft state, and scroll depth.
+- **Conversations**: KRISHNA remembers the exact thread of a complex reasoning task even if the UI is dismissed.
+
+---
+
+## 14. Power User Experience
+
+EKVAAR OS is built for velocity.
+- **Keyboard-First**: Every primary OS action can be executed without a mouse.
+- **Command Palette (`CMD+K`)**: Doubles as the Search input and a mechanical quick-action router (e.g., typing `/new-mission`).
+- **Expert Workflows**: Bypassing KRISHNA's voice synthesis entirely in favor of rapid keystroke commands for maximum throughput.
