@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { seedIntegrations } from "./composio-service";
 
-import { ROSTER } from './agent-roster'
+import { syncAgentRoster } from './agent-roster-sync'
 
 export const AI_SYSTEMS = [
   { name: "Brand Guardian", status: "IDLE", health: 100, tasksToday: 0, tasksTotal: 0, accuracy: 0, description: "Monitors output for the organization's configured brand rules.", pillar: "brand" },
@@ -31,26 +31,7 @@ export async function seedDatabase(organizationId: string) {
     create: { ...founder, organizationId, tokenBudget: 50000 },
   });
 
-  // Digital org: Chiefs first (so their ids exist), then specialists linked via managerId.
-  const chiefs = ROSTER.filter((a) => a.managerCode === null);
-  const specialists = ROSTER.filter((a) => a.managerCode !== null);
-  const codeToId: Record<string, string> = {};
-  for (const c of chiefs) {
-    const a = await db.agent.upsert({
-      where: { organizationId_code: { organizationId, code: c.code } },
-      update: {},
-      create: { organizationId, code: c.code, name: c.name, role: c.role, department: c.department, primeDirective: c.primeDirective, skills: c.skills, avatarColor: c.avatarColor, description: c.role, managerId: null, tokenBudget: 50000 },
-    });
-    codeToId[c.code] = a.id;
-  }
-  for (const s of specialists) {
-    await db.agent.upsert({
-      where: { organizationId_code: { organizationId, code: s.code } },
-      update: {},
-      create: { organizationId, code: s.code, name: s.name, role: s.role, department: s.department, primeDirective: s.primeDirective, skills: s.skills, avatarColor: s.avatarColor, description: s.role, managerId: s.managerCode ? codeToId[s.managerCode] ?? null : null, tokenBudget: 50000 },
-    });
-  }
-  results.agents = 1 + ROSTER.length;
+  results.agents = 1 + await syncAgentRoster(db, organizationId);
 
   const existingAI = await db.aISystem.count({ where: { organizationId } });
   if (existingAI === 0) {
