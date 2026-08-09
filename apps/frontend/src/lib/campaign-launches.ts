@@ -151,8 +151,16 @@ export function listCampaignLaunches(organizationId: string) {
     orderBy: { updatedAt: 'desc' },
     take: 20,
     include: {
-      items: { orderBy: { orderNum: 'asc' }, include: { assignee: { select: { id: true, code: true, name: true, avatarColor: true } } } },
+      items: {
+        orderBy: { orderNum: 'asc' },
+        include: {
+          assignee: { select: { id: true, code: true, name: true, avatarColor: true } },
+          issue: { select: { code: true, status: true, comments: { orderBy: { createdAt: 'desc' }, take: 1 } } },
+        },
+      },
       validations: { include: { validatorAgent: { select: { code: true, name: true } } } },
+      revisions: { orderBy: { revisionNum: 'desc' }, take: 1, include: { publishLogs: { orderBy: { createdAt: 'asc' } } } },
+      approvals: { orderBy: { createdAt: 'desc' }, take: 1 },
       _count: { select: { items: true, validations: true, revisions: true } },
     },
   })
@@ -164,7 +172,12 @@ export function getCampaignLaunch(organizationId: string, id: string) {
     include: {
       items: {
         orderBy: { orderNum: 'asc' },
-        include: { assignee: true, issue: true, dependencies: true, requiredBy: true },
+        include: {
+          assignee: true,
+          issue: { include: { comments: { orderBy: { createdAt: 'desc' } } } },
+          dependencies: true,
+          requiredBy: true,
+        },
       },
       validations: true,
       revisions: { orderBy: { revisionNum: 'desc' }, include: { publishLogs: true } },

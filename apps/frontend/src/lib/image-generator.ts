@@ -3,6 +3,7 @@ import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
 import { generateImage as generateModelImage } from 'ai'
 import { storeArtifact, initializeStorage } from './storage'
 import { db } from './db'
+import { createHash } from 'node:crypto'
 
 export interface ImageGenerationOptions {
   prompt: string
@@ -106,6 +107,8 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
         storageLocation: metadata.path,
         status: 'READY',
         generatedBy: options.generatedBy,
+        contentHash: createHash('sha256').update(imageBuffer).digest('hex'),
+        byteSize: imageBuffer.length,
         parameters: JSON.stringify({ 
           prompt: options.prompt, 
           style: options.style, 
