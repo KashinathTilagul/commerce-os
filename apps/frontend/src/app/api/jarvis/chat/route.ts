@@ -198,6 +198,9 @@ AVAILABLE ACTIONS:
       spoken = `Done. ${actionResult.code} assigned to ${actionResult.agentName}.`
     } else if (action.type === 'analyze' && actionResult?.answer) {
       spoken = actionResult.answer // computed from real DB rows — speak it verbatim
+    } else if (actionResult?.success && actionResult.message) {
+      // Never expose a model's pre-execution plan after the action completed.
+      spoken = actionResult.message
     }
 
     // ── Log to event stream ──────────────────────────────────────────────
@@ -275,16 +278,16 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
       }
 
       case 'brand_scan': {
-        const modules = ['PRODUCT', 'CONTENT', 'CAMPAIGN', 'PACKAGING', 'DIGITAL']
-        const assets = ['Q4 Lookbook', 'Founder Note 09', 'Neel Blue Drop Campaign']
-        const mod = modules[Math.floor(Math.random() * modules.length)]
-        const asset = assets[Math.floor(Math.random() * assets.length)]
-        const violations = Math.floor(Math.random() * 5)
-        const status = violations === 0 ? 'PASS' : violations <= 2 ? 'WARN' : 'FAIL'
-        await db.brandCheck.create({
-          data: { organizationId, module: mod, asset, status, violations, notes: violations === 0 ? 'Within brand system.' : 'Palette drift detected.' },
+        const checks = await db.brandCheck.findMany({
+          where: { organizationId },
+          select: { status: true },
         })
-        return { success: true, message: `Brand scan: ${asset} → ${status} (${violations} violations)` }
+        if (!checks.length) {
+          return { success: true, message: 'There are no verified brand checks yet, so I cannot calculate a current brand health score. Connect a brand scanner to establish one.' }
+        }
+        const passCount = checks.filter(check => check.status === 'PASS').length
+        const score = Math.round((passCount / checks.length) * 100)
+        return { success: true, message: `Current brand health is ${score} percent, based on ${checks.length} recorded checks.` }
       }
 
       case 'tool_execute': {
