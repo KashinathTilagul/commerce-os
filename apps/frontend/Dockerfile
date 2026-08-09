@@ -7,7 +7,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
-RUN npm install --legacy-peer-deps
+# Keep npm's download cache out of the image layer. On the small production
+# runner it otherwise consumes several GB while the next image is built.
+RUN npm install --legacy-peer-deps --no-audit --no-fund \
+    && npm cache clean --force
 COPY . .
 # Dummy URL for prisma generate only — runtime uses the real DATABASE_URL from docker-compose
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"

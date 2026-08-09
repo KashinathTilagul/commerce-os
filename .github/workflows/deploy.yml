@@ -114,16 +114,18 @@ jobs:
 
           echo "[i] Disk before cleanup:"; df -h / || true
 
-          /usr/bin/sudo docker image prune -f || true
-          /usr/bin/sudo docker container prune -f || true
-          /usr/bin/sudo docker builder prune -f --keep-storage 2GB || true
+          # The runner uses Docker's legacy builder. Reclaim unused images,
+          # stopped containers, networks, and cache before allocating space for
+          # the next image; running Ekvaar containers are kept.
+          /usr/bin/sudo docker system prune -af || true
           /usr/bin/sudo apt-get clean || true
           /usr/bin/sudo journalctl --vacuum-size=100M || true
           echo "[i] Disk after cleanup:"; df -h / || true
 
           /usr/bin/sudo docker compose build --progress=plain 2>&1 || {
-            echo "[!] Docker build failed once; pruning builder cache and retrying..."
-            /usr/bin/sudo docker builder prune -af || true
+            echo "[!] Docker build failed once; reclaiming unused Docker data and retrying..."
+            /usr/bin/sudo docker system prune -af || true
+            echo "[i] Disk before retry:"; df -h / || true
             /usr/bin/sudo docker compose build --progress=plain 2>&1
           }
 
