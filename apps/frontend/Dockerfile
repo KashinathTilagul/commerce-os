@@ -1,8 +1,8 @@
 FROM node:22-slim AS builder
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps
+COPY package.json ./
+RUN npm install --legacy-peer-deps
 COPY . .
 # Dummy URL for prisma generate only — runtime uses the real DATABASE_URL from docker-compose
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
