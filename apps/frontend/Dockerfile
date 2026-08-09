@@ -1,17 +1,19 @@
 FROM node:22-slim AS builder
 WORKDIR /app
 
-# Enable Corepack for reproducible installs
-RUN corepack enable && corepack prepare bun@1.3.12 --activate
+# System deps for node-gyp / native modules
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY package.json bun.lock ./
-RUN --mount=type=cache,target=/root/.bun/install-cache \
-    bun install --frozen-lockfile
+COPY package.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --legacy-peer-deps
 COPY . .
 # Dummy URL for prisma generate only — runtime uses the real DATABASE_URL from docker-compose
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN --mount=type=cache,target=/app/.next/cache \
-    bun run build
+    npm run build
 
 FROM node:22-slim AS runner
 WORKDIR /app
