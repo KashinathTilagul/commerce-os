@@ -1,280 +1,588 @@
-# CTO Rebuttal Response: Final Decisions
+# Final Plan: Ekvaar Campaign Launch System
 
-## 1. The 65 + Krishna Model (Confirmed)
-
-**65 employees exactly as defined in `agent-roster.ts`.** No renames, merges, deletions, or replacements. Krishna is the Founder-facing Mayor/orchestrator, NOT an employee record, NOT the CEO, NOT a substitute for Arjun. Arjun remains CEO. Reporting lines are authoritative: chiefs (`managerCode: null`) report to Founder; specialists report through `managerCode`.
-
----
-
-## 2. Roster Activation Matrix
-
-| Code | Name | Role | Category | Campaign Role | Continuous Ops | Platform | Governance | On-Demand |
-|------|------|------|----------|---------------|----------------|----------|------------|-----------|
-| CEO | Arjun | Chief Executive Officer | governance/oversight | Route, approve, escalate | Daily priorities | Architecture decisions | Org integrity | Decision memos |
-| CMO | Mira | Chief Marketing Officer | campaign | Strategy, offer validation, copy oversight | Content calendar | Brand system | Compliance | Campaign plans |
-| CTO | Vega | Chief Technology Officer | platform/engineering | Architecture review, deploy safety | CI/CD, monitoring | Infra, security | Data safety | Incident response |
-| CFO | Dhruv | Chief Financial Officer | governance/oversight | Margin guardrails, budget approval | Cash-flow snapshots | Pricing models | Runway risk | Budget reviews |
-| COO | Kael | Chief Operations Officer | continuous operations | Inventory check, fulfillment SLA | Supply chain, ops dashboards | Process maps | Quality gates | Ops unblocking |
-| CCO | Zara | Chief Creative Officer | campaign | Creative direction, brand enforcement | Design system | Art direction | Brand compliance | Lookbook review |
-| CSM | Priya | Customer Success Manager | continuous operations | Post-launch CRM follow-up | Resolution, retention | CSAT dashboards | Trust protection | Escalation routing |
-| GROWTH | Rohan | Growth & Revenue Lead | campaign | Offer design, experiment oversight | Funnel analysis | Growth loops | Unit economics | Paid-media plans |
-| RESEARCH | Anaya | Research & Intelligence Lead | on-demand specialist | Trend brief, competitor intel | Market scans | Intelligence DB | Evidence standards | Opportunity briefs |
-| HR | Kavya | People & Workforce Lead | governance/oversight | Workforce planning | Performance reviews | Onboarding | Culture health | Role definitions |
-| LEGAL | Aditya | Legal & Compliance Lead | governance/oversight | Rights clearance, compliance | Contract review | Privacy policy | Regulatory flag | IP protection |
-| ENG_FE | Ishan | Frontend Developer | platform/engineering | UI preview, device QA | Storefront fixes | Components | Accessibility | Performance fixes |
-| ENG_BE | Nikhil | Backend Architect | platform/engineering | API adapter wiring, data integrity | API reliability | Schema, migrations | Data safety | Integration design |
-| ENG_MOBILE | Devan | Mobile App Builder | platform/engineering | Mobile preview | Mobile screens | Release builds | UX standards | Store assets |
-| ENG_AI | Riya | AI Engineer | platform/engineering | Model evaluation, RAG | AI pipelines | Model routing | Grounding rules | Feature shipping |
-| ENG_DEVOPS | Karan | DevOps Automator | platform/engineering | Deploy safety, rollback | CI/CD, monitoring | Infra automation | Zero-downtime | Runbooks |
-| ENG_DBA | Sana | Database Optimizer | platform/engineering | Query performance | Index strategy | Migration plans | Data integrity | Slow-query fixes |
-| ENG_ARCH | Vivan | Software Architect | platform/engineering | Domain model review | Architecture decisions | Evolution plans | Maintainability | Trade-off docs |
-| ENG_REVIEW | Meera | Code Reviewer | platform/engineering | QA validation, code review | PR reviews | Quality gates | Security catch | Mentoring |
-| ENG_SEC | Aarav | Application Security Engineer | platform/engineering | Security review, secrets hygiene | SAST, dependency audit | Secure code review | Defense-in-depth | CVE remediation |
-| DES_UI | Tara | UI Designer | campaign | UI visuals, component specs | Design system | Responsive layouts | Brand consistency | Screen designs |
-| DES_UX | Ira | UX Researcher | on-demand specialist | Usability testing, friction maps | User behavior tests | Flow optimization | Evidence-based | Research reports |
-| DES_BRAND | Noor | Brand Guardian | campaign | Brand checks, consistency audit | Brand guidelines | Identity enforcement | Drift rejection | Positioning notes |
-| DES_STORY | Kabir | Visual Storyteller | campaign | Campaign visuals, lookbook | Editorial concepts | Visual narratives | Story-led | Campaign stories |
-| DES_IMG | Aisha | Image Prompt Engineer | campaign | Image generation prompts, AI visuals | Art references | Prompt engineering | Authentic representation | Generated visuals |
-| DES_INCLUSIVE | Diya | Inclusive Visuals Specialist | governance/oversight | Originality screening, rights clearance | Bias reviews | Inclusive imagery | Cultural accuracy | Representation audit |
-| MKT_CONTENT | Sara | Content Creator | campaign | Copy, content calendar, campaign copy | Editorial calendar | Multi-platform content | Restrained voice | Content pieces |
-| MKT_SOCIAL | Anvi | Social Media Strategist | campaign | Social strategy, community plays | Campaign calendars | Cross-platform | Belonging > vanity | Strategy docs |
-| MKT_IG | Myra | Instagram Curator | campaign | Instagram feed/story/reel content | IG content plans | Grid aesthetics | On-brand | Captions, posts |
-| MKT_TIKTOK | Zoya | Short-Video Strategist | on-demand specialist | Reel concepts (if needed) | Short-video series | Retention hooks | Permanence-first | Reel plans |
-| MKT_SEO | Rehan | SEO Specialist | continuous operations | SEO audit, AEO strategy | Technical SEO | Content strategy | Earned rankings | SEO briefs |
-| MKT_EMAIL | Kiara | Email Marketing Strategist | continuous operations | CRM flow, abandoned cart | Lifecycle automation | Segmentation | No spam | Email sequences |
-| MKT_PR | Advait | PR & Communications Manager | governance/oversight | Press release, crisis comms | Media relations | Reputation protection | Measured response | Crisis playbooks |
-| MKT_VIDEO | Naina | Video Optimization Specialist | campaign | Video script, storyboard, reel production | YouTube strategy | Retention plans | No clickbait | Video plans |
-| GRW_HACKER | Yash | Growth Hacker | on-demand specialist | Experiment design | Growth loops | Conversion tests | No dark patterns | Experiment logs |
-| GRW_PPC | Arnav | PPC Campaign Strategist | campaign | Google Ads (if needed) | Campaign buildouts | Budget pacing | Unit economics | Performance diagnosis |
-| GRW_PAIDSOCIAL | Tanvi | Paid Social Strategist | campaign | Meta Ads campaign structure, audience | Paid-social plans | Creative testing | On-brand | Audience specs |
-| GRW_ADCREATIVE | Vihaan | Ad Creative Strategist | campaign | Ad copy, creative concepts, testing | Creative programs | Brand-safe hooks | Performance + brand | Ad concepts |
-| GRW_TRACKING | Ojas | Tracking & Measurement Specialist | platform/engineering | GTM/GA4/CAPI setup | Tracking audits | Measurement plans | Privacy-compliant | Implementation plans |
-| GRW_OFFER | Reva | Offer & Lead-Gen Strategist | campaign | Offer design, margin validation, lead magnets | Funnel plans | Value-first offers | No discount-culture | Offer designs |
-| FIN_BOOK | Parth | Bookkeeper & Controller | continuous operations | Reconciliation, cost tracking | Month-end close | Control checks | Accuracy | Reconciliations |
-| FIN_ANALYST | Anika | Financial Analyst | governance/oversight | Financial model, variance analysis | Scenario models | Decision support | Grounded in data | Models |
-| FIN_FPA | Kabya | FP&A Analyst | continuous operations | Budget review, spend monitoring | Rolling forecasts | Business reviews | Flag overspend | Forecasts |
-| FIN_TAX | Ved | Tax Strategist | governance/oversight | Tax compliance check | Entity structuring | GST compliance | Non-compliant never | Tax plans |
-| FIN_PRICING | Sia | Pricing Analyst | campaign | Margin guardrails, pricing validation | Competitor pricing | Value-based pricing | Protect margin | Pricing models |
-| RES_TREND | Aadya | Trend Researcher | on-demand specialist | Fashion trend brief, market scan | Trend reports | Opportunity briefs | Signal > hype | Trend reports |
-| RES_FEEDBACK | Nitya | Feedback Synthesizer | continuous operations | Customer VoC, priority list | Insight synthesis | Priority lists | Evidence-based | VoC reports |
-| RES_PM | Aryan | Product Manager | on-demand specialist | Product launch plan, GTM | PRDs, roadmaps | Outcome measures | Right thing | PRDs |
-| RES_XINTEL | Kiaan | Social Intelligence Analyst | continuous operations | Brand-risk monitoring, competitor moves | Listening reports | Risk alerts | Evidence > anecdote | Intel briefs |
-| OPS_SUPPLY | Dev | Supply Chain Strategist | continuous operations | Inventory check, SKU availability | Sourcing plans | Vendor eval | Quality > cost | Sourcing plans |
-| OPS_MANAGER | Rhea | Operations Manager | continuous operations | Fulfillment SLA, ops dashboard | Process maps | Capacity plans | Remove toil | Ops KPIs |
-| OPS_PM | Ansh | Project Shepherd | campaign | Cross-functional delivery, timeline | Project plans | Status, unblocking | Realistic scope | Timelines |
-| OPS_EXPERIMENT | Tisha | Experiment Tracker | continuous operations | A/B test, hypothesis validation | Experiment logs | Results analysis | No p-hacking | Experiment logs |
-| SUP_RESPONDER | Ahaan | Support Responder | continuous operations | Post-launch customer follow-up | Resolutions | Response drafts | Not scripted | Resolution proof |
-| SUP_SERVICE | Mahi | Customer Service Specialist | continuous operations | Complaint recovery, omnichannel | Service replies | Escalation routing | Family treatment | Recovery proof |
-| SUP_ANALYTICS | Reyansh | Analytics Reporter | continuous operations | Post-launch metrics, spend alerts | Dashboards | KPI reports | Sourced numbers | Metric proof |
-| HR_ONBOARD | Saanvi | Onboarding Specialist | governance/oversight | Workforce onboarding | 30-60-90 plans | Enablement docs | Clear mission | Onboarding plans |
-| HR_RECRUIT | Vanya | Recruitment Specialist | on-demand specialist | Talent sourcing (if needed) | Role definitions | Candidate assessments | Fit + skill | Sourcing plans |
-| HR_PSYCH | Ela | Organizational Psychologist | governance/oversight | Team health, burnout prevention | Culture reads | Performance guidance | Sustainable pace | Culture reads |
-| LEG_DOCS | Om | Legal Document Reviewer | governance/oversight | Rights clearance, contract review | Contract reviews | Redline summaries | Flag all risks | Review proof |
-| LEG_COMPLIANCE | Ishita | Compliance Auditor | governance/oversight | Compliance audit, policy check | Gap analyses | Policy drafts | Surface before ship | Audit proof |
-| LEG_PRIVACY | Kian | Data Privacy Officer | governance/oversight | Privacy assessment, consent flow | Data mapping | Retention policies | Minimize data | Privacy proof |
-| EXE_COS | Neil | Chief of Staff | governance/oversight | Decision routing, priority filtering | Decision briefs | Process ownership | Protect CEO focus | Routing proof |
-| EXE_STRAT | Aveer | Business Strategist | on-demand specialist | Strategy memo, competitive brief | Market-entry plans | Growth options | Clear recommendation | Strategy proof |
-| EXE_SUMMARY | Aarohi | Executive Summary Generator | governance/oversight | Approval packet packaging | Executive summaries | Decision digests | Clarity > completeness | Summary proof |
-
-**Krishna (Mayor):** Sits above roster. Interprets Founder intent, creates `CampaignLaunch`, delegates through chiefs, monitors evidence, packages Founder Inbox decisions, escalates. Cannot self-approve or directly publish.
+## Goal
+Replace the generic AI workforce with a domain-specific Campaign Launch system on Ekvaar's Next.js + Prisma + BullMQ stack. 65 real employees from `agent-roster.ts` execute real business workflows through real provider integrations (Shopify Admin API, Meta Graph API, Instagram Graph API). A deterministic Publication Coordinator service handles provider commits. Human Founder approval gates high-risk publishes; organization-scoped policy governs routine operations.
 
 ---
 
-## 3. Fashion Week: Exact Employees, Outputs, Validators, Reporting Path
+## 1. Data Model (Final — All Relations Valid)
 
-| Stage | Employee(s) | Output | Validator | Reports To |
-|-------|-------------|--------|-----------|------------|
-| **Intent** | Krishna (Mayor) | `CampaignLaunch` + 12 `CampaignLaunchItem`s + DAG | Founder intent parsed | Founder |
-| **Strategy** | CMO (Mira) + GRW_OFFER (Reva) + FIN_PRICING (Sia) | Offer params, discount %, eligible SKUs, budget cap, margin calc | CFO (Dhruv) validates margin > 15% | CMO |
-| **Design Research** | CCO (Zara) + DES_BRAND (Noor) + DES_INCLUSIVE (Diya) | Design brief, moodboard, originality score, rights clearance | CCO validates brand fit; LEG_DOCS (Om) validates rights | CCO |
-| **Copy** | MKT_CONTENT (Sara) + MKT_IG (Myra) | Headlines, body, CTA, hashtags, creative prompts | CMO validates brand voice | CMO |
-| **Image Generation** | DES_IMG (Aisha) | Feed image, story image, ad creative variants | DES_BRAND (Noor) validates brand consistency | CCO |
-| **Video/Reel** | MKT_VIDEO (Naina) | Reel script, storyboard, generated video | CCO validates brand fit | CCO |
-| **Meta Ads Draft** | GRW_PAIDSOCIAL (Tanvi) + GRW_ADCREATIVE (Vihaan) | Meta campaign draft ID, ad set draft ID, targeting spec, budget pacing | GROWTH (Rohan) validates unit economics | GROWTH |
-| **Shopify Discount Draft** | ENG_BE (Nikhil) — **SKILL GAP** | Shopify discount draft ID, code, URL | COO (Kael) validates inventory | COO |
-| **Shopify Product Enrichment** | ENG_BE (Nikhil) — **SKILL GAP** | Product metafield changes | COO (Kael) validates inventory | COO |
-| **Shopify Theme Duplicate** | ENG_BE (Nikhil) — **SKILL GAP** | Duplicate theme ID, preview URL, change log | ENG_DEVOPS (Karan) validates deploy safety | CTO |
-| **QA & Packaging** | ENG_REVIEW (Meera) + EXE_SUMMARY (Aarohi) | QA results, brand checks, Founder Inbox packet with `versionHash` | CEO (Arjun) validates packet completeness | CEO |
-| **Founder Approval** | Founder only | `CampaignRevision` with frozen `versionHash` | Krishna validates hash match | Founder |
-| **Publishing** | **Publication Coordinator** (deterministic system) | Provider receipts (IDs, timestamps, hashes) | System validates hash + scopes + budget + kill switch | System |
-| **Post-Launch** | CSM (Priya) + SUP_RESPONDER (Ahaan) + SUP_ANALYTICS (Reyansh) | Order monitoring, fulfillment exceptions, spend alerts | CSM validates resolution | CSM |
+### Add: `CampaignLaunch`
 
-**Skill gaps flagged:**
-- `ENG_BE` (Nikhil) has `api,database,prisma,scalability,integrations` but **no Shopify/Meta/Instagram/Qikink skills**. Requires new skill/tool adapters in his manifest OR a human gate for all provider commits.
-- `MKT_VIDEO` (Naina) has `youtube,retention,chaptering,thumbnails` but **no video generation skills**. Requires new adapter for video generation OR human gate.
-- `DES_IMG` (Aisha) has `ai-image,prompts,photography,midjourney` — closest match for image generation, but **no explicit brand QA or originality screening**. Requires `DES_BRAND` (Noor) as validator.
-- No employee has explicit "QA Lead" responsibilities. `ENG_REVIEW` (Meera) is the closest for technical QA; `DES_BRAND` (Noor) for brand QA. This is a manifest coverage gap.
+```prisma
+model CampaignLaunch {
+  id             String       @id @default(cuid())
+  organizationId String
+  code           String
+  title          String
+  brief          String
+  status         String       @default("DRAFT")
+  priority       String       @default("MEDIUM")
+  budgetCap      Decimal?     @db.Decimal(12, 2)
+  startedAt      DateTime?
+  completedAt    DateTime?
+  rolledBackAt   DateTime?
+  rollbackReason String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items          CampaignLaunchItem[]
+  revisions      CampaignRevision[]
+  publishLogs    CampaignPublishLog[]
+  dependencies   CampaignLaunchDependency[]
+  approvals      Approval[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([status])
+}
+```
+
+**Fix:** `code` uses `@@unique([organizationId, code])` for multi-tenancy. `budgetCap` uses `Decimal` not `Float`.
+
+### Add: `CampaignRevision`
+
+```prisma
+model CampaignRevision {
+  id                String   @id @default(cuid())
+  launchId          String
+  revisionNum       Int
+  versionHash       String   // SHA-256 of all frozen evidence JSON
+  evidenceJson      String   // Complete frozen packet (compressed)
+  status            String   @default("PREPARED") // PREPARED | APPROVED | REJECTED | REVOKED
+  approvedAt        DateTime?
+  approvedBy        String?  // Human Founder user ID (UUID), or "AUTO" for auto-approved
+  publishStatus     String   @default("INELIGIBLE") // INELIGIBLE | READY | PUBLISHING | PUBLISHED | PARTIALLY_PUBLISHED | BLOCKED
+  publishStartedAt  DateTime?
+  publishCompletedAt DateTime?
+  previousThemeId   String?  // Shopify theme ID to restore on rollback
+  themeRevisionId   String?  // Shopify preview theme ID that was published
+
+  launch      CampaignLaunch        @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  approvals   Approval[]
+  publishLogs CampaignPublishLog[]   @relation("RevisionPublishLogs")
+
+  @@unique([launchId, revisionNum])
+  @@index([launchId, status])
+  @@index([launchId, publishStatus])
+}
+```
+
+**Fix:** `previousThemeId` added. `approvedBy` is human Founder user ID. `publishStatus` transitions: `INELIGIBLE` → `READY` (on APPROVED) → `PUBLISHING` (coordinator starts) → `PUBLISHED`/`PARTIALLY_PUBLISHED`/`BLOCKED` (completion).
+
+### Add: `CampaignLaunchItem`
+
+```prisma
+model CampaignLaunchItem {
+  id            String     @id @default(cuid())
+  launchId      String
+  code          String
+  type          String
+  title         String
+  description   String?
+  status        String     @default("PENDING")
+  assigneeId    String?    // FK to Agent (employee executing)
+  orderNum      Int
+  providerDraft String?
+  providerProof String?
+  evidenceHash  String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Work-leasing fields
+  leaseOwnerId   String?    // FK to Agent currently leasing this item
+  leaseExpiresAt DateTime?  // TTL; expired leases become available
+  attemptCount   Int        @default(0)
+  idempotencyKey String?    // deterministic dedup key for adapter calls
+  version        Int        @default(1) // optimistic locking
+
+  launch         CampaignLaunch           @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  assignee       Agent?                   @relation("AssignedItems", fields: [assigneeId], references: [id], onDelete: SetNull)
+  leaseOwner     Agent?                   @relation("LeasedItems", fields: [leaseOwnerId], references: [id], onDelete: SetNull)
+  dependencies   CampaignLaunchDependency[] @relation("DependentItems")
+  dependedBy     CampaignLaunchDependency[] @relation("PrerequisiteItems")
+  publishLogs    CampaignPublishLog[]
+
+  @@unique([launchId, code])
+  @@index([launchId, status])
+  @@index([launchId, assigneeId])
+  @@index([leaseOwnerId])
+  @@index([leaseExpiresAt])
+}
+```
+
+**Note:** `Agent` model must add two reverse relations: `AssignedItems CampaignLaunchItem[] @relation("AssignedItems")` and `LeasedItems CampaignLaunchItem[] @relation("LeasedItems")`. These are added alongside existing `issuesAssigned`/`runs` relations.
+
+### Add: `CampaignLaunchDependency`
+
+```prisma
+model CampaignLaunchDependency {
+  id          String @id @default(cuid())
+  launchId    String
+  itemId      String   // the item that depends
+  dependsOnId String   // the prerequisite item
+
+  launch      CampaignLaunch    @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  item        CampaignLaunchItem @relation("DependentItems", fields: [itemId], references: [id], onDelete: Cascade)
+  dependsOn   CampaignLaunchItem @relation("PrerequisiteItems", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([launchId, itemId, dependsOnId])
+  @@index([launchId, dependsOnId])
+  @@index([launchId, itemId])
+}
+```
+
+**Fix:** `CampaignLaunch` now has `CampaignLaunchDependency[]` as `dependencies` reverse relation. `item` and `dependsOn` use the same relation names as `CampaignLaunchItem.dependencies` and `dependedBy`.
+
+### Add: `CampaignPublishLog`
+
+```prisma
+model CampaignPublishLog {
+  id              String   @id @default(cuid())
+  launchId        String
+  revisionId      String
+  itemId          String?
+  provider        String
+  action          String
+  idempotencyKey  String   @unique
+  providerId      String?
+  proofHash       String?
+  status          String   @default("PENDING")
+  retryCount      Int      @default(0)
+  maxRetries      Int      @default(3)
+  errorMessage    String?
+  providerResponse String?
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  launch   CampaignLaunch     @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  revision CampaignRevision   @relation("RevisionPublishLogs", fields: [revisionId], references: [id], onDelete: Cascade)
+  item     CampaignLaunchItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([launchId, provider])
+  @@index([revisionId])
+  @@index([status])
+}
+```
+
+**Fix:** `idempotencyKey` is required and `@unique` — prevents duplicate publish log entries. Removed nullable `providerId` from unique constraint. Added `itemId` relation back to `CampaignLaunchItem`.
+
+### Add: `OutboxMessage`
+
+```prisma
+model OutboxMessage {
+  id              String   @id @default(cuid())
+  organizationId  String
+  aggregateType   String   // CampaignLaunch | CampaignLaunchItem | CampaignRevision | Approval
+  aggregateId     String
+  eventType       String   // CAMPAIGN_ITEM_PREPARED | REVISION_APPROVED | etc.
+  deduplicationKey String  // deterministic: sha256(eventType + aggregateId + version)
+  payload         String   // JSON
+  dispatchStatus  String   @default("PENDING") // PENDING | PROCESSING | DISPATCHED | FAILED | PROCESSED
+  leaseToken      String?  // consumer that leased this message (for at-least-once recovery)
+  leaseExpiresAt  DateTime?
+  attemptCount    Int      @default(0)
+  lastError       String?
+  nextRetryAt     DateTime? // exponential backoff
+  processedAt     DateTime? // set when consumer confirms processing complete
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  version         Int      @default(1) // optimistic locking
+
+  @@unique([deduplicationKey])
+  @@index([organizationId, dispatchStatus])
+  @@index([dispatchStatus, leaseExpiresAt])
+  @@index([aggregateType, aggregateId])
+}
+```
+
+**Fix:** Added `deduplicationKey` (required, `@unique`), `leaseToken`, `leaseExpiresAt`, `attemptCount`, `nextRetryAt`, `processedAt`, `version`. At-least-once consumer pattern: dispatcher leases messages (`dispatchStatus=PROCESSING` + `leaseToken`), processes, marks `PROCESSED`. Stale recovery: messages with `dispatchStatus=PROCESSING` and `leaseExpiresAt < now()` are re-leased by any consumer.
+
+### Add: `CampaignPolicy` (organization-scoped)
+
+```prisma
+model CampaignPolicy {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  autoApproveLimit    Decimal  @db.Decimal(12, 2) @default(5000.00)
+  requireFirstApproval Boolean @default(true) // first-ever campaign always requires Founder approval
+  autoApproveEnabled  Boolean  @default(true)
+  riskFlags           String   @default("[]") // JSON array: ["new_provider", "large_inventory_change", "no_prior_video"]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId])
+}
+```
+
+**Fix:** Replaces global `SystemSetting.autoApproveLimit` with per-organization `CampaignPolicy`. Each org has its own threshold and risk flags. `Organization` model must add `campaignPolicies CampaignPolicy[]` relation (one-to-one via `@@unique([organizationId])`).
+
+### Modify: `Approval`
+
+Add: `launchId` (String?), `revisionId` (String?), `itemCode` (String?), `proofHash` (String?), `policyDecision` (String?) — all nullable. Add bidirectional relations:
+
+```prisma
+  launch    CampaignLaunch?    @relation(fields: [launchId], references: [id], onDelete: SetNull)
+  revision  CampaignRevision?   @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+```
+
+**Note:** Approval already has bidirectional relation with Agent via `requesterId`. New relations are optional and SetNull on delete.
+
+### Leave: `Workflow` / `WorkflowTask` Intact
+
+**Fix:** Do NOT add `@@ignore` or `@deprecated`. Leave models unchanged. Add a comment above each: `// DEPRECATED: Use CampaignLaunch + CampaignRevision for all new campaign workflows. Workflow/WorkflowTask retained for historical Issue linkage. Do not create new workflows from this model.`
+
+### Add: `AssetStoragePath`
+
+```prisma
+model AssetStoragePath {
+  id           String   @id @default(cuid())
+  organizationId String
+  bucket       String   // campaign-assets | brand-assets | qikink-proofs
+  objectPath   String   // e.g. "campaigns/CL-1/feed-image-001.png"
+  mediaType    String
+  byteSize     Int
+  contentHash  String
+  createdAt    DateTime @default(now())
+
+  @@unique([organizationId, bucket, objectPath])
+  @@index([organizationId, bucket])
+}
+```
+
+All generated images/videos stored in Supabase Storage.
 
 ---
 
-## 4. Automatic Activation Engine
+## 2. Reuse Boundary
 
-### Event Subscriptions
-| Event | Triggers | Activated Employees |
-|-------|----------|---------------------|
-| `CAMPAIGN_LAUNCH_CREATED` | Founder command via Krishna | CMO, CCO, GROWTH, COO, LEGAL, CTO |
-| `CAMPAIGN_ITEM_PREPARED` | Employee completes draft | Next dependent items' employees |
-| `APPROVAL_TIMEOUT` | 24h no resolution | Krishna → Founder escalation |
-| `PROVIDER_FAILURE` | 3 retries exhausted | COO/CTO → Founder escalation |
-| `SPEND_ANOMALY` | >2x daily average | FIN_FPA (Kabya) → CFO → Founder |
-| `STOCKOUT` | Inventory = 0 | OPS_SUPPLY (Dev) → COO |
-| `ORDER_EXCEPTION` | Status stuck >2h | SUP_RESPONDER (Ahaan) → CSM |
-| `KILL_SWITCH` | Founder enables | All RUNNING → CANCELLED |
+| Existing Model | Reused By | How |
+|----------------|-----------|-----|
+| `Organization` | `CampaignLaunch` | `organizationId` FK |
+| `Agent` | `CampaignLaunchItem.assignee` / `leaseOwner` | FK relations |
+| `AgentRun` | `CampaignLaunchItem` | Each item execution creates an AgentRun for audit trail |
+| `Event` | All lifecycle | `type: "CAMPAIGN_LAUNCH_CREATED"`, `"CAMPAIGN_ITEM_PREPARED"`, etc. |
+| `Approval` | `CampaignRevision` | Founder approval records reference revision |
+| `ProductLaunch` | Qikink product proof | Qikink products use existing proof-gated lifecycle |
+| `OAuthToken` | Adapter layer | Shopify/Meta/Instagram tokens |
+| `Artifact` | Generated assets | `storageLocation: supabase://...` URIs |
+| `BrandCheck` | DES_BRAND validation | Reusable brand QA evidence |
+| `Integration` | Provider connections | Shopify/Meta/Instagram connections |
+| `ToolExecution` | Adapter calls | All API calls logged |
+| `User` | `approvedBy` field | Human Founder user ID for approvals |
+| `CampaignPolicy` | Campaign auto-approval | Organization-scoped policy |
 
-### Eligibility Scoring
-- Employee is eligible for a `CampaignLaunchItem.type` if their manifest includes the matching `allowedTriggers`.
-- Employee is ineligible if their current queue depth >= SLA limit or their department budget is exhausted.
-
-### Chief Decomposition
-- CMO decomposes `STRATEGY` item into sub-tasks: offer params (GRW_OFFER), margin check (FIN_PRICING), budget cap (CFO).
-- CCO decomposes `DESIGN_RESEARCH` into: brief (CCO), brand check (DES_BRAND), originality (DES_INCLUSIVE).
-- Chiefs accept/reject specialist outputs. Rejection returns item to PREPARING with constraints.
-
-### Work Leasing/Concurrency
-- Employees pull from their department queue. Max concurrency = 1 per employee (no parallel work unless explicitly multi-threaded in charter).
-- Parallel tracks: CMO + CCO + GROWTH + COO work simultaneously on independent items.
-
-### Heartbeat/Stall Handling
-- Employees emit heartbeat every 5 min during active work.
-- No heartbeat for 15 min → managerCode notified.
-- No heartbeat for 30 min → item marked STALLED, Krishna nudges employee, then escalates to chief.
-
-### Evidence Validation
-- Every employee output must include `proofSchema` fields (provider IDs, hashes, artifact IDs).
-- Chief validates proof before accepting. Invalid proof → rejection.
-
-### Retry/Escalation
-- Item fails → retry once automatically.
-- Retry fails → chief notified.
-- Chief cannot resolve in 1h → Krishna escalates to Founder.
-
-### Recurring Work
-- Daily: FIN_FPA (Kabya) budget review, SUP_ANALYTICS (Reyansh) KPI report, GRW_TRACKING (Ojas) tracking audit.
-- Weekly: CMO content calendar, COO ops review, CFO cash-flow snapshot.
+**DO NOT reuse:** `Workflow`/`WorkflowTask` (deprecated, left intact). `Issue` is for product/engineering tickets only.
 
 ---
 
-## 5. Dormant Agents for Fashion Week
+## 3. Sixty-Five Roster: Activation Classes
 
-These 65-employee roster members are **not activated** for a standard Fashion Week campaign and why:
+Every employee belongs to exactly ONE class. (See Section 2 of previous version for full 65-row table — unchanged and correct.)
 
-| Code | Name | Reason Dormant |
-|------|------|----------------|
-| ENG_FE | Ishan | No UI work unless preview/device QA needed |
-| ENG_MOBILE | Devan | No mobile build in campaign slice |
-| ENG_AI | Riya | No new AI feature needed |
-| ENG_DBA | Sana | No schema migration |
-| ENG_ARCH | Vivan | No architecture decision |
-| ENG_SEC | Aarav | Security review only if new integration |
-| DES_UX | Ira | No user research unless usability test on preview |
-| MKT_TIKTOK | Zoya | No TikTok in Fashion Week scope |
-| MKT_SEO | Rehan | No SEO work unless content SEO needed |
-| MKT_EMAIL | Kiara | No email campaign in scope |
-| MKT_PR | Advait | No PR unless press release needed |
-| GRW_HACKER | Yash | No growth experiments in campaign |
-| GRW_PPC | Arnav | No Google Ads in scope |
-| GRW_TRACKING | Ojas | Tracking setup only if new pixels |
-| RES_TREND | Aadya | Trend brief already done by CCO/CREATIVE |
-| RES_FEEDBACK | Nitya | VoC not needed for campaign prep |
-| RES_PM | Aryan | No new product launch |
-| RES_XINTEL | Kiaan | Social intel only if brand-risk monitoring |
-| HR_* | Saanvi, Vanya, Ela | No workforce changes |
-| LEG_* | Om, Ishita, Kian | Only if rights/compliance flag raised |
-| EXE_* | Neil, Aveer, Aarohi | EXE_SUMMARY used for packet only; others dormant |
-
-**Healthy activation rate:** ~25 of 65 active. Dormant does not mean deleted; they remain available for their continuous operations or on-demand triggers.
+**Class Counts:** CAMPAIGN_CORE (21), PLATFORM_ENGINEERING (11), CONTINUOUS_OPERATIONS (13), GOVERNANCE_OVERSIGHT (12), ON_DEMAND_SPECIALIST (8). Total = 65.
 
 ---
 
-## 6. Safe Default Permissions: PREPARE vs COMMIT
+## 4. Krishna Identity and Command Interface (Final)
 
-| Department | PREPARE (Draft) | COMMIT (Publish) |
-|------------|-----------------|------------------|
-| **CMO** | `campaign:write`, `meta:read`, `shopify:read` | None |
-| **CCO** | `asset:write`, `image:generate`, `brand:write` | None |
-| **CREATIVE** (DES_*, MKT_*) | `asset:write`, `image:generate`, `video:generate` | None |
-| **GROWTH** (GRW_*) | `meta:draft`, `spend:read` | None |
-| **COO** | `shopify:draft`, `qikink:read`, `inventory:read` | None |
-| **CTO** | `shopify:execute` (theme duplicate only), `deploy:read` | `shopify:execute` (publish) — but only as Publication Coordinator logic, never as LLM employee |
-| **CFO** | `budget:read`, `spend:read` | None |
-| **LEGAL** | `brand:read`, `compliance:read` | None |
-| **CSM** | `order:read`, `customer:read` | None |
-| **Publication Coordinator** | None | `shopify:publish`, `meta:activate`, `instagram:publish` — ONLY after Founder approval hash validation |
+**Fix:** Krishna IS the CEO-level command interface. Not "Mayor." Not a separate entity.
 
-**Rules:**
-- No employee with `PREPARE`-only permissions can call commit-mode adapters.
-- Adapter layer enforces mode: `shopify/discount/create` (draft) vs `shopify/discount/activate` (commit).
-- Krishna/CEO can prepare but never approve or commit.
-- Founder can approve and commit (bypasses all gates except `DELETE_PRODUCTION_DATA`).
+### Role Mapping
+| Entity | Role | Description |
+|--------|------|-------------|
+| **Krishna** | CEO-level command interface | Natural-language orchestrator. Interprets Founder prompts, creates campaign records, delegates to employees, assembles packets, presents approvals. Does NOT execute provider writes or bypass gates. |
+| **Arjun** | Human Founder | The actual person issuing commands to Krishna. Reviews frozen revision packets in Founder Inbox. Approves/rejects high-risk publishes. Manages rollback decisions. `approvedBy = Arjun's user.id`. |
+| **Employees** | Campaign executors | 65 real employees from `agent-roster.ts` that prepare drafts, proofs, and assets. |
 
----
+### Command Flow
+1. Founder says to Krishna: "Launch Fashion Week campaign with 20% off."
+2. Krishna parses intent → creates `CampaignLaunch` (DRAFT) → creates 14 `CampaignLaunchItem` records with DAG dependencies → emits outbox events.
+3. Employees execute via existing `Issue` work loop — each item creates an `Issue` assigned to the relevant employee.
+4. EXE_SUMMARY assembles frozen `CampaignRevision` with `versionHash`.
+5. Krishna evaluates approval policy via `CampaignPolicy`:
+   - If budget ≤ threshold AND policy allows auto-approve → `CampaignRevision.status=APPROVED`, `approvedBy="AUTO"`, `publishStatus="READY"`.
+   - If budget > threshold OR first-ever campaign OR risk flags present → `CampaignRevision.status=PREPARED`, `publishStatus="INELIGIBLE"`. Krishna presents packet in Founder Inbox for Arjun's manual approval.
+6. Arjun approves → `CampaignRevision.status=APPROVED`, `approvedBy=Arjun.userId`, `publishStatus="READY"` → outbox event → Publication Coordinator.
 
-## 7. Vertical-Slice Acceptance Test
-
-**Setup:** One Shopify store, one Meta ad account, one Instagram account, Founder Inbox enabled.
-
-**Test:**
-1. Founder says: "Launch Fashion Week campaign with 20% off. Instagram feed, story, ad. Send to Founder Inbox."
-2. Krishna creates `CampaignLaunch` CL-1 with 12 items and DAG.
-3. CMO (Mira) prepares offer params with margin > 15%.
-4. CCO (Zara) + DES_BRAND (Noor) + DES_INCLUSIVE (Diya) produce design brief with originality score > 0.7 and rights clearance.
-5. MKT_CONTENT (Sara) + MKT_IG (Myra) produce copy and Instagram content plan.
-6. DES_IMG (Aisha) generates feed image, story image, ad creatives.
-7. MKT_VIDEO (Naina) produces reel script + storyboard.
-8. GRW_PAIDSOCIAL (Tanvi) + GRW_ADCREATIVE (Vihaan) produce Meta campaign draft.
-9. ENG_BE (Nikhil) produces Shopify discount draft + theme duplicate — **SKILL GAP: requires new Shopify adapter**.
-10. ENG_REVIEW (Meera) validates all items; EXE_SUMMARY (Aarohi) packages Founder Inbox packet with `versionHash`.
-11. Founder approves. `CampaignRevision` frozen.
-12. **Publication Coordinator** (deterministic system) validates hash, activates:
-    - Shopify discount → `shopifyDiscountId = abc123`
-    - Shopify theme → `shopifyThemeId = def456`, previous theme stored
-    - Meta ads → `metaCampaignId = ghi789`, status = ACTIVE
-    - Instagram feed → `instagramMediaId = jkl012`
-    - Instagram story → `instagramStoryId = mno345`
-    - Instagram reel → `instagramReelId = pqr678`
-13. All provider receipts stored. `CampaignLaunch.status = LIVE`.
-14. Post-launch: CSM (Priya) monitors orders; SUP_ANALYTICS (Reyansh) alerts if Meta spend > 2x average.
-15. **Proves:** Real named agents performed assigned stages. Deterministic dispatcher published only Founder-approved revision.
-
-**Skill gap blocker:** Step 9 fails without Shopify adapter for ENG_BE. Requires manifest addition, not new employee.
+**Krishna's hard limits:** Cannot call provider commit endpoints. Cannot bypass approval gates. Cannot modify frozen `versionHash`. Cannot publish without approval (manual or policy-approved). Cannot delete production data.
 
 ---
 
-## 8. BLOCKED Conditions (Exhaustive, No Optimistic Fallbacks)
+## 5. Approval Policy (Organization-Scoped)
 
-A campaign/item becomes BLOCKED (never silently skipped, faked, or auto-recovered without evidence) when:
+### Auto-Approval Decision Tree
+```
+IF CampaignPolicy.autoApproveEnabled = true
+AND CampaignPolicy.requireFirstApproval = false (or not first campaign)
+AND campaign.budgetCap <= CampaignPolicy.autoApproveLimit
+AND no risk flags triggered (qikink login, new provider, no prior video, large inventory change)
+AND all evidence hashes valid
+AND versionHash matches
+AND no BLOCKED dependencies
+THEN auto-approve: CampaignRevision.status = APPROVED, approvedBy = "AUTO", publishStatus = "READY"
+ELSE: CampaignRevision.status = PREPARED, publishStatus = "INELIGIBLE" — requires Arjun manual approval
+```
 
-1. **Margin guardrail fail:** Discount % makes margin < 15% on any eligible SKU.
-2. **Originality fail:** Design originality < 0.5 or rights clearance missing.
-3. **Brand check fail:** Generated asset fails `BrandCheck` (logo misuse, tone violation, cultural inaccuracy).
-4. **Provider auth fail:** OAuth token expired and refresh fails.
-5. **Provider scope fail:** Token lacks required scope (e.g., `write_themes` missing).
-6. **Budget cap fail:** Campaign spend would exceed org budget cap or item-level cap.
-7. **Kill switch:** `SystemSetting.CAMPAIGN_LAUNCH_KILL_SWITCH = true`.
-8. **Approval timeout:** Approval pending > 24h without resolution.
-9. **Provider API failure:** 3 retries exhausted, provider returned 5xx or rate limit.
-10. **Qikink browser proof fail:** No `qikinkProductId` or screenshots missing.
-11. **Shopify inventory fail:** Eligible SKU has stock = 0.
-12. **Hash mismatch:** Publication Coordinator detects `versionHash` != current `CampaignRevision`.
-13. **Permission fail:** Employee lacks `PREPARE` or `COMMIT` permission for action.
-14. **Manual block:** Founder or authorized user sets `BLOCKED`.
-
-**Safe defaults:**
-- BLOCKED items do not auto-retry without human or Krishna intervention.
-- Partial publish states preserved; no automatic compensation that deletes live customer-facing changes.
-- Kill switch irreversible without Founder action.
-- All BLOCKED transitions emit `Event` with `severity=ERROR` and notify Founder.
+### Risk Flags (Config in CampaignPolicy.riskFlags)
+| Flag | Trigger | Auto-approve? |
+|------|---------|---------------|
+| `new_provider` | First campaign using Shopify/Meta/Instagram | NO |
+| `large_inventory_change` | Discount affects 100+ SKUs | NO |
+| `no_prior_video` | Reel content, no video generation history | NO |
+| `theme_publish` | First theme publish for org | NO |
 
 ---
 
-## Adversarial Review: Remaining Unsafe Assumptions
+## 6. Fashion Week: 14 DAG Items (Defined)
 
-| Assumption | Risk | Required Fix |
-|------------|------|--------------|
-| ENG_BE can do Shopify/Meta/Instagram work | **Unsafe.** Skills are `api,database,prisma`. No provider-specific adapters. | **New skill/tool adapters** for Shopify Admin, Meta Graph, Instagram Graph in `ENG_BE` manifest. Human gate until adapters exist. |
-| MKT_VIDEO can generate reels | **Unsafe.** Skills are `youtube,retention,chaptering,thumbnails`. No video generation. | **New adapter** for video generation OR human gate. |
-| No explicit QA Lead | **Unsafe.** QA is split between ENG_REVIEW (technical) and DES_BRAND (brand). No end-to-end QA validator. | **Manifest addition:** Assign `ENG_REVIEW` as primary QA validator with `qa:read` permission; `DES_BRAND` as brand QA validator. |
-| Publication Coordinator is deterministic code | **Safe IF enforced.** Must be a service, not an LLM employee. | Hard-gate: only `CampaignLaunch.status = APPROVED` with valid `versionHash` enters `PUBLISHING`. Krishna cannot set this status. |
-| Partial publish acceptable | **Risky but realistic.** Customer sees discount but no ad. | Mitigation: 5-minute post-launch monitoring alert to Founder. Manual rollback available. |
+**Fix:** Define all 14 items with dependencies and employee assignments.
 
-**Bottom line:** The plan is safe enough to execute only after adding Shopify/Meta/Instagram adapters to `ENG_BE` and video generation to `MKT_VIDEO`. Until then, those stages require human gates. The deterministic Publication Coordinator is the critical safety boundary — it must remain code, never an LLM.
+| Code | Item | Type | Employee | Depends On |
+|------|------|------|----------|------------|
+| CL-1-01 | Strategy Brief | STRATEGY | GROWTH (Rohan) | — |
+| CL-1-02 | Offer Design | OFFER | GRW_OFFER (Reva) | CL-1-01 |
+| CL-1-03 | Margin Validation | PRICING | FIN_PRICING (Sia) | CL-1-02 |
+| CL-1-04 | Design Research + Originality | CREATIVE_RESEARCH | DES_INCLUSIVE (Diya) | CL-1-01 |
+| CL-1-05 | Image Generation | IMAGE_GEN | DES_IMG (Aisha) | CL-1-04 |
+| CL-1-06 | Story/Visual Narrative | STORY | DES_STORY (Kabir) | CL-1-04 |
+| CL-1-07 | Brand Check | BRAND_QA | DES_BRAND (Noor) | CL-1-05, CL-1-06 |
+| CL-1-08 | Copy + Content Plan | COPY | MKT_CONTENT (Sara) | CL-1-01 |
+| CL-1-09 | Instagram Plan | SOCIAL_PLAN | MKT_IG (Myra) | CL-1-08 |
+| CL-1-10 | Reel Concept | REEL_CONCEPT | MKT_VIDEO (Naina) | CL-1-08 |
+| CL-1-11 | Meta Ads Draft | META_DRAFT | GRW_PAIDSOCIAL (Tanvi) | CL-1-08, CL-1-09, CL-1-10 |
+| CL-1-12 | Ad Creative Concepts | AD_CREATIVE | GRW_ADCREATIVE (Vihaan) | CL-1-05, CL-1-11 |
+| CL-1-13 | Shopify Discount Draft | COMMERCE_DRAFT | COMMERCE_OPS (Krishna service) | CL-1-02, CL-1-03 |
+| CL-1-14 | Founder Inbox Packet | PACKET | EXE_SUMMARY (Aarohi) | ALL of CL-1-01 through CL-1-13 |
+
+**Pre-publish prerequisites (run before CL-1-14 → APPROVED):**
+- GRW_TRACKING (Ojas) validates tracking setup (UTM pixels, CAPI) → proof stored on CL-1-11
+- LEG_COMPLIANCE (Ishita) validates compliance + privacy → proof stored on CL-1-14
+- OPS_MANAGER (Rhea) validates inventory + ops readiness → proof stored on CL-1-13
+- ENG_REVIEW (Meera) validates technical QA (theme safety, asset links, device preview) → proof stored on CL-1-14
+- ENG_FE (Ishan) validates UI/device QA → proof stored on CL-1-14
+
+**Fix:** Ojas, Ishita, and Rhea are pre-publish prerequisites, not just post-launch monitors. Their validation must pass before the packet is assembled.
+
+---
+
+## 7. State Machine (Corrected Transitions)
+
+### CampaignRevision States
+| State | Meaning | Transition To |
+|-------|---------|----------------|
+| PREPARED | All items + prerequisites complete, hash computed | APPROVED (auto or manual) |
+| APPROVED | Hash locked, publish authorized | (entering publish flow — `publishStatus` becomes `READY`) |
+| REJECTED | Arjun rejected | PREPARED (after fixes, new revision) |
+| REVOKED | Superseded by newer revision | (terminal) |
+
+**Fix:** `status` is the approval lifecycle. `publishStatus` is the publishing lifecycle. APPROVED → publishStatus becomes READY → PUBLISHING → PUBLISHED/PARTIALLY_PUBLISHED/BLOCKED. No circular dependency: approval sets `status=APPROVED` + `publishStatus=READY`.
+
+### CampaignLaunch States
+| State | Meaning | Terminal? |
+|-------|---------|-----------|
+| DRAFT | Created, brief entered | No |
+| PREPARING | Items executing | No |
+| PREPARED | Revision frozen, awaiting approval | No |
+| APPROVED | Revision approved, ready to publish | No |
+| PUBLISHING | Publication Coordinator executing | No |
+| LIVE | All provider receipts reconciled | Yes |
+| PARTIALLY_PUBLISHED | Some providers confirmed, others failed | No |
+| BLOCKED | External blocker | No |
+| ROLLED_BACK | Published work rolled back | Yes |
+| CANCELLED | Abandoned | Yes |
+
+### Publication Order (Dependency-Aware)
+1. Shopify Discount Activate (foundation)
+2. Meta Ads Activate (depends on discount CONFIRMED + inventory > 0)
+3. Instagram Feed (depends on discount CONFIRMED + Meta ad ready)
+4. Instagram Story (depends on feed CONFIRMED)
+5. Instagram Reel (depends on feed CONFIRMED)
+
+---
+
+## 8. Transactional Outbox (At-Least-Once with Idempotency)
+
+**Fix:** Correct at-least-once consumer pattern.
+
+### Consumer Logic
+```
+DISPATCHER LOOP (runs every 5s):
+  1. Claim stale leases: UPDATE OutboxMessage SET dispatchStatus='PENDING' 
+     WHERE dispatchStatus='PROCESSING' AND leaseExpiresAt < NOW()
+  2. Claim fresh batch: UPDATE OutboxMessage SET dispatchStatus='PROCESSING', 
+     leaseToken=<this-instance>, leaseExpiresAt=NOW()+30s 
+     WHERE dispatchStatus='PENDING' AND (nextRetryAt IS NULL OR nextRetryAt <= NOW())
+     ORDER BY createdAt ASC LIMIT 50
+  3. For each claimed message:
+     - Parse payload → determine BullMQ job type
+     - Enqueue BullMQ job with idempotencyKey = message.deduplicationKey
+     - On success: UPDATE dispatchStatus='PROCESSED', processedAt=NOW(), attemptCount++
+     - On failure: UPDATE attemptCount++, nextRetryAt=NOW()+backoff, 
+       lastError=<msg>, dispatchStatus='PENDING' (for retry)
+     - Release lease on completion
+```
+
+### Recovery Guarantees
+- **Crash before PROCESSED:** Message remains PROCESSING, lease expires, another consumer re-claims. BullMQ job has `idempotencyKey` so no duplicate execution.
+- **Crash after PROCESSED:** Message stays PROCESSED. Consumer reads BullMQ completion to determine if work was done.
+- **Duplicate detection:** `deduplicationKey` unique constraint prevents duplicate outbox entries. Same `eventType + aggregateId + version` cannot be inserted twice.
+
+---
+
+## 9. Publication Safety and Rollback
+
+### Dependency-Aware Blocking
+| Failure | Response |
+|---------|----------|
+| Shopify discount fails to activate | Meta ads, Instagram feed/story/reel → all BLOCKED. Founder notified. |
+| Meta ads fail after 3 retries | Instagram feed/story/reel → BLOCKED. Discount stays LIVE. |
+| Instagram feed fails | Story/reel → BLOCKED. |
+| Partial publish succeeds | Status=PARTIALLY_PUBLISHED. No auto-rollback. Founder confirms. |
+
+### Shopify Theme Safety
+1. Duplicate live theme → development theme
+2. Apply changes to development theme
+3. Generate preview URL
+4. Run automated QA (links, images, mobile, discount code visibility, no broken scripts)
+5. Founder approval (or auto-approved if within policy threshold)
+6. Publish development theme → live. Store previous theme ID in `CampaignRevision.previousThemeId`.
+7. Rollback: publish `previousThemeId` from `CampaignRevision` (<30 seconds)
+
+---
+
+## 10. Integration Contracts
+
+### Qikink Browser Automation (Proof-Gated)
+
+Qikink is browser automation, NOT a deterministic provider adapter. Stays proof-gated with explicit failure modes (login, CAPTCHA, UI change → BLOCKED + human gate). Reuses existing `ProductLaunch` model and `qikinkProductId` field.
+
+### Shopify Admin API
+| Action | Adapter | Proof Required |
+|--------|---------|----------------|
+| Create discount (draft) | `shopify_discount_create_draft` | Draft ID, code, URL, API hash |
+| Activate discount | `shopify_discount_activate` | `shopifyDiscountId`, response hash, timestamp |
+| Theme duplicate | `shopify_theme_duplicate` | Duplicate theme ID, preview URL |
+| Theme publish | `shopify_theme_publish` | New live theme ID, previous theme ID stored, response hash |
+| Inventory read | `shopify_inventory_levels` | SKU + quantity JSON |
+
+### Meta Graph API
+| Action | Adapter | Proof Required |
+|--------|---------|----------------|
+| Campaign draft | `meta_campaign_create_draft` | Draft campaign ID, ad set draft ID |
+| Campaign activate | `meta_campaign_activate` | `metaCampaignId`, status=ACTIVE, response hash |
+
+### Instagram Graph API
+| Action | Adapter | Proof Required |
+|--------|---------|----------------|
+| Publish feed | `instagram_media_publish` | `instagramMediaId`, permalink |
+| Publish story | `instagram_story_publish` | `instagramStoryId`, expires_at |
+| Publish reel | `instagram_reel_publish` | `instagramReelId`, permalink |
+
+---
+
+## 11. Capability Gaps
+
+| Employee | Skill | Status | Action Required |
+|----------|-------|--------|-----------------|
+| ENG_BE | Shopify Admin API adapter | Not built | Build + manifest addition |
+| ENG_BE | Meta Graph API adapter | Not built | Build + manifest addition |
+| ENG_BE | Instagram Graph API adapter | Not built | Build + manifest addition |
+| ENG_BE | Supabase Storage client | Not built | Build (reuse `@supabase/supabase-js`) |
+| DES_IMG | Video generation | No skills | Requires video generation adapter or human gate for Reel |
+| MKT_TIKTOK | TikTok adapter | Not built | Only needed if founder requests TikTok |
+| GRW_PAIDSOCIAL | Meta Ad creation | Skills present | Requires Meta Graph adapter |
+| MKT_IG | Instagram publishing | Skills present | Requires Instagram Graph adapter |
+
+**Readiness gate:** Plan is NOT implementation-ready until Phase 4 adapters pass connectivity/readiness tests.
+
+---
+
+## 12. Phased Implementation
+
+### Phase 1: Foundation
+- Add all 6 new models to `schema.prisma` with valid bidirectional relations.
+- Add nullable fields to `Approval`.
+- Add `CampaignPolicy` model.
+- Add deprecation comments to `Workflow`/`WorkflowTask` (leave intact).
+- Build `/api/campaign-launches` CRUD.
+- Build `campaign-launch.ts` state machine.
+- Build `outbox-dispatcher.ts` (at-least-once consumer).
+- Build `publication-coordinator.ts` skeleton.
+- Build `campaign-policy.ts` service (auto-approval evaluation).
+
+### Phase 2: Employee Manifest + Work Leasing
+- Add `EmployeeCapabilityManifest` model.
+- Implement event subscription engine.
+- Implement work leasing with TTL, retry, idempotency, optimistic locking.
+- Build pre-publish prerequisite validation engine (Ojas, Ishita, Rhea, Meera, Ishan).
+
+### Phase 3: Fashion Week DAG + Approval
+- Build DAG builder with 14 items + dependency edges.
+- Build Founder Inbox packet generator with SHA-256 hash.
+- Build approval gate with CampaignPolicy auto-approval.
+- Feature flag: `CAMPAIGN_LAUNCHES_ENABLED` (off).
+
+### Phase 4: Adapter Layer (Critical Path)
+- ENG_BE builds Shopify, Meta, Instagram, Supabase Storage adapters.
+- All adapters pass connectivity test.
+
+### Phase 5: Publishing Track
+- Deterministic Publication Coordinator with dependency-aware ordering.
+- Transactional outbox integration.
+- Shopify theme safety + rollback.
+
+### Phase 6: Post-Launch + Dogfood
+- Monitoring, alerts, reconciliation.
+- Pilot org test.
+- Verify all 6 acceptance gates.
+
+---
+
+## 13. Six Acceptance Gates
+
+**Gate 1 — Multi-Tenant DAG Integrity**
+CampaignLaunch in org A succeeds. Same `code` in org B succeeds. Same `code` in same org fails. 14 DAG items with correct `CampaignLaunchDependency` edges. Cycles rejected. All items PREPARED → `CampaignRevision` created with `versionHash`.
+
+**Gate 2 — Approval Hash Lock + Auto-Approval Policy**
+- Low-budget (≤ CampaignPolicy.autoApproveLimit): auto-approved. Hash frozen. Publish succeeds.
+- High-budget (> threshold): blocks on Arjun approval. Modify asset → new revision → hash mismatch → publish refused.
+- First campaign: requires manual approval regardless of budget.
+
+**Gate 3 — Shopify Theme Safety**
+Theme update → duplicate → preview → QA → publish to live + store `previousThemeId` in `CampaignRevision`. Rollback restores in <30s.
+
+**Gate 4 — Publication Failure and Partial Publish**
+Shopify discount CONFIRMED. Meta fails after 3 retries → BLOCKED. `publishStatus=PARTIALLY_PUBLISHED`. No auto-rollback. Founder alerted. Founder triggers rollback.
+
+**Gate 5 — Evidence-Based Completion + Work Leasing**
+DES_IMG generates image. Item INCOMPLETE until DES_BRAND + DES_INCLUSIVE validate. Lease fields (`leaseOwnerId`, `leaseExpiresAt`, `version`) enforce optimistic concurrency. Pre-publish prerequisites (Ojas, Ishita, Rhea, Meera, Ishan) must all PASS before packet assembly.
+
+**Gate 6 — Transactional Outbox No-Loss Guarantee**
+Employee completes item → DB transaction commits item update + OutboxMessage. Dispatcher claims → enqueues BullMQ (idempotencyKey) → marks PROCESSED. Kill dispatcher → restart → stale leases reclaimed → no work lost or duplicated.
+
+---
+
+## 14. Open Questions (None Blocking)
+
+All corrections from CTO rebuttal addressed:
+- Prisma relations are bidirectional with explicit names, all valid
+- `CampaignPublishLog.idempotencyKey` required + unique
+- Outbox has dedup key, leasing, retry timing, at-least-once recovery
+- Workflow/WorkflowTask left intact with comment (not `@ignore`)
+- `assigneeId`/`leaseOwnerId` as Agent FK relations
+- Organization-scoped `CampaignPolicy` (not global SystemSetting)
+- `Decimal` for all money fields
+- Revision state transitions: APPROVED sets `publishStatus=READY` (no circular dependency)
+- Krishna = CEO-level command interface; Arjun = human Founder; `approvedBy` = Founder user ID
+- Ojas/Ishita/Rhea = pre-publish prerequisites
+- All 14 Fashion Week DAG items defined with dependencies
+- `previousThemeId` on `CampaignRevision`
+- Qikink spelling consistent throughout
+
+Phases 1-3 are implementation-ready pending Phase 4 (provider adapters).
