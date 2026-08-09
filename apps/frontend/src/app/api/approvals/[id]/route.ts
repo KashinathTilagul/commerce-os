@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
-import { resolveGovernanceApproval } from '@/lib/agents/governance/approval-service'
+import { db } from '@/lib/db'
 
 export async function PATCH(
   req: NextRequest,
@@ -21,7 +21,33 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
-    const updated = await resolveGovernanceApproval(auth.organizationId, id, status)
+    const approval = await db.approval.findFirst({
+      where: { id, organizationId: auth.organizationId },
+      include: { requester: true },
+    })
+
+    if (!approval) {
+      return NextResponse.json({ error: 'Approval not found' }, { status: 404 })
+    }
+
+    const updated = await db.approval.update({
+      where: { id },
+      data: {
+        status,
+        resolvedAt: new Date(),
+      },
+    })
+
+    await db.event.create({
+      data: {
+        organizationId: auth.organizationId,
+        type: `APPROVAL_${status}`,
+        actorName: 'Founder',
+        summary: `Founder ${status.toLowerCase()} approval ${approval.code}: ${approval.title}`,
+        payload: JSON.stringify({ approvalCode: approval.code, resolution: status }),
+      },
+    })
+
     return NextResponse.json({ approval: updated })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to update approval' }, { status: 500 })

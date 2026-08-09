@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
-import { requestAgentWake } from '@/lib/agents/wake-coalescer'
 import { enqueueAgentJob } from '@/lib/queue'
 import { db } from '@/lib/db'
 
@@ -36,41 +35,21 @@ export async function POST(
       )
     }
 
-    // Atomic wake request check & queue creation
-    const wakeResult = await requestAgentWake({
+    const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    await enqueueAgentJob({
+      jobId: runId,
       organizationId: orgId,
       agentId,
-      triggerType: 'MANUAL',
+      agentRole: agent.role,
+      taskType: 'HEARTBEAT',
+      mission: agent.primeDirective,
+      createdAt: new Date().toISOString(),
     })
-
-    if (wakeResult.coalesced) {
-      return NextResponse.json(
-        {
-          status: 'coalesced',
-          message: `Agent ${agent.name} is currently running. Wake request coalesced.`,
-          wakeRequestId: wakeResult.wakeRequestId,
-        },
-        { status: 200 }
-      )
-    }
-
-    // Enqueue BullMQ job
-    if (wakeResult.runId) {
-      await enqueueAgentJob({
-        jobId: wakeResult.runId,
-        organizationId: orgId,
-        agentId,
-        agentRole: agent.role,
-        taskType: 'HEARTBEAT',
-        mission: agent.primeDirective,
-        createdAt: new Date().toISOString(),
-      })
-    }
 
     return NextResponse.json(
       {
         status: 'queued',
-        runId: wakeResult.runId,
+        runId,
         message: `Heartbeat queued for ${agent.name}`,
       },
       { status: 202 }

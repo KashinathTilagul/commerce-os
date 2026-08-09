@@ -145,7 +145,6 @@ export function SpotifyApp() {
         if (data.token) {
           setToken(data.token)
         } else if (data.error) {
-          console.log('Spotify token error:', data.error)
         }
       })
       .catch(e => console.error('Token fetch error:', e))

@@ -132,10 +132,8 @@ export const authOptions: NextAuthOptions = {
       })
     },
     async signIn(message) {
-      console.log(`[AUTH] User signed in: ${message.user?.email}`)
     },
     async signOut(message) {
-      console.log(`[AUTH] User signed out`)
     }
   },
   debug: process.env.NODE_ENV === "development",
