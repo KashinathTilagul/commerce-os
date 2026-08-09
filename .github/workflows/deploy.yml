@@ -78,6 +78,7 @@ jobs:
           if [[ "$DATABASE_URL" == postgresql://postgres:*@db.guxaxhofeglqkmrhahsw.supabase.co:5432/* ]]; then
             DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:${DATABASE_URL#postgresql://postgres:}"
             DATABASE_URL="${DATABASE_URL/@db.guxaxhofeglqkmrhahsw.supabase.co:5432/@aws-0-ap-south-1.pooler.supabase.com:5432}"
+            DATABASE_URL="${DATABASE_URL}?uselibpqcompat=true&sslmode=require"
           fi
           QIKINK_CLIENT_ID="${QIKINK_CLIENT_ID:-$(existing_env QIKINK_CLIENT_ID)}"
           QIKINK_CLIENT_SECRET="${QIKINK_CLIENT_SECRET:-$(existing_env QIKINK_CLIENT_SECRET)}"
