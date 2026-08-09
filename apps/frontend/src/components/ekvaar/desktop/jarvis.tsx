@@ -161,7 +161,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const webSpeechRef      = useRef<any>(null)
   const webSpeechFinal    = useRef<string>('')
   const listeningRef      = useRef(false)
-  const voiceSessionRef   = useRef(false)
   const sendRef           = useRef<(text: string) => void>(() => {})
   const scrollRef         = useRef<HTMLDivElement>(null)
   const messagesEndRef    = useRef<HTMLDivElement>(null)
@@ -240,7 +239,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const closePanel = useCallback(() => {
     setExpanded(false)
-    voiceSessionRef.current = false
     stopTTS()
     stopListening()
     setGlobal('idle')
@@ -365,13 +363,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         return
       }
       setGlobal('idle')
-      if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
-        setTimeout(() => {
-          if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
-            startListening()
-          }
-        }, 300)
-      }
     }
 
     try { recorder.start(250) } catch {}
@@ -421,13 +412,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         })
         speakingRef.current = false
         setGlobal('idle')
-        if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
-          setTimeout(() => {
-            if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
-              startListening()
-            }
-          }, 500)
-        }
         return
       }
     } catch {}
@@ -464,18 +448,10 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     }
     speakingRef.current = false
     setGlobal('idle')
-    if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current) {
-      setTimeout(() => {
-        if (voiceSessionRef.current && !listeningRef.current && !speakingRef.current && (!window.speechSynthesis || !window.speechSynthesis.speaking)) {
-          startListening()
-        }
-      }, 500)
-    }
-  }, [muted, stopTTS, stopListening, startListening])
+  }, [muted, stopTTS, stopListening])
 
   const toggleListening = useCallback(() => {
     if (listeningRef.current) {
-      voiceSessionRef.current = false
       stopListening()
       setListening(false)
       setGlobal('idle')
@@ -535,7 +511,6 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
   const openPanel = useCallback(() => {
     setExpanded(true)
-    voiceSessionRef.current = true
     setMessages(m => {
       if (m.length > 0) return m
       const h = parseInt(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false }))
@@ -547,9 +522,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     setTimeout(() => {
       const scroller = scrollRef.current
       if (scroller) scroller.scrollTop = scroller.scrollHeight
-      if (voiceSessionRef.current && !listeningRef.current) startListening()
     }, 100)
-  }, [startListening])
+  }, [])
 
   const handleTextSend = () => {
     const text = inputText.trim()
