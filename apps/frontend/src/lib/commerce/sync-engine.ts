@@ -85,12 +85,14 @@ export class SyncEngine {
       const duration = Date.now() - startTime
       await this.updateState(entity, 'IDLE', { processed, failed, duration }, undefined)
       
-      await db.systemEvent.create({
+      await db.event.create({
         data: {
-          type: `${entity}S_SYNCED`,
-          source: 'SYNC_ENGINE',
           organizationId: this.organizationId,
+          type: `${entity}S_SYNCED`,
+          actorName: 'SYNC_ENGINE',
+          summary: `${entity} sync completed for ${this.provider.providerName}`,
           payload: JSON.stringify({ provider: this.provider.providerName, processed, failed, duration }),
+          severity: 'INFO',
         },
       })
 
@@ -98,12 +100,14 @@ export class SyncEngine {
 
     } catch (error: any) {
       await this.updateState(entity, 'ERROR', undefined, error.message)
-      await db.systemEvent.create({
+      await db.event.create({
         data: {
-          type: 'SYNC_FAILED',
-          source: 'SYNC_ENGINE',
           organizationId: this.organizationId,
+          type: 'SYNC_FAILED',
+          actorName: 'SYNC_ENGINE',
+          summary: `${entity} sync failed for ${this.provider.providerName}: ${error.message}`,
           payload: JSON.stringify({ provider: this.provider.providerName, entity, error: error.message }),
+          severity: 'ERROR',
         },
       })
       throw error
@@ -111,12 +115,14 @@ export class SyncEngine {
   }
 
   async runFullSync() {
-    await db.systemEvent.create({
+    await db.event.create({
       data: {
-        type: 'SYNC_STARTED',
-        source: 'SYNC_ENGINE',
         organizationId: this.organizationId,
+        type: 'SYNC_STARTED',
+        actorName: 'SYNC_ENGINE',
+        summary: `Sync started for ${this.provider.providerName}`,
         payload: JSON.stringify({ provider: this.provider.providerName }),
+        severity: 'INFO',
       },
     })
     
@@ -126,12 +132,14 @@ export class SyncEngine {
       orders: await this.runSync('ORDER'),
     }
 
-    await db.systemEvent.create({
+    await db.event.create({
       data: {
-        type: 'SYNC_COMPLETED',
-        source: 'SYNC_ENGINE',
         organizationId: this.organizationId,
+        type: 'SYNC_COMPLETED',
+        actorName: 'SYNC_ENGINE',
+        summary: `Sync completed for ${this.provider.providerName}`,
         payload: JSON.stringify({ provider: this.provider.providerName, results }),
+        severity: 'INFO',
       },
     })
     
