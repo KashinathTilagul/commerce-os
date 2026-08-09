@@ -283,16 +283,20 @@ Now produce YOUR deliverable:`
 
   // DECIDE STATUS
   let work: z.infer<typeof StatusSchema>
-  try {
-    const { object } = await routeObject<z.infer<typeof StatusSchema>>('fast', {
-      schema: StatusSchema,
-      system: `You are ${agent.name}. You just produced a deliverable for ticket ${issue.code}. Decide its status honestly.`,
-      prompt: `Ticket: ${issue.title}\n\nDeliverable you produced:\n${deliverable.slice(0, 3000)}\n\nDecide the status based on milestones.`,
-      temperature: 0,
-    })
-    work = object
-  } catch {
-    work = { progressNote: `Drafted the deliverable for ${issue.code}.`, newStatus: 'IN_REVIEW' }
+  if (issue.campaignItem) {
+    work = { progressNote: `Completed the requested deliverable for ${issue.code}.`, newStatus: 'DONE' }
+  } else {
+    try {
+      const { object } = await routeObject<z.infer<typeof StatusSchema>>('fast', {
+        schema: StatusSchema,
+        system: `You are ${agent.name}. You just produced a deliverable for ticket ${issue.code}. Decide its status honestly.`,
+        prompt: `Ticket: ${issue.title}\n\nDeliverable you produced:\n${deliverable.slice(0, 3000)}\n\nDecide the status based on milestones.`,
+        temperature: 0,
+      })
+      work = object
+    } catch {
+      work = { progressNote: `Drafted the deliverable for ${issue.code}.`, newStatus: 'IN_REVIEW' }
+    }
   }
 
   // A media request without its actual artifact is not a completed deliverable.
@@ -303,10 +307,6 @@ Now produce YOUR deliverable:`
       newStatus: 'BLOCKED',
       blockedReason: multimodalFailures.join(' '),
     }
-  }
-
-  if (issue.campaignItem && work.newStatus !== 'BLOCKED') {
-    work.newStatus = 'DONE'
   }
 
   // MILESTONE TRACKING

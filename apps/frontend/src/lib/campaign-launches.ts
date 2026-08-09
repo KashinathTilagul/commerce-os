@@ -8,6 +8,7 @@ import { nextCampaignLaunchCode } from './campaign-launch-code'
 import { campaignOutboxKey } from './campaign-outbox-key'
 import { assertCampaignLaunchTransition, assertUserManagedCampaignStatus } from './campaign-state'
 import { CAMPAIGN_ITEMS, CAMPAIGN_VALIDATIONS } from './campaign-blueprint'
+import type { WorkItemDefinition, WorkValidationDefinition } from './work-request-planner'
 
 export interface CreateCampaignLaunchInput {
   organizationId: string
@@ -15,6 +16,8 @@ export interface CreateCampaignLaunchInput {
   brief: string
   priority?: CampaignPriority
   budgetCap?: string | null
+  items?: WorkItemDefinition[]
+  validations?: WorkValidationDefinition[]
 }
 
 export interface UpdateCampaignLaunchInput {
@@ -58,9 +61,11 @@ export async function createCampaignLaunch(input: CreateCampaignLaunchInput) {
           },
         })
 
+        const itemDefinitions: WorkItemDefinition[] = input.items ?? CAMPAIGN_ITEMS.map((item) => ({ ...item, dependsOn: [...item.dependsOn] }))
+        const validationDefinitions: WorkValidationDefinition[] = input.validations ?? CAMPAIGN_VALIDATIONS.map((validation) => ({ ...validation }))
         const agentCodes = [...new Set([
-          ...CAMPAIGN_ITEMS.flatMap((item) => 'assigneeCode' in item ? [item.assigneeCode] : []),
-          ...CAMPAIGN_VALIDATIONS.map((validation) => validation.validatorCode),
+          ...itemDefinitions.flatMap((item) => item.assigneeCode ? [item.assigneeCode] : []),
+          ...validationDefinitions.map((validation) => validation.validatorCode),
         ])]
         const agents = await tx.agent.findMany({
           where: { organizationId: input.organizationId, code: { in: agentCodes } },
@@ -70,8 +75,8 @@ export async function createCampaignLaunch(input: CreateCampaignLaunchInput) {
         if (missing.length) throw new Error(`Workforce roster is incomplete: ${missing.join(', ')}`)
 
         const itemByCode = new Map<string, { id: string; issueId: string | null }>()
-        for (const [index, definition] of CAMPAIGN_ITEMS.entries()) {
-          const assignee = 'assigneeCode' in definition ? agentByCode.get(definition.assigneeCode) : null
+        for (const [index, definition] of itemDefinitions.entries()) {
+          const assignee = definition.assigneeCode ? agentByCode.get(definition.assigneeCode) : null
           const issue = assignee ? await tx.issue.create({
             data: {
               organizationId: input.organizationId,
@@ -97,7 +102,7 @@ export async function createCampaignLaunch(input: CreateCampaignLaunchInput) {
               orderNum: index + 1,
               assigneeType: assignee ? 'AGENT' : 'SYSTEM',
               assigneeId: assignee?.id,
-              serviceKey: 'serviceKey' in definition ? definition.serviceKey : undefined,
+              serviceKey: definition.serviceKey,
               issueId: issue?.id,
               executionKey: `${launch.id}:${definition.code}`,
             },
@@ -105,16 +110,16 @@ export async function createCampaignLaunch(input: CreateCampaignLaunchInput) {
           itemByCode.set(definition.code, { id: item.id, issueId: issue?.id ?? null })
         }
         await tx.campaignLaunchDependency.createMany({
-          data: CAMPAIGN_ITEMS.flatMap((item) => item.dependsOn.map((code) => ({
+          data: itemDefinitions.flatMap((item) => item.dependsOn.map((code) => ({
             itemId: itemByCode.get(item.code)!.id,
             dependsOnId: itemByCode.get(code)!.id,
           }))),
         })
         await tx.campaignValidation.createMany({
-          data: CAMPAIGN_VALIDATIONS.map((validation) => ({
+          data: validationDefinitions.map((validation) => ({
             launchId: launch.id,
-            itemId: 'itemCode' in validation ? itemByCode.get(validation.itemCode)?.id : undefined,
-            scopeKey: 'itemCode' in validation ? `ITEM-${validation.itemCode}` : 'LAUNCH',
+            itemId: validation.itemCode ? itemByCode.get(validation.itemCode)?.id : undefined,
+            scopeKey: validation.itemCode ? `ITEM-${validation.itemCode}` : 'LAUNCH',
             domain: validation.domain,
             validatorAgentId: agentByCode.get(validation.validatorCode)!.id,
           })),
