@@ -7,6 +7,7 @@ import { db } from './db'
 import { nextCampaignLaunchCode } from './campaign-launch-code'
 import { campaignOutboxKey } from './campaign-outbox-key'
 import { assertCampaignLaunchTransition, assertUserManagedCampaignStatus } from './campaign-state'
+import { CAMPAIGN_ITEMS, CAMPAIGN_VALIDATIONS } from './campaign-blueprint'
 
 export interface CreateCampaignLaunchInput {
   organizationId: string
@@ -52,7 +53,71 @@ export async function createCampaignLaunch(input: CreateCampaignLaunchInput) {
             brief: input.brief,
             priority: input.priority ?? 'P2',
             budgetCap: budgetValue(input.budgetCap),
+            status: 'EXECUTING',
+            startedAt: new Date(),
           },
+        })
+
+        const agentCodes = [...new Set([
+          ...CAMPAIGN_ITEMS.flatMap((item) => 'assigneeCode' in item ? [item.assigneeCode] : []),
+          ...CAMPAIGN_VALIDATIONS.map((validation) => validation.validatorCode),
+        ])]
+        const agents = await tx.agent.findMany({
+          where: { organizationId: input.organizationId, code: { in: agentCodes } },
+        })
+        const agentByCode = new Map(agents.map((agent) => [agent.code, agent]))
+        const missing = agentCodes.filter((code) => !agentByCode.has(code))
+        if (missing.length) throw new Error(`Workforce roster is incomplete: ${missing.join(', ')}`)
+
+        const itemByCode = new Map<string, { id: string; issueId: string | null }>()
+        for (const [index, definition] of CAMPAIGN_ITEMS.entries()) {
+          const assignee = 'assigneeCode' in definition ? agentByCode.get(definition.assigneeCode) : null
+          const issue = assignee ? await tx.issue.create({
+            data: {
+              organizationId: input.organizationId,
+              code: `PAP-${launch.code.slice(3)}-${definition.code}`,
+              title: `${launch.code} · ${definition.title}`,
+              description: `${definition.title} for campaign: ${input.brief}`,
+              status: definition.dependsOn.length === 0 ? 'BACKLOG' : 'BLOCKED',
+              priority: input.priority ?? 'P2',
+              type: definition.type,
+              department: assignee.department,
+              assigneeId: assignee.id,
+              blockedByIds: definition.dependsOn.map((code) => `${launch.code}-${code}`).join(','),
+            },
+          }) : null
+          const item = await tx.campaignLaunchItem.create({
+            data: {
+              launchId: launch.id,
+              code: definition.code,
+              type: definition.type,
+              title: definition.title,
+              description: `${definition.title} for ${launch.title}`,
+              status: definition.dependsOn.length === 0 ? 'READY' : 'PENDING',
+              orderNum: index + 1,
+              assigneeType: assignee ? 'AGENT' : 'SYSTEM',
+              assigneeId: assignee?.id,
+              serviceKey: 'serviceKey' in definition ? definition.serviceKey : undefined,
+              issueId: issue?.id,
+              executionKey: `${launch.id}:${definition.code}`,
+            },
+          })
+          itemByCode.set(definition.code, { id: item.id, issueId: issue?.id ?? null })
+        }
+        await tx.campaignLaunchDependency.createMany({
+          data: CAMPAIGN_ITEMS.flatMap((item) => item.dependsOn.map((code) => ({
+            itemId: itemByCode.get(item.code)!.id,
+            dependsOnId: itemByCode.get(code)!.id,
+          }))),
+        })
+        await tx.campaignValidation.createMany({
+          data: CAMPAIGN_VALIDATIONS.map((validation) => ({
+            launchId: launch.id,
+            itemId: 'itemCode' in validation ? itemByCode.get(validation.itemCode)?.id : undefined,
+            scopeKey: 'itemCode' in validation ? `ITEM-${validation.itemCode}` : 'LAUNCH',
+            domain: validation.domain,
+            validatorAgentId: agentByCode.get(validation.validatorCode)!.id,
+          })),
         })
 
         await tx.campaignPolicy.upsert({
@@ -84,7 +149,10 @@ export function listCampaignLaunches(organizationId: string) {
   return db.campaignLaunch.findMany({
     where: { organizationId },
     orderBy: { updatedAt: 'desc' },
+    take: 20,
     include: {
+      items: { orderBy: { orderNum: 'asc' }, include: { assignee: { select: { id: true, code: true, name: true, avatarColor: true } } } },
+      validations: { include: { validatorAgent: { select: { code: true, name: true } } } },
       _count: { select: { items: true, validations: true, revisions: true } },
     },
   })

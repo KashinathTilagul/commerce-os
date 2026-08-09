@@ -60,7 +60,7 @@ interface WorkforceShellProps {
 }
 
 export function WorkforceShell({ children }: WorkforceShellProps) {
-  const [section, setSection] = useState<Section>('agents')
+  const [section, setSection] = useState<Section>('overview')
 
   return (
     <div className="flex h-full w-full overflow-hidden">

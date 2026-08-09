@@ -5,6 +5,7 @@ import { ROSTER } from './agent-roster'
 import { syncAgentRoster } from './agent-roster-sync'
 import { nextCampaignLaunchCode } from './campaign-launch-code'
 import { campaignOutboxKey } from './campaign-outbox-key'
+import { CAMPAIGN_ITEMS, CAMPAIGN_VALIDATIONS } from './campaign-blueprint'
 import {
   assertAcyclicDependencies,
   assertCampaignItemOwner,
@@ -45,6 +46,17 @@ test('allocates tenant-local campaign codes and stable outbox IDs', () => {
     campaignOutboxKey('launch-1', 'CAMPAIGN_LAUNCH_CREATED', 1),
     'campaign-launch-created-launch-1-v1',
   )
+})
+
+test('campaign blueprint is a complete acyclic 14-item employee workflow', () => {
+  assert.equal(CAMPAIGN_ITEMS.length, 14)
+  assert.equal(CAMPAIGN_VALIDATIONS.length, 8)
+  const seen = new Set<string>()
+  for (const item of CAMPAIGN_ITEMS) {
+    assert.ok(item.dependsOn.every((dependency) => seen.has(dependency)), `${item.code} has a forward or missing dependency`)
+    seen.add(item.code)
+  }
+  assert.deepEqual([...seen], Array.from({ length: 14 }, (_, index) => String(index + 1).padStart(2, '0')))
 })
 
 test('rejects illegal campaign transitions and accepts resumable blocked work', () => {
