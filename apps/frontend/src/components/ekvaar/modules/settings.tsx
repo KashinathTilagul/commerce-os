@@ -41,7 +41,7 @@ export function Settings() {
   const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
-    try { return localStorage.getItem('krishna_voice') || 'en-IN-NeerjaNeural' } catch { return 'en-IN-NeerjaNeural' }
+    try { return localStorage.getItem('krishna_voice') || 'en-IN-PrabhatNeural' } catch { return 'en-IN-PrabhatNeural' }
   })
   const [localSpeed, setLocalSpeed] = useState(0.86)
   const [localPitch, setLocalPitch] = useState(0.76)
