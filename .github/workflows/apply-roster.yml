@@ -11,15 +11,14 @@ jobs:
     runs-on: self-hosted
     timeout-minutes: 10
     steps:
-      - name: Run apply-roster.ts
+      - name: Apply roster through the protected API
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -e -o pipefail
-          cd /home/ubuntu/Ekvaar 2>/dev/null || cd /home/ubuntu/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
-          # ponytail: `npx tsx` re-resolves/installs tsx from the registry on
-          # every single run since it wasn't a real dependency — any registry
-          # hiccup inside the container hung this indefinitely and jammed the
-          # whole runner queue behind it. tsx is now a real devDependency
-          # (baked into the image), so call its binary directly. 66 sequential
-          # upserts against a live SQLite db can genuinely take a couple
-          # minutes, so the safety timeout is generous, not tight.
-          timeout 480 docker compose exec -T frontend node node_modules/.bin/tsx scripts/apply-roster.ts
+          [ -n "$CRON_SECRET" ] || { echo "[x] CRON_SECRET is not configured"; exit 1; }
+          curl -fskS --max-time 480 --retry 3 \
+            -X POST \
+            -H "Host: os.ekvaar.com" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            https://localhost/api/agents/apply-roster
