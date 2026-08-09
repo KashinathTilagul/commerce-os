@@ -97,7 +97,7 @@ Founder: "assign the marketing campaign to the CMO"
 → {"spoken":"Done. Mira has it.","action":{"type":"assign_task","assignee":"CMO","task":"Own the marketing campaign","priority":"P2"}}
 
 Founder: "assign CEO a task to check how many agents are active and their skill levels"
-→ {"spoken":"Assigned. Arjun will review agent count and skills.","action":{"type":"assign_task","assignee":"CEO","task":"Review total active agents and their skill levels","priority":"P2"}}
+→ {"spoken":"Assigned. Krishna will review agent count and skills.","action":{"type":"assign_task","assignee":"CEO","task":"Review total active agents and their skill levels","priority":"P2"}}
 
 Founder: "tell the team the drop launches Friday"
 → {"spoken":"Posting that to the team now.","action":{"type":"message_team","text":"The drop launches Friday."}}
