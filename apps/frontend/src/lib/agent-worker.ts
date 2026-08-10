@@ -9,7 +9,7 @@ import { generateImage } from './image-generator'
 import { generateVideo } from './video-generator'
 import { generateAudio } from './audio-generator'
 import { syncCampaignItemAfterWork } from './campaign-execution'
-import { extractExactReply, shouldExecuteMedia } from './work-request-planner'
+import { extractExactReply, parseGeneratedMediaJSON, shouldExecuteMedia } from './work-request-planner'
 
 const StatusSchema = z.object({
   progressNote: z.string().describe('1-2 sentences, first person, summarising what you just produced.'),
@@ -229,7 +229,7 @@ Now produce YOUR deliverable:`
   const imageMatch = shouldExecuteMedia(plannedType, 'IMAGE') ? extractJSON(cleanedDeliverable, 'GENERATE_IMAGE') : null
   if (imageMatch) {
     try {
-      const params = JSON.parse(imageMatch.json)
+      const params = parseGeneratedMediaJSON<any>(imageMatch.json)
       const result = await generateImage({
         prompt: params.prompt,
         aspectRatio: params.aspectRatio || '1:1',
@@ -249,7 +249,7 @@ Now produce YOUR deliverable:`
   const pdfMatch = shouldExecuteMedia(plannedType, 'PDF') ? extractJSON(cleanedDeliverable, 'GENERATE_PDF') : null
   if (pdfMatch) {
     try {
-      const params = JSON.parse(pdfMatch.json)
+      const params = parseGeneratedMediaJSON<any>(pdfMatch.json)
       const result = await generatePDF({
         template: params.template || 'report',
         data: params.data || {},
@@ -267,7 +267,7 @@ Now produce YOUR deliverable:`
   const videoMatch = shouldExecuteMedia(plannedType, 'VIDEO') ? extractJSON(cleanedDeliverable, 'GENERATE_VIDEO') : null
   if (videoMatch) {
     try {
-      const params = JSON.parse(videoMatch.json)
+      const params = parseGeneratedMediaJSON<any>(videoMatch.json)
       const result = await generateVideo({
         template: params.template || 'BrandVideo',
         data: params.data || {},
@@ -286,7 +286,7 @@ Now produce YOUR deliverable:`
   const audioMatch = shouldExecuteMedia(plannedType, 'AUDIO') ? extractJSON(cleanedDeliverable, 'GENERATE_AUDIO') : null
   if (audioMatch) {
     try {
-      const params = JSON.parse(audioMatch.json)
+      const params = parseGeneratedMediaJSON<any>(audioMatch.json)
       const result = await generateAudio({
         text: params.text || params.prompt,
         title: params.title,

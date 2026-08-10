@@ -6,7 +6,7 @@ import { syncAgentRoster } from './agent-roster-sync'
 import { nextCampaignLaunchCode } from './campaign-launch-code'
 import { campaignOutboxKey } from './campaign-outbox-key'
 import { hashCampaignEvidence } from './campaign-evidence-hash'
-import { extractExactReply, planWorkRequest, shouldExecuteMedia } from './work-request-planner'
+import { extractExactReply, parseGeneratedMediaJSON, planWorkRequest, shouldExecuteMedia } from './work-request-planner'
 import { CAMPAIGN_ITEMS, CAMPAIGN_VALIDATIONS } from './campaign-blueprint'
 import {
   assertAcyclicDependencies,
@@ -77,6 +77,13 @@ test('executes only the media type selected by the request planner', () => {
   assert.equal(shouldExecuteMedia('PDF', 'IMAGE'), false)
   assert.equal(shouldExecuteMedia('FINANCE_QUERY', 'IMAGE'), false)
   assert.equal(shouldExecuteMedia(undefined, 'IMAGE'), true)
+})
+
+test('parses model media JSON containing literal control characters in strings', () => {
+  const parsed = parseGeneratedMediaJSON<{ data: { summary: string } }>(
+    '{"data":{"summary":"line one\nline two\tready"}}',
+  )
+  assert.equal(parsed.data.summary, 'line one\nline two\tready')
 })
 
 test('campaign blueprint is a complete acyclic 14-item employee workflow', () => {
