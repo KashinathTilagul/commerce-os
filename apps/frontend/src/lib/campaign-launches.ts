@@ -152,7 +152,7 @@ export async function createCampaignLaunch(input: CreateCampaignLaunchInput) {
 
 export function listCampaignLaunches(organizationId: string) {
   return db.campaignLaunch.findMany({
-    where: { organizationId },
+    where: { organizationId, status: { not: 'CANCELLED' } },
     orderBy: { updatedAt: 'desc' },
     take: 20,
     include: {
@@ -219,6 +219,24 @@ export async function updateCampaignLaunch(input: UpdateCampaignLaunchInput) {
       },
     })
     if (updated.count !== 1) throw new Error('Campaign launch changed; reload before updating')
+
+    if (input.status === 'CANCELLED') {
+      const linkedItems = await tx.campaignLaunchItem.findMany({
+        where: { launchId: current.id },
+        select: { issueId: true },
+      })
+      const issueIds = linkedItems.flatMap((item) => item.issueId ? [item.issueId] : [])
+      await tx.campaignLaunchItem.updateMany({
+        where: { launchId: current.id, status: { notIn: ['COMPLETED', 'CANCELLED'] } },
+        data: { status: 'CANCELLED', leaseOwnerId: null, leaseExpiresAt: null },
+      })
+      if (issueIds.length) {
+        await tx.issue.updateMany({
+          where: { organizationId: input.organizationId, id: { in: issueIds }, status: { notIn: ['DONE', 'CANCELLED'] } },
+          data: { status: 'CANCELLED' },
+        })
+      }
+    }
 
     const eventType = input.status ? 'CAMPAIGN_LAUNCH_STATUS_CHANGED' : 'CAMPAIGN_LAUNCH_UPDATED'
     await tx.outboxMessage.create({

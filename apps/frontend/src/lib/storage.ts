@@ -5,12 +5,12 @@ import { z } from 'zod'
 const STORAGE_ROOT = path.join(process.cwd(), 'storage')
 
 // ponytail: storage paths are deterministic — single mapping object
-const ARTIFACT_DIRS: Record<ArtifactType, string> = { PDF: 'pdf', PNG: 'images', VIDEO: 'videos', EXCEL: 'templates' }
-const ARTIFACT_EXTS: Record<ArtifactType, string> = { PDF: '.pdf', PNG: '.png', VIDEO: '.mp4', EXCEL: '.xlsx' }
+const ARTIFACT_DIRS: Record<ArtifactType, string> = { PDF: 'pdf', PNG: 'images', VIDEO: 'videos', AUDIO: 'audio', EXCEL: 'templates' }
+const ARTIFACT_EXTS: Record<ArtifactType, string> = { PDF: '.pdf', PNG: '.png', VIDEO: '.mp4', AUDIO: '.mp3', EXCEL: '.xlsx' }
 const getStorageDir = (type: ArtifactType) => ARTIFACT_DIRS[type]
 const getArtifactExt = (type: ArtifactType) => ARTIFACT_EXTS[type]
 
-export const ArtifactTypeSchema = z.enum(['PDF', 'PNG', 'VIDEO', 'EXCEL'])
+export const ArtifactTypeSchema = z.enum(['PDF', 'PNG', 'VIDEO', 'AUDIO', 'EXCEL'])
 export type ArtifactType = z.infer<typeof ArtifactTypeSchema>
 
 export interface StorageMetadata {

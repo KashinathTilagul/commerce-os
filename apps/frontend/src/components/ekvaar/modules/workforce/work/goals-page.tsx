@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { GlassPanel } from '@/components/ui/glass-system'
-import { Target, Plus, TrendingUp, Loader2 } from 'lucide-react'
+import { Target, Plus, Loader2, Pause, Play, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ekvaar/desktop/toast'
 
 export function GoalsPage() {
@@ -13,6 +13,8 @@ export function GoalsPage() {
   const [targetValue, setTargetValue] = useState('')
   const [unit, setUnit] = useState('')
   const [agentCode, setAgentCode] = useState('CEO')
+  const [measuredValues, setMeasuredValues] = useState<Record<string, string>>({})
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const { data: goalsData, isLoading } = useQuery({
     queryKey: ['workforce-goals'],
@@ -46,6 +48,36 @@ export function GoalsPage() {
     onError: (err: any) => {
       toast.error(err.message || 'Error creating goal')
     },
+  })
+
+  const actionMutation = useMutation({
+    mutationFn: async ({ id, action, measuredValue }: { id: string; action: 'pause' | 'resume' | 'iterate'; measuredValue?: number }) => {
+      const res = await fetch(`/api/goals/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, measuredValue }),
+      })
+      if (!res.ok) throw new Error('Goal update failed')
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success('Goal updated')
+      queryClient.invalidateQueries({ queryKey: ['workforce-goals'] })
+    },
+    onError: (error: any) => toast.error(error.message || 'Goal update failed'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/goals/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Goal deletion failed')
+    },
+    onSuccess: () => {
+      setConfirmDeleteId(null)
+      toast.success('Goal deleted')
+      queryClient.invalidateQueries({ queryKey: ['workforce-goals'] })
+    },
+    onError: (error: any) => toast.error(error.message || 'Goal deletion failed'),
   })
 
   const goals = goalsData || []
@@ -151,6 +183,21 @@ export function GoalsPage() {
                 <div className="flex items-baseline justify-between pt-2 border-t border-white/[0.06]">
                   <div className="text-[11px] text-muted-foreground">Current: <span className="text-foreground font-semibold">{g.currentValue} {g.unit}</span></div>
                   <div className="text-[11px] text-muted-foreground">Target: <span className="text-foreground font-semibold">{g.targetValue} {g.unit}</span></div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
+                  <input
+                    type="number"
+                    value={measuredValues[g.id] ?? String(g.currentValue)}
+                    onChange={(event) => setMeasuredValues((current) => ({ ...current, [g.id]: event.target.value }))}
+                    aria-label={`Current value for ${g.title}`}
+                    className="h-8 min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-black/30 px-3 text-[11px] outline-none"
+                  />
+                  <button onClick={() => actionMutation.mutate({ id: g.id, action: 'iterate', measuredValue: Number(measuredValues[g.id] ?? g.currentValue) })} disabled={actionMutation.isPending} className="rounded-lg border border-cyan-300/20 px-3 py-1.5 text-[10px] text-cyan-200 disabled:opacity-40">Update progress</button>
+                  <button onClick={() => actionMutation.mutate({ id: g.id, action: g.status === 'PAUSED' ? 'resume' : 'pause' })} disabled={actionMutation.isPending} className="flex items-center gap-1 rounded-lg border border-white/10 px-3 py-1.5 text-[10px] text-muted-foreground disabled:opacity-40">{g.status === 'PAUSED' ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}{g.status === 'PAUSED' ? 'Resume' : 'Pause'}</button>
+                  {confirmDeleteId === g.id ? (
+                    <><button onClick={() => deleteMutation.mutate(g.id)} disabled={deleteMutation.isPending} className="rounded-lg border border-red-400/25 px-3 py-1.5 text-[10px] text-red-300 disabled:opacity-40">Confirm delete</button><button onClick={() => setConfirmDeleteId(null)} className="px-2 py-1.5 text-[10px] text-muted-foreground">Cancel</button></>
+                  ) : <button aria-label={`Delete ${g.title}`} onClick={() => setConfirmDeleteId(g.id)} className="rounded-lg p-2 text-muted-foreground hover:bg-red-400/10 hover:text-red-300"><Trash2 className="h-3.5 w-3.5" /></button>}
                 </div>
               </GlassPanel>
             ))}

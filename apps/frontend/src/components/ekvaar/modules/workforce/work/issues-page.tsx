@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { GlassPanel } from '@/components/ui/glass-system'
-import { Plus, Play, Loader2 } from 'lucide-react'
+import { Plus, Play, Loader2, MessageSquare, X } from 'lucide-react'
 import { toast } from '@/components/ekvaar/desktop/toast'
 import { invalidateWorkforceState } from '@/lib/query-invalidation'
 
@@ -29,6 +29,7 @@ export function IssuesPage() {
   const [newPriority, setNewPriority] = useState('P2')
   const [isCreating, setIsCreating] = useState(false)
   const [runningIssueId, setRunningIssueId] = useState<string | null>(null)
+  const [commentText, setCommentText] = useState('')
 
   const { data: issues = [], isLoading } = useQuery({
     queryKey: ['workforce-issues'],
@@ -103,11 +104,41 @@ export function IssuesPage() {
       if (res.ok) {
         toast.success('Assignee updated')
         invalidateWorkforceState(queryClient, assigneeId)
+      } else {
+        const body = await res.json().catch(() => ({}))
+        toast.error(body.error || 'Failed to update assignee')
       }
     } catch {
       toast.error('Failed to update assignee')
     }
   }
+
+  const handleStatus = async (issueId: string, status: string) => {
+    const res = await fetch(`/api/issues/${issueId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    if (!res.ok) return toast.error('Failed to update status')
+    toast.success('Issue status updated')
+    invalidateWorkforceState(queryClient)
+  }
+
+  const handleComment = async (issueId: string) => {
+    const body = commentText.trim()
+    if (!body) return
+    const res = await fetch(`/api/issues/${issueId}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body, authorName: 'Founder' }),
+    })
+    if (!res.ok) return toast.error('Failed to add comment')
+    setCommentText('')
+    toast.success('Comment added')
+    invalidateWorkforceState(queryClient)
+  }
+
+  const activeIssue = selectedIssue ? issues.find((issue: any) => issue.id === selectedIssue.id) ?? selectedIssue : null
 
   return (
     <div className="flex h-full flex-col">
@@ -250,6 +281,61 @@ export function IssuesPage() {
           </div>
         )}
       </div>
+
+      {activeIssue && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={() => setSelectedIssue(null)}>
+          <GlassPanel level={4} className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-white/15 p-6" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-4">
+              <div>
+                <div className="font-mono text-[10px] text-cyan-300">{activeIssue.code}</div>
+                <h2 className="mt-1 font-display text-lg">{activeIssue.title}</h2>
+                <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{activeIssue.description}</p>
+              </div>
+              <button aria-label="Close issue" onClick={() => setSelectedIssue(null)} className="rounded-lg p-2 text-muted-foreground hover:bg-white/[0.06] hover:text-foreground"><X className="h-4 w-4" /></button>
+            </div>
+
+            <div className="grid gap-3 border-b border-white/[0.08] py-4 sm:grid-cols-2">
+              <label className="space-y-1.5 text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                Status
+                <select value={activeIssue.status} onChange={(event) => handleStatus(activeIssue.id, event.target.value)} className="block h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 px-3 text-[11px] normal-case tracking-normal text-foreground">
+                  {COLUMNS.map((column) => <option key={column.id} value={column.id}>{column.label}</option>)}
+                  <option value="BLOCKED">Blocked</option>
+                </select>
+              </label>
+              <label className="space-y-1.5 text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+                Assignee
+                <select value={activeIssue.assigneeId || ''} onChange={(event) => handleAssignAgent(activeIssue.id, event.target.value)} className="block h-9 w-full rounded-lg border border-white/[0.08] bg-black/40 px-3 text-[11px] normal-case tracking-normal text-foreground">
+                  <option value="">Unassigned</option>
+                  {agents.filter((agent: any) => !agent.isHuman).map((agent: any) => <option key={agent.id} value={agent.id}>{agent.name} ({agent.code})</option>)}
+                </select>
+              </label>
+            </div>
+
+            <div className="space-y-3 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground"><MessageSquare className="h-3.5 w-3.5" /> Work log</div>
+                {activeIssue.assigneeId && ['BACKLOG', 'IN_PROGRESS', 'BLOCKED'].includes(activeIssue.status) && (
+                  <button onClick={() => handleRunTask(activeIssue)} disabled={runningIssueId === activeIssue.id} className="flex items-center gap-1.5 rounded-lg border border-emerald-400/20 px-3 py-1.5 text-[10px] text-emerald-300 disabled:opacity-40">
+                    {runningIssueId === activeIssue.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />} Run employee
+                  </button>
+                )}
+              </div>
+              <div className="max-h-64 space-y-2 overflow-y-auto">
+                {activeIssue.comments?.length ? activeIssue.comments.map((comment: any) => (
+                  <div key={comment.id} className="rounded-lg border border-white/[0.06] bg-black/20 p-3 text-[11px] leading-5">
+                    <div className="mb-1 text-[9px] text-muted-foreground">{comment.authorName} · {comment.kind}</div>
+                    <div className="whitespace-pre-wrap">{comment.body}</div>
+                  </div>
+                )) : <div className="rounded-lg border border-dashed border-white/[0.08] p-5 text-center text-[10px] text-muted-foreground">No work log entries yet.</div>}
+              </div>
+              <div className="flex gap-2">
+                <textarea value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="Add founder direction or feedback..." className="min-h-16 flex-1 resize-none rounded-lg border border-white/[0.08] bg-black/30 px-3 py-2 text-[11px] outline-none focus:border-cyan-300/25" />
+                <button onClick={() => handleComment(activeIssue.id)} disabled={!commentText.trim()} className="self-end rounded-lg bg-cyan-300 px-4 py-2 text-[10px] font-semibold text-slate-950 disabled:opacity-40">Add comment</button>
+              </div>
+            </div>
+          </GlassPanel>
+        </div>
+      )}
     </div>
   )
 }

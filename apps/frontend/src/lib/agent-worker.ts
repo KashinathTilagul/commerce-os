@@ -7,8 +7,9 @@ import { decomposeTask } from './task-templates'
 import { generatePDF } from './pdf-generator'
 import { generateImage } from './image-generator'
 import { generateVideo } from './video-generator'
+import { generateAudio } from './audio-generator'
 import { syncCampaignItemAfterWork } from './campaign-execution'
-import { extractExactReply } from './work-request-planner'
+import { extractExactReply, shouldExecuteMedia } from './work-request-planner'
 
 const StatusSchema = z.object({
   progressNote: z.string().describe('1-2 sentences, first person, summarising what you just produced.'),
@@ -125,6 +126,19 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
 
   const refs = (issue as any).attachments?.slice(0,2) || []
   const refContext = refs.length ? `\n\nREFERENCES (use up to 2, describe exact placement/transfer in GENERATE_*):\n${refs.map((r:any,i:number)=>`${i+1}. ${r.type} ${r.name}: ${r.url}`).join('\n')}` : ''
+  const plannedType = issue.campaignItem?.type
+  const mediaInstruction = plannedType === 'IMAGE'
+    ? '- Return exactly one block: GENERATE_IMAGE: {"prompt":"...","aspectRatio":"1:1","style":"product"}'
+    : plannedType === 'VIDEO'
+      ? '- Return exactly one block: GENERATE_VIDEO: {"template":"BrandVideo","data":{"text":"..."},"duration":5,"title":"..."}'
+      : plannedType === 'PDF'
+        ? '- Return exactly one block: GENERATE_PDF: {"template":"report","data":{"title":"...","content":"..."},"title":"..."}'
+        : plannedType === 'AUDIO'
+          ? '- Return exactly one block: GENERATE_AUDIO: {"text":"...","title":"...","voice":"onyx"}'
+          : '- This is not a media task. Do not emit any GENERATE_* block.'
+  const mediaExample = plannedType && ['IMAGE', 'VIDEO', 'PDF', 'AUDIO'].includes(plannedType)
+    ? '\nUse the required GENERATE_* block so the system creates and stores the requested file.'
+    : ''
 
   const system = `You are ${agent.name}, the ${agent.role} (${agent.department}) for this organization.
 Your prime directive: ${agent.primeDirective}
@@ -138,14 +152,9 @@ RULES:
 - Set DONE only when the deliverable is complete and needs nothing external.
 - Set BLOCKED only if you genuinely cannot proceed without founder input; say exactly what you need.
 
-CRITICAL - MULTIMODAL GENERATION:
-You MUST use GENERATE instructions for visual/digital content. When references are attached, include referenceImage/referenceVideo/referenceStyleGuide and describe exact usage (placement, style transfer, colors, layout).
-
-- Image: GENERATE_IMAGE: {"prompt":"...", "aspectRatio":"1:1", "style":"product", "referenceImage":"url or id", "referenceDescription":"front logo 20% top-left"}
-- Video: GENERATE_VIDEO: {"template":"BrandVideo", "data":{...}, "duration":15, "referenceImage":"..."}
-- PDF: GENERATE_PDF: {"template":"report", "data":{...}, "title":"...", "referenceStyleGuide":"..."}
-
-YOU MUST ACTUALLY GENERATE THE CONTENT, not just describe it. Think of this as your design tool - use it!
+FILE GENERATION POLICY:
+${mediaInstruction}
+Never request a different media type from the planned ticket type.
 ${constraintsSection}
 ${patternsSection}
 ${milestoneContext}
@@ -163,16 +172,7 @@ ${priorWork}
 
 Produce the COMPLETE deliverable for this ticket now. 
 
-Use references if attached — describe exact placement/transfer in the GENERATE_* block.
-
-Example for visual tasks:
----
-## Design Brief
-...your analysis...
-
-## Generated Asset
-GENERATE_IMAGE: {"prompt": "Professional product photo of traditional Indian fashion brand, luxury aesthetic, models in palace setting, rich colors, elegant lighting", "aspectRatio": "1:1", "style": "product"}
----
+Use references if attached — describe exact placement/transfer in the planned GENERATE_* block.${mediaExample}
 
 Now produce YOUR deliverable:`
 
@@ -226,7 +226,7 @@ Now produce YOUR deliverable:`
     return null
   }
 
-  const imageMatch = extractJSON(cleanedDeliverable, 'GENERATE_IMAGE')
+  const imageMatch = shouldExecuteMedia(plannedType, 'IMAGE') ? extractJSON(cleanedDeliverable, 'GENERATE_IMAGE') : null
   if (imageMatch) {
     try {
       const params = JSON.parse(imageMatch.json)
@@ -246,7 +246,7 @@ Now produce YOUR deliverable:`
     }
   }
 
-  const pdfMatch = extractJSON(cleanedDeliverable, 'GENERATE_PDF')
+  const pdfMatch = shouldExecuteMedia(plannedType, 'PDF') ? extractJSON(cleanedDeliverable, 'GENERATE_PDF') : null
   if (pdfMatch) {
     try {
       const params = JSON.parse(pdfMatch.json)
@@ -264,7 +264,7 @@ Now produce YOUR deliverable:`
     }
   }
 
-  const videoMatch = extractJSON(cleanedDeliverable, 'GENERATE_VIDEO')
+  const videoMatch = shouldExecuteMedia(plannedType, 'VIDEO') ? extractJSON(cleanedDeliverable, 'GENERATE_VIDEO') : null
   if (videoMatch) {
     try {
       const params = JSON.parse(videoMatch.json)
@@ -281,6 +281,28 @@ Now produce YOUR deliverable:`
     } catch (e: any) {
       multimodalFailures.push(`Video generation failed: ${e.message}`)
     }
+  }
+
+  const audioMatch = shouldExecuteMedia(plannedType, 'AUDIO') ? extractJSON(cleanedDeliverable, 'GENERATE_AUDIO') : null
+  if (audioMatch) {
+    try {
+      const params = JSON.parse(audioMatch.json)
+      const result = await generateAudio({
+        text: params.text || params.prompt,
+        title: params.title,
+        voice: params.voice,
+        organizationId,
+        generatedBy: agentId,
+      })
+      multimodalResults.push(`✅ Generated Audio: ${result.audioUrl}`)
+      deliverable = deliverable.replace(audioMatch.fullMatch, '').trim()
+    } catch (e: any) {
+      multimodalFailures.push(`Audio generation failed: ${e.message}`)
+    }
+  }
+
+  if (plannedType && ['IMAGE', 'VIDEO', 'PDF', 'AUDIO'].includes(plannedType) && multimodalResults.length === 0 && multimodalFailures.length === 0) {
+    multimodalFailures.push(`${plannedType} generation failed: the employee did not return the required GENERATE_${plannedType} instruction.`)
   }
 
   if (multimodalResults.length > 0) {

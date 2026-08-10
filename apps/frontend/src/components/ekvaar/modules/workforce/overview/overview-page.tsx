@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, AlertTriangle, ArrowRight, Bot, Check, ExternalLink, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Video } from 'lucide-react'
+import { Activity, AlertTriangle, Archive, ArrowRight, Bot, Check, ExternalLink, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Video, Volume2 } from 'lucide-react'
 import { GlassPanel } from '@/components/ui/glass-system'
 
 type CampaignItem = {
@@ -23,6 +23,7 @@ type Campaign = {
   title: string
   brief: string
   status: string
+  version: number
   updatedAt: string
   items: CampaignItem[]
   validations: { id: string; domain: string; status: string; validatorAgent: { name: string } }[]
@@ -94,6 +95,26 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
       return data
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['campaign-launches'] }),
+  })
+
+  const archiveCampaign = useMutation({
+    mutationFn: async (campaign: Campaign) => {
+      const response = await fetch(`/api/campaign-launches/${campaign.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedVersion: campaign.version }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Work request could not be archived')
+      return data
+    },
+    onSuccess: () => {
+      setSelectedId(null)
+      setSelectedItemId(null)
+      setPlanNotice('Work request archived')
+      queryClient.invalidateQueries({ queryKey: ['campaign-launches'] })
+      queryClient.invalidateQueries({ queryKey: ['workforce-issues'] })
+    },
   })
 
   const verifyShopify = useMutation({
@@ -207,9 +228,20 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                       Run / Resume
                     </button>
                   )}
+                  {!['PUBLISHING', 'CANCELLED'].includes(selected.status) && (
+                    <button
+                      onClick={() => archiveCampaign.mutate(selected)}
+                      disabled={archiveCampaign.isPending}
+                      className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-[9px] font-medium uppercase tracking-[0.1em] text-muted-foreground hover:bg-white/[0.05] hover:text-foreground disabled:opacity-50"
+                    >
+                      {archiveCampaign.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Archive className="h-3 w-3" />}
+                      Archive
+                    </button>
+                  )}
                   <Status status={selected.items.length < 14 && selected.status === 'PUBLISHED' ? 'COMPLETED' : selected.status} />
                 </div>
               </div>
+              {archiveCampaign.error && <div className="mt-3 text-[10px] text-red-300">{archiveCampaign.error.message}</div>}
               <div className="grid grid-cols-3 gap-3 py-4">
                 <Metric value={`${completed}/${selected.items.length}`} label="Completed" icon={<Check className="h-3 w-3" />} />
                 <Metric value={String(running)} label="Active now" icon={<Activity className="h-3 w-3" />} />
@@ -283,7 +315,7 @@ function EmployeeOutput({ output }: { output: string }) {
   return <div className="space-y-3">
     {assets.map((asset, index) => <div key={`${asset.url}-${index}`} className="overflow-hidden rounded-xl border border-white/[0.08] bg-black/30">
       {asset.type === 'image' && <img src={asset.url} alt="Generated employee asset" className="max-h-[520px] w-full object-contain" />}
-      {asset.type === 'video' && <iframe src={asset.url} title="Generated employee video" className="h-[420px] w-full bg-black" />}
+      {asset.type === 'video' && <video controls playsInline src={asset.url} className="max-h-[520px] w-full bg-black" />}
       {asset.type === 'pdf' && <iframe src={asset.url} title="Generated employee report" className="h-[520px] w-full bg-white" />}
       {asset.type === 'audio' && <audio controls src={asset.url} className="w-full p-4" />}
       <a href={asset.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 border-t border-white/[0.07] px-3 py-2 text-[9px] text-cyan-200"><AssetIcon type={asset.type} /> Open generated {asset.type} <ExternalLink className="h-3 w-3" /></a>
@@ -295,6 +327,7 @@ function EmployeeOutput({ output }: { output: string }) {
 function AssetIcon({ type }: { type: string }) {
   if (type === 'image') return <ImageIcon className="h-3.5 w-3.5" />
   if (type === 'video') return <Video className="h-3.5 w-3.5" />
+  if (type === 'audio') return <Volume2 className="h-3.5 w-3.5" />
   return <FileText className="h-3.5 w-3.5" />
 }
 

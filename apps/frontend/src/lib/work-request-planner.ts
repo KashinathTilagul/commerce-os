@@ -21,6 +21,10 @@ export function extractExactReply(request: string) {
   return request.match(/(?:reply with exactly|output as (?:a )?reply as)\s*:?\s*(.+)$/i)?.[1]?.trim() || null
 }
 
+export function shouldExecuteMedia(plannedType: string | null | undefined, mediaType: string) {
+  return !plannedType || plannedType === mediaType
+}
+
 const SPECIALISTS = [
   { match: /\b(revenue|profit|margin|cash|finance|cost|budget|sales)\b/i, assigneeCode: 'CFO', type: 'FINANCE_QUERY', title: 'Finance answer' },
   { match: /\b(order|inventory|shipment|delivery|supplier|operations|stock)\b/i, assigneeCode: 'OPS_MANAGER', type: 'OPERATIONS_QUERY', title: 'Operations answer' },
@@ -52,6 +56,9 @@ export function planWorkRequest(brief: string) {
   }
   if (/\b(video|reel|animation|motion|short film)\b/i.test(brief)) {
     add({ title: 'Generate requested video', type: 'VIDEO', assigneeCode: 'MKT_VIDEO', dependsOn: [] })
+  }
+  if (/\b(audio|voiceover|voice-over|speech|spoken|sound file|podcast)\b/i.test(brief)) {
+    add({ title: 'Generate requested audio', type: 'AUDIO', assigneeCode: 'MKT_VIDEO', dependsOn: [] })
   }
   if (/\b(pdf|report|briefing document|document file)\b/i.test(brief)) {
     add({ title: 'Generate requested report', type: 'PDF', assigneeCode: 'EXE_SUMMARY', dependsOn: [] })

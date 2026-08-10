@@ -14,9 +14,9 @@ export function ProjectsPage() {
     },
   })
 
-  // Group issues by department / project cluster
+  // Projects is the active-work view; terminal history remains in Issues.
   const departments: Record<string, any[]> = {}
-  for (const issue of issues) {
+  for (const issue of issues.filter((item: any) => !['DONE', 'CANCELLED'].includes(item.status))) {
     const dept = issue.department || 'GENERAL'
     if (!departments[dept]) departments[dept] = []
     departments[dept].push(issue)
