@@ -6,7 +6,7 @@ import { syncAgentRoster } from './agent-roster-sync'
 import { nextCampaignLaunchCode } from './campaign-launch-code'
 import { campaignOutboxKey } from './campaign-outbox-key'
 import { hashCampaignEvidence } from './campaign-evidence-hash'
-import { extractExactReply, planWorkRequest } from './work-request-planner'
+import { extractExactReply, planWorkRequest, shouldExecuteMedia } from './work-request-planner'
 import { CAMPAIGN_ITEMS, CAMPAIGN_VALIDATIONS } from './campaign-blueprint'
 import {
   assertAcyclicDependencies,
@@ -61,6 +61,7 @@ test('plans only the work requested and reserves the full graph for campaigns', 
   assert.deepEqual(planWorkRequest('Reply with exactly TESTING').items.map((item) => item.type), ['ANSWER'])
   assert.deepEqual(planWorkRequest('Write an email for an investor').items.map((item) => item.type), ['CONTENT'])
   assert.deepEqual(planWorkRequest('Create an image and a PDF report').items.map((item) => item.type), ['IMAGE', 'PDF'])
+  assert.deepEqual(planWorkRequest('Create a short audio file').items.map((item) => item.type), ['AUDIO'])
   assert.deepEqual(planWorkRequest('What is current revenue?').items.map((item) => item.type), ['FINANCE_QUERY'])
   assert.equal(planWorkRequest('Launch a new collection campaign on Instagram and Shopify').items.length, 14)
 })
@@ -69,6 +70,13 @@ test('extracts exact reply requests without spending another model call', () => 
   assert.equal(extractExactReply('Reply with exactly: TESTING'), 'TESTING')
   assert.equal(extractExactReply('Get me the output as a reply as: READY, this is a test'), 'READY, this is a test')
   assert.equal(extractExactReply('What is current revenue?'), null)
+})
+
+test('executes only the media type selected by the request planner', () => {
+  assert.equal(shouldExecuteMedia('PDF', 'PDF'), true)
+  assert.equal(shouldExecuteMedia('PDF', 'IMAGE'), false)
+  assert.equal(shouldExecuteMedia('FINANCE_QUERY', 'IMAGE'), false)
+  assert.equal(shouldExecuteMedia(undefined, 'IMAGE'), true)
 })
 
 test('campaign blueprint is a complete acyclic 14-item employee workflow', () => {
@@ -85,6 +93,7 @@ test('campaign blueprint is a complete acyclic 14-item employee workflow', () =>
 test('rejects illegal campaign transitions and accepts resumable blocked work', () => {
   assert.doesNotThrow(() => assertCampaignLaunchTransition('DRAFT', 'PLANNING'))
   assert.doesNotThrow(() => assertCampaignLaunchTransition('BLOCKED', 'EXECUTING'))
+  assert.doesNotThrow(() => assertCampaignLaunchTransition('PUBLISHED', 'CANCELLED'))
   assert.throws(() => assertCampaignLaunchTransition('DRAFT', 'PUBLISHED'), /cannot move/)
   assert.throws(() => assertCampaignLaunchTransition('PUBLISHED', 'EXECUTING'), /cannot move/)
   assert.throws(() => assertUserManagedCampaignStatus('APPROVED'), /coordinators/)

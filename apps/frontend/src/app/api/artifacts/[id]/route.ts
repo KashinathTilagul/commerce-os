@@ -65,10 +65,11 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/svg+xml': 'svg',
   'application/pdf': 'pdf',
   'video/mp4': 'mp4',
+  'audio/mpeg': 'mp3',
   'text/html': 'html',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
 }
 
 function getFileExtension(mimeType: string, type: string): string {
-  return MIME_TO_EXT[mimeType] || { PDF: 'pdf', PNG: 'png', VIDEO: 'mp4', EXCEL: 'xlsx' }[type] || 'bin'
+  return MIME_TO_EXT[mimeType] || { PDF: 'pdf', PNG: 'png', VIDEO: 'mp4', AUDIO: 'mp3', EXCEL: 'xlsx' }[type] || 'bin'
 }
