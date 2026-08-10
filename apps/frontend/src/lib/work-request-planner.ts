@@ -25,6 +25,45 @@ export function shouldExecuteMedia(plannedType: string | null | undefined, media
   return !plannedType || plannedType === mediaType
 }
 
+export function parseGeneratedMediaJSON<T = Record<string, unknown>>(json: string): T {
+  try {
+    return JSON.parse(json) as T
+  } catch (originalError) {
+    let sanitized = ''
+    let inString = false
+    let escaped = false
+
+    for (const char of json) {
+      if (escaped) {
+        sanitized += char
+        escaped = false
+        continue
+      }
+      if (char === '\\' && inString) {
+        sanitized += char
+        escaped = true
+        continue
+      }
+      if (char === '"') {
+        sanitized += char
+        inString = !inString
+        continue
+      }
+      if (inString && char.charCodeAt(0) < 0x20) {
+        sanitized += `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`
+        continue
+      }
+      sanitized += char
+    }
+
+    try {
+      return JSON.parse(sanitized) as T
+    } catch {
+      throw originalError
+    }
+  }
+}
+
 const SPECIALISTS = [
   { match: /\b(revenue|profit|margin|cash|finance|cost|budget|sales)\b/i, assigneeCode: 'CFO', type: 'FINANCE_QUERY', title: 'Finance answer' },
   { match: /\b(order|inventory|shipment|delivery|supplier|operations|stock)\b/i, assigneeCode: 'OPS_MANAGER', type: 'OPERATIONS_QUERY', title: 'Operations answer' },
