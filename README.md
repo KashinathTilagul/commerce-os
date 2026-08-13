@@ -8,11 +8,11 @@
 ```
 
 # 🌌 FASHION OS
-### *Next-Generation Open-Source Fashion E-Commerce Operating System*
+### *Next-Generation Enterprise Fashion E-Commerce Operating System*
 
-[![Author](https://img.shields.io/badge/Author-Kashinath%20Tilagul-8A2BE2?style=for-the-badge&logo=github)](https://github.com/KashinathTilagul)
+[![Creator](https://img.shields.io/badge/Creator-Kashinath%20Tilagul-8A2BE2?style=for-the-badge&logo=github)](https://github.com/KashinathTilagul)
 [![Release](https://img.shields.io/badge/Release-v3.5.0--platform--ready-00F5FF?style=for-the-badge)](https://github.com/KashinathTilagul/Ekvaar/releases)
-[![Open Source](https://img.shields.io/badge/Open%20Source-MIT-brightgreen?style=for-the-badge)](https://github.com/KashinathTilagul/Ekvaar)
+[![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)](https://github.com/KashinathTilagul/Ekvaar)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%2F%20Supabase-336791?style=for-the-badge&logo=postgresql)](https://supabase.com/)
 [![Node.js](https://img.shields.io/badge/Runtime-Node.js%20%3E%3D18-339933?style=for-the-badge&logo=node.js)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED?style=for-the-badge&logo=docker)](https://www.docker.com/)
@@ -21,9 +21,9 @@
 
 ## 💎 Overview
 
-**Fashion OS** is a self-hostable, open-source desktop operating system engineered specifically for fashion brands, online retailers, and direct-to-consumer e-commerce enterprises. Wrapped in a **3D Liquid Glass macOS Desktop Environment** and driven by an autonomous **Digital Employee Control Plane**, Fashion OS provides founders and operators with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
+**Fashion OS** is an enterprise desktop operating system engineered specifically for fashion brands, retail operations, and direct-to-consumer e-commerce infrastructure. Wrapped in a **3D Liquid Glass macOS Desktop Environment** and driven by an autonomous **Digital Employee Control Plane**, Fashion OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
 
-Architected and maintained by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (EKVAAR), Fashion OS is released open-source under the MIT license for fashion businesses to deploy on their own custom domains and infrastructure.
+Created, architected, and owned exclusively by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (EKVAAR).
 
 ---
 
@@ -149,10 +149,10 @@ Deployment  : Docker Compose + Caddy / Nginx
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## 🚀 Environment Setup & Deployment
 
 ```bash
-# 1. Clone the repository
+# 1. Clone repository
 git clone https://github.com/KashinathTilagul/Ekvaar.git
 cd Ekvaar/apps/frontend
 
@@ -172,24 +172,15 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 🌐 Production Deployment
 
-Deploy to any custom production server using the automated deployment script:
+Deploy using the deployment script:
 
 ```bash
-# Set your target domain and run deployment
 DOMAIN="os.yourdomain.com" ./deploy.sh
 ```
 
-### Pipeline Automated Execution:
-1. Docker & container environment verification.
-2. Production environment variable validation (`NEXTAUTH_SECRET`, `JWT_SECRET`).
-3. Storage directory structure allocation (`storage/{pdf,images,videos}`).
-4. Automated SSL certificate validation via Certbot.
-5. Container image build and health check polling (`/api/health`).
-6. Production smoke test suite execution.
-
 ---
 
-## 📄 License & Maintainer
+## 🔒 Copyright & Ownership
 
-Maintained by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (`kashinathtilagul8@gmail.com`).  
-Released under the **MIT License**. Free for personal, commercial, and enterprise deployment.
+Copyright © 2026 **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (`kashinathtilagul8@gmail.com`). All rights reserved.  
+Proprietary software. Unauthorized copying, distribution, modification, or reuse of this repository and codebase is strictly prohibited.

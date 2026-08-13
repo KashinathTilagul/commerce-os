@@ -1,14 +1,14 @@
 {
   "name": "fashion-os",
   "version": "3.5.0",
-  "description": "Fashion OS — Self-Hostable Retail & E-Commerce Desktop Operating System created by Kashinath Tilagul / EKVAAR",
+  "description": "Fashion OS — Enterprise Retail & E-Commerce Desktop Operating System created by Kashinath Tilagul / EKVAAR",
   "author": "Kashinath Tilagul <kashinathtilagul8@gmail.com>",
   "homepage": "https://github.com/KashinathTilagul/Ekvaar#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/KashinathTilagul/Ekvaar.git"
   },
-  "license": "MIT",
+  "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
