@@ -34,8 +34,6 @@ export function getSelectedVoiceId(): string {
     return 'en-IN-PrabhatNeural'
   }
 }
-}
-
 export function getVoiceProfile(voiceId: string) {
   const matched = WORKABLE_VOICES.find(v => v.id === voiceId)
   if (matched) {

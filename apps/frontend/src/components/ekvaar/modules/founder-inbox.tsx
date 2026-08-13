@@ -91,15 +91,16 @@ export function FounderInbox() {
     setKrishnaQuery('')
   }
 
-  const pending = allApprovals.filter((a) => a.status === 'PENDING')
-  const unread = allApprovals.filter((a) => !a.isRead && a.status === 'PENDING')
-  const blocked = allApprovals.filter((a) => a.inbox === 'BLOCKED' || a.status === 'REVISION_REQUESTED')
+  const approvalsList = Array.isArray(allApprovals) ? allApprovals : []
+  const pending = approvalsList.filter((a) => a.status === 'PENDING')
+  const unread = approvalsList.filter((a) => !a.isRead && a.status === 'PENDING')
+  const blocked = approvalsList.filter((a) => a.inbox === 'BLOCKED' || a.status === 'REVISION_REQUESTED')
   const totalAmount = pending.reduce((s, a) => s + a.amount, 0)
 
   const approvals = tab === 'MINE' ? pending 
     : tab === 'UNREAD' ? unread 
     : tab === 'BLOCKED' ? blocked 
-    : allApprovals
+    : approvalsList
 
   return (
     <div className="bg-background h-full min-h-screen text-foreground">
