@@ -6,7 +6,7 @@ import path from 'path'
 
 export async function GET() {
   const start = Date.now()
-  const releaseVersion = process.env.RELEASE_VERSION || 'v3.3.1-release-stability'
+  const releaseVersion = process.env.RELEASE_VERSION || 'v3.5.0-platform-ready'
 
   let dbStatus = 'healthy'
   let kernelStatus = 'healthy'
