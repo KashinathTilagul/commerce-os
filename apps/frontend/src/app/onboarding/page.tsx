@@ -158,8 +158,7 @@ export default function OnboardingPage() {
 
   const connectedCount = Array.isArray(data?.integrations) ? data.integrations.filter((integration) => integration.isConnected).length : 0
 
-  return (
-    <main className="min-h-screen bg-[#f3efe6] text-[#17231d] overflow-hidden relative">
+    return (<main className="min-h-screen bg-[#f3efe6] text-[#17231d] overflow-hidden relative">
       <div className="absolute inset-0 opacity-50" style={{ backgroundImage: 'radial-gradient(#97a99f 0.7px, transparent 0.7px)', backgroundSize: '18px 18px' }} />
       <div className="absolute -top-32 -right-24 h-96 w-96 rounded-full bg-[#d8613c]/20 blur-3xl" />
       <div className="relative min-h-screen grid lg:grid-cols-[320px_1fr]">

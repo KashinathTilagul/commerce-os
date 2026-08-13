@@ -1,0 +1,72 @@
+export const dynamic = 'force-dynamic'
+
+import { NextRequest, NextResponse } from 'next/server'
+import { requireOrganization } from '@/lib/auth-guard'
+import { db } from '@/lib/db'
+import { sanitizeInput } from '@/lib/security'
+import { requestAgentWake } from '@/lib/agents/wake-coalescer'
+import { enqueueAgentJob } from '@/lib/queue'
+
+export async function POST(req: NextRequest) {
+  const auth = await requireOrganization()
+  if (!auth.success) return auth.response
+
+  try {
+    const body = await req.json()
+    const { channelId, content, parentMessageId, metadata } = body
+
+    if (!channelId || !content) {
+      return NextResponse.json({ error: 'channelId and content required' }, { status: 400 })
+    }
+
+    const cleanContent = sanitizeInput(content, { maxLength: 4000 })
+
+    const message = await db.message.create({
+      data: {
+        channelId,
+        parentMessageId: parentMessageId || null,
+        threadTitle: metadata?.threadTitle || null,
+        authorType: 'USER',
+        authorId: auth.userId || 'FOUNDER',
+        content: cleanContent,
+        metadata: metadata || {},
+      },
+    })
+
+    const mentions: string[] = metadata?.mentions || []
+    const isAgentChannel = channelId.includes('CEO') || channelId.includes('CMO') || channelId.includes('CFO')
+
+    if (mentions.length > 0 || isAgentChannel) {
+      const agentCode = mentions[0] || 'CEO'
+      const agent = await db.agent.findFirst({
+        where: { organizationId: auth.organizationId, code: agentCode },
+      })
+
+      if (agent && !agent.isHuman) {
+        const wake = await requestAgentWake({
+          organizationId: auth.organizationId,
+          agentId: agent.id,
+          triggerType: 'CHAT_MESSAGE',
+          triggerRef: message.id,
+        })
+
+        if (wake.runId && !wake.coalesced) {
+          await enqueueAgentJob({
+            jobId: wake.runId,
+            organizationId: auth.organizationId,
+            agentId: agent.id,
+            agentRole: agent.role,
+            taskType: 'CHAT',
+            mission: cleanContent,
+            metadata: { channelId, parentMessageId, threadId: parentMessageId || message.id },
+            createdAt: new Date().toISOString(),
+          })
+        }
+      }
+    }
+
+    return NextResponse.json({ message })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}

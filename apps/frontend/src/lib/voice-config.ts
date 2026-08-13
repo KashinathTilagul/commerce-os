@@ -39,7 +39,6 @@ export function getJarvisProfile() {
     gender: 'male' as const,
   }
 }
-
 export function getSelectedVoiceId(): string {
   if (typeof window === 'undefined') return JARVIS_VOICE_ID
   try {

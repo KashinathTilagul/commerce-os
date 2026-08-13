@@ -1,0 +1,36 @@
+export const dynamic = 'force-dynamic'
+
+import { NextRequest, NextResponse } from 'next/server'
+import { requireOrganization } from '@/lib/auth-guard'
+import { db } from '@/lib/db'
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ channelId: string }> }
+) {
+  const auth = await requireOrganization()
+  if (!auth.success) return auth.response
+
+  const { channelId } = await params
+  const { searchParams } = new URL(req.url)
+  const threadId = searchParams.get('threadId')
+
+  try {
+    if (threadId) {
+      const parent = await db.message.findFirst({
+        where: { id: threadId, channelId, organizationId: auth.organizationId },
+        include: { replies: { orderBy: { createdAt: 'asc' } } },
+      })
+      if (!parent) return NextResponse.json({ messages: [] })
+      return NextResponse.json({ messages: [parent, ...parent.replies] })
+    }
+
+    const messages = await db.message.findMany({
+      where: { channelId, parentMessageId: null, organizationId: auth.organizationId },
+      orderBy: { createdAt: 'asc' },
+    })
+    return NextResponse.json({ messages })
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
