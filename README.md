@@ -16,6 +16,29 @@
 
 Created, architected, and maintained by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (EKVAAR).
 
+<p align="center">
+  <img src="docs/assets/desktop-shell.png" alt="Fashion OS Liquid Glass Desktop Shell" width="100%" />
+</p>
+
+---
+
+## 📸 Interface Preview
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%">
+        <img src="docs/assets/voice-assistant.png" alt="Conversational Voice Assistant & Board Room" />
+        <p align="center"><b>Conversational AI & Board Room KPI Command</b></p>
+      </td>
+      <td width="50%">
+        <img src="docs/assets/integrations-hub.png" alt="800+ App Connections & Integrations Hub" />
+        <p align="center"><b>800+ App Connections & Integrations Hub</b></p>
+      </td>
+    </tr>
+  </table>
+</div>
+
 ---
 
 ## 🏛️ System Architecture
