@@ -1,9 +1,9 @@
 # 🌌 Fashion OS
-**Enterprise Retail & E-Commerce Desktop Operating System**
+**Open-Core Retail & E-Commerce Desktop Operating System**
 
 [![Creator](https://img.shields.io/badge/Creator-Kashinath%20Tilagul-8A2BE2?style=flat-square&logo=github)](https://github.com/KashinathTilagul)
 [![Release](https://img.shields.io/badge/Release-v3.5.0--platform--ready-00F5FF?style=flat-square)](https://github.com/KashinathTilagul/Ekvaar/releases)
-[![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](https://github.com/KashinathTilagul/Ekvaar)
+[![License](https://img.shields.io/badge/License-MIT%20%2F%20Open--Core-brightgreen?style=flat-square)](https://github.com/KashinathTilagul/Ekvaar/blob/main/LICENSE)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%2F%20Supabase-336791?style=flat-square&logo=postgresql)](https://supabase.com/)
 [![Node.js](https://img.shields.io/badge/Runtime-Node.js%20%3E%3D18-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
@@ -12,9 +12,9 @@
 
 ## 💎 Overview
 
-**Fashion OS** is a self-hostable enterprise desktop operating system engineered for fashion brands, retail operations, and e-commerce infrastructure. Wrapped in a Liquid Glass macOS Desktop Environment and driven by an autonomous Digital Employee Control Plane, Fashion OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
+**Fashion OS** is a self-hostable open-core desktop operating system engineered for fashion brands, retail operations, and e-commerce infrastructure. Wrapped in a Liquid Glass macOS Desktop Environment and driven by an autonomous Digital Employee Control Plane, Fashion OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
 
-Created, architected, and owned exclusively by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (EKVAAR).
+Created, architected, and maintained by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (EKVAAR).
 
 ---
 
@@ -141,7 +141,10 @@ DOMAIN="os.yourdomain.com" ./deploy.sh
 
 ---
 
-## 🔒 Copyright & Ownership
+## 📄 License & Dual-Licensing Model
 
-Copyright © 2026 **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (`kashinathtilagul8@gmail.com`). All rights reserved.  
-Proprietary software. Unauthorized copying, distribution, modification, or reuse of this repository and codebase is strictly prohibited.
+Created and maintained by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (`kashinathtilagul8@gmail.com`).
+
+Distributed under an **Open Core License**:
+- **Open Core Framework & UI**: Distributed under the permissive [MIT License](LICENSE).
+- **Enterprise Autonomous Engine**: Dual-licensed under commercial terms for enterprise deployments.

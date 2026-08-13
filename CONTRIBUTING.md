@@ -4,11 +4,11 @@ This document covers setup, code style, testing, and contribution standards for 
 
 ---
 
-## 👨‍💻 Software Ownership & Maintenance
+## 👨‍💻 Software Licensing & Attribution
 
 - **Owner & Creator**: [Kashinath Tilagul](https://github.com/KashinathTilagul) (`kashinathtilagul8@gmail.com`)
-- **License**: Proprietary / Private Enterprise
-- **Attribution Policy**: All code commits, deployment scripts, and code modifications must reflect verified maintainer identity (`Kashinath Tilagul`). Bot or AI tool prefixes in commit messages/headers are prohibited.
+- **License Model**: Open Core (MIT License for Core Platform & Frontend Modules; Commercial Terms for Enterprise Autonomy Engine).
+- **Attribution Policy**: All code commits, deployment scripts, and pull requests must use verified maintainer identity (`Kashinath Tilagul`). Bot or automated tool prefixes in commits are prohibited.
 
 ---
 
