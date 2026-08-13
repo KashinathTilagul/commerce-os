@@ -1,62 +1,24 @@
-```
-███████╗█████╗ ███████╗██╗██╗  ██╗██╗  ██╗███╗   ██╗     ██████╗ ███████╗
-██╔════╝██╔══██╗██╔════╝██║██║  ██║██║  ██║████╗  ██║    ██╔═══██╗██╔════╝
-█████╗  ███████║███████╗██║███████║██║  ██║██╔██╗ ██║    ██║   ██║███████╗
-██╔══╝  ██╔══██║╚════██║██║██╔══██║██║  ██║██║╚██╗██║    ██║   ██║╚════██║
-██║     ██║  ██║███████║██║██║  ██║╚█████╔╝██║ ╚████║    ╚██████╔╝███████║
-╚═╝     ╚═╝  ╚═╝╚══════╝╚═╝╚═╝  ╚═╝ ╚════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝
-```
+# 🌌 Fashion OS
+**Enterprise Retail & E-Commerce Desktop Operating System**
 
-# 🌌 FASHION OS
-### *Next-Generation Enterprise Fashion E-Commerce Operating System*
-
-[![Creator](https://img.shields.io/badge/Creator-Kashinath%20Tilagul-8A2BE2?style=for-the-badge&logo=github)](https://github.com/KashinathTilagul)
-[![Release](https://img.shields.io/badge/Release-v3.5.0--platform--ready-00F5FF?style=for-the-badge)](https://github.com/KashinathTilagul/Ekvaar/releases)
-[![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)](https://github.com/KashinathTilagul/Ekvaar)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%2F%20Supabase-336791?style=for-the-badge&logo=postgresql)](https://supabase.com/)
-[![Node.js](https://img.shields.io/badge/Runtime-Node.js%20%3E%3D18-339933?style=for-the-badge&logo=node.js)](https://nodejs.org/)
-[![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED?style=for-the-badge&logo=docker)](https://www.docker.com/)
+[![Creator](https://img.shields.io/badge/Creator-Kashinath%20Tilagul-8A2BE2?style=flat-square&logo=github)](https://github.com/KashinathTilagul)
+[![Release](https://img.shields.io/badge/Release-v3.5.0--platform--ready-00F5FF?style=flat-square)](https://github.com/KashinathTilagul/Ekvaar/releases)
+[![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](https://github.com/KashinathTilagul/Ekvaar)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%2F%20Supabase-336791?style=flat-square&logo=postgresql)](https://supabase.com/)
+[![Node.js](https://img.shields.io/badge/Runtime-Node.js%20%3E%3D18-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 
 ---
 
 ## 💎 Overview
 
-**Fashion OS** is an enterprise desktop operating system engineered specifically for fashion brands, retail operations, and direct-to-consumer e-commerce infrastructure. Wrapped in a **3D Liquid Glass macOS Desktop Environment** and driven by an autonomous **Digital Employee Control Plane**, Fashion OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
+**Fashion OS** is a self-hostable enterprise desktop operating system engineered for fashion brands, retail operations, and e-commerce infrastructure. Wrapped in a Liquid Glass macOS Desktop Environment and driven by an autonomous Digital Employee Control Plane, Fashion OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
 
 Created, architected, and owned exclusively by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (EKVAAR).
 
 ---
 
-## 📐 3D System Architecture Matrix
-
-```
-                      +------------------------------------------+
-                      |    3D LIQUID GLASS macOS DESKTOP SHELL   |
-                      |   (Spotlight, Dock, Window Depth Engine) |
-                      +--------------------+---------------------+
-                                           |
-                   +-----------------------+-----------------------+
-                   |                                               |
-        +----------v----------+                         +----------v----------+
-        |   DIGITAL WORKFORCE |                         |   CONVERSATIONAL    |
-        |     CONTROL PLANE   |                         |   VOICE AI SIDECAR  |
-        |  (Autonomous Mesh)  |                         |  (STT/TTS Neural)   |
-        +----------+----------+                         +----------+----------+
-                   |                                               |
-                   +-----------------------+-----------------------+
-                                           |
-                      +--------------------v---------------------+
-                      |      MULTI-MODEL AI ROUTING MATRIX       |
-                      | (Claude 3.5 / GPT-4o / Local Ollama)     |
-                      +--------------------+---------------------+
-                                           |
-                      +--------------------v---------------------+
-                      |      POSTGRESQL / PRISMA PERSISTENCE     |
-                      |     (Supabase Transaction Pooler)        |
-                      +------------------------------------------+
-```
-
-### High-Level Flow Chart
+## 🏛️ System Architecture
 
 ```mermaid
 graph TD
@@ -76,23 +38,22 @@ graph TD
 
 ## ⚡ Key Highlights & Core Capabilities
 
-### 1. 🖥️ 3D Liquid Glass macOS Desktop Architecture
-- **Depth Layering & Window Physics**: Drag, resize, minimize, maximize, and stack windows with real z-index depth layering and frosted backdrop filters.
-- **Top Menu Bar HUD**: Real-time system metrics, unread notification panel, system volume, battery indicator, and quick-launch AI Assistant triggers.
-- **Global Spotlight (`Cmd+K`)**: Instant fuzzy search across inventory SKUs, sales orders, digital employees, and system commands.
-- **Full-Screen Launchpad (`F4` / `Cmd+L`)**: Grid interface for launching core retail modules and utilities.
-- **Fluid Micro-Animations**: Dynamic visual feedback built with custom HSL token palettes and Framer Motion transitions.
+### 1. 🖥️ macOS Desktop Environment
+- **Multi-Window Depth Layering**: Drag, resize, minimize, maximize, and stack windows with real z-index depth layering and frosted backdrop blur.
+- **Top Menu Bar HUD**: Real-time system metrics, unread notification panel, system volume, battery indicator, and quick-launch AI triggers.
+- **Global Spotlight (`Cmd+K`)**: Instant search across inventory SKUs, sales orders, digital employees, and system tools.
+- **Launchpad Grid (`F4` / `Cmd+L`)**: Clean view of installed applications and retail modules.
 
-### 2. 🤖 Autonomous Digital Employee Mesh
-- **Overview & Org Chart**: Dynamic visual rendering of executive and specialist agent hierarchies (CEO, CMO, CTO, CFO, COO).
-- **Kanban Task Boards**: Live tracking of issues, automated campaign deliverables, and product launches.
-- **Governance Sign-off Queue**: High-risk financial or operational decisions require explicit founder approval.
-- **Real-Time Telemetry**: Real-time run traces, log streams, token consumption monitoring, and monthly spending safety caps.
+### 2. 🤖 Digital Employee Workforce Control Plane
+- **Org Chart & Directory**: Visual rendering of executive and specialist agent hierarchies (CEO, CMO, CTO, CFO, COO).
+- **Kanban Task Boards**: Live tracking of production issues, marketing campaign deliverables, and product launches.
+- **Governance Approvals Queue**: Enforces human founder sign-off before executing high-risk financial or operational decisions.
+- **Real-Time Telemetry**: Execution steps, run logs, token consumption monitoring, and monthly spending caps.
 
 ### 3. 🎙️ Conversational Voice AI Sidecar
 - **Continuous Voice Loop**: Hands-free speech-to-text input with silence auto-detection.
-- **Audio Queue Engine**: Natural-paced speech synthesis with pitch/rate tuning.
-- **Automatic Model Fallback**: Dynamic routing across Anthropic Claude, OpenAI, and local Ollama models.
+- **Natural Speech Pacing**: Sentence-chunked speech synthesis with pitch/rate tuning.
+- **Multi-Model Intelligence**: Automatic fallback routing across Anthropic Claude, OpenAI, and local Ollama models.
 
 ---
 
@@ -116,7 +77,7 @@ graph TD
 
 - **Terminal**: Live event stream, worker logs, and system diagnostic execution.
 - **Activity Monitor**: Real-time CPU, memory, and database pool utilization charts.
-- **Files**: Asset explorer for tech packs, lookbooks, campaigns, and reports.
+- **Files**: Integrated asset explorer for tech packs, lookbooks, campaigns, and reports.
 - **Notes**: Markdown-powered notebook with local persistence.
 - **Calendar**: Drop dates, marketing campaign schedules, and business milestones.
 - **Music**: Ambient Web Audio synthesizer and soundscape player.
@@ -124,13 +85,13 @@ graph TD
 
 ---
 
-## 🛡️ Enterprise Security & Zero-Trust Governance
+## 🛡️ Enterprise Security & Governance
 
 - **Budget Hard-Cap Safety**: Automatic token suspension upon hitting 100% threshold.
 - **Input Sanitization**: XSS protection stripping malicious scripts and URI payloads across all endpoints.
 - **Sensitive Data Redaction**: Automatic stripping of secrets, JWTs, and API credentials from log streams.
 - **Rate-Limiting Matrix**: IP-bucket rate limiting protecting authentication and AI completion endpoints.
-- **Security Headers**: Strict enforcement of `CSP`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Strict-Transport-Security`.
+- **Security Headers**: Enforcement of `CSP`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Strict-Transport-Security`.
 
 ---
 
@@ -138,7 +99,7 @@ graph TD
 
 ```
 Frontend    : Next.js 16 (App Router), React 19, TypeScript
-Styling     : Tailwind CSS v4 + 3D Liquid Glass Engine (glass-system.tsx)
+Styling     : Tailwind CSS v4 + Liquid Glass Engine (glass-system.tsx)
 Animation   : Framer Motion
 State       : Zustand
 Database    : PostgreSQL via Prisma ORM (Supabase Transaction Pooler)
@@ -149,7 +110,7 @@ Deployment  : Docker Compose + Caddy / Nginx
 
 ---
 
-## 🚀 Environment Setup & Deployment
+## 🚀 Quick Start
 
 ```bash
 # 1. Clone repository
