@@ -2,10 +2,12 @@
 set -eo pipefail
 
 DOMAIN="${DOMAIN:-os.ekvaar.com}"
-RELEASE_TAG="v3.3.1-release-stability"
+RELEASE_TAG="v3.5.0-platform-ready"
+MAINTAINER="Kashinath Tilagul"
 
 echo "===================================================="
-echo "  EKVAAR OS — Production Deployment Pipeline       "
+echo "  FASHION OS — Production Deployment Pipeline       "
+echo "  Created & Maintained by: $MAINTAINER               "
 echo "  Release Tag: $RELEASE_TAG                         "
 echo "===================================================="
 
