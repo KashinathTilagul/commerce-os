@@ -116,21 +116,6 @@ export const APPS: AppDef[] = [
     menuItems: [{ label: 'File', items: ['Export Report', 'Close Window'] }]
   },
   {
-    id: 'inbox',
-    name: 'Founder Inbox',
-    shortName: 'Inbox',
-    version: '1.0.0',
-    icon: Inbox as any,
-    iconVariant: 'inbox',
-    category: 'core',
-    requiredCapabilities: [],
-    entryPoint: FounderInbox,
-    permissions: [],
-    gradient: 'linear-gradient(135deg, #C8302A 0%, #8B1E1A 100%)',
-    glyphColor: '#F5F1EA',
-    menuItems: [{ label: 'File', items: ['Export Inbox', 'Close Window'] }]
-  },
-  {
     id: 'agents',
     name: 'AI Workforce',
     shortName: 'Workforce',

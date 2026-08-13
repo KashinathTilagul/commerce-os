@@ -66,6 +66,7 @@ async def _pocket_tts(text: str, voice: str) -> bytes:
 
 
 # Edge TTS — SSML neural voices (fallback + Indian/Hindi voices)
+# en-GB-RyanNeural is the Jarvis preset: "assistant" style with styledegree 1.6
 import re
 import html
 
@@ -76,7 +77,7 @@ _VOICE_STYLES: dict[str, str] = {
     "en-US-EmmaNeural":    "chat",
     "en-US-BrianNeural":   "chat",
     "en-US-AvaNeural":     "chat",
-    "en-GB-RyanNeural":    "chat",
+    "en-GB-RyanNeural":    "assistant",
     "en-GB-SoniaNeural":   "chat",
     "en-AU-WilliamNeural": "chat",
     "en-AU-NatashaNeural": "chat",
@@ -85,11 +86,12 @@ _VOICE_STYLES: dict[str, str] = {
 def _build_ssml(text: str, voice: str, speed: float = 1.0, stability: float = 0.75, volume: float = 1.0) -> str:
     lang = voice[:5]
     safe = html.escape(text)
-    safe = re.sub(r"\\.\\.\\.", "<break time=\"650ms\"/>", safe)
-    safe = re.sub(r"(?<!\\.)\\.\\.(?!\\.)", "<break time=\"320ms\"/>", safe)
-    safe = safe.replace("—", "<break time=\"220ms\"/>").replace("–", "<break time=\"160ms\"/>")
-    safe = re.sub(r",(\\s)", r",<break time=\"90ms\"/>\\1", safe)
-    breath = "<break time=\"200ms\"/>" if len(text) > 100 else ""
+    safe = re.sub(r"\\.\\.\\.", "<break time=\"800ms\"/>", safe)
+    safe = re.sub(r"(?<!\\.)\\.\\.(?!\\.)", "<break time=\"400ms\"/>", safe)
+    safe = safe.replace("—", "<break time=\"280ms\"/>").replace("–", "<break time=\"200ms\"/>")
+    safe = re.sub(r",(\\s)", r",<break time=\"120ms\"/>\\1", safe)
+    safe = re.sub(r";(\\s)", r";<break time=\"180ms\"/>\\1", safe)
+    breath = "<break time=\"350ms\"/>" if len(text) > 80 else ""
     rate_pct = round((speed - 1.0) * 100 - 10)
     pitch_pct = round((stability - 0.75) * 20 - 5)
     vol_db = round((volume - 1.0) * 6)
@@ -98,11 +100,12 @@ def _build_ssml(text: str, voice: str, speed: float = 1.0, stability: float = 0.
     vol = f"{vol_db:+d}dB" if vol_db != 0 else "default"
     vol_attr = f" volume=\"{vol}\"" if vol != "default" else ""
     style = _VOICE_STYLES.get(voice)
+    styledegree = "1.6" if voice == "en-GB-RyanNeural" else "1.3"
     if style:
         return (
             f"<speak version=\"1.0\" xmlns=\"http://www.w3.org/2001/10/synthesis\" "
             f"xmlns:mstts=\"http://www.w3.org/2001/mstts\" xml:lang=\"{lang}\">"
-            f"<voice name=\"{voice}\"><mstts:express-as style=\"{style}\" styledegree=\"1.3\">"
+            f"<voice name=\"{voice}\"><mstts:express-as style=\"{style}\" styledegree=\"{styledegree}\">"
             f"<prosody rate=\"{rate}\" pitch=\"{pitch}\"{vol_attr}>{breath}{safe}"
             f"</prosody></mstts:express-as></voice></speak>"
         )
@@ -115,7 +118,7 @@ def _build_ssml(text: str, voice: str, speed: float = 1.0, stability: float = 0.
 
 class TTSRequest(BaseModel):
     text: str
-    voice: str = "en-IN-NeerjaNeural"
+    voice: str = "en-GB-RyanNeural"
     speed: float = 1.0
     stability: float = 0.75
     volume: float = 1.0
@@ -187,47 +190,3 @@ async def stt(audio: UploadFile = File(...)):
             pass
 
 
-VOICES = [
-    # Pocket TTS — kyutai local neural (English)
-    {"id": "charles",  "label": "Charles — English Male",         "lang": "en", "engine": "pocket-tts"},
-    {"id": "eve",      "label": "Eve — English Female",           "lang": "en", "engine": "pocket-tts"},
-    {"id": "anna",     "label": "Anna — English Female (warm)",   "lang": "en", "engine": "pocket-tts"},
-    {"id": "alba",     "label": "Alba — English Female (clear)",  "lang": "en", "engine": "pocket-tts"},
-    {"id": "estelle",  "label": "Estelle — English Female",       "lang": "en", "engine": "pocket-tts"},
-    {"id": "lola",     "label": "Lola — English Female",          "lang": "en", "engine": "pocket-tts"},
-    {"id": "giovanni", "label": "Giovanni — Male",                "lang": "en", "engine": "pocket-tts"},
-    {"id": "rafael",   "label": "Rafael — Male",                  "lang": "en", "engine": "pocket-tts"},
-    # Edge TTS — Microsoft neural (Indian & Hindi)
-    {"id": "en-IN-NeerjaNeural",   "label": "Neerja — Indian English Female",  "lang": "en-IN", "engine": "edge"},
-    {"id": "en-IN-PrabhatNeural",  "label": "Prabhat — Indian English Male",   "lang": "en-IN", "engine": "edge"},
-    {"id": "hi-IN-SwaraNeural",    "label": "Swara — Hindi Female",            "lang": "hi-IN", "engine": "edge"},
-    {"id": "hi-IN-MadhurNeural",   "label": "Madhur — Hindi Male",             "lang": "hi-IN", "engine": "edge"},
-    {"id": "en-US-AndrewNeural",   "label": "Andrew — US English Male",        "lang": "en-US", "engine": "edge"},
-    {"id": "en-US-EmmaNeural",     "label": "Emma — US English Female",        "lang": "en-US", "engine": "edge"},
-    {"id": "en-US-BrianNeural",    "label": "Brian — US English Male (deep)",  "lang": "en-US", "engine": "edge"},
-    {"id": "en-US-AvaNeural",      "label": "Ava — US English Female (warm)",  "lang": "en-US", "engine": "edge"},
-    {"id": "en-GB-RyanNeural",     "label": "Ryan — British English Male",     "lang": "en-GB", "engine": "edge"},
-    {"id": "en-GB-SoniaNeural",    "label": "Sonia — British English Female",  "lang": "en-GB", "engine": "edge"},
-    {"id": "en-AU-WilliamNeural",  "label": "William — Australian Male",       "lang": "en-AU", "engine": "edge"},
-    {"id": "en-AU-NatashaNeural",  "label": "Natasha — Australian Female",     "lang": "en-AU", "engine": "edge"},
-]
-
-@router.get("/voices")
-async def list_voices():
-    return VOICES
-
-
-_last_brief: dict = {}
-
-@router.get("/brief")
-async def get_founder_brief():
-    from datetime import datetime
-    
-    hour = int(datetime.now().strftime("%H"))
-    greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
-    
-    spoken = f"{greeting}. Revenue is at 2.45 lakh rupees. 148 total orders. 8 of 12 agents are active. 3 pending approvals in your inbox. 5 open issues. Cash position is 8.5 lakh rupees with 7 months runway. Brand compliance at 94 percent."
-    
-    text = f"📋 Founder Brief\n\n{greeting}.\n\n• Revenue: ₹2,45,000\n• Orders: 148\n• Agents: 8/12 active\n• Pending approvals: 3\n• Open issues: 5\n• Cash: ₹8,50,000\n• Runway: 7 months\n• Brand compliance: 94%"
-    
-    return {"text": text, "spoken": spoken}

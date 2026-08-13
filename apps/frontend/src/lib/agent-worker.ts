@@ -7,6 +7,9 @@ import { decomposeTask } from './task-templates'
 import { generatePDF } from './pdf-generator'
 import { generateImage } from './image-generator'
 import { generateVideo } from './video-generator'
+import { generateAudio } from './audio-generator'
+import { syncCampaignItemAfterWork } from './campaign-execution'
+import { extractExactReply, parseGeneratedMediaJSON, shouldExecuteMedia } from './work-request-planner'
 
 const StatusSchema = z.object({
   progressNote: z.string().describe('1-2 sentences, first person, summarising what you just produced.'),
@@ -41,7 +44,8 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
     orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
     include: { 
       comments: { orderBy: { createdAt: 'asc' }, take: 20 },
-      subtasks: true
+      subtasks: true,
+      campaignItem: true,
     },
   })
   
@@ -57,6 +61,27 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
   if (!issue) {
     await db.agent.update({ where: { id: agentId }, data: { status: 'IDLE', currentTask: 'Checked in – no open tickets' } })
     return { ok: true, message: `${agent.name} has no open tickets` }
+  }
+
+  const runStartedAt = new Date()
+  const campaignRun = issue.campaignItem ? await db.agentRun.create({
+    data: {
+      organizationId,
+      agentId,
+      triggerType: 'ASSIGNMENT',
+      triggerRef: issue.id,
+      status: 'RUNNING',
+      startedAt: runStartedAt,
+      issueId: issue.id,
+      campaignItemId: issue.campaignItem.id,
+    },
+  }) : null
+
+  if (issue.campaignItem) {
+    await db.campaignLaunchItem.update({
+      where: { id: issue.campaignItem.id },
+      data: { status: 'RUNNING', attemptCount: { increment: 1 } },
+    })
   }
 
   // CHAT CONTEXT (thread-scoped, capped at 15 messages)
@@ -101,6 +126,19 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
 
   const refs = (issue as any).attachments?.slice(0,2) || []
   const refContext = refs.length ? `\n\nREFERENCES (use up to 2, describe exact placement/transfer in GENERATE_*):\n${refs.map((r:any,i:number)=>`${i+1}. ${r.type} ${r.name}: ${r.url}`).join('\n')}` : ''
+  const plannedType = issue.campaignItem?.type
+  const mediaInstruction = plannedType === 'IMAGE'
+    ? '- Return exactly one block: GENERATE_IMAGE: {"prompt":"...","aspectRatio":"1:1","style":"product"}'
+    : plannedType === 'VIDEO'
+      ? '- Return exactly one block: GENERATE_VIDEO: {"template":"BrandVideo","data":{"text":"..."},"duration":5,"title":"..."}'
+      : plannedType === 'PDF'
+        ? '- Return exactly one block: GENERATE_PDF: {"template":"report","data":{"title":"...","content":"..."},"title":"..."}'
+        : plannedType === 'AUDIO'
+          ? '- Return exactly one block: GENERATE_AUDIO: {"text":"...","title":"...","voice":"onyx"}'
+          : '- This is not a media task. Do not emit any GENERATE_* block.'
+  const mediaExample = plannedType && ['IMAGE', 'VIDEO', 'PDF', 'AUDIO'].includes(plannedType)
+    ? '\nUse the required GENERATE_* block so the system creates and stores the requested file.'
+    : ''
 
   const system = `You are ${agent.name}, the ${agent.role} (${agent.department}) for this organization.
 Your prime directive: ${agent.primeDirective}
@@ -114,14 +152,9 @@ RULES:
 - Set DONE only when the deliverable is complete and needs nothing external.
 - Set BLOCKED only if you genuinely cannot proceed without founder input; say exactly what you need.
 
-CRITICAL - MULTIMODAL GENERATION:
-You MUST use GENERATE instructions for visual/digital content. When references are attached, include referenceImage/referenceVideo/referenceStyleGuide and describe exact usage (placement, style transfer, colors, layout).
-
-- Image: GENERATE_IMAGE: {"prompt":"...", "aspectRatio":"1:1", "style":"product", "referenceImage":"url or id", "referenceDescription":"front logo 20% top-left"}
-- Video: GENERATE_VIDEO: {"template":"BrandVideo", "data":{...}, "duration":15, "referenceImage":"..."}
-- PDF: GENERATE_PDF: {"template":"report", "data":{...}, "title":"...", "referenceStyleGuide":"..."}
-
-YOU MUST ACTUALLY GENERATE THE CONTENT, not just describe it. Think of this as your design tool - use it!
+FILE GENERATION POLICY:
+${mediaInstruction}
+Never request a different media type from the planned ticket type.
 ${constraintsSection}
 ${patternsSection}
 ${milestoneContext}
@@ -139,28 +172,32 @@ ${priorWork}
 
 Produce the COMPLETE deliverable for this ticket now. 
 
-Use references if attached — describe exact placement/transfer in the GENERATE_* block.
-
-Example for visual tasks:
----
-## Design Brief
-...your analysis...
-
-## Generated Asset
-GENERATE_IMAGE: {"prompt": "Professional product photo of traditional Indian fashion brand, luxury aesthetic, models in palace setting, rich colors, elegant lighting", "aspectRatio": "1:1", "style": "product"}
----
+Use references if attached — describe exact placement/transfer in the planned GENERATE_* block.${mediaExample}
 
 Now produce YOUR deliverable:`
 
   // GENERATE DELIVERABLE
   let deliverable: string
-  try {
-    const r = await routeText('reasoning', { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
-    deliverable = r.text.trim()
-  } catch (e: any) {
-    return { ok: false, message: `Agent core error: ${e?.message || e}` }
+  const exactReply = issue.campaignItem?.type === 'ANSWER' ? extractExactReply(issue.description) : null
+  if (exactReply) {
+    deliverable = exactReply
+  } else {
+    try {
+      const r = await routeText('reasoning', { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
+      deliverable = r.text.trim()
+    } catch (e: any) {
+      if (campaignRun) await db.agentRun.update({
+        where: { id: campaignRun.id },
+        data: { status: 'FAILED', error: e?.message || String(e), completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
+      })
+      return { ok: false, message: `Agent core error: ${e?.message || e}` }
+    }
   }
-  if (deliverable.length < 40) {
+  if (deliverable.length < 40 && !exactReply) {
+    if (campaignRun) await db.agentRun.update({
+      where: { id: campaignRun.id },
+      data: { status: 'FAILED', error: 'Empty deliverable', completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
+    })
     return { ok: false, message: `${agent.name} returned an empty deliverable — try again` }
   }
 
@@ -189,10 +226,10 @@ Now produce YOUR deliverable:`
     return null
   }
 
-  const imageMatch = extractJSON(cleanedDeliverable, 'GENERATE_IMAGE')
+  const imageMatch = shouldExecuteMedia(plannedType, 'IMAGE') ? extractJSON(cleanedDeliverable, 'GENERATE_IMAGE') : null
   if (imageMatch) {
     try {
-      const params = JSON.parse(imageMatch.json)
+      const params = parseGeneratedMediaJSON<any>(imageMatch.json)
       const result = await generateImage({
         prompt: params.prompt,
         aspectRatio: params.aspectRatio || '1:1',
@@ -209,10 +246,10 @@ Now produce YOUR deliverable:`
     }
   }
 
-  const pdfMatch = extractJSON(cleanedDeliverable, 'GENERATE_PDF')
+  const pdfMatch = shouldExecuteMedia(plannedType, 'PDF') ? extractJSON(cleanedDeliverable, 'GENERATE_PDF') : null
   if (pdfMatch) {
     try {
-      const params = JSON.parse(pdfMatch.json)
+      const params = parseGeneratedMediaJSON<any>(pdfMatch.json)
       const result = await generatePDF({
         template: params.template || 'report',
         data: params.data || {},
@@ -227,10 +264,10 @@ Now produce YOUR deliverable:`
     }
   }
 
-  const videoMatch = extractJSON(cleanedDeliverable, 'GENERATE_VIDEO')
+  const videoMatch = shouldExecuteMedia(plannedType, 'VIDEO') ? extractJSON(cleanedDeliverable, 'GENERATE_VIDEO') : null
   if (videoMatch) {
     try {
-      const params = JSON.parse(videoMatch.json)
+      const params = parseGeneratedMediaJSON<any>(videoMatch.json)
       const result = await generateVideo({
         template: params.template || 'BrandVideo',
         data: params.data || {},
@@ -246,23 +283,48 @@ Now produce YOUR deliverable:`
     }
   }
 
+  const audioMatch = shouldExecuteMedia(plannedType, 'AUDIO') ? extractJSON(cleanedDeliverable, 'GENERATE_AUDIO') : null
+  if (audioMatch) {
+    try {
+      const params = parseGeneratedMediaJSON<any>(audioMatch.json)
+      const result = await generateAudio({
+        text: params.text || params.prompt,
+        title: params.title,
+        voice: params.voice,
+        organizationId,
+        generatedBy: agentId,
+      })
+      multimodalResults.push(`✅ Generated Audio: ${result.audioUrl}`)
+      deliverable = deliverable.replace(audioMatch.fullMatch, '').trim()
+    } catch (e: any) {
+      multimodalFailures.push(`Audio generation failed: ${e.message}`)
+    }
+  }
+
+  if (plannedType && ['IMAGE', 'VIDEO', 'PDF', 'AUDIO'].includes(plannedType) && multimodalResults.length === 0 && multimodalFailures.length === 0) {
+    multimodalFailures.push(`${plannedType} generation failed: the employee did not return the required GENERATE_${plannedType} instruction.`)
+  }
+
   if (multimodalResults.length > 0) {
-    console.log(`[agent-worker] ${agent.name} multimodal:`, multimodalResults)
     deliverable += '\n\n### Generated Assets:\n' + multimodalResults.join('\n')
   }
 
   // DECIDE STATUS
   let work: z.infer<typeof StatusSchema>
-  try {
-    const { object } = await routeObject<z.infer<typeof StatusSchema>>('fast', {
-      schema: StatusSchema,
-      system: `You are ${agent.name}. You just produced a deliverable for ticket ${issue.code}. Decide its status honestly.`,
-      prompt: `Ticket: ${issue.title}\n\nDeliverable you produced:\n${deliverable.slice(0, 3000)}\n\nDecide the status based on milestones.`,
-      temperature: 0,
-    })
-    work = object
-  } catch {
-    work = { progressNote: `Drafted the deliverable for ${issue.code}.`, newStatus: 'IN_REVIEW' }
+  if (issue.campaignItem) {
+    work = { progressNote: `Completed the requested deliverable for ${issue.code}.`, newStatus: 'DONE' }
+  } else {
+    try {
+      const { object } = await routeObject<z.infer<typeof StatusSchema>>('fast', {
+        schema: StatusSchema,
+        system: `You are ${agent.name}. You just produced a deliverable for ticket ${issue.code}. Decide its status honestly.`,
+        prompt: `Ticket: ${issue.title}\n\nDeliverable you produced:\n${deliverable.slice(0, 3000)}\n\nDecide the status based on milestones.`,
+        temperature: 0,
+      })
+      work = object
+    } catch {
+      work = { progressNote: `Drafted the deliverable for ${issue.code}.`, newStatus: 'IN_REVIEW' }
+    }
   }
 
   // A media request without its actual artifact is not a completed deliverable.
@@ -289,9 +351,9 @@ Now produce YOUR deliverable:`
   
   // Post the work as heartbeat
   const milestonePrefix = currentMilestone < 100 ? `[${currentMilestone}% → ${newMilestone}%] ` : ''
-  const bodyText = work.newStatus === 'BLOCKED'
+  const bodyText = exactReply || (work.newStatus === 'BLOCKED'
     ? `${milestonePrefix}${work.progressNote}\n\n⛔ BLOCKED — needs founder: ${work.blockedReason || 'input required'}`
-    : `${milestonePrefix}${work.progressNote}\n\n— — —\n${deliverable}`
+    : `${milestonePrefix}${work.progressNote}\n\n— — —\n${deliverable}`)
   await db.issueComment.create({
     data: { issueId: issue.id, authorId: agentId, authorName: agent.name, body: bodyText, kind: 'HEARTBEAT' },
   })
@@ -304,6 +366,7 @@ Now produce YOUR deliverable:`
       milestone: newMilestone
     } 
   })
+  await syncCampaignItemAfterWork(organizationId, issue.id, work.newStatus)
 
   // STORE LEARNING PATTERN
   const outcome = work.newStatus === 'DONE' ? 'SUCCESS' : work.newStatus === 'BLOCKED' ? 'REJECTED' : 'SUCCESS'
@@ -341,6 +404,17 @@ Now produce YOUR deliverable:`
       summary: `${agent.name} worked ${issue.code} → ${work.newStatus} (${newMilestone}%)`,
       payload: JSON.stringify({ code: issue.code, status: work.newStatus, milestone: newMilestone }),
       severity: work.newStatus === 'BLOCKED' ? 'WARN' : 'INFO',
+    },
+  })
+
+  if (campaignRun) await db.agentRun.update({
+    where: { id: campaignRun.id },
+    data: {
+      status: work.newStatus === 'BLOCKED' ? 'FAILED' : 'COMPLETED',
+      error: work.newStatus === 'BLOCKED' ? work.blockedReason || 'Campaign item blocked' : null,
+      outputSummary: deliverable.slice(0, 1000),
+      completedAt: new Date(),
+      durationMs: Date.now() - runStartedAt.getTime(),
     },
   })
 

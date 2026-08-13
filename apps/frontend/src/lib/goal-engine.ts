@@ -35,8 +35,7 @@ export async function runGoalIteration(goalId: string, measuredValue?: number, a
   
   const iterationCount = await db.goalIteration.count({ where: { goalId } })
   
-  // Mock measure if not provided
-  const val = measuredValue ?? (goal.currentValue + (Math.random() * 10 - 5))
+  const val = measuredValue ?? goal.currentValue
   const delta = val - goal.currentValue
   
   const iteration = await db.goalIteration.create({

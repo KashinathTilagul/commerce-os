@@ -6,18 +6,12 @@ on:
       - main
   workflow_dispatch:
 
-# Never run two deploys at once — they race on the same Docker Compose project
-# and tear down each other's containers. Let the running one finish; a newer
-# push waits and supersedes any other queued run.
 concurrency:
   group: deploy-production
   cancel-in-progress: false
 
 jobs:
   deploy:
-    # Runs directly on the AWS EC2 box (self-hosted runner registered there) —
-    # no SSH hop needed since the runner already lives on the deploy target,
-    # and self-hosted runners don't consume metered Actions minutes.
     runs-on: self-hosted
 
     steps:
@@ -31,6 +25,7 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
           AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
@@ -44,22 +39,16 @@ jobs:
           BROWSER_USE_MODEL: ${{ secrets.BROWSER_USE_MODEL }}
           OPENAI_BROWSER_MODEL: ${{ secrets.OPENAI_BROWSER_MODEL }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DOCKER_BUILDKIT: 1
         run: |
           set -e -o pipefail
-          # ponytail: the job's PATH under this self-hosted runner isn't reliable
-          # (sudo failed to resolve even though it works under a bare shell) —
-          # pin PATH explicitly and never depend on `~` (HOME isn't set either).
           export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           cd /home/ubuntu/Ekvaar 2>/dev/null || cd /home/ubuntu/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
           echo "[i] Deploying from: $(pwd)"
-          # The self-hosted runner is a disposable deployment checkout. Reset
-          # it to the trusted remote main ref so a prior manual checkout or
-          # interrupted deployment cannot make the next release diverge.
           git fetch --prune origin main
           git checkout -B main origin/main
           echo "[i] Now at commit: $(git rev-parse --short HEAD)"
 
-          # Ensure Swapfile exists on EC2 to prevent Docker/Next.js OOM crashes
           if [ $(/usr/sbin/swapon --show | wc -l) -eq 0 ]; then
             echo "[i] Enabling 2GB swap space to prevent OOM build crashes..."
             /usr/bin/sudo fallocate -l 2G /swapfile || /usr/bin/sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
@@ -68,7 +57,6 @@ jobs:
             /usr/bin/sudo swapon /swapfile || true
           fi
 
-          # Ensure database directory permissions on host
           mkdir -p db apps/frontend/db
           /usr/bin/sudo chmod -R 777 db apps/frontend/db 2>/dev/null || true
 
@@ -81,6 +69,13 @@ jobs:
           if [ -z "$DATABASE_URL" ] || [[ "$DATABASE_URL" != postgresql://* ]]; then
             echo "[x] DATABASE_URL must be set to the Supabase PostgreSQL connection string."
             exit 1
+          fi
+          if [[ "$DATABASE_URL" == postgresql://postgres:*@db.guxaxhofeglqkmrhahsw.supabase.co:5432/* ]]; then
+            DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:${DATABASE_URL#postgresql://postgres:}"
+            DATABASE_URL="${DATABASE_URL/@db.guxaxhofeglqkmrhahsw.supabase.co:5432/@aws-0-ap-south-1.pooler.supabase.com:5432}"
+          fi
+          if [[ "$DATABASE_URL" == postgresql://postgres:*@aws-0-ap-south-1.pooler.supabase.com:5432/* ]]; then
+            DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:${DATABASE_URL#postgresql://postgres:}"
           fi
           QIKINK_CLIENT_ID="${QIKINK_CLIENT_ID:-$(existing_env QIKINK_CLIENT_ID)}"
           QIKINK_CLIENT_SECRET="${QIKINK_CLIENT_SECRET:-$(existing_env QIKINK_CLIENT_SECRET)}"
@@ -95,12 +90,14 @@ jobs:
             "DATABASE_URL=${DATABASE_URL}" \
             "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
             "NEXTAUTH_URL=https://os.ekvaar.com" \
+            "CAMPAIGN_LAUNCHES_ENABLED=true" \
             "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
             "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
             "COMPOSIO_API_KEY=${COMPOSIO_API_KEY}" \
             "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" \
             "GROQ_API_KEY=${GROQ_API_KEY}" \
             "JWT_SECRET=${JWT_SECRET}" \
+            "CRON_SECRET=${CRON_SECRET}" \
             "AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}" \
             "AWS_REGION=us-east-1" \
             "BEDROCK_MODEL_ID=amazon.nova-pro-v1:0" \
@@ -119,42 +116,38 @@ jobs:
             "BROWSER_HEADLESS=true" \
             > .env
 
+          curl -fsS https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt \
+            -o db/supabase-ca.crt
+
+          if /usr/bin/sudo docker image inspect ekvaar-frontend >/dev/null 2>&1; then
+            /usr/bin/sudo docker compose up -d --no-build --force-recreate frontend nginx || true
+          fi
+
           echo "[i] Disk before cleanup:"; df -h / || true
 
-          # Reclaim space WITHOUT stopping the running site
-          /usr/bin/sudo docker image prune -f || true
-          /usr/bin/sudo docker container prune -f || true
-          /usr/bin/sudo docker builder prune -f --keep-storage 2GB || true
+          /usr/bin/sudo docker system prune -af || true
           /usr/bin/sudo apt-get clean || true
           /usr/bin/sudo journalctl --vacuum-size=100M || true
           echo "[i] Disk after cleanup:"; df -h / || true
 
-          # Build while old containers still serve traffic
           /usr/bin/sudo docker compose build --progress=plain 2>&1 || {
-            echo "[!] Docker build failed once; pruning builder cache and retrying..."
-            /usr/bin/sudo docker builder prune -af || true
+            echo "[!] Docker build failed once; reclaiming unused Docker data and retrying..."
+            /usr/bin/sudo docker system prune -af || true
+            echo "[i] Disk before retry:"; df -h / || true
             /usr/bin/sudo docker compose build --progress=plain 2>&1
           }
 
-          # Swap: recreates only changed containers
           /usr/bin/sudo docker compose up -d
 
-          # nginx.conf is bind-mounted, not baked into an image, and its own
-          # compose config never changes — so `up -d` never recreates it and
-          # it keeps running with whatever container IP it resolved for
-          # frontend/fastapi at ITS OWN boot. Restart it every deploy so it
-          # re-resolves against the just-recreated containers.
           /usr/bin/sudo docker compose restart nginx
 
-          # Now that old containers are replaced, drop dangling images
           /usr/bin/sudo docker image prune -af || true
 
-          # Health check the app DIRECTLY on localhost (up to 5 min for cold container boot)
-          for i in $(seq 1 60); do
-            STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 -H "Host: os.ekvaar.com" https://localhost/api/health || echo 000)
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 3 -H "Host: os.ekvaar.com" https://localhost/api/health || echo 000)
             [ "$STATUS" = "200" ] && break
-            echo "[i] Waiting for app... attempt $i/60 (HTTP $STATUS)"
-            sleep 5
+            echo "[i] Waiting for app... attempt $i/30 (HTTP $STATUS)"
+            sleep 3
           done
 
           if [ "$STATUS" != "200" ]; then

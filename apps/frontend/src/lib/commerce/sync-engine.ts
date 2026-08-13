@@ -1,7 +1,6 @@
 import { CommerceProvider } from './provider'
 import { CommerceHub } from './hub'
 import { db } from '@/lib/db'
-import { dispatchEvent } from '@/lib/events/dispatcher'
 
 export class SyncEngine {
   constructor(private provider: CommerceProvider, private organizationId: string) {}
@@ -86,30 +85,46 @@ export class SyncEngine {
       const duration = Date.now() - startTime
       await this.updateState(entity, 'IDLE', { processed, failed, duration }, undefined)
       
-      await dispatchEvent(`${entity}S_SYNCED`, 'SYNC_ENGINE', {
-        provider: this.provider.providerName,
-        organizationId: this.organizationId,
-        processed,
-        failed,
-        duration,
+      await db.event.create({
+        data: {
+          organizationId: this.organizationId,
+          type: `${entity}S_SYNCED`,
+          actorName: 'SYNC_ENGINE',
+          summary: `${entity} sync completed for ${this.provider.providerName}`,
+          payload: JSON.stringify({ provider: this.provider.providerName, processed, failed, duration }),
+          severity: 'INFO',
+        },
       })
 
       return { processed, failed, duration }
 
     } catch (error: any) {
       await this.updateState(entity, 'ERROR', undefined, error.message)
-      await dispatchEvent('SYNC_FAILED', 'SYNC_ENGINE', {
-        provider: this.provider.providerName,
-        organizationId: this.organizationId,
-        entity,
-        error: error.message
+      await db.event.create({
+        data: {
+          organizationId: this.organizationId,
+          type: 'SYNC_FAILED',
+          actorName: 'SYNC_ENGINE',
+          summary: `${entity} sync failed for ${this.provider.providerName}: ${error.message}`,
+          payload: JSON.stringify({ provider: this.provider.providerName, entity, error: error.message }),
+          severity: 'ERROR',
+        },
       })
       throw error
     }
   }
 
   async runFullSync() {
-    await dispatchEvent('SYNC_STARTED', 'SYNC_ENGINE', { provider: this.provider.providerName, organizationId: this.organizationId })
+    await db.event.create({
+      data: {
+        organizationId: this.organizationId,
+        type: 'SYNC_STARTED',
+        actorName: 'SYNC_ENGINE',
+        summary: `Sync started for ${this.provider.providerName}`,
+        payload: JSON.stringify({ provider: this.provider.providerName }),
+        severity: 'INFO',
+      },
+    })
     
     const results = {
       products: await this.runSync('PRODUCT'),
@@ -117,7 +132,16 @@ export class SyncEngine {
       orders: await this.runSync('ORDER'),
     }
 
-    await dispatchEvent('SYNC_COMPLETED', 'SYNC_ENGINE', { provider: this.provider.providerName, organizationId: this.organizationId, results })
+    await db.event.create({
+      data: {
+        organizationId: this.organizationId,
+        type: 'SYNC_COMPLETED',
+        actorName: 'SYNC_ENGINE',
+        summary: `Sync completed for ${this.provider.providerName}`,
+        payload: JSON.stringify({ provider: this.provider.providerName, results }),
+        severity: 'INFO',
+      },
+    })
     
     return results
   }

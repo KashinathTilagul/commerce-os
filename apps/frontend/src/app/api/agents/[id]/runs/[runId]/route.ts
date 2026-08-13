@@ -20,7 +20,6 @@ export async function GET(
       include: {
         agent: true,
         steps: { orderBy: { sequence: 'asc' } },
-        wakeRequests: true,
       },
     })
 

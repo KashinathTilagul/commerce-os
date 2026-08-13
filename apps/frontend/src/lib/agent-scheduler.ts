@@ -20,7 +20,6 @@ export function startAgentScheduler() {
     running = true
     try {
       const n = await runAllBusyAgents()
-      if (n > 0) console.log(`[scheduler] worked ${n} agent ticket(s)`)
     } catch (e: any) {
       console.error('[scheduler] error:', e?.message || e)
     } finally {
@@ -30,5 +29,4 @@ export function startAgentScheduler() {
 
   setTimeout(tick, 60_000)   // first pass shortly after boot
   setInterval(tick, EVERY_MS)
-  console.log('[scheduler] agent auto-scheduler started (every 5m)')
 }

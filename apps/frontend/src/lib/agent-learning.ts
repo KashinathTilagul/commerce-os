@@ -134,7 +134,7 @@ async function updateAgentQualityScore(organizationId: string, agentCode: string
   const newScore = totalWeight > 0 ? weightedSum / totalWeight : 0.5
   
   await db.agent.update({
-    where: { code: agentCode, organizationId },
+    where: { organizationId_code: { organizationId, code: agentCode } },
     data: { qualityScore: newScore }
   })
 }
@@ -159,7 +159,7 @@ async function updateAgentLearningHistory(
   if (qualityScore >= 0.8) history.improvedTasks++
   
   await db.agent.update({
-    where: { code: agentCode, organizationId },
+    where: { organizationId_code: { organizationId, code: agentCode } },
     data: { learningHistory: JSON.stringify(history) }
   })
 }
@@ -183,7 +183,7 @@ async function addAgentConstraints(
   constraints = [...new Set(constraints)]
   
   await db.agent.update({
-    where: { code: agentCode, organizationId },
+    where: { organizationId_code: { organizationId, code: agentCode } },
     data: { constraints: JSON.stringify(constraints) }
   })
 }

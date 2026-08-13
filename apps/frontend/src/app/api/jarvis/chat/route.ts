@@ -97,7 +97,7 @@ Founder: "assign the marketing campaign to the CMO"
 → {"spoken":"Done. Mira has it.","action":{"type":"assign_task","assignee":"CMO","task":"Own the marketing campaign","priority":"P2"}}
 
 Founder: "assign CEO a task to check how many agents are active and their skill levels"
-→ {"spoken":"Assigned. Arjun will review agent count and skills.","action":{"type":"assign_task","assignee":"CEO","task":"Review total active agents and their skill levels","priority":"P2"}}
+→ {"spoken":"Assigned. Krishna will review agent count and skills.","action":{"type":"assign_task","assignee":"CEO","task":"Review total active agents and their skill levels","priority":"P2"}}
 
 Founder: "tell the team the drop launches Friday"
 → {"spoken":"Posting that to the team now.","action":{"type":"message_team","text":"The drop launches Friday."}}
@@ -143,7 +143,6 @@ AVAILABLE ACTIONS:
 
       spoken = object.spoken
       action = object.action
-      console.log(`[Krishna] Structured response via ${provider}/${model}`)
 
     } catch (e: any) {
       console.error(`[Krishna] Core error:`, e.message)
@@ -180,7 +179,6 @@ AVAILABLE ACTIONS:
         if (extracted.isAssignment && extracted.task) {
           action = { type: 'assign_task', assignee: extracted.assignee, task: extracted.task, priority: extracted.priority }
           netEngaged = true
-          console.log('[Krishna] Assignment safety net engaged')
         }
       } catch (e: any) {
         console.error('[Krishna] Safety net failed:', e.message)
@@ -200,6 +198,9 @@ AVAILABLE ACTIONS:
       spoken = `Done. ${actionResult.code} assigned to ${actionResult.agentName}.`
     } else if (action.type === 'analyze' && actionResult?.answer) {
       spoken = actionResult.answer // computed from real DB rows — speak it verbatim
+    } else if (actionResult?.success && actionResult.message) {
+      // Never expose a model's pre-execution plan after the action completed.
+      spoken = actionResult.message
     }
 
     // ── Log to event stream ──────────────────────────────────────────────
@@ -277,16 +278,16 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
       }
 
       case 'brand_scan': {
-        const modules = ['PRODUCT', 'CONTENT', 'CAMPAIGN', 'PACKAGING', 'DIGITAL']
-        const assets = ['Q4 Lookbook', 'Founder Note 09', 'Neel Blue Drop Campaign']
-        const mod = modules[Math.floor(Math.random() * modules.length)]
-        const asset = assets[Math.floor(Math.random() * assets.length)]
-        const violations = Math.floor(Math.random() * 5)
-        const status = violations === 0 ? 'PASS' : violations <= 2 ? 'WARN' : 'FAIL'
-        await db.brandCheck.create({
-          data: { organizationId, module: mod, asset, status, violations, notes: violations === 0 ? 'Within brand system.' : 'Palette drift detected.' },
+        const checks = await db.brandCheck.findMany({
+          where: { organizationId },
+          select: { status: true },
         })
-        return { success: true, message: `Brand scan: ${asset} → ${status} (${violations} violations)` }
+        if (!checks.length) {
+          return { success: true, message: 'There are no verified brand checks yet, so I cannot calculate a current brand health score. Connect a brand scanner to establish one.' }
+        }
+        const passCount = checks.filter(check => check.status === 'PASS').length
+        const score = Math.round((passCount / checks.length) * 100)
+        return { success: true, message: `Current brand health is ${score} percent, based on ${checks.length} recorded checks.` }
       }
 
       case 'tool_execute': {

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useThemeStore } from '@/lib/theme-store'
 import { toast } from '@/components/ekvaar/desktop/toast'
-import { WORKABLE_VOICES, applyVoiceToUtterance } from '@/lib/voice-config'
+import { WORKABLE_VOICES, applyVoiceToUtterance, JARVIS_VOICE_ID } from '@/lib/voice-config'
 import { useEffect, useState, useRef } from 'react'
 import { signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -41,8 +41,12 @@ export function Settings() {
   const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
-    try { return localStorage.getItem('krishna_voice') || 'en-IN-NeerjaNeural' } catch { return 'en-IN-NeerjaNeural' }
+    try { return localStorage.getItem('krishna_voice') || 'en-IN-PrabhatNeural' } catch { return 'en-IN-PrabhatNeural' }
   })
+  const [localSpeed, setLocalSpeed] = useState(0.86)
+  const [localPitch, setLocalPitch] = useState(0.76)
+  const speedOverriddenRef = useRef(false)
+  const pitchOverriddenRef = useRef(false)
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -58,10 +62,19 @@ export function Settings() {
     if (settings && !isLoading && !hasSyncedRef.current) {
       hasSyncedRef.current = true
       if (settings.ttsVoice) setLocalVoice(settings.ttsVoice) // eslint-disable-line react-hooks/set-state-in-effect
+      if (settings.ttsSpeed !== undefined) setLocalSpeed(settings.ttsSpeed) // eslint-disable-line react-hooks/set-state-in-effect
+      if (settings.ttsStability !== undefined) setLocalPitch(settings.ttsStability) // eslint-disable-line react-hooks/set-state-in-effect
       if (settings.krishnaPrompt !== undefined) setPromptValue(settings.krishnaPrompt) // eslint-disable-line react-hooks/set-state-in-effect
       if (settings.organizationName !== undefined) setOrgNameValue(settings.organizationName) // eslint-disable-line react-hooks/set-state-in-effect
     }
   }, [settings, isLoading])
+
+  useEffect(() => {
+    if (localVoice === JARVIS_VOICE_ID && !speedOverriddenRef.current && !pitchOverriddenRef.current) {
+      setLocalSpeed(0.86)
+      setLocalPitch(0.76)
+    }
+  }, [localVoice])
 
   // Cleanup debounce timeout
   useEffect(() => {
@@ -286,26 +299,72 @@ export function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Row label="Voice" desc="Krishna's speaking voice">
-              <div className="flex items-center gap-2">
-                <Select
-                  value={localVoice}
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Badge
+                    onClick={() => {
+                      setLocalVoice(JARVIS_VOICE_ID)
+                      try { localStorage.setItem('krishna_voice', JARVIS_VOICE_ID) } catch {}
+                      handleChange('ttsVoice', JARVIS_VOICE_ID)
+                    }}
+                    className="cursor-pointer bg-cyan-500/10 text-cyan-300 border-cyan-400/30 shadow-[0_0_14px_rgba(34,211,238,0.35)]"
+                  >
+                    ⭐ JARVIS Preset
+                  </Badge>
+                  <Select
+                    value={localVoice}
+                    onValueChange={(v) => {
+                      setLocalVoice(v)
+                      // Save to localStorage immediately — works even if server save fails
+                      try { localStorage.setItem('krishna_voice', v) } catch {}
+                      handleChange('ttsVoice', v)
+                    }}
+                  >
+                    <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {WORKABLE_VOICES.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <VoicePreviewButton voice={localVoice} />
+                </div>
+              </div>
+            </Row>
+
+            <Row label="Voice Speed" desc="How deliberate Jarvis sounds (0.7–1.3)">
+              <div className="w-56">
+                <Slider
+                  value={[localSpeed]}
                   onValueChange={(v) => {
-                    setLocalVoice(v)
-                    // Save to localStorage immediately — works even if server save fails
-                    try { localStorage.setItem('krishna_voice', v) } catch {}
-                    handleChange('ttsVoice', v)
+                    speedOverriddenRef.current = true
+                    setLocalSpeed(v[0])
+                    handleChange('ttsSpeed', v[0])
                   }}
-                >
-                  <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {WORKABLE_VOICES.map((v) => (
-                      <SelectItem key={v.id} value={v.id}>
-                        {v.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <VoicePreviewButton voice={localVoice} />
+                  min={0.7}
+                  max={1.3}
+                  step={0.05}
+                />
+                <div className="text-right text-xs font-mono mt-1">{localSpeed.toFixed(2)}</div>
+              </div>
+            </Row>
+
+            <Row label="Voice Pitch" desc="How deep Jarvis sounds (0.6–1.2)">
+              <div className="w-56">
+                <Slider
+                  value={[localPitch]}
+                  onValueChange={(v) => {
+                    pitchOverriddenRef.current = true
+                    setLocalPitch(v[0])
+                    handleChange('ttsStability', v[0])
+                  }}
+                  min={0.6}
+                  max={1.2}
+                  step={0.05}
+                />
+                <div className="text-right text-xs font-mono mt-1">{localPitch.toFixed(2)}</div>
               </div>
             </Row>
           </CardContent>

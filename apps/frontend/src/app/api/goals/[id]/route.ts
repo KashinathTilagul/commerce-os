@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
-import { getGoalWithIterations, pauseGoal, resumeGoal, runGoalIteration } from '@/lib/goal-engine'
+import { checkGoalStatus, getGoalWithIterations, pauseGoal, resumeGoal, runGoalIteration } from '@/lib/goal-engine'
 import { db } from '@/lib/db'
 
 export async function GET(
@@ -38,8 +38,9 @@ export async function PATCH(
     return NextResponse.json(updated)
   }
   if (action === 'iterate') {
-    const iteration = await runGoalIteration(id, measuredValue)
-    return NextResponse.json(iteration)
+    await runGoalIteration(id, measuredValue)
+    await checkGoalStatus(id)
+    return NextResponse.json(await getGoalWithIterations(auth.organizationId, id))
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

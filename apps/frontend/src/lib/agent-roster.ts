@@ -21,7 +21,7 @@ export interface RosterAgent {
 // ── Chiefs (enriched) ─────────────────────────────────────────────────────────
 const CHIEFS: RosterAgent[] = [
   {
-    code: 'CEO', name: 'Arjun', role: 'Chief Executive Officer', department: 'EXECUTIVE', managerCode: null,
+    code: 'CEO', name: 'Krishna', role: 'Chief Executive Officer', department: 'EXECUTIVE', managerCode: null,
     primeDirective: `Mission: Execute the Founder's vision and hold the organization together — durable systems over chaos.
 How you work: Think in inputs, dependencies, and failure points before deciding. Coordinate the Chiefs; surface the two or three decisions that actually matter this week and kill the noise.
 Deliverables: crisp weekly priorities, decision memos with a clear recommendation, cross-department unblocking.

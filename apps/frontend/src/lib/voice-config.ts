@@ -21,20 +21,38 @@ export const WORKABLE_VOICES: VoiceOption[] = [
   { id: 'en-US-BrianNeural', name: 'Brian — Deep English (Male)', category: 'US English', gender: 'male', lang: 'en-US' },
   // British & Australian
   { id: 'en-GB-SoniaNeural', name: 'Sonia — British English (Female)', category: 'British / AU', gender: 'female', lang: 'en-GB' },
-  { id: 'en-GB-RyanNeural', name: 'Ryan — British English (Male)', category: 'British / AU', gender: 'male', lang: 'en-GB' },
+  { id: 'en-GB-RyanNeural', name: 'Ryan — British English (Male) ⭐ JARVIS', category: 'British / AU', gender: 'male', lang: 'en-GB' },
   { id: 'en-AU-NatashaNeural', name: 'Natasha — Australian English (Female)', category: 'British / AU', gender: 'female', lang: 'en-AU' },
   { id: 'en-AU-WilliamNeural', name: 'William — Australian English (Male)', category: 'British / AU', gender: 'male', lang: 'en-AU' },
 ]
 
-export function getSelectedVoiceId(): string {
-  if (typeof window === 'undefined') return 'en-IN-PrabhatNeural'
-  try {
-    return localStorage.getItem('krishna_voice') || 'en-IN-PrabhatNeural'
-  } catch {
-    return 'en-IN-PrabhatNeural'
+export const JARVIS_VOICE_ID = 'en-GB-RyanNeural'
+
+export function getJarvisProfile() {
+  return {
+    pitch: 0.76,
+    rate: 0.86,
+    style: 'assistant' as const,
+    styledegree: 1.5,
+    lang: 'en-GB',
+    isFemale: false,
+    gender: 'male' as const,
   }
 }
+export function getSelectedVoiceId(): string {
+  if (typeof window === 'undefined') return JARVIS_VOICE_ID
+  try {
+    return localStorage.getItem('krishna_voice') || JARVIS_VOICE_ID
+  } catch {
+    return JARVIS_VOICE_ID
+  }
+}
+
 export function getVoiceProfile(voiceId: string) {
+  if (voiceId === JARVIS_VOICE_ID) {
+    return getJarvisProfile()
+  }
+
   const matched = WORKABLE_VOICES.find(v => v.id === voiceId)
   if (matched) {
     const isFemale = matched.gender === 'female'
@@ -65,10 +83,23 @@ export function getVoiceProfile(voiceId: string) {
 
   // Fallback heuristic for unknown voice IDs
   const isFemale = /female|woman|neerja|emma|ava|sonia|natasha|swara|eve|anna|alba|estelle|lola/i.test(voiceId)
+  const isRyan = /ryan/i.test(voiceId)
   const lang = voiceId.startsWith('hi-IN') ? 'hi-IN'
     : voiceId.startsWith('en-IN') ? 'en-IN'
     : voiceId.startsWith('en-GB') ? 'en-GB'
     : voiceId.startsWith('en-AU') ? 'en-AU' : 'en-US'
+
+  if (isRyan) {
+    return {
+      lang,
+      isFemale: false,
+      pitch: 0.76,
+      rate: 0.86,
+      gender: 'male' as const,
+      style: 'assistant',
+      styledegree: 1.5,
+    }
+  }
 
   return {
     lang,

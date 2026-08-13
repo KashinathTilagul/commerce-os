@@ -24,6 +24,14 @@ function getQueue(): Queue {
   return _queue
 }
 
+let _outboxQueue: Queue | null = null
+function getOutboxQueue(): Queue {
+  if (!_outboxQueue) {
+    _outboxQueue = new Queue('campaign-events', { connection: getConnection() })
+  }
+  return _outboxQueue
+}
+
 // ── Types ──
 
 export interface AgentJobPayload {
@@ -37,6 +45,16 @@ export interface AgentJobPayload {
   createdAt: string
 }
 
+export interface OutboxJobPayload {
+  outboxMessageId: string
+  organizationId: string
+  aggregateType: string
+  aggregateId: string
+  aggregateVersion: number
+  eventType: string
+  payload: unknown
+}
+
 // ── Public API ──
 
 export async function enqueueAgentJob(payload: AgentJobPayload): Promise<{ success: boolean; jobId: string }> {
@@ -44,6 +62,16 @@ export async function enqueueAgentJob(payload: AgentJobPayload): Promise<{ succe
     jobId: payload.jobId,
     attempts: 3,
     backoff: { type: 'exponential', delay: 5000 },
+  })
+  return { success: true, jobId: job.id! }
+}
+
+export async function enqueueOutboxJob(jobId: string, payload: OutboxJobPayload) {
+  const job = await getOutboxQueue().add(payload.eventType, payload, {
+    jobId,
+    attempts: 5,
+    backoff: { type: 'exponential', delay: 5000 },
+    removeOnComplete: 1000,
   })
   return { success: true, jobId: job.id! }
 }
@@ -75,7 +103,6 @@ export function startAgentWorker(
     console.error(`[AgentWorker] Job ${job?.id} failed:`, err.message)
   })
   _worker.on('completed', (job) => {
-    console.log(`[AgentWorker] Job ${job.id} completed`)
   })
   return _worker
 }

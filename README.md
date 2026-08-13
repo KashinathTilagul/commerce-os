@@ -1,13 +1,14 @@
+*Open-source retail & e-commerce fashion OS.*
+
 # 🌌 Fashion OS
 
 **Open-Source Retail & E-Commerce Fashion Operating System**  
 *Created & Maintained by [EKVAAR](https://github.com/KashinathTilagul/Ekvaar)*
 
 [![Open Source](https://img.shields.io/badge/Open%20Source-MIT-brightgreen?style=for-the-badge)](https://github.com/KashinathTilagul/Ekvaar)
-[![Next.js 16](https://img.shields.io/badge/Next.js-16%20App%20Router-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![Prisma 7](https://img.shields.io/badge/Prisma-7.9-indigo?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-blue?style=for-the-badge&logo=postgresql)](https://supabase.com/)
+[![Node.js >=18](https://img.shields.io/badge/Node.js-%3E%3D18-brightgreen?style=for-the-badge&logo=node.js)](https://nodejs.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue?style=for-the-badge&logo=docker)](https://www.docker.com/)
 
 **Fashion OS** is a self-hostable, open-source desktop operating system built for retail and online fashion businesses. Wrapped in an ultra-premium **Liquid Glass macOS Desktop Architecture** and powered by an autonomous **Paperclip Digital Employee Control Plane**, Fashion OS provides fashion founders and e-commerce teams with a single unified workspace to orchestrate sales, inventory, finance, marketing campaigns, automated AI workforces, and customer drops.
 
@@ -30,6 +31,19 @@ graph TD
     G --> H
     B --> I["🌐 Multi-Model AI Router (Claude / OpenAI / Ollama)"]
 ```
+
+---
+
+## 🚀 Quick Start
+
+```bash
+git clone https://github.com/KashinathTilagul/Ekvaar.git
+cd Ekvaar/apps/frontend
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
@@ -122,15 +136,17 @@ Fashion OS integrates Paperclip's exact workforce operating model, providing aut
 
 | Layer | Technology |
 | :--- | :--- |
-| **Framework** | Next.js 16 (App Router, Turbopack) |
-| **Language** | TypeScript 5.0 |
+| **Framework** | Next.js App Router (Turbopack) |
+| **Language** | TypeScript |
+| **Runtime** | Node.js >= 18 |
 | **Styling** | Tailwind CSS v4 + Liquid Glass System (`glass-system.tsx`) |
 | **Animation** | Framer Motion |
 | **State Management** | Zustand |
-| **Database** | PostgreSQL via Prisma 7.9 (Supabase Transaction Pooler) |
+| **Database** | PostgreSQL via Prisma ORM (Supabase Transaction Pooler) |
 | **Authentication** | NextAuth v4 (Credentials) |
 | **AI Models** | Anthropic Claude, OpenAI GPT-4o, Local Ollama via AI Router |
 | **Voice Processing** | Web Speech API (STT) + SpeechSynthesis (TTS) |
+| **Deployment** | Docker Compose + Caddy / Nginx |
 
 ---
 
@@ -156,7 +172,7 @@ Fashion OS integrates Paperclip's exact workforce operating model, providing aut
 3. **Configure Environment Variables**:
    Create a `.env` file in `apps/frontend/`:
    ```env
-   DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:<password>@aws-0-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+    DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
    NEXTAUTH_SECRET="your-nextauth-secret-key"
    NEXTAUTH_URL="http://localhost:3000"
    ANTHROPIC_API_KEY="sk-ant-..."
@@ -195,6 +211,12 @@ The deployment script performs:
 4. Port allocation and Certbot SSL certificate renewal.
 5. Container compilation and health check polling (`/api/health`).
 6. Production smoke test suite execution.
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome! Open an issue or submit a PR on [GitHub](https://github.com/KashinathTilagul/Ekvaar/issues).
 
 ---
 

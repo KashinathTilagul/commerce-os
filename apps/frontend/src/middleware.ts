@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
-import { RATE_LIMIT_CONFIG, checkRateLimit, getClientIP } from "./lib/rate-limit"
+import { RATE_LIMIT_CONFIG, checkRateLimit, getClientIP } from "./lib/security"
 
 export function middleware(req: NextRequest) {
   const ip = getClientIP(req)
