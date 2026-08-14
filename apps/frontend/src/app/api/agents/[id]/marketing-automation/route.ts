@@ -3,6 +3,7 @@ import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { getN8nStatus, triggerEkvaarMarketing } from '@/lib/n8n'
 import { sanitizeInput } from '@/lib/security'
+import { createMarketingFounderApproval } from '@/lib/marketing-approval'
 
 function parsePayload(payload: string) {
   try { return JSON.parse(payload) } catch { return { raw: payload } }
@@ -31,8 +32,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json().catch(() => ({}))
     const instruction = sanitizeInput(typeof body.instruction === 'string' ? body.instruction : '', { maxLength: 1000 })
     const result = await triggerEkvaarMarketing({ organizationId: auth.organizationId, agentId: agent.id, agentCode: agent.code, instruction })
-    const event = await db.event.create({ data: { organizationId: auth.organizationId, type: 'N8N_MARKETING_OUTPUT', actorId: agent.id, actorName: agent.name, summary: `${agent.name} generated an approval-gated marketing cycle`, payload: JSON.stringify({ workflowId: getN8nStatus().workflowId, instruction, result }), severity: 'INFO' } })
-    return NextResponse.json({ ...result, eventId: event.id })
+    const founderApproval = await createMarketingFounderApproval({ organizationId: auth.organizationId, requesterId: agent.id, workflowId: getN8nStatus().workflowId, instruction, result })
+    const event = await db.event.create({ data: { organizationId: auth.organizationId, type: 'N8N_MARKETING_OUTPUT', actorId: agent.id, actorName: agent.name, summary: `${agent.name} generated an approval-gated marketing cycle`, payload: JSON.stringify({ workflowId: getN8nStatus().workflowId, instruction, result, founderApproval }), severity: 'INFO' } })
+    return NextResponse.json({ ...result, eventId: event.id, founderApproval })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Unable to execute marketing workflow' }, { status: 502 })
   }

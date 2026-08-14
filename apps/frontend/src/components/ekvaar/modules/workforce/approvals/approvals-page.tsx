@@ -115,6 +115,29 @@ export function ApprovalsPage() {
                   {app.campaignLaunch && <div className="rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] p-2.5"><div><strong className="text-foreground">Campaign:</strong> {app.campaignLaunch.code} · {app.campaignLaunch.status}</div>{app.campaignRevision && <div className="mt-1"><strong className="text-foreground">Evidence:</strong> revision {app.campaignRevision.revisionNum} · <span className="font-mono">{app.campaignRevision.versionHash.slice(0, 12)}</span></div>}</div>}
                 </div>
 
+                {Array.isArray(app.campaignRevision?.evidenceJson?.plan?.calendar) && (
+                  <div className="max-h-[32rem] space-y-3 overflow-y-auto border-t border-white/[0.06] pt-3">
+                    {app.campaignRevision.evidenceJson.plan.calendar.map((content: any, index: number) => {
+                      const mediaUrl = content.media_url || content.asset_url || content.image_url || content.video_url || content.preview_url
+                      const isVideo = typeof mediaUrl === 'string' && /\.(mp4|webm|mov)(\?|$)/i.test(mediaUrl)
+                      return <div key={`${content.platform}-${content.scheduled_at_ist}-${index}`} className="overflow-hidden rounded-lg border border-white/[0.08] bg-black/20">
+                        {mediaUrl && (isVideo
+                          ? <video src={mediaUrl} controls preload="metadata" className="max-h-72 w-full bg-black object-contain" />
+                          : <img src={mediaUrl} alt={`${content.platform || 'Social'} ${content.format || 'content'} preview`} className="max-h-72 w-full bg-black object-contain" />)}
+                        <div className="space-y-2 p-3 text-[11px]">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-semibold text-foreground">{content.platform}</span>
+                            <span className="rounded bg-white/[0.06] px-1.5 py-0.5 uppercase">{content.format}</span>
+                            <span>{content.scheduled_at_ist} IST</span>
+                          </div>
+                          {content.caption && <p className="whitespace-pre-wrap text-foreground/90">{content.caption}</p>}
+                          {!mediaUrl && <p className="rounded border border-amber-500/20 bg-amber-500/[0.05] p-2 text-amber-300">Media preview is not generated yet. Asset brief: {content.asset_brief || 'missing'}</p>}
+                        </div>
+                      </div>
+                    })}
+                  </div>
+                )}
+
                 {app.status === 'PENDING' ? (
                   <div className="space-y-3 border-t border-white/[0.06] pt-3">
                     <textarea value={notes[app.id] || ''} onChange={(event) => setNotes((current) => ({ ...current, [app.id]: event.target.value }))} placeholder="Optional founder direction, required when requesting a revision" className="min-h-16 w-full resize-none rounded-lg border border-white/[0.08] bg-black/20 px-3 py-2 text-[11px] outline-none focus:border-cyan-300/25" />

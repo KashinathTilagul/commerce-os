@@ -3,6 +3,7 @@ import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { getN8nStatus, triggerEkvaarMarketing } from '@/lib/n8n'
 import { sanitizeInput } from '@/lib/security'
+import { createMarketingFounderApproval } from '@/lib/marketing-approval'
 
 function parsePayload(payload: string) {
   try { return JSON.parse(payload) } catch { return { raw: payload } }
@@ -30,17 +31,23 @@ export async function POST(req: NextRequest) {
       organizationId: auth.organizationId,
       instruction,
     })
+    const founderApproval = await createMarketingFounderApproval({
+      organizationId: auth.organizationId,
+      workflowId: getN8nStatus().workflowId,
+      instruction,
+      result,
+    })
     const event = await db.event.create({
       data: {
         organizationId: auth.organizationId,
         type: 'N8N_MARKETING_OUTPUT',
         actorName: auth.user.name || 'Founder',
         summary: 'Generated an approval-gated Ekvaar marketing content cycle',
-        payload: JSON.stringify({ workflowId: getN8nStatus().workflowId, instruction, result }),
+        payload: JSON.stringify({ workflowId: getN8nStatus().workflowId, instruction, result, founderApproval }),
         severity: 'INFO',
       },
     })
-    return NextResponse.json({ ...result, eventId: event.id })
+    return NextResponse.json({ ...result, eventId: event.id, founderApproval })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Unable to trigger n8n' }, { status: 502 })
   }

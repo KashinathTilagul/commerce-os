@@ -14,7 +14,7 @@ export async function GET() {
       include: {
         requester: { select: { id: true, name: true, code: true, avatarColor: true, role: true } },
         campaignLaunch: { select: { id: true, code: true, status: true } },
-        campaignRevision: { select: { id: true, revisionNum: true, versionHash: true, publishStatus: true } },
+        campaignRevision: { select: { id: true, revisionNum: true, versionHash: true, publishStatus: true, evidenceJson: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
