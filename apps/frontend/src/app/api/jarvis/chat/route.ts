@@ -21,6 +21,7 @@ const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('reject'), query: z.string() }),
   z.object({ type: z.literal('issue_status'), query: z.string(), status: z.string() }),
   z.object({ type: z.literal('brand_scan') }),
+  z.object({ type: z.literal('n8n_run'), instruction: z.string().optional() }),
   z.object({ type: z.literal('tool_execute'), toolkit: z.string(), tool: z.string(), agent: z.string().optional(), input: z.record(z.string(), z.any()).optional() }),
   z.object({ type: z.literal('assign_task'), assignee: z.string().describe('Agent code, name, role, or department, e.g. "CMO", "Mira", "marketing"'), task: z.string().describe('What the agent should do'), priority: z.string().optional().describe('P0 | P1 | P2 | P3') }),
   z.object({ type: z.literal('message_team'), text: z.string().describe('The message to post'), channel: z.string().optional().describe('Discord channel id or name') }),
@@ -102,7 +103,8 @@ Founder: "tell the team the drop launches Friday"
 → {"spoken":"Posting that to the team now.","action":{"type":"message_team","text":"The drop launches Friday."}}
 
 AVAILABLE ACTIONS:
-- Open app: {"type":"open_app","app":"<id>"} — apps: command, inbox, agents, issues, terminal, activity, settings, files, integrations, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai, opencode, risk
+- Open app: {"type":"open_app","app":"<id>"} — apps: command, inbox, agents, issues, terminal, activity, settings, files, integrations, n8n, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai, opencode, risk
+- Run Ekvaar marketing automation: {"type":"n8n_run","instruction":"<what marketing work to generate>"}
 - Approve: {"type":"approve","query":"<title or code>"}
 - Reject: {"type":"reject","query":"<title or code>"}
 - Issue status: {"type":"issue_status","query":"<PAP-XX>","status":"IN_PROGRESS"}
@@ -277,6 +279,23 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
           data: { organizationId, module: mod, asset, status, violations, notes: violations === 0 ? 'Within brand system.' : 'Palette drift detected.' },
         })
         return { success: true, message: `Brand scan: ${asset} → ${status} (${violations} violations)` }
+      }
+
+      case 'n8n_run': {
+        const instruction = sanitizeInput(action.instruction || 'Generate the next Ekvaar marketing content cycle', { maxLength: 1000 })
+        const { triggerEkvaarMarketing } = await import('@/lib/n8n')
+        const result = await triggerEkvaarMarketing({ organizationId, instruction, requestedBy: 'Krishna' })
+        await db.event.create({
+          data: {
+            organizationId,
+            type: 'N8N_WORKFLOW_TRIGGERED',
+            actorName: 'Krishna',
+            summary: `Triggered marketing automation: ${instruction.slice(0, 80)}`,
+            payload: JSON.stringify({ instruction }),
+            severity: 'INFO',
+          },
+        })
+        return { success: result.accepted, message: 'Ekvaar marketing workflow started' }
       }
 
       case 'tool_execute': {

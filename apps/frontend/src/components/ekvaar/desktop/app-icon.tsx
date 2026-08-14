@@ -60,6 +60,7 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'files':         return <FinderIcon size={size} />
     case 'browser':       return <BrowserIcon size={size} />
     case 'integrations':  return <IntegrationsIcon size={size} />
+    case 'n8n':           return <IntegrationsIcon size={size} />
     case 'calculator':    return <CalculatorIcon size={size} />
     case 'notes':         return <NotesIcon size={size} />
     case 'calendar':      return <CalendarIcon size={size} />

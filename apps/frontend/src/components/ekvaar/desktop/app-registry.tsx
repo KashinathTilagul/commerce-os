@@ -6,7 +6,7 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Music, Activity, Brain, Factory
+  AlertTriangle, Music, Activity, Brain, Factory, Workflow as WorkflowIcon
 } from 'lucide-react'
 
 import { CommandCenter } from '@/components/ekvaar/modules/command-center'
@@ -33,6 +33,7 @@ import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
 import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
 import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
 import { QikinkApp } from '@/components/ekvaar/modules/qikink'
+import { N8nWorkflowApp } from '@/components/ekvaar/modules/n8n-workflow'
 import { OSManifest } from '@/lib/os-desktop/manifest'
 
 // To bridge legacy metadata that isn't in OSManifest yet
@@ -211,6 +212,21 @@ export const APPS: AppDef[] = [
     gradient: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)',
     glyphColor: '#F5F1EA',
     menuItems: [{ label: 'File', items: ['Close Window'] }]
+  },
+  {
+    id: 'n8n',
+    name: 'n8n Marketing Studio',
+    shortName: 'n8n',
+    version: '1.0.0',
+    icon: WorkflowIcon as any,
+    iconVariant: 'n8n',
+    category: 'core',
+    requiredCapabilities: [],
+    entryPoint: N8nWorkflowApp,
+    permissions: ['provider:read', 'provider:write'],
+    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #C0342C 55%, #0047AB 100%)',
+    glyphColor: '#FFFFFF',
+    menuItems: [{ label: 'Workflow', items: ['Run', 'Edit in n8n', 'Close Window'] }]
   },
   
   // Utilities
