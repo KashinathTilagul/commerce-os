@@ -19,7 +19,10 @@ export function startAgentScheduler() {
     if (running) return // never overlap runs
     running = true
     try {
-      const n = await runAllBusyAgents()
+      await runAllBusyAgents()
+      // Evaluate periodic autonomous playbooks ("Hands")
+      const { runPlaybookSweep } = await import('./agent-playbooks')
+      await runPlaybookSweep()
     } catch (e: any) {
       console.error('[scheduler] error:', e?.message || e)
     } finally {
