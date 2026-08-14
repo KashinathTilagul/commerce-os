@@ -41,7 +41,7 @@ export function Settings() {
   const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
-    try { return localStorage.getItem('krishna_voice') || 'en-IN-PrabhatNeural' } catch { return 'en-IN-PrabhatNeural' }
+    try { return localStorage.getItem('krishna_voice') || JARVIS_VOICE_ID } catch { return JARVIS_VOICE_ID }
   })
   const [localSpeed, setLocalSpeed] = useState(0.86)
   const [localPitch, setLocalPitch] = useState(0.76)
@@ -55,6 +55,15 @@ export function Settings() {
       if (!r.ok) throw new Error('Failed to fetch settings')
       return r.json()
     },
+  })
+  const { data: serviceHealth } = useQuery<{ services: Array<{ name: string; configured: boolean; healthy: boolean; latencyMs?: number }> }>({
+    queryKey: ['system-services'],
+    queryFn: async () => {
+      const r = await fetch('/api/system/services')
+      if (!r.ok) throw new Error('Failed to read service health')
+      return r.json()
+    },
+    refetchInterval: 30_000,
   })
 
   // Sync server voice + prompt to local state (one-time on load)
@@ -97,7 +106,7 @@ export function Settings() {
     },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(['settings'], data)
-      if (Object.keys(variables).some((key) => /^(primary|fallback[12])/.test(key))) {
+      if (Object.keys(variables).some((key) => /^(primary|fallback[12]|composio|speech)/.test(key))) {
         setProviderDraft({})
       }
       // Don't toast theme/accent — they already have their own toasts
@@ -235,7 +244,7 @@ export function Settings() {
               <Cpu className="h-4 w-4" /> Intelligence Core
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Krishna routes through these providers in order — Primary first, then each Fallback if the one before it fails or is unset. Mix free and paid keys as needed; a slot left blank is simply skipped.
+              These encrypted credentials belong only to this organization. Krishna will not borrow server keys or another workspace's configuration.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -262,6 +271,35 @@ export function Settings() {
                 <Slider value={[s.maxTokens ?? 80]} onValueChange={(v) => handleChange('maxTokens', v[0])} max={100} step={5} />
                 <div className="text-right text-xs font-mono mt-1">{s.maxTokens ?? 80}%</div>
               </div>
+            </Row>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <Key className="h-4 w-4" /> Organization Connections
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Keys are encrypted and isolated to this organization. They are never returned to the browser after saving.</p>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <Row label="Composio API key" desc="Required before this organization can connect Google, LinkedIn, Meta, or other Composio apps">
+              <Input
+                type="password"
+                value={providerDraft.composioApiKey ?? ''}
+                onChange={(event) => setProviderDraft((draft) => ({ ...draft, composioApiKey: event.target.value }))}
+                placeholder={s.hasComposioApiKey ? '•••••••••••••••• (key set)' : 'Paste this organization’s Composio key'}
+                className="h-9 w-80 text-xs font-mono"
+              />
+            </Row>
+            <Row label="Speech API key" desc="OpenAI speech key for Krishna’s real neural male voice; device speech is used only as an explicit fallback">
+              <Input
+                type="password"
+                value={providerDraft.speechApiKey ?? ''}
+                onChange={(event) => setProviderDraft((draft) => ({ ...draft, speechApiKey: event.target.value, speechProvider: 'openai' }))}
+                placeholder={s.hasSpeechApiKey ? '•••••••••••••••• (key set)' : 'Paste this organization’s speech key'}
+                className="h-9 w-80 text-xs font-mono"
+              />
             </Row>
           </CardContent>
         </Card>
@@ -295,7 +333,7 @@ export function Settings() {
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
               <Mic className="h-4 w-4" /> Krishna Voice
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Pocket TTS (kyutai local neural) + Edge TTS cloud voices. Change takes effect immediately.</p>
+            <p className="text-xs text-muted-foreground mt-1">One verified male cloud voice plus the device fallback. Cloud voice requires this organization’s Speech API key above.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <Row label="Voice" desc="Krishna's speaking voice">
@@ -309,7 +347,7 @@ export function Settings() {
                     }}
                     className="cursor-pointer bg-cyan-500/10 text-cyan-300 border-cyan-400/30 shadow-[0_0_14px_rgba(34,211,238,0.35)]"
                   >
-                    ⭐ JARVIS Preset
+                    Krishna Male
                   </Badge>
                   <Select
                     value={localVoice}
@@ -436,6 +474,15 @@ export function Settings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            {(serviceHealth?.services || []).map((service) => (
+              <div key={service.name} className="flex items-center justify-between py-2 border-b border-border/60">
+                <div>
+                  <div className="text-sm font-medium">{service.name}</div>
+                  <div className="text-[10px] font-mono text-muted-foreground">{service.configured ? `${service.latencyMs ?? '—'} ms` : 'Not configured'}</div>
+                </div>
+                <Badge variant={service.healthy ? 'outline' : 'secondary'}>{service.healthy ? 'HEALTHY' : service.configured ? 'UNREACHABLE' : 'OFF'}</Badge>
+              </div>
+            ))}
             {[
               { name: 'Workforce Engine', endpoint: '/api/workforce', status: 'ACTIVE' },
               { name: 'CEO Engine', endpoint: '/api/ceo', status: 'ACTIVE' },

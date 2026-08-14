@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { CheckCircle2, ExternalLink, Instagram, Linkedin, Play, Workflow } from 'lucide-react'
+import { CheckCircle2, ExternalLink, Instagram, Linkedin, MessageCircle, Play, Workflow } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +11,7 @@ import { toast } from '@/components/ekvaar/desktop/toast'
 
 type MarketingRun = { id: string; summary: string; timestamp: string; actorName: string; payload: { result?: { plan?: unknown } } }
 type N8nStatus = { configured: boolean; workflowId: string; editorUrl: string; runs: MarketingRun[] }
+type OAuthConnection = { provider: string; accountId: string | null; accountName: string | null; expiresAt: string | null }
 
 async function readApiJson(response: Response) {
   const text = await response.text()
@@ -20,7 +21,15 @@ async function readApiJson(response: Response) {
 }
 
 export function N8nWorkflowApp() {
-  const [instruction, setInstruction] = useState('Generate the next Ekvaar marketing content cycle')
+  const [instruction, setInstruction] = useState('Generate the next marketing content cycle for this organization')
+  const { data: organization } = useQuery<{ name?: string }>({
+    queryKey: ['settings', 'organization-name'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings')
+      const value = await response.json()
+      return { name: value.organizationName }
+    },
+  })
   const { data, isLoading, refetch } = useQuery<N8nStatus>({
     queryKey: ['n8n-status'],
     queryFn: async () => {
@@ -31,6 +40,23 @@ export function N8nWorkflowApp() {
       return result
     },
   })
+  const { data: connectionData } = useQuery<{ connections: OAuthConnection[]; configuration: Record<string, boolean> }>({
+    queryKey: ['oauth-connections'],
+    queryFn: async () => {
+      const response = await fetch('/api/oauth/status')
+      if (!response.ok) throw new Error('Could not read channel connections')
+      return response.json()
+    },
+  })
+  const connections = connectionData?.connections || []
+  const oauthConfiguration = connectionData?.configuration || {}
+  const connect = (provider: string) => {
+    if (!oauthConfiguration[provider]) {
+      toast.error('OAuth app not configured', `${provider} needs a client ID and secret on this deployment.`)
+      return
+    }
+    window.location.href = `/api/oauth/${provider}`
+  }
   const run = useMutation({
     mutationFn: async () => {
       const response = await fetch('/api/n8n', {
@@ -52,9 +78,9 @@ export function N8nWorkflowApp() {
   return (
     <div className="h-full bg-background">
       <PageHeader
-        eyebrow="Ekvaar AI Workspace · Marketing"
+        eyebrow="AI Workspace · Marketing"
         title="Marketing Command Center"
-        description="Ekvaar AI creates the campaign. OAuth-connected channels receive Founder-approved content. n8n stays behind the scenes as the automation runner."
+        description={`${organization?.name || 'Your organization'} creates campaigns through its own AI routing and OAuth connections. Founder approval remains mandatory.`}
         actions={data?.editorUrl ? (
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(data.editorUrl, '_blank', 'noopener,noreferrer')}>
             <ExternalLink className="h-3.5 w-3.5" /> Edit in n8n
@@ -74,8 +100,8 @@ export function N8nWorkflowApp() {
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="grid gap-3 text-sm sm:grid-cols-3">
-              <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Writer</div><div className="mt-1 font-medium">GLM-5</div></div>
-              <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Reviewer</div><div className="mt-1 font-medium">Grok 4.3</div></div>
+              <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Intelligence</div><div className="mt-1 font-medium">Organization routing</div></div>
+              <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Release gate</div><div className="mt-1 font-medium">Founder approval</div></div>
               <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Timezone</div><div className="mt-1 font-medium">Asia/Kolkata</div></div>
             </div>
             <div className="rounded-xl border border-neel/20 bg-neel/[0.04] p-4">
@@ -87,8 +113,21 @@ export function N8nWorkflowApp() {
                 <CheckCircle2 className="h-4 w-4 text-arav" />
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { window.location.href = '/api/oauth/meta' }}><Instagram className="h-3.5 w-3.5" /> Connect Meta / Instagram</Button>
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { window.location.href = '/api/oauth/linkedin' }}><Linkedin className="h-3.5 w-3.5" /> Connect LinkedIn</Button>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => connect('meta')}><Instagram className="h-3.5 w-3.5" /> Connect Meta / Instagram</Button>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => connect('threads')}><MessageCircle className="h-3.5 w-3.5" /> Connect Threads</Button>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => connect('linkedin')}><Linkedin className="h-3.5 w-3.5" /> Connect LinkedIn</Button>
+              </div>
+              {Object.keys(oauthConfiguration).length > 0 && Object.values(oauthConfiguration).some((ready) => !ready) && (
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">OAuth buttons remain local until the corresponding app client is configured. This prevents invalid LinkedIn and Meta redirects.</div>
+              )}
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {['meta', 'instagram', 'threads', 'linkedin'].map((provider) => {
+                  const connected = connections.find((item) => item.provider === provider)
+                  return <div key={provider} className="rounded-lg border border-white/[0.07] bg-black/10 px-3 py-2 text-xs">
+                    <div className="flex items-center justify-between"><span className="capitalize">{provider === 'meta' ? 'Facebook' : provider}</span><span className={connected ? 'text-arav' : 'text-muted-foreground'}>{connected ? 'Connected' : 'Not connected'}</span></div>
+                    {connected && <div className="mt-1 truncate text-[10px] text-muted-foreground">{connected.accountName || connected.accountId}</div>}
+                  </div>
+                })}
               </div>
             </div>
             <div>

@@ -140,17 +140,34 @@ Deployment  : Docker Compose + Caddy / Nginx
 git clone https://github.com/KashinathTilagul/Ekvaar.git
 cd Ekvaar/apps/frontend
 
-# 2. Install dependencies
-npm install
+# 2. Install dependencies (the repository is Bun-locked)
+bun install --frozen-lockfile
 
-# 3. Initialize Prisma database schema
-npx prisma db push
+# 3. Generate Prisma Client and apply the schema
+bun run db:generate
+bun run db:push
 
 # 4. Start local development server
-npm run dev
+bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+Redis-backed workers also require Redis. Docker users already get it through
+Compose; for a host-only development server, start it separately and set
+`REDIS_URL=redis://localhost:6379`.
+
+### Supabase database URLs
+
+Use the Supabase Transaction Pooler URL on port `6543` for `DATABASE_URL`, with
+`pgbouncer=true`, and the Session Pooler URL on port `5432` for `DIRECT_URL`.
+URL-encode special characters in the database password. `prisma.config.ts`
+automatically prefers `DIRECT_URL` for CLI schema operations.
+
+`NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` must both exactly match the public OS
+origin, including `https://` and without an extra path. AI, speech, and Composio
+keys are intentionally configured per organization in Settings, never as shared
+server environment variables.
 
 ---
 

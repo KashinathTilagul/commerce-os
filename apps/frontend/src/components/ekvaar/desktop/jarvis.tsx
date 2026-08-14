@@ -287,7 +287,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       const rec = new SpeechRec()
       rec.continuous = true
       rec.interimResults = true
-      rec.lang = 'en-US'
+      rec.lang = 'en-IN'
       webSpeechRef.current = rec
       webSpeechFinal.current = ''
       rec.onresult = (e: any) => {
@@ -349,7 +349,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           fd.append('audio', blob, 'audio.webm')
           const res = await fetch('/api/jarvis/stt', {
             method: 'POST', body: fd,
-            signal: AbortSignal.timeout(6000),
+            signal: AbortSignal.timeout(20_000),
           })
           if (res.ok) {
             const { transcript: t } = await res.json()
@@ -375,7 +375,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       if (avg > 10) lastSoundAt = Date.now()
       const silentFor = Date.now() - lastSoundAt
       const recordedFor = Date.now() - startedAt
-      if (silentFor > 2200 && recordedFor > 800) {
+      if (silentFor > 950 && recordedFor > 550) {
         clearInterval(vuRef.current!); vuRef.current = null
         if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
       }
@@ -399,7 +399,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: clean, voice: voiceId, speed: 1.0 }),
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(20_000),
       })
       if (res.ok && res.headers.get('content-type')?.includes('audio')) {
         const audio = new Audio(URL.createObjectURL(await res.blob()))
@@ -412,6 +412,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         })
         speakingRef.current = false
         setGlobal('idle')
+        if (expanded && micSupported) setTimeout(() => startListening(), 140)
         return
       }
     } catch {}
@@ -448,7 +449,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     }
     speakingRef.current = false
     setGlobal('idle')
-  }, [muted, stopTTS, stopListening])
+    if (expanded && micSupported) setTimeout(() => startListening(), 140)
+  }, [muted, stopTTS, stopListening, expanded, micSupported, startListening])
 
   const toggleListening = useCallback(() => {
     if (listeningRef.current) {

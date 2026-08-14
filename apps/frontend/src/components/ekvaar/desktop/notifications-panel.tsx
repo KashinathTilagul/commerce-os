@@ -61,33 +61,15 @@ export function NotificationsPanel({ open, onClose }: Props) {
     fetch('/api/dashboard')
       .then(r => r.json())
       .then(data => {
-        const notifications: Notification[] = []
-        const now = Date.now()
-        
-        if (data.recentOrders?.length) {
-          data.recentOrders.slice(0, 3).forEach((o: any, i: number) => {
-            notifications.push({
-              id: `order-${o.id || i}`,
-              type: 'order',
-              title: `Order #${o.id || o.order_number || 'New'}`,
-              body: `${o.customer_name || 'Customer'} · ${o.total ? `₹${o.total.toLocaleString()}` : 'New order'}`,
-              ts: now - (i + 1) * 60000,
-              read: i > 0
-            })
-          })
-        }
-        
-        if (data.metrics?.revenue) {
-          notifications.push({
-            id: 'metric-revenue',
-            type: 'metric',
-            title: 'Today\'s Revenue',
-            body: `₹${(data.metrics.revenue / 100000).toFixed(1)}L ${data.metrics.revenueChange ? `(${data.metrics.revenueChange > 0 ? '+' : ''}${data.metrics.revenueChange}%)` : ''}`,
-            ts: now - 300000,
-            read: false
-          })
-        }
-        
+        const notifications: Notification[] = (data.recentEvents || []).slice(0, 8).map((event: any) => ({
+          id: event.id,
+          type: event.severity === 'CRITICAL' || event.severity === 'ERROR' ? 'security' : event.type?.includes('ORDER') ? 'order' : event.type?.includes('AGENT') ? 'ai' : 'system',
+          title: event.type?.replaceAll('_', ' ') || 'System event',
+          body: event.summary || `${event.actorName || 'System'} recorded an event`,
+          ts: new Date(event.timestamp).getTime(),
+          read: true,
+        }))
+
         if (data.lowStock?.length) {
           data.lowStock.slice(0, 2).forEach((p: any, i: number) => {
             notifications.push({
@@ -95,30 +77,27 @@ export function NotificationsPanel({ open, onClose }: Props) {
               type: 'alert',
               title: 'Low Inventory',
               body: `${p.name || p.product_name} — ${p.stock || p.quantity} units left`,
-              ts: now - 3600000 * (i + 1),
-              read: true
+              ts: Date.now(),
+              read: false
             })
           })
         }
-        
-        notifications.push({
-          id: 'system-sync',
-          type: 'system',
-          title: 'System Synced',
-          body: 'All integrations healthy · Last sync just now',
-          ts: now - 1800000,
-          read: true
+
+        if (data.kpis?.pendingApprovals > 0) notifications.unshift({
+          id: 'pending-approvals', type: 'alert', title: 'Founder decision required',
+          body: `${data.kpis.pendingApprovals} approval${data.kpis.pendingApprovals === 1 ? '' : 's'} waiting in Founder Inbox`,
+          ts: Date.now(), read: false,
         })
         
         setItems(notifications)
         setStats({
-          orders: data.metrics?.orders || data.todayOrders || 0,
-          revenue: data.metrics?.revenue ? `₹${(data.metrics.revenue / 100000).toFixed(1)}L` : '₹0',
-          pending: data.pendingOrders || data.metrics?.pending || 0
+          orders: data.kpis?.ordersLast30 || 0,
+          revenue: data.kpis?.revenueLast30 ? `₹${(data.kpis.revenueLast30 / 100000).toFixed(1)}L` : '₹0',
+          pending: data.kpis?.pendingApprovals || 0
         })
       })
       .catch(() => {
-        setItems([{ id: '1', type: 'system', title: 'Business OS', body: 'No new notifications', ts: Date.now(), read: true }])
+        setItems([{ id: 'notification-error', type: 'alert', title: 'Notifications unavailable', body: 'The notification feed could not be loaded. Try again.', ts: Date.now(), read: false }])
       })
   }, [open])
 
