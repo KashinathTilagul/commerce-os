@@ -183,7 +183,7 @@ Now produce YOUR deliverable:`
     deliverable = exactReply
   } else {
     try {
-      const r = await routeText('reasoning', { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
+      const r = await routeText('reasoning', organizationId, { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
       deliverable = r.text.trim()
     } catch (e: any) {
       if (campaignRun) await db.agentRun.update({
@@ -315,7 +315,7 @@ Now produce YOUR deliverable:`
     work = { progressNote: `Completed the requested deliverable for ${issue.code}.`, newStatus: 'DONE' }
   } else {
     try {
-      const { object } = await routeObject<z.infer<typeof StatusSchema>>('fast', {
+      const { object } = await routeObject<z.infer<typeof StatusSchema>>('fast', organizationId, {
         schema: StatusSchema,
         system: `You are ${agent.name}. You just produced a deliverable for ticket ${issue.code}. Decide its status honestly.`,
         prompt: `Ticket: ${issue.title}\n\nDeliverable you produced:\n${deliverable.slice(0, 3000)}\n\nDecide the status based on milestones.`,

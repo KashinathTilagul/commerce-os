@@ -94,15 +94,14 @@ export async function executePlaybook(
     // Synthesize playbook output using AI Router
     const prompt = `You are ${leadAgent?.name || playbook.leadAgentCode} running the autonomous playbook "${playbook.name}" for ${org.name}.
 Live business metrics:
-- Revenue: ₹${(snapshot.revenue / 100000).toFixed(2)}L
-- Orders (30d): ${snapshot.ordersCount}
-- Top Products: ${snapshot.topProducts.map((p) => p.title).join(', ') || 'Standard Catalog'}
+${snapshot}
 
 Generate a concise, actionable executive summary (max 3-4 bullet points) covering status, immediate risks, and recommended founder action.`
 
-    const summary = await routeText(prompt, {
-      tier: 'FAST',
-      maxTokens: 300,
+    const { text: summary } = await routeText('fast', organizationId, {
+      system: 'Produce a concise evidence-grounded operating brief.',
+      prompt,
+      maxOutputTokens: 300,
       temperature: 0.2,
     })
 
@@ -112,6 +111,7 @@ Generate a concise, actionable executive summary (max 3-4 bullet points) coverin
       const issue = await db.issue.create({
         data: {
           organizationId,
+          code: `PAP-${Date.now().toString().slice(-6)}`,
           title: `[Playbook: ${playbook.name}] ${new Date().toLocaleDateString()}`,
           description: summary,
           status: 'IN_PROGRESS',

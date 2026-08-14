@@ -18,6 +18,14 @@ import { Button } from '@/components/ui/button'
 import { formatINR, formatINRFull } from '@/lib/ekvaar'
 import { useAppSubscription } from '@/lib/cpu-websocket'
 
+const STARTUP_SIGNALS = [
+  { quote: 'Build the smallest thing that proves the largest assumption.', note: 'Evidence before expansion.' },
+  { quote: 'Speed matters only when the direction is true.', note: 'Validate, then accelerate.' },
+  { quote: 'A clear constraint is more useful than a vague ambition.', note: 'Name today’s limiting factor.' },
+  { quote: 'Customers remember solved problems, not internal effort.', note: 'Ship outcomes.' },
+  { quote: 'The next milestone should reduce uncertainty.', note: 'Choose work that teaches.' },
+]
+
 function KpiSkeleton() {
   return (
     <Card>
@@ -94,6 +102,7 @@ interface DashboardData {
 
 export function CommandCenter({ onNavigate }: { onNavigate: (m: string) => void }) {
   const [briefingOpen, setBriefingOpen] = useState(false)
+  const [startupSignal] = useState(() => STARTUP_SIGNALS[Math.floor(Math.random() * STARTUP_SIGNALS.length)])
 
   const { data: orgContext } = useQuery({
     queryKey: ['org-context'],
@@ -508,32 +517,32 @@ export function CommandCenter({ onNavigate }: { onNavigate: (m: string) => void 
           </div>
         </div>
 
-        {/* Footer manifesto */}
+        {/* Organization-neutral startup signal */}
         <Card className="bg-noor text-rui border-0 relative overflow-hidden">
           <CardContent className="p-8 md:p-12 relative z-10">
             <div className="text-[10px] tracking-[0.3em] uppercase text-rui/50 mb-4">
-              Founder Note
+              Startup Signal
             </div>
             <div className="font-display text-xl md:text-3xl tracking-tight leading-tight max-w-3xl">
-              "We didn't start with a plan. We started with a pause."
+              “{startupSignal.quote}”
             </div>
             <div className="mt-6 text-sm text-rui/60 max-w-2xl leading-relaxed">
-              {orgContext?.brandDna || 'One time — chosen with intent. All time — relevant across time.'}
+              {startupSignal.note}
             </div>
             <div className="mt-8 flex items-center gap-3 text-xs">
               <div className="h-px w-12 bg-rui/30" />
-              <span className="tracking-[0.2em] uppercase text-rui/50">Board Room</span>
+              <span className="tracking-[0.2em] uppercase text-rui/50">New signal on every startup</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <BriefingModal open={briefingOpen} onClose={() => setBriefingOpen(false)} />
+      <BriefingModal open={briefingOpen} onClose={() => setBriefingOpen(false)} onNavigate={onNavigate} />
     </div>
   )
 }
 
-function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function BriefingModal({ open, onClose, onNavigate }: { open: boolean; onClose: () => void; onNavigate: (module: string) => void }) {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['briefing'],
     queryFn: async () => {
@@ -551,8 +560,8 @@ function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[86vh] overflow-y-auto p-0 gap-0">
+        <DialogHeader className="sticky top-0 z-10 border-b bg-background/95 px-6 py-5 backdrop-blur-xl">
           <DialogTitle className="flex items-center justify-between">
             <span className="font-display tracking-tight">Founder Brief</span>
             <div className="flex items-center gap-2">
@@ -576,7 +585,7 @@ function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }
         )}
 
         {data && (
-          <div className="space-y-5 mt-1">
+          <div className="space-y-6 p-6">
             {/* Summary bar */}
             {totalUrgent > 0 && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-agni/5 border border-agni/20">
@@ -618,7 +627,7 @@ function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }
             {db?.pendingApprovals?.length > 0 && (
               <BriefSection icon={<Inbox className="h-4 w-4" />} title="Awaiting Your Approval">
                 {db.pendingApprovals.map((a: any) => (
-                  <BriefRow key={a.id} label={a.type} value={a.title}
+                  <BriefRow key={a.id} label={a.type} value={a.title} onClick={() => { onClose(); onNavigate('inbox') }}
                     badge={a.amount > 0 ? `₹${a.amount.toLocaleString('en-IN')}` : undefined} />
                 ))}
               </BriefSection>
@@ -635,7 +644,7 @@ function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }
                 )}
               </BriefSection>
             ) : (
-              <NotConnected label="Gmail" icon={<Mail className="h-4 w-4" />} error={data.gmailError} />
+              <NotConnected label="Gmail" icon={<Mail className="h-4 w-4" />} error={data.gmailError} onConnect={() => { onClose(); onNavigate('integrations') }} />
             )}
 
             {/* Google Calendar */}
@@ -651,7 +660,7 @@ function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }
                 )}
               </BriefSection>
             ) : (
-              <NotConnected label="Google Calendar" icon={<Calendar className="h-4 w-4" />} error={data.calendarError} />
+              <NotConnected label="Google Calendar" icon={<Calendar className="h-4 w-4" />} error={data.calendarError} onConnect={() => { onClose(); onNavigate('integrations') }} />
             )}
 
             {/* Discord */}
@@ -665,7 +674,7 @@ function BriefingModal({ open, onClose }: { open: boolean; onClose: () => void }
                 )}
               </BriefSection>
             ) : (
-              <NotConnected label="Discord" icon={<MessageSquare className="h-4 w-4" />} error={data.discordError} />
+              <NotConnected label="Discord" icon={<MessageSquare className="h-4 w-4" />} error={data.discordError} onConnect={() => { onClose(); onNavigate('integrations') }} />
             )}
           </div>
         )}
@@ -686,26 +695,27 @@ function BriefSection({ icon, title, accent, children }: { icon: React.ReactNode
   )
 }
 
-function BriefRow({ label, value, badge, urgent }: { label: string; value: string; badge?: string; urgent?: boolean }) {
+function BriefRow({ label, value, badge, urgent, onClick }: { label: string; value: string; badge?: string; urgent?: boolean; onClick?: () => void }) {
   return (
-    <div className={`flex items-start justify-between gap-3 py-1.5 border-b border-border/40 last:border-0 ${urgent ? 'text-agni' : ''}`}>
+    <button type="button" onClick={onClick} disabled={!onClick} className={`flex w-full items-start justify-between gap-3 rounded-lg border-b border-border/40 px-2 py-2.5 text-left last:border-0 ${onClick ? 'hover:bg-muted/70 cursor-pointer' : 'cursor-default'} ${urgent ? 'text-agni' : ''}`}>
       <span className="text-xs font-mono shrink-0 text-muted-foreground w-28 truncate">{label}</span>
       <span className="text-xs flex-1 leading-relaxed">{value}</span>
       {badge && <Badge variant="outline" className="text-[10px] shrink-0">{badge}</Badge>}
-    </div>
+    </button>
   )
 }
 
-function NotConnected({ label, icon, error }: { label: string; icon: React.ReactNode; error?: string | null }) {
+function NotConnected({ label, icon, error, onConnect }: { label: string; icon: React.ReactNode; error?: string | null; onConnect: () => void }) {
   const notConnected = !error || error.includes('not connected')
   return (
-    <div className="flex items-start gap-2 text-muted-foreground/50">
-      {icon}
-      <span className="text-xs leading-relaxed">
+    <div className="flex items-center gap-3 rounded-lg border border-dashed px-3 py-2.5 text-muted-foreground">
+      <span className="shrink-0">{icon}</span>
+      <span className="flex-1 text-xs leading-relaxed">
         {notConnected
           ? `${label} — not connected. Connect in Integrations.`
           : `${label} — ${error}`}
       </span>
+      <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={onConnect}>Connect</Button>
     </div>
   )
 }

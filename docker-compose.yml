@@ -1,4 +1,138 @@
 services:
+  omniroute:
+    image: diegosouzapw/omniroute:latest
+    expose:
+      - "20128"
+    volumes:
+      - omniroute-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:20128/v1/models').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    entrypoint: ["/bin/sh", "/opt/ekvaar/init.sh"]
+    expose:
+      - "5678"
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ./n8n/init.sh:/opt/ekvaar/init.sh:ro
+      - ./n8n/workflows:/opt/ekvaar/workflows:ro
+    environment:
+      - N8N_HOST=${N8N_HOST:-os.ekvaar.com}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
+      - N8N_PATH=/automation/
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-https://os.ekvaar.com/automation/}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-https://os.ekvaar.com/automation/}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_UNVERIFIED_PACKAGES_ENABLED=false
+      - GENERIC_TIMEZONE=Asia/Kolkata
+      - TZ=Asia/Kolkata
+      - EKVAAR_OS_INTERNAL_URL=http://frontend:3000
+      - CRON_SECRET=${CRON_SECRET}
+      - N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET:?N8N_EKVAAR_WEBHOOK_SECRET is required}
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5678/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  cognee:
+    image: cognee/cognee:main
+    expose:
+      - "8000"
+    volumes:
+      - cognee-system:/app/cognee/.cognee_system
+      - cognee-data:/app/cognee/.cognee_data
+    environment:
+      - LLM_API_KEY=${COGNEE_LLM_API_KEY:-ekvaar-internal}
+      - LLM_PROVIDER=openai
+      - LLM_MODEL=${COGNEE_LLM_MODEL:-openai/auto}
+      - LLM_ENDPOINT=http://omniroute:20128/v1
+      - EMBEDDING_PROVIDER=fastembed
+      - EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+      - EMBEDDING_DIMENSIONS=384
+      - ENABLE_BACKEND_ACCESS_CONTROL=false
+      - TELEMETRY_DISABLED=true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
+    depends_on:
+      omniroute:
+        condition: service_healthy
+    restart: unless-stopped
+
+  open-design:
+    image: ghcr.io/nexu-io/od:latest
+    expose:
+      - "7456"
+    volumes:
+      - open-design-data:/app/.od
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=384
+      - OD_BIND_HOST=0.0.0.0
+      - OD_PORT=7456
+      - OD_WEB_PORT=7456
+      - OD_API_TOKEN=${OPEN_DESIGN_API_TOKEN:?OPEN_DESIGN_API_TOKEN is required}
+      - OD_ALLOWED_ORIGINS=${OPEN_DESIGN_ALLOWED_ORIGINS:-https://os.ekvaar.com}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7456/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  upskill:
+    build:
+      context: ./infra/upskill
+    expose:
+      - "8090"
+    environment:
+      - OPENAI_API_KEY=${UPSKILL_API_KEY:-ekvaar-internal}
+      - OPENAI_BASE_URL=http://omniroute:20128/v1
+      - UPSKILL_MODEL=${UPSKILL_MODEL:-openai.auto}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      omniroute:
+        condition: service_healthy
+    restart: unless-stopped
+
+  google-workspace:
+    build:
+      context: ./infra/google-workspace
+    expose:
+      - "8091"
+    volumes:
+      - google-workspace-config:/root/.config/gws
+    environment:
+      - CRON_SECRET=${CRON_SECRET}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes
@@ -24,21 +158,28 @@ services:
       - ./db/supabase-ca.crt:/app/certs/supabase-ca.crt:ro
     environment:
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must point to Supabase}
+      - DIRECT_URL=${DIRECT_URL:?DIRECT_URL must point to the Supabase session pooler}
       - NODE_EXTRA_CA_CERTS=/app/certs/supabase-ca.crt
       - REDIS_URL=redis://redis:6379
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - JWT_SECRET=${JWT_SECRET}
       - CRON_SECRET=${CRON_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-https://os.ekvaar.com}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://os.ekvaar.com}
+      - ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET}
       - CAMPAIGN_LAUNCHES_ENABLED=${CAMPAIGN_LAUNCHES_ENABLED:-true}
-      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - COMPOSIO_API_KEY=${COMPOSIO_API_KEY}
+      - META_CLIENT_ID=${META_CLIENT_ID}
+      - META_CLIENT_SECRET=${META_CLIENT_SECRET}
+      - META_GRAPH_VERSION=${META_GRAPH_VERSION:-v25.0}
+      - THREADS_CLIENT_ID=${THREADS_CLIENT_ID}
+      - THREADS_CLIENT_SECRET=${THREADS_CLIENT_SECRET}
+      - LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID}
+      - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET}
+      - LINKEDIN_API_VERSION=${LINKEDIN_API_VERSION:-202606}
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-zai.glm-5}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
       - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
       - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
       - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}
@@ -51,9 +192,31 @@ services:
       - N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET}
       - N8N_EKVAAR_WORKFLOW_ID=${N8N_EKVAAR_WORKFLOW_ID}
       - N8N_EKVAAR_EDITOR_URL=${N8N_EKVAAR_EDITOR_URL}
+      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
+      - COGNEE_API_URL=http://cognee:8000
+      - DOGRAH_API_URL=${DOGRAH_API_URL:-}
+      - GOOGLE_WORKSPACE_CLI_PATH=${GOOGLE_WORKSPACE_CLI_PATH:-gws}
+      - OPEN_DESIGN_URL=http://open-design:7456
+      - OPEN_DESIGN_PUBLIC_URL=${OPEN_DESIGN_PUBLIC_URL}
+      - OPEN_DESIGN_API_TOKEN=${OPEN_DESIGN_API_TOKEN}
+      - UPSKILL_API_URL=http://upskill:8090
+      - GOOGLE_WORKSPACE_API_URL=http://google-workspace:8091
+      - N8N_INTERNAL_URL=http://n8n:5678
     restart: unless-stopped
     depends_on:
       redis:
+        condition: service_healthy
+      omniroute:
+        condition: service_healthy
+      n8n:
+        condition: service_healthy
+      cognee:
+        condition: service_healthy
+      open-design:
+        condition: service_healthy
+      upskill:
+        condition: service_healthy
+      google-workspace:
         condition: service_healthy
       fastapi:
         condition: service_started
@@ -83,15 +246,10 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-amazon.nova-pro-v1:0}
-      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
-      - COMPOSIO_API_KEY=${COMPOSIO_API_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
       - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}
       - BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY}
       - BROWSER_USE_MODEL=${BROWSER_USE_MODEL}
       - OPENAI_BROWSER_MODEL=${OPENAI_BROWSER_MODEL}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - BROWSER_HEADLESS=${BROWSER_HEADLESS:-true}
     restart: unless-stopped
     depends_on:
@@ -100,3 +258,9 @@ services:
 
 volumes:
   redisdata:
+  omniroute-data:
+  n8n-data:
+  cognee-system:
+  cognee-data:
+  open-design-data:
+  google-workspace-config:

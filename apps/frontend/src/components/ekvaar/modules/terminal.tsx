@@ -2,11 +2,12 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useRef, useState, useEffect } from 'react'
-import { Terminal, Activity, Zap, AlertCircle, Info } from 'lucide-react'
+import { Terminal, Activity, Zap, AlertCircle, Info, Search } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { PageHeader, KpiCard } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { useAppSubscription } from '@/lib/cpu-websocket'
 
 const SEVERITY_META: Record<string, { color: string; icon: any }> = {
@@ -17,15 +18,16 @@ const SEVERITY_META: Record<string, { color: string; icon: any }> = {
 }
 
 export function TerminalModule() {
+  const [search, setSearch] = useState('')
   const { data: events = [], isLoading, error } = useQuery<any[]>({
-    queryKey: ['events'],
+    queryKey: ['events', search],
     queryFn: async () => {
-      const r = await fetch('/api/events')
+      const r = await fetch(`/api/events?limit=500&q=${encodeURIComponent(search)}`)
       if (!r.ok) throw new Error('Failed to fetch events')
       const data = await r.json()
       return Array.isArray(data) ? data : data.events || []
     },
-    staleTime: 30000,
+    staleTime: 5000,
   })
 
   useAppSubscription('events')
@@ -84,7 +86,7 @@ export function TerminalModule() {
         </div>
 
         {/* Filter pills */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {['ALL', 'INFO', 'WARN', 'ERROR', 'CRITICAL'].map((f) => (
             <button
               key={f}
@@ -98,7 +100,11 @@ export function TerminalModule() {
               {f}
             </button>
           ))}
-          <div className="ml-auto text-[10px] text-muted-foreground">
+          <div className="relative ml-auto w-full sm:w-72">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search actor, event, payload…" className="pl-8" />
+          </div>
+          <div className="text-[10px] text-muted-foreground">
             Showing {filtered.length} of {events.length}
           </div>
         </div>

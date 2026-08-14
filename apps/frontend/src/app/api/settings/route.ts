@@ -1,18 +1,20 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireOrganization, requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { encryptSecret } from '@/lib/crypto'
 
-const API_KEY_FIELDS = ['primaryApiKey', 'fallback1ApiKey', 'fallback2ApiKey'] as const
+const API_KEY_FIELDS = ['primaryApiKey', 'fallback1ApiKey', 'fallback2ApiKey', 'composioApiKey', 'speechApiKey'] as const
 
-// Shared AI engine config (one row for the whole app — API keys, model cascade)
+// Organization-owned configuration. Credentials never cross tenant boundaries.
 const SYSTEM_FIELDS = new Set([
   'theme', 'accent', 'notifications', 'agentHeartbeats', 'approvalAlerts', 'budgetAlerts',
   'maxTokens', 'intelligence', 'autoApproveLimit', 'escalationPolicy', 'responseEagerness',
   'primaryProvider', 'primaryModel', 'primaryApiKey', 'primaryBaseUrl',
   'fallback1Provider', 'fallback1Model', 'fallback1ApiKey', 'fallback1BaseUrl',
   'fallback2Provider', 'fallback2Model', 'fallback2ApiKey', 'fallback2BaseUrl',
+  'composioApiKey',
+  'speechProvider', 'speechApiKey',
 ])
 
 // Per-user Krishna voice/prompt preference
@@ -22,9 +24,9 @@ export async function GET() {
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
-  let settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+  let settings = await db.systemSetting.findUnique({ where: { organizationId: auth.organizationId } })
   if (!settings) {
-    settings = await db.systemSetting.create({ data: { id: 'global' } })
+    settings = await db.systemSetting.create({ data: { organizationId: auth.organizationId } })
   }
 
   let preference = await db.userPreference.findUnique({ where: { userId: auth.user.id } })
@@ -35,7 +37,7 @@ export async function GET() {
   const organization = await db.organization.findUnique({ where: { id: auth.organizationId }, select: { name: true } })
 
   // Never expose API keys in response
-  const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, ...safeSettings } = settings as any
+  const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, speechApiKey, ...safeSettings } = settings as any
 
   return NextResponse.json({
     ...safeSettings,
@@ -44,6 +46,8 @@ export async function GET() {
     hasPrimaryApiKey: Boolean(primaryApiKey),
     hasFallback1ApiKey: Boolean(fallback1ApiKey),
     hasFallback2ApiKey: Boolean(fallback2ApiKey),
+    hasComposioApiKey: Boolean(composioApiKey),
+    hasSpeechApiKey: Boolean(speechApiKey),
   })
 }
 
@@ -74,8 +78,8 @@ export async function PATCH(req: Request) {
 
     const [settings, preference] = await Promise.all([
       Object.keys(systemBody).length > 0
-        ? db.systemSetting.upsert({ where: { id: 'global' }, update: systemBody, create: { id: 'global', ...systemBody } })
-        : db.systemSetting.findUnique({ where: { id: 'global' } }),
+        ? db.systemSetting.upsert({ where: { organizationId: auth.organizationId }, update: systemBody, create: { organizationId: auth.organizationId, ...systemBody } })
+        : db.systemSetting.findUnique({ where: { organizationId: auth.organizationId } }),
       Object.keys(preferenceBody).length > 0
         ? db.userPreference.upsert({ where: { userId: auth.user.id }, update: preferenceBody, create: { userId: auth.user.id, ...preferenceBody } })
         : db.userPreference.findUnique({ where: { userId: auth.user.id } }),
@@ -97,7 +101,7 @@ export async function PATCH(req: Request) {
     }).catch(() => {})
 
     // Never expose API keys in response
-    const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, ...safeSettings } = (settings || {}) as any
+    const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, speechApiKey, ...safeSettings } = (settings || {}) as any
 
     const org = await db.organization.findUnique({ where: { id: auth.organizationId }, select: { name: true } })
     return NextResponse.json({
@@ -107,6 +111,8 @@ export async function PATCH(req: Request) {
       hasPrimaryApiKey: Boolean(primaryApiKey),
       hasFallback1ApiKey: Boolean(fallback1ApiKey),
       hasFallback2ApiKey: Boolean(fallback2ApiKey),
+      hasComposioApiKey: Boolean(composioApiKey),
+      hasSpeechApiKey: Boolean(speechApiKey),
     })
   } catch (e: any) {
     console.error('[Settings PATCH]', e.message)

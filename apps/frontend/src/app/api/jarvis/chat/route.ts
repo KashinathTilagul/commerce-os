@@ -28,9 +28,9 @@ const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('message_team'), text: z.string().describe('The message to post'), channel: z.string().optional().describe('Discord channel id or name') }),
   z.object({ type: z.literal('analyze'), question: z.string().describe('A data question to compute from the real business database — orders, revenue, products, customers, campaigns, issues, agents.') }),
   z.object({ type: z.literal('create_project_doc'), brief: z.string(), objectives: z.array(z.string()).optional(), successCriteria: z.array(z.string()).optional() }),
-  z.object({ type: z.literal('generate_pdf'), template: z.string().optional(), data: z.record(z.any()), title: z.string() }),
+  z.object({ type: z.literal('generate_pdf'), template: z.string().optional(), data: z.record(z.string(), z.any()), title: z.string() }),
   z.object({ type: z.literal('generate_image'), prompt: z.string(), aspectRatio: z.enum(['1:1', '16:9', '9:16']).optional(), style: z.enum(['product', 'lifestyle', 'abstract']).optional() }),
-  z.object({ type: z.literal('generate_video'), template: z.string(), data: z.record(z.any()), duration: z.number().optional() }),
+  z.object({ type: z.literal('generate_video'), template: z.string(), data: z.record(z.string(), z.any()), duration: z.number().optional() }),
   z.object({ type: z.literal('close_window') }),
   z.object({ type: z.literal('none') }),
 ])
@@ -126,7 +126,7 @@ AVAILABLE ACTIONS:
     // ── Load config overrides from DB ────────────────────────────────────
     let cfg: any = {}
     try {
-      cfg = await db.systemSetting.findUnique({ where: { id: 'global' } }) || {}
+      cfg = await db.userPreference.findUnique({ where: { userId: authResult.user.id } }) || {}
     } catch {}
 
     // Use custom prompt if set in Settings, otherwise default
@@ -136,7 +136,7 @@ AVAILABLE ACTIONS:
     let action: z.infer<typeof ActionSchema> = { type: 'none' }
 
     try {
-      const { object, provider, model } = await routeObject<z.infer<typeof KrishnaResponseSchema>>('reasoning', {
+      const { object, provider, model } = await routeObject<z.infer<typeof KrishnaResponseSchema>>('reasoning', uid, {
         schema: KrishnaResponseSchema,
         system: activePrompt,
         prompt: sanitizeInput(message, { maxLength: 5000 }),
@@ -150,7 +150,7 @@ AVAILABLE ACTIONS:
       console.error(`[Krishna] Core error:`, e.message)
       try {
         const { routeText } = await import('@/lib/ai-router')
-        const { text } = await routeText('fast', {
+        const { text } = await routeText('fast', uid, {
           system: 'You are JARVIS, executive assistant to the Founder. Reply in 1-2 short, professional sentences.',
           prompt: sanitizeInput(message, { maxLength: 1000 }),
         })
@@ -167,7 +167,7 @@ AVAILABLE ACTIONS:
     let netEngaged = false
     if (action.type !== 'assign_task' && /\b(assign|delegate|hand (it |this )?(over|off)|give .{0,30}\btask|task .{0,30}\bto\b)/i.test(message)) {
       try {
-        const { object: extracted } = await routeObject<{ isAssignment: boolean; assignee: string; task: string; priority: 'P0' | 'P1' | 'P2' | 'P3' }>('fast', {
+        const { object: extracted } = await routeObject<{ isAssignment: boolean; assignee: string; task: string; priority: 'P0' | 'P1' | 'P2' | 'P3' }>('fast', uid, {
           schema: z.object({
             isAssignment: z.boolean().describe('true only if the founder is delegating work to someone'),
             assignee: z.string().describe('Agent code, name, role or department, e.g. CEO, CMO, Mira, marketing'),
@@ -410,6 +410,7 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
             }),
             businessObjectType: 'PROJECT',
             businessObjectId: `PROJ-${Date.now()}`,
+            checksum: `project-${Date.now()}`,
             source: 'FOUNDER',
             sourceProvider: 'krishna',
             confidence: 'VERIFIED'

@@ -1,7 +1,9 @@
 export const dynamic = 'force-dynamic'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireOrganization } from '@/lib/auth-guard'
+import { rememberWithCognee } from '@/lib/cognee'
+import { sanitizeInput } from '@/lib/security'
 
 // ponytail: no vector store/knowledge graph exists yet, so "memory" is the real
 // Event log — every workflow/agent/business action already lands there. Swap
@@ -39,4 +41,18 @@ export async function GET() {
     stats: { totalEntities: entities, relationships, totalEvents, recentIndexes: recentEvents },
     memories,
   })
+}
+
+export async function POST(req: NextRequest) {
+  const auth = await requireOrganization()
+  if (!auth.success) return auth.response
+  const body = await req.json().catch(() => ({}))
+  const content = sanitizeInput(typeof body.content === 'string' ? body.content : '', { maxLength: 20_000 })
+  if (!content) return NextResponse.json({ error: 'Memory content is required' }, { status: 400 })
+  try {
+    const result = await rememberWithCognee(`ekvaar-${auth.organizationId}`, content)
+    return NextResponse.json({ accepted: true, source: 'cognee', result }, { status: 202 })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 502 })
+  }
 }

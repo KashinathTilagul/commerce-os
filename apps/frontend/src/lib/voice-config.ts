@@ -9,24 +9,11 @@ export interface VoiceOption {
 }
 
 export const WORKABLE_VOICES: VoiceOption[] = [
-  // Indian English & Hindi
-  { id: 'en-IN-NeerjaNeural', name: 'Neerja — Indian English (Female)', category: 'Indian English', gender: 'female', lang: 'en-IN' },
-  { id: 'en-IN-PrabhatNeural', name: 'Prabhat — Indian English (Male)', category: 'Indian English', gender: 'male', lang: 'en-IN' },
-  { id: 'hi-IN-SwaraNeural', name: 'Swara — Hindi (Female)', category: 'Hindi', gender: 'female', lang: 'hi-IN' },
-  { id: 'hi-IN-MadhurNeural', name: 'Madhur — Hindi (Male)', category: 'Hindi', gender: 'male', lang: 'hi-IN' },
-  // Global & US English
-  { id: 'en-US-EmmaNeural', name: 'Emma — US English (Female)', category: 'US English', gender: 'female', lang: 'en-US' },
-  { id: 'en-US-AndrewNeural', name: 'Andrew — US English (Male)', category: 'US English', gender: 'male', lang: 'en-US' },
-  { id: 'en-US-AvaNeural', name: 'Ava — Warm English (Female)', category: 'US English', gender: 'female', lang: 'en-US' },
-  { id: 'en-US-BrianNeural', name: 'Brian — Deep English (Male)', category: 'US English', gender: 'male', lang: 'en-US' },
-  // British & Australian
-  { id: 'en-GB-SoniaNeural', name: 'Sonia — British English (Female)', category: 'British / AU', gender: 'female', lang: 'en-GB' },
-  { id: 'en-GB-RyanNeural', name: 'Ryan — British English (Male) ⭐ JARVIS', category: 'British / AU', gender: 'male', lang: 'en-GB' },
-  { id: 'en-AU-NatashaNeural', name: 'Natasha — Australian English (Female)', category: 'British / AU', gender: 'female', lang: 'en-AU' },
-  { id: 'en-AU-WilliamNeural', name: 'William — Australian English (Male)', category: 'British / AU', gender: 'male', lang: 'en-AU' },
+  { id: 'openai:onyx', name: 'Krishna — Natural Male (Cloud)', category: 'Cloud neural', gender: 'male', lang: 'en-IN' },
+  { id: 'device:male', name: 'Device Male Voice (Fallback)', category: 'Device', gender: 'male', lang: 'en-IN' },
 ]
 
-export const JARVIS_VOICE_ID = 'en-GB-RyanNeural'
+export const JARVIS_VOICE_ID = 'openai:onyx'
 
 export function getJarvisProfile() {
   return {
@@ -34,7 +21,7 @@ export function getJarvisProfile() {
     rate: 0.86,
     style: 'assistant' as const,
     styledegree: 1.5,
-    lang: 'en-GB',
+    lang: 'en-IN',
     isFemale: false,
     gender: 'male' as const,
   }

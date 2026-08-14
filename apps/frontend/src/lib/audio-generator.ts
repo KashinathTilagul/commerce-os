@@ -1,12 +1,7 @@
-import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { promises as fs } from 'node:fs'
-import path from 'node:path'
-import { promisify } from 'node:util'
 import { db } from './db'
+import { decryptSecret } from './crypto'
 import { initializeStorage, storeArtifact } from './storage'
-
-const execFileAsync = promisify(execFile)
 
 export interface AudioGenerationOptions {
   text: string
@@ -23,7 +18,8 @@ export async function generateAudio(options: AudioGenerationOptions): Promise<{ 
 
   let audioBuffer: Buffer | null = null
   let provider = 'openai'
-  const openAIKey = process.env.OPENAI_API_KEY
+  const settings = await db.systemSetting.findUnique({ where: { organizationId: options.organizationId } })
+  const openAIKey = settings?.speechProvider === 'openai' ? decryptSecret(settings.speechApiKey) : ''
 
   if (openAIKey) {
     try {
@@ -44,21 +40,7 @@ export async function generateAudio(options: AudioGenerationOptions): Promise<{ 
     }
   }
 
-  if (!audioBuffer) {
-    provider = 'espeak-ng'
-    const tempDir = path.join(process.cwd(), 'storage', 'temp')
-    await fs.mkdir(tempDir, { recursive: true })
-    const token = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-    const wavPath = path.join(tempDir, `${token}.wav`)
-    const mp3Path = path.join(tempDir, `${token}.mp3`)
-    try {
-      await execFileAsync('espeak-ng', ['-v', 'en+m3', '-s', '155', '-w', wavPath, text], { timeout: 30000 })
-      await execFileAsync('ffmpeg', ['-i', wavPath, '-codec:a', 'libmp3lame', '-q:a', '4', '-y', mp3Path], { timeout: 30000 })
-      audioBuffer = await fs.readFile(mp3Path)
-    } finally {
-      await Promise.all([fs.rm(wavPath, { force: true }), fs.rm(mp3Path, { force: true })])
-    }
-  }
+  if (!audioBuffer) throw new Error('No working speech provider is configured for this organization. Add a Speech API key in Settings.')
 
   const artifactId = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
   const title = options.title || 'Generated Audio'

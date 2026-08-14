@@ -1,0 +1,14 @@
+{
+  "id": "ekvaar-daily-learning",
+  "name": "Ekvaar Daily Agent Learning",
+  "nodes": [
+    { "id": "start-schedule", "name": "Daily 06:00 IST", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [0, 0], "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 6 * * *" }] } } },
+    { "id": "start-learning", "name": "Start 65 Learning Tasks", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [260, 0], "parameters": { "method": "POST", "url": "={{ $env.EKVAAR_OS_INTERNAL_URL + '/api/cron/daily-learning?phase=start' }}", "sendHeaders": true, "headerParameters": { "parameters": [{ "name": "x-cron-secret", "value": "={{ $env.CRON_SECRET }}" }] }, "options": { "timeout": 30000 } } },
+    { "id": "report-schedule", "name": "Daily 06:45 IST", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [0, 220], "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "45 6 * * *" }] } } },
+    { "id": "publish-report", "name": "Send Founder Report", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [260, 220], "parameters": { "method": "POST", "url": "={{ $env.EKVAAR_OS_INTERNAL_URL + '/api/cron/daily-learning?phase=report' }}", "sendHeaders": true, "headerParameters": { "parameters": [{ "name": "x-cron-secret", "value": "={{ $env.CRON_SECRET }}" }] }, "options": { "timeout": 30000 } } }
+  ],
+  "connections": { "Daily 06:00 IST": { "main": [[{ "node": "Start 65 Learning Tasks", "type": "main", "index": 0 }]] }, "Daily 06:45 IST": { "main": [[{ "node": "Send Founder Report", "type": "main", "index": 0 }]] } },
+  "settings": { "timezone": "Asia/Kolkata", "executionOrder": "v1" },
+  "active": false,
+  "versionId": "9c4c5870-7fc5-4e62-9a66-95fc2ad19101"
+}
