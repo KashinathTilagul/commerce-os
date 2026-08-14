@@ -1,0 +1,146 @@
+export const dynamic = 'force-dynamic'
+import { NextRequest } from 'next/server'
+import { createApiResponse, createApiError } from '@/lib/security'
+import { requireOrganization, requireAuth } from '@/lib/auth-guard'
+import { db } from '@/lib/db'
+
+export async function GET(req: NextRequest) {
+  const authResult = await requireOrganization()
+  if (!authResult.success) return authResult.response
+
+  try {
+    const uid = authResult.user.id
+    const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks, agents, issues, approvals, events] = await Promise.all([
+      db.product.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, name: true, sku: true, color: true, house: true, stock: true, reorderAt: true, status: true } }),
+      db.order.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, orderNumber: true, total: true, status: true, paymentStatus: true, createdAt: true, channel: true, items: { select: { quantity: true, price: true, product: { select: { house: true, color: true } } } } } }),
+      db.customer.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, tier: true, totalSpent: true } }),
+      db.transaction.findMany({ where: { organizationId: authResult.organizationId }, select: { type: true, amount: true, category: true, date: true } }),
+      db.campaign.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, title: true, status: true, budget: true, spend: true } }),
+      db.aISystem.findMany({ where: { organizationId: authResult.organizationId }, select: { name: true, status: true, health: true, tasksToday: true } }),
+      db.restoration.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true } }),
+      db.brandCheck.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true } }),
+      db.agent.findMany({ where: { organizationId: authResult.organizationId }, select: { code: true, name: true, status: true, tokenSpend: true, tokenBudget: true } }),
+      db.issue.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true } }),
+      db.approval.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true, isRead: true } }),
+      db.event.findMany({ where: { organizationId: authResult.organizationId }, orderBy: { timestamp: 'desc' }, take: 10, select: { id: true, type: true, actorName: true, summary: true, severity: true, timestamp: true } }),
+    ])
+
+    const revenueOrders = orders.filter((o) => o.paymentStatus === 'PAID' && o.status !== 'CANCELLED' && o.status !== 'RETURNED')
+    // ponytail: accounting transactions and commerce orders are separate sources today;
+    // add source IDs before importing Shopify payouts to prevent future double counting.
+    const orderAndLedgerRevenue = revenueOrders.reduce((s, o) => s + o.total, 0)
+      + transactions.filter((t) => t.type === 'INCOME').reduce((s, t) => s + t.amount, 0)
+    // Shopify exposes lifetime spend on customers even when historical orders are
+    // outside the token's 60-day window. Use that real aggregate only as a fallback.
+    const revenue = orderAndLedgerRevenue || customers.reduce((s, c) => s + c.totalSpent, 0)
+    const expenses = transactions.filter((t) => t.type === 'EXPENSE').reduce((s, t) => s + t.amount, 0)
+
+    const now = new Date()
+    const last30 = new Date(now.getTime() - 30 * 86400000)
+    const last7 = new Date(now.getTime() - 7 * 86400000)
+
+    const ordersLast30 = orders.filter((o) => new Date(o.createdAt) >= last30)
+    const ordersLast7 = orders.filter((o) => new Date(o.createdAt) >= last7)
+
+    const revenueLast30 = revenueOrders.filter((o) => new Date(o.createdAt) >= last30).reduce((s, o) => s + o.total, 0)
+      + transactions.filter((t) => t.type === 'INCOME' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
+    const expensesLast30 = transactions.filter((t) => t.type === 'EXPENSE' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
+
+    const lowStock = products.filter((p) => p.stock <= (p.reorderAt ?? 20) && p.status !== 'DRAFT')
+    const aiHealth = aiSystems.length > 0 ? Math.round(aiSystems.reduce((s, a) => s + a.health, 0) / aiSystems.length) : 100
+    const passCount = brandChecks.filter((c) => c.status === 'PASS').length
+    const brandCompliance = brandChecks.length > 0 ? Math.round((passCount / brandChecks.length) * 100) : 100
+
+    const salesTrend: { date: string; revenue: number; orders: number }[] = []
+    for (let i = 13; i >= 0; i--) {
+      const day = new Date(now.getTime() - i * 86400000)
+      const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
+      const dayEnd = new Date(dayStart.getTime() + 86400000)
+      const dayOrders = orders.filter((o) => {
+        const d = new Date(o.createdAt)
+        return d >= dayStart && d < dayEnd && o.status !== 'CANCELLED' && o.status !== 'RETURNED'
+      })
+      salesTrend.push({
+        date: dayStart.toISOString().slice(0, 10),
+        revenue: dayOrders.reduce((s, o) => s + o.total, 0),
+        orders: dayOrders.length,
+      })
+    }
+
+    const orderStatusBreakdown: Record<string, number> = {}
+    for (const o of orders) {
+      orderStatusBreakdown[o.status] = (orderStatusBreakdown[o.status] || 0) + 1
+    }
+
+    const tierBreakdown: Record<string, number> = {}
+    for (const c of customers) {
+      tierBreakdown[c.tier] = (tierBreakdown[c.tier] || 0) + 1
+    }
+
+    const salesByHouse: Record<string, number> = {}
+    const salesByColor: Record<string, number> = {}
+    const channelBreakdown: Record<string, number> = {}
+
+    for (const o of orders) {
+      if (o.status !== 'CANCELLED' && o.status !== 'RETURNED') {
+        channelBreakdown[o.channel] = (channelBreakdown[o.channel] || 0) + o.total
+        if (o.items && Array.isArray(o.items)) {
+          for (const item of o.items) {
+            if (item.product) {
+              const itemTotal = item.quantity * item.price
+              salesByHouse[item.product.house] = (salesByHouse[item.product.house] || 0) + itemTotal
+              salesByColor[item.product.color] = (salesByColor[item.product.color] || 0) + itemTotal
+            }
+          }
+        }
+      }
+    }
+
+    return createApiResponse({
+      kpis: {
+        revenue,
+        expenses,
+        netProfit: revenue - expenses,
+        revenueLast30,
+        expensesLast30,
+        netProfitLast30: revenueLast30 - expensesLast30,
+        ordersTotal: orders.length,
+        ordersLast30: ordersLast30.length,
+        ordersLast7: ordersLast7.length,
+        avgOrderValue: orders.length > 0 ? Math.round(orders.reduce((s, o) => s + o.total, 0) / orders.length) : 0,
+        customersTotal: customers.length,
+        activeProducts: products.filter((p) => p.status === 'ACTIVE').length,
+        lowStockCount: lowStock.length,
+        aiHealth,
+        brandCompliance,
+        activeCampaigns: campaigns.filter((c) => c.status === 'LIVE').length,
+        openRestorations: restorations.filter((r) => r.status === 'REQUESTED' || r.status === 'IN_REPAIR').length,
+        activeAgents: agents.filter((a) => a.status === 'ACTIVE' || a.status === 'RUNNING').length,
+        totalAgents: agents.length,
+        openIssues: issues.filter((i) => i.status === 'BACKLOG' || i.status === 'IN_PROGRESS' || i.status === 'IN_REVIEW').length,
+        blockedIssues: issues.filter((i) => i.status === 'BLOCKED').length,
+        pendingApprovals: approvals.filter((a) => a.status === 'PENDING').length,
+        unreadApprovals: approvals.filter((a) => a.status === 'PENDING' && !a.isRead).length,
+        totalAgentSpend: agents.reduce((s, a) => s + a.tokenSpend, 0),
+        totalAgentBudget: agents.reduce((s, a) => s + a.tokenBudget, 0),
+        cashPosition: revenue - expenses,
+        monthlyBurn: Math.round(expenses / 4),
+        runwayMonths: (Math.round(expenses / 4) > 0 && (revenue - expenses) > 0) ? Math.round((revenue - expenses) / (expenses / 4)) : 0,
+      },
+      salesTrend,
+      orderStatusBreakdown,
+      tierBreakdown,
+      // ponytail: actual per-house/color/channel metrics calculated from order items
+      salesByHouse,
+      salesByColor,
+      channelBreakdown,
+      houses: Object.keys(salesByHouse),
+      colors: Object.keys(salesByColor),
+      lowStock: lowStock.slice(0, 10),
+      recentEvents: events,
+    })
+  } catch (error) {
+    console.error('[API] Dashboard error:', error)
+    return createApiError('Failed to fetch dashboard data', 500)
+  }
+}

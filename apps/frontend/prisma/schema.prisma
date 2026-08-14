@@ -1,0 +1,1658 @@
+// Multi-tenant Business OS schema.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CampaignLaunchStatus {
+  DRAFT
+  PLANNING
+  EXECUTING
+  REVIEW
+  APPROVAL_PENDING
+  APPROVED
+  PUBLISHING
+  PUBLISHED
+  PARTIALLY_PUBLISHED
+  BLOCKED
+  CANCELLED
+}
+
+enum CampaignPriority {
+  P0
+  P1
+  P2
+  P3
+}
+
+enum CampaignRevisionStatus {
+  PREPARED
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+enum CampaignPublishStatus {
+  INELIGIBLE
+  READY
+  PUBLISHING
+  PUBLISHED
+  PARTIALLY_PUBLISHED
+  BLOCKED
+}
+
+enum CampaignApprovalMode {
+  NONE
+  AUTO
+  FOUNDER
+}
+
+enum CampaignItemStatus {
+  PENDING
+  READY
+  LEASED
+  RUNNING
+  IN_REVIEW
+  COMPLETED
+  BLOCKED
+  FAILED
+  CANCELLED
+}
+
+enum CampaignAssigneeType {
+  AGENT
+  SYSTEM
+}
+
+enum CampaignValidationDomain {
+  BRAND
+  ORIGINALITY
+  MARGIN
+  TRACKING
+  COMPLIANCE
+  INVENTORY
+  TECHNICAL
+  DEVICE
+}
+
+enum CampaignValidationStatus {
+  PENDING
+  RUNNING
+  PASS
+  FAIL
+  BLOCKED
+}
+
+enum CampaignPublicationStatus {
+  PENDING
+  RUNNING
+  CONFIRMED
+  FAILED
+  BLOCKED
+  ROLLED_BACK
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DISPATCHED
+  PROCESSED
+  FAILED
+}
+
+// ============ AUTHENTICATION ============
+
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String?  @unique
+  tier        String   @default("STARTER") // STARTER | GROWTH | PRO | ENTERPRISE
+  onboardingStep Int   @default(0)
+  onboardingCompletedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users          User[]
+  products       Product[]
+  orders         Order[]
+  customers      Customer[]
+  transactions   Transaction[]
+  campaigns      Campaign[]
+  founderNotes   FounderNote[]
+  restorations   Restoration[]
+  suppliers      Supplier[]
+  purchaseOrders PurchaseOrder[]
+  aiSystems      AISystem[]
+  brandChecks    BrandCheck[]
+  agents         Agent[]
+  issues         Issue[]
+  events         Event[]
+  approvals      Approval[]
+  integrations   Integration[]
+  calendarEvents CalendarEvent[]
+  capabilities   Capability[]
+  skills         Skill[]
+  browseJobs     BrowseJob[]
+  goals          Goal[]
+  oauthTokens    OAuthToken[]
+  contextEntries ContextEntry[]
+  workflows      Workflow[]
+  workspaces     Workspace[]
+  artifacts      Artifact[]
+  patterns       AgentPattern[]
+  knowledge      AgentKnowledge[]
+  taskTemplates  TaskTemplate[]
+  productLaunches ProductLaunch[]
+  campaignLaunches CampaignLaunch[]
+  campaignPolicy CampaignPolicy?
+  outboxMessages OutboxMessage[]
+  
+  context        OrganizationContext?
+  commerceLinks  CommerceObjectLink[]
+  syncStates     SyncState[]
+  knowledgeNodes KnowledgeNode[]
+  knowledgeEdges KnowledgeEdge[]
+  prompts        Prompt[]
+  aiExecutionLogs AIExecutionLog[]
+  channels       Channel[]
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  organizationId String?
+  orgRole       String    @default("MEMBER") // FOUNDER | ADMIN | MEMBER
+  organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  password      String?
+  name          String?
+  role          String    @default("USER")
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts  Account[]
+  sessions  Session[]
+  auditLogs AuditLog[]
+
+  preference     UserPreference?
+  approvedCampaignRevisions CampaignRevision[] @relation("CampaignRevisionApprover")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId String?
+  action    String
+  entity    String
+  entityId  String?
+  ip        String?
+  userAgent String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+// ============ CATALOG ============
+
+model Product {
+  id          String   @id @default(cuid())
+  organizationId String
+  name        String
+  sku         String
+  house       String // Product collection or grouping
+  color       String // Primary color when supplied by the commerce provider
+  category    String // tee | hoodie | jacket | pants | accessory | object ...
+  price       Float
+  cost        Float
+  stock       Int      @default(0)
+  reorderAt   Int      @default(20)
+  status      String   @default("ACTIVE") // ACTIVE | DRAFT | ARCHIVED | RESTOCKING
+  material    String
+  description String
+  imageUrl    String?
+  imageHue    Int      @default(0) // for placeholder rendering
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  purchaseOrders PurchaseOrder[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+}
+
+// ============ PRODUCT LAUNCHES ============
+
+model ProductLaunch {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  code               String
+  title              String
+  productType        String
+  templateKey        String   @default("apparel-standard")
+  status             String   @default("RESEARCHING") // RESEARCHING | DESIGN_REVIEW | SKU_PLANNED | QIKINK_DRAFTING | AWAITING_QIKINK_PUSH | QIKINK_PUSHED | SHOPIFY_ENRICHING | LIVE | QA_FAILED | BLOCKED | CANCELLED
+  designArtifactId   String?
+  designBrief        String?
+  skuPlan            String?  // JSON: variants, pricing, category portfolio allocation
+  qikinkProductId    String?
+  shopifyProductId   String?
+  shopifyHandle      String?
+  browserJobId       String?
+  browserProof       String?  // JSON: screenshots, extracted ids, operator summary
+  blockedReason      String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+}
+
+// ============ AUTONOMOUS CAMPAIGN LAUNCHES ============
+
+model CampaignLaunch {
+  id             String               @id @default(cuid())
+  organizationId String
+  code           String
+  title          String
+  brief          String
+  status         CampaignLaunchStatus @default(DRAFT)
+  priority       CampaignPriority     @default(P2)
+  budgetCap      Decimal?             @db.Decimal(12, 2)
+  version        Int                  @default(1)
+  rollbackState  Json?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization Organization               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        CampaignLaunchItem[]
+  revisions    CampaignRevision[]
+  validations  CampaignValidation[]
+  approvals    Approval[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+}
+
+model CampaignRevision {
+  id               String                 @id @default(cuid())
+  launchId         String
+  revisionNum      Int
+  versionHash      String
+  evidenceJson     Json
+  status           CampaignRevisionStatus @default(PREPARED)
+  publishStatus    CampaignPublishStatus  @default(INELIGIBLE)
+  approvalMode     CampaignApprovalMode   @default(NONE)
+  approvedByUserId String?
+  approvedAt       DateTime?
+  publishStartedAt DateTime?
+  publishedAt      DateTime?
+  previousThemeId  String?
+  themeRevisionId  String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  launch         CampaignLaunch       @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  approvedByUser User?                @relation("CampaignRevisionApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  validations    CampaignValidation[]
+  approvals      Approval[]
+  publishLogs    CampaignPublishLog[]
+
+  @@unique([launchId, revisionNum])
+  @@index([launchId, status])
+  @@index([approvedByUserId])
+}
+
+model CampaignLaunchItem {
+  id              String               @id @default(cuid())
+  launchId        String
+  code            String
+  type            String
+  title           String
+  description     String
+  status          CampaignItemStatus   @default(PENDING)
+  orderNum        Int
+  assigneeType    CampaignAssigneeType
+  assigneeId      String?
+  serviceKey      String?
+  issueId         String?              @unique
+  providerDraft   Json?
+  browserProof    Json?
+  evidenceHash    String?
+  leaseOwnerId    String?
+  leaseExpiresAt  DateTime?
+  attemptCount    Int                  @default(0)
+  version         Int                  @default(0)
+  executionKey    String               @unique
+  completedAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  launch         CampaignLaunch              @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  assignee       Agent?                      @relation("CampaignItemAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  leaseOwner     Agent?                      @relation("CampaignItemLeaseOwner", fields: [leaseOwnerId], references: [id], onDelete: SetNull)
+  issue          Issue?                      @relation(fields: [issueId], references: [id], onDelete: SetNull)
+  dependencies   CampaignLaunchDependency[] @relation("CampaignItemDependent")
+  requiredBy     CampaignLaunchDependency[] @relation("CampaignItemPrerequisite")
+  validations    CampaignValidation[]
+  runs           AgentRun[]
+  publishLogs    CampaignPublishLog[]
+
+  @@unique([launchId, code])
+  @@index([launchId, status])
+  @@index([assigneeId, status])
+  @@index([leaseOwnerId])
+}
+
+model CampaignLaunchDependency {
+  id          String @id @default(cuid())
+  itemId      String
+  dependsOnId String
+
+  item      CampaignLaunchItem @relation("CampaignItemDependent", fields: [itemId], references: [id], onDelete: Cascade)
+  dependsOn CampaignLaunchItem @relation("CampaignItemPrerequisite", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, dependsOnId])
+  @@index([itemId])
+  @@index([dependsOnId])
+}
+
+model CampaignValidation {
+  id               String                   @id @default(cuid())
+  launchId         String
+  revisionId       String?
+  itemId           String?
+  scopeKey         String
+  domain           CampaignValidationDomain
+  validatorAgentId String
+  status           CampaignValidationStatus @default(PENDING)
+  evidenceHash     String?
+  evidenceJson     Json?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  launch         CampaignLaunch      @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  revision       CampaignRevision?   @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+  item           CampaignLaunchItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+  validatorAgent Agent               @relation("CampaignValidator", fields: [validatorAgentId], references: [id], onDelete: Restrict)
+
+  @@unique([launchId, scopeKey, domain])
+  @@index([revisionId])
+  @@index([itemId])
+  @@index([validatorAgentId, status])
+}
+
+model CampaignPublishLog {
+  id               String                    @id @default(cuid())
+  revisionId       String
+  itemId           String?
+  provider         String
+  action           String
+  idempotencyKey   String                    @unique
+  providerId       String?
+  proofHash        String?
+  providerResponse Json?
+  status           CampaignPublicationStatus @default(PENDING)
+  attemptCount     Int                       @default(0)
+  error            String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  revision CampaignRevision   @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  item     CampaignLaunchItem? @relation(fields: [itemId], references: [id], onDelete: SetNull)
+
+  @@index([revisionId, status])
+  @@index([itemId])
+}
+
+model OutboxMessage {
+  id               String       @id @default(cuid())
+  organizationId   String
+  aggregateType    String
+  aggregateId      String
+  aggregateVersion Int
+  eventType        String
+  deduplicationKey String       @unique
+  payload          Json
+  status           OutboxStatus @default(PENDING)
+  leaseToken       String?
+  leaseExpiresAt   DateTime?
+  attemptCount     Int          @default(0)
+  nextAttemptAt    DateTime     @default(now())
+  lastError        String?
+  dispatchedAt     DateTime?
+  processedAt      DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([organizationId, createdAt])
+}
+
+model CampaignPolicy {
+  id                       String   @id @default(cuid())
+  organizationId           String   @unique
+  autoApproveLimit         Decimal  @default(0) @db.Decimal(12, 2)
+  autoApproveEnabled       Boolean  @default(false)
+  requireFirstApproval     Boolean  @default(true)
+  riskFlags                Json?
+  inventoryChangeThreshold Int      @default(0)
+  skuChangeThreshold       Int      @default(0)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ============ SALES ============
+
+model Order {
+  id            String   @id @default(cuid())
+  organizationId String
+  orderNumber   String
+  customerName  String
+  customerEmail String
+  customerCity  String
+  channel       String // D2C | RETAIL | WHOLESALE | POPUP
+  itemsCount    Int
+  total         Float
+  status        String   @default("NEW") // NEW | PROCESSING | SHIPPED | DELIVERED | RETURNED | CANCELLED
+  paymentStatus String   @default("PAID") // PAID | PENDING | REFUNDED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organization  Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items OrderItem[]
+
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId])
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+// ============ CUSTOMERS ============
+
+model Customer {
+  id               String   @id @default(cuid())
+  organizationId String
+  name             String
+  email            String
+  phone            String
+  city             String
+  tier             String   @default("NEW") // Organization-defined customer segment
+  totalOrders      Int      @default(0)
+  totalSpent       Float    @default(0)
+  joinedAt         DateTime @default(now())
+  lastActive       DateTime @default(now())
+  restorationCount Int      @default(0)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+}
+
+// ============ FINANCE ============
+
+model Transaction {
+  id          String   @id @default(cuid())
+  organizationId String
+  type        String // INCOME | EXPENSE
+  category    String // PRODUCT_SALES | WHOLESALE | MATERIALS | LABOR | LOGISTICS | MARKETING | OPS | AI_INFRA | RESTORATION | R&D
+  amount      Float
+  description String
+  reference   String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// ============ CAMPAIGNS / CONTENT ============
+
+model Campaign {
+  id          String    @id @default(cuid())
+  organizationId String
+  title       String
+  pillar      String // philosophy | product | culture | process | founder | community
+  status      String    @default("DRAFT") // DRAFT | LIVE | SCHEDULED | ARCHIVED
+  channel     String // INSTAGRAM | JOURNAL | EMAIL | HOUSE_ACCESS | ALL
+  startDate   DateTime
+  endDate     DateTime?
+  budget      Float     @default(0)
+  spend       Float     @default(0)
+  impressions Int       @default(0)
+  engagement  Float     @default(0) // percent
+  createdAt   DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model PurchaseOrder {
+  id             String   @id @default(cuid())
+  organizationId String
+  supplierId     String
+  productId      String
+  quantity       Int
+  unitCost       Float
+  status         String   @default("DRAFT") // DRAFT | SENT | CONFIRMED | RECEIVED | CANCELLED
+  expectedDate   DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  supplier     Supplier     @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model FounderNote {
+  id          String    @id @default(cuid())
+  organizationId String
+  title       String
+  excerpt     String
+  body        String
+  status      String    @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// ============ COMMUNITY ============
+
+model Restoration {
+  id           String    @id @default(cuid())
+  organizationId String
+  customerName String
+  productSku   String
+  productName  String
+  reason       String // WEAR | REPAIR | RESHAPE | RECOLOR
+  status       String    @default("REQUESTED") // REQUESTED | IN_REPAIR | COMPLETED | DECLINED
+  requestedAt  DateTime  @default(now())
+  completedAt  DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// ============ OPERATIONS ============
+
+model Supplier {
+  id        String   @id @default(cuid())
+  organizationId String
+  name      String
+  material  String // heavyweight cotton | fleece | drape fabric | thread | dye | packaging
+  city      String
+  leadTime  Int // days
+  rating    Float    @default(5)
+  status    String   @default("ACTIVE") // ACTIVE | PAUSED | BLACKLIST
+  lastOrder DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchaseOrders PurchaseOrder[]
+
+  @@index([organizationId])
+}
+
+// ============ AI INFRASTRUCTURE ============
+
+model AISystem {
+  id         String @id @default(cuid())
+  organizationId String
+  name       String // Brand Guardian | Content | Creative | Commerce | Founder | Product Intelligence | Operations
+  status     String @default("ACTIVE") // ACTIVE | IDLE | TRAINING | ALERT
+  health     Float  @default(100) // 0-100
+  tasksToday Int    @default(0)
+
+  tasksTotal  Int      @default(0)
+  accuracy    Float    @default(100) // percent
+  lastRun     DateTime @default(now())
+  description String
+  pillar      String // brand | content | creative | commerce | founder | product | operations
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// ============ BRAND GUARDIAN CHECKS ============
+
+model BrandCheck {
+  id         String   @id @default(cuid())
+  organizationId String
+  module     String // PRODUCT | CONTENT | CAMPAIGN | PACKAGING | DIGITAL
+  asset      String
+  status     String   @default("PASS") // PASS | WARN | FAIL
+  violations Int      @default(0)
+  notes      String
+  checkedAt  DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// ============ DIGITAL WORKFORCE (AGENTS) ============
+
+model Agent {
+  id             String  @id @default(cuid())
+  organizationId String
+  code           String // FOUNDER | CEO | CMO | CTO | CFO | COO | CCO | CSM | GROWTH | RESEARCH | HR | LEGAL
+  name           String // Display name
+  role           String // Chief Executive Officer, etc.
+  status         String  @default("IDLE") // ACTIVE | IDLE | RUNNING | PAUSED | ERROR
+  department     String // EXECUTIVE | MARKETING | TECHNOLOGY | FINANCE | OPERATIONS | CREATIVE | CUSTOMER | GROWTH | RESEARCH | HR | LEGAL
+  primeDirective String // The agent's core mission
+  description    String
+  skills         String // comma-separated skill codes
+  currentTask    String?
+  tokenSpend     Float   @default(0) // INR equivalent
+  tokenBudget    Float   @default(50000)
+  tasksToday     Int     @default(0)
+
+  tasksTotal    Int      @default(0)
+  successRate   Float    @default(100) // percent
+  lastHeartbeat DateTime @default(now())
+  avatarColor   String // hex color for avatar
+  isHuman       Boolean  @default(false)
+  managerId     String? // null = Chief/Founder (reports to founder); else the managing Chief's id
+  createdAt     DateTime @default(now())
+
+  // V2 Agent Identity properties
+  currentWorkflowId String?
+  memoryVectorIds   String?
+
+  // Learning System
+  qualityScore      Float    @default(0.5)
+  learningHistory   String?  // JSON: { totalTasks, successfulTasks, improvedTasks }
+  constraints       String?  // JSON array of learned constraints
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  manager Agent?  @relation("AgentHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
+  reports Agent[] @relation("AgentHierarchy")
+
+  issuesAssigned Issue[]          @relation("IssueAssignee")
+  issuesCreated  Issue[]          @relation("IssueCreator")
+  comments       IssueComment[]
+  approvals      Approval[]       @relation("ApprovalRequester")
+  events         Event[]
+  capabilities   Capability[]
+  workspaces     AgentWorkspace[]
+  patterns       AgentPattern[]
+  knowledge      AgentKnowledge[]
+  runs           AgentRun[]
+  campaignItems  CampaignLaunchItem[] @relation("CampaignItemAssignee")
+  campaignLeases CampaignLaunchItem[] @relation("CampaignItemLeaseOwner")
+  campaignValidations CampaignValidation[] @relation("CampaignValidator")
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+// ============ ISSUES (WORK OBJECTS) ============
+
+model Issue {
+  id           String   @id @default(cuid())
+  organizationId String
+  code         String // PAP-39
+  title        String
+  description  String
+  status       String   @default("BACKLOG") // BACKLOG | IN_PROGRESS | IN_REVIEW | DONE | BLOCKED | MILESTONE_REVIEW
+  priority     String   @default("MEDIUM") // P0 | P1 | P2 | P3
+  type         String   @default("TASK") // TASK | BUG | FEATURE | CAMPAIGN | APPROVAL | RESEARCH
+  assigneeId   String?
+  createdById  String?
+  department   String?
+   blocksIds    String? // comma-separated issue codes this blocks
+   blockedByIds String? // comma-separated issue codes blocking this
+   attachments  Json?   // max 2 references: [{id,url,type,name,size}]
+   createdAt    DateTime @default(now())
+   updatedAt    DateTime @updatedAt
+
+  // Learning & Milestone System
+  parentIssueId String?
+  milestone     Int     @default(0) // 0, 40, 60, 80, 100
+  milestoneData String? // JSON: { "40": {...}, "60": {...} }
+  iterations    Int     @default(0)
+  constraints   String? // JSON array of negative constraints from rejections
+  planningPhase String  @default("EXECUTE") // PLAN | REVIEW | EXECUTE
+
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignee  Agent?         @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  createdBy Agent?         @relation("IssueCreator", fields: [createdById], references: [id])
+  comments  IssueComment[]
+  parentIssue Issue?        @relation("Subtasks", fields: [parentIssueId], references: [id], onDelete: SetNull)
+  subtasks    Issue[]       @relation("Subtasks")
+  campaignItem CampaignLaunchItem?
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+model IssueComment {
+  id         String   @id @default(cuid())
+  issueId    String
+  authorId   String?
+  authorName String
+  body       String
+  kind       String   @default("COMMENT") // COMMENT | HEARTBEAT | SYSTEM | APPROVAL_REQUEST
+  createdAt  DateTime @default(now())
+
+  issue  Issue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author Agent? @relation(fields: [authorId], references: [id])
+}
+
+// ============ EVENT BUS (APPEND-ONLY LEDGER) ============
+
+model Event {
+  id        String   @id @default(cuid())
+  organizationId String
+  type      String // ISSUE_CREATED | ISSUE_ASSIGNED | AGENT_HEARTBEAT | BUDGET_WARNING | APPROVAL_REQUESTED | CAMPAIGN_LAUNCHED | ...
+  actorId   String?
+  actorName String
+  summary   String
+  payload   String // JSON string
+  severity  String   @default("INFO") // INFO | WARN | ERROR | CRITICAL
+  timestamp DateTime @default(now())
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor Agent? @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId])
+}
+
+// ============ GOVERNANCE & APPROVALS ============
+
+model Approval {
+  id          String    @id @default(cuid())
+  organizationId String
+  code        String // APR-12
+  type        String // BUDGET | STRATEGIC | HIRING | CAMPAIGN | VENDOR
+  title       String
+  description String
+  amount      Float     @default(0)
+  status      String    @default("PENDING") // PENDING | APPROVED | REJECTED | REVISION_REQUESTED
+  requesterId String
+  issueCode   String?
+  launchId    String?
+  revisionId  String?
+  itemCode    String?
+  proofHash   String?
+  policyDecision Json?
+  inbox       String    @default("MINE") // MINE | RECENT | UNREAD | BLOCKED
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requester Agent @relation("ApprovalRequester", fields: [requesterId], references: [id])
+  campaignLaunch CampaignLaunch? @relation(fields: [launchId], references: [id], onDelete: SetNull)
+  campaignRevision CampaignRevision? @relation(fields: [revisionId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([launchId])
+  @@index([revisionId])
+}
+
+// ============ CALENDAR ============
+
+model CalendarEvent {
+  id            String   @id @default(cuid())
+  organizationId String
+  title         String
+  description   String?
+  start         DateTime
+  end           DateTime
+  color         String   @default("#1F3A5F")
+  googleEventId String?
+  source        String   @default("local")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, start])
+}
+
+// ============ COMPOSIO INTEGRATIONS ============
+
+model Integration {
+  id                 String    @id @default(cuid())
+  organizationId String
+  toolkitSlug        String // shopify, stripe, github, gmail, slack, etc.
+  name               String
+  description        String
+  category           String // ecommerce, comms, analytics, productivity, social
+  logoUrl            String?
+  isConnected        Boolean   @default(false)
+  connectedAccountId String?
+  connectedAt        DateTime?
+  agentPermissions   String    @default("") // comma-separated agent codes that can use this
+  toolsCount         Int       @default(0)
+  executionsCount    Int       @default(0)
+  createdAt          DateTime  @default(now())
+
+  organization       Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  executions ToolExecution[]
+
+  @@unique([organizationId, toolkitSlug])
+  @@index([organizationId])
+}
+
+model ToolExecution {
+  id            String   @id @default(cuid())
+  integrationId String
+  agentCode     String // which agent executed
+  agentName     String
+  toolName      String // e.g. "shopify_get_orders", "stripe_create_refund"
+  toolSlug      String
+  input         String // JSON string of input params
+  output        String? // JSON string of result
+  status        String   @default("PENDING") // PENDING | SUCCESS | ERROR | TIMEOUT
+  errorMessage  String?
+  duration      Int      @default(0) // milliseconds
+  createdAt     DateTime @default(now())
+
+  integration Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+}
+
+// ============ SETTINGS ============
+
+model SystemSetting {
+  id     String @id @default("global") // Single row singleton — shared AI engine config, not per-user
+  theme  String @default("dark") // dark | light | auto
+  accent String @default("#C8302A")
+
+  notifications   Boolean @default(true)
+  agentHeartbeats Boolean @default(true)
+  approvalAlerts  Boolean @default(true)
+  budgetAlerts    Boolean @default(true)
+
+  maxTokens        Int    @default(80) // percent
+  intelligence     String @default("claude-sonnet")
+  autoApproveLimit Float  @default(5000)
+  escalationPolicy String @default("standard")
+
+  responseEagerness Float @default(0.85) // LLM temperature
+
+  // 3-tier AI model cascade
+  primaryProvider String @default("openrouter")
+  primaryModel    String @default("google/gemma-3-27b-it:free")
+  primaryApiKey   String @default("")
+  primaryBaseUrl  String @default("https://openrouter.ai/api/v1")
+
+  fallback1Provider String @default("groq")
+  fallback1Model    String @default("llama-3.3-70b-versatile")
+  fallback1ApiKey   String @default("")
+  fallback1BaseUrl  String @default("https://api.groq.com/openai/v1")
+
+  fallback2Provider String @default("openrouter")
+  fallback2Model    String @default("meta-llama/llama-3.3-70b-instruct:free")
+  fallback2ApiKey   String @default("")
+  fallback2BaseUrl  String @default("https://openrouter.ai/api/v1")
+
+  updatedAt DateTime @updatedAt
+}
+
+// Per-user Krishna voice/prompt preferences — split out from SystemSetting
+// so each account has its own voice/prompt without needing its own AI engine config.
+model UserPreference {
+  userId        String   @id
+  ttsVoice      String   @default("en-IN-NeerjaNeural")
+  ttsSpeed      Float    @default(1.0) // 0.5–2.0, maps to SSML rate
+  ttsStability  Float    @default(0.75) // 0–1, maps to pitch offset
+  ttsVolume     Float    @default(1.0) // 0–1.5, maps to SSML volume
+  krishnaPrompt String   @default("")
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============ CAPABILITY REGISTRY ============
+
+model Capability {
+  id                  String   @id @default(cuid())
+  name                String // "competitor_price_scan", "meta_ads_optimize"
+  description         String // Human-readable description
+  ownerId             String? // Agent ID that provides this
+  ownerType           String   @default("AGENT") // AGENT | SERVICE | INTEGRATION
+  requiredPermissions String   @default("") // "web:read,shopify:read" comma-separated
+  costEstimate        String   @default("low") // free | low | medium | high
+  latencyClass        String   @default("fast") // instant | fast | slow | async
+  dependencies        String   @default("") // "camofox,context-store" required services
+  health              Float    @default(100) // 0-100
+  availability        String   @default("ONLINE") // ONLINE | DEGRADED | OFFLINE
+  category            String // marketing | finance | operations | intelligence | security | general
+  inputSchema         String? // JSON schema of expected input
+  outputSchema        String? // JSON schema of expected output
+  version             String   @default("1.0")
+  organizationId String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  organization           Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner          Agent?         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  toolRegistries ToolRegistry[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@index([organizationId, category])
+}
+
+// ============ SKILL SYSTEM ============
+
+model Skill {
+  id             String   @id @default(cuid())
+  slug           String // "seo-audit", "meta-ads-roas-check"
+  name           String // "SEO Technical Audit"
+  category       String // seo | geo | meta-ads | google-ads | finance | inventory | general
+  source         String   @default("custom") // notfair | custom | builtin
+  skillMdPath    String? // Relative path to SKILL.md file
+  skillMdContent String? // Inline SKILL.md content (for UI-edited skills)
+  requiredTools  String   @default("") // "gsc:read,meta_ads:read" comma-separated
+  requiredPerms  String   @default("") // "marketing:execute,spend:read"
+  dependencies   String   @default("") // Other skill slugs this depends on
+  inputSchema    String? // JSON schema
+  outputSchema   String? // JSON schema
+  costEstimate   String   @default("low") // free | low | medium | high
+  riskLevel      String   @default("none") // none | low | medium | high | critical
+  version        String   @default("1.0")
+  isActive       Boolean  @default(true)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([organizationId, category])
+}
+
+// ============ CAMOFOX BROWSE QUEUE ============
+
+model BrowseJob {
+  id          String    @id @default(cuid())
+  organizationId String
+  agentCode   String // Which agent requested
+  url         String
+  action      String    @default("snapshot") // snapshot | click | type | scroll | eval
+  actionData  String? // JSON — selector, text, script etc.
+  status      String    @default("PENDING") // PENDING | RUNNING | COMPLETE | FAILED | TIMEOUT
+  result      String? // JSON — accessibility tree, screenshot path, extracted data
+  error       String?
+  retries     Int       @default(0)
+  maxRetries  Int       @default(3)
+  priority    Int       @default(5) // 1=highest, 10=lowest
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+// ============ GOAL LOOP ENGINE ============
+
+model Goal {
+  id           String    @id @default(cuid())
+  organizationId String
+  title        String // "Cut Meta Ads CAC to ₹2000"
+  metric       String // "meta_ads_cac" — machine-readable metric key
+  targetValue  Float // 2000
+  currentValue Float     @default(0)
+  unit         String    @default("") // "INR", "%", "clicks"
+  mode         String // ACHIEVE | MAINTAIN
+  status       String    @default("ACTIVE") // ACTIVE | PAUSED | ACHIEVED | FAILED | CANCELLED
+  deadline     DateTime? // null for MAINTAIN mode
+  agentCode    String // Which agent owns this goal
+  skillSlug    String? // Which skill to execute per iteration
+  interval     Int       @default(86400) // Seconds between iterations (default 24h)
+  lastRunAt    DateTime?
+  nextRunAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  organization       Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  iterations GoalIteration[]
+
+  @@index([organizationId])
+  @@index([status])
+}
+
+model GoalIteration {
+  id            String   @id @default(cuid())
+  goalId        String
+  iteration     Int // 1, 2, 3...
+  measuredValue Float
+  delta         Float // Change from previous iteration
+  action        String // What the agent did this iteration
+  outcome       String // Result summary
+  score         Float    @default(0) // -1 to 1, was this iteration helpful?
+  createdAt     DateTime @default(now())
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+}
+
+// ============ SELF-HOSTED OAUTH ============
+
+model OAuthToken {
+  id           String    @id @default(cuid())
+  organizationId String
+  provider     String // google | meta | shopify
+  shopDomain   String?   // Shopify store domain, e.g. ekvaar.myshopify.com
+  accessToken  String // Encrypted
+  refreshToken String? // Encrypted
+  tokenType    String    @default("Bearer")
+  scope        String    @default("")
+  expiresAt    DateTime?
+  accountId    String? // Provider-specific account/profile ID
+  accountName  String? // Display name
+  isValid      Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider])
+  @@index([organizationId])
+}
+
+// ============ CONTEXT STORE ============
+
+model ContextEntry {
+  id             String   @id @default(cuid())
+  organizationId String
+  handle         String   // "txn_query_8912" — unique reference for retrieval
+  source         String   // "prisma:transaction", "camofox:snapshot", "agent:cmo"
+  title          String   @default("")
+  summary        String   // 2-3 line compact summary for LLM prompt
+  fullData       String?  // Full JSON payload (never sent to LLM directly), now optional
+  metadata       String?  // JSON — row count, categories, date range, etc.
+  linkedBusinessObject String? // "Product:cl123456"
+  ttl            Int      @default(3600) // Seconds before auto-expiry
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, handle])
+  @@index([organizationId])
+}
+
+// ============ V2 OS KERNEL & EVENT BUS ============
+
+model SystemEvent {
+  id        String   @id @default(cuid())
+  type      String // e.g. WORKSPACE_UPDATED, JOB_FAILED
+  source    String // OS_KERNEL, WORKFLOW_ENGINE, PROVIDER_MANAGER
+  payload   String // JSON string
+  timestamp DateTime @default(now())
+
+  @@index([type])
+}
+
+// ============ V2 WORKFLOW ENGINE (DAG) ============
+
+model Workflow {
+  id        String   @id @default(cuid())
+  organizationId String
+  name      String
+  status    String   @default("PLANNING") // PLANNING | RUNNING | BLOCKED | COMPLETED | FAILED
+  graphDef  String // JSON DAG definition
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks WorkflowTask[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// New autonomous campaign flows use CampaignLaunch; Workflow remains for legacy generic DAGs.
+
+model WorkflowTask {
+  id           String  @id @default(cuid())
+  workflowId   String
+  assigneeType String  @default("AGENT") // AGENT | HUMAN | SYSTEM
+  assigneeId   String? // Agent ID or User ID
+  status       String  @default("PENDING") // PENDING | RUNNING | DONE | FAILED
+  dependencies String  @default("[]") // JSON array of Task IDs that must finish first
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+}
+
+// ============ V2 WORKSPACE MANAGER & REVISIONS ============
+
+model Workspace {
+  id          String   @id @default(cuid())
+  organizationId String
+  title       String
+  status      String   @default("DRAFT")
+  permissions String   @default("{}") // JSON object
+  metadata    String? // JSON (Sync state, locks, etc)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  connections  WorkspaceConnection[]
+  revisions    WorkspaceRevision[]
+  artifacts    Artifact[]
+  participants AgentWorkspace[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+model AgentWorkspace {
+  agentId     String
+  workspaceId String
+  role        String @default("EDITOR") // OWNER | EDITOR | VIEWER
+
+  agent     Agent     @relation(fields: [agentId], references: [id])
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([agentId, workspaceId])
+}
+
+model WorkspaceConnection {
+  id           String @id @default(cuid())
+  workspaceId  String
+  provider     String // google_drive, figma, canva, local
+  resourceType String
+  url          String
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model WorkspaceRevision {
+  id          String   @id @default(cuid())
+  workspaceId String
+  authorId    String // Agent or Human ID
+  commitMsg   String
+  diffPayload String? // JSON diff or snapshot locator
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Artifact {
+  id              String   @id @default(cuid())
+  organizationId String
+  workspaceId     String?
+  title           String
+  type            String // PDF, EXCEL, PNG, VIDEO
+  mimeType        String   @default("application/octet-stream")
+  storageLocation String
+  status          String   @default("READY") // READY | PROCESSING | FAILED
+  templateId      String?  // Reference to template used
+  generatedBy     String?  // Agent code who generated it
+  parameters      String?  // JSON: generation parameters
+  contentHash     String?
+  byteSize        Int?
+  createdAt       DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+}
+
+// ============ AGENT LEARNING SYSTEM ============
+
+model AgentPattern {
+  id              String   @id @default(cuid())
+  organizationId  String
+  agentCode       String
+  taskType        String
+  context         String   // JSON: task context when pattern occurred
+  approach        String   // JSON: what the agent did
+  outcome         String   // SUCCESS | REJECTED | REVISED
+  rejectionReason String?  // JSON array
+  correction      String?  // What fixed it
+  qualityScore    Float    @default(0.5)
+  timestamp       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        Agent        @relation(fields: [organizationId, agentCode], references: [organizationId, code])
+
+  @@index([organizationId, agentCode, taskType])
+  @@index([organizationId, agentCode, outcome])
+  @@index([organizationId, agentCode, qualityScore])
+}
+
+model AgentKnowledge {
+  id            String   @id @default(cuid())
+  organizationId String
+  agentCode     String
+  sourceAgent   String?  // If learned from another agent
+  pattern       String   // JSON: the learned pattern
+  qualityScore  Float
+  learned       Boolean  @default(false)
+  appliedCount  Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        Agent        @relation(fields: [organizationId, agentCode], references: [organizationId, code])
+
+  @@index([organizationId, agentCode])
+}
+
+model TaskTemplate {
+  id            String   @id @default(cuid())
+  organizationId String
+  name          String
+  type          String   // CAMPAIGN_LAUNCH | PRODUCT_LAUNCH | REPORT | ...
+  department     String
+  structure      String   // JSON: task breakdown structure
+  source        String   @default("MANUAL") // MANUAL | AGENT_LEARNING
+  successRate   Float    @default(0.5)
+  priority      String   @default("NORMAL")
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId, type])
+}
+
+// ============ V2 PROVIDER MANAGER ============
+
+model ToolRegistry {
+  id           String  @id @default(cuid())
+  capabilityId String
+  provider     String // google, canva, local
+  toolSlug     String
+  priority     Int     @default(1) // 1 = preferred, 2 = fallback
+  isActive     Boolean @default(true)
+
+  capability Capability @relation(fields: [capabilityId], references: [id], onDelete: Cascade)
+}
+
+model TelemetryMetric {
+  id        String   @id @default(cuid())
+  metric    String // e.g., 'workflow_duration', 'provider_latency', 'token_usage'
+  value     Float
+  unit      String? // 'ms', 'tokens', 'usd', 'count'
+  source    String // 'OS_KERNEL', 'PROVIDER_MANAGER'
+  tags      String? // JSON string for dimensions e.g. { provider: 'google_docs', status: 'success' }
+  timestamp DateTime @default(now())
+
+  // Optional relations to tie metric directly to OS entities
+  workflowId String?
+  taskId     String?
+  organizationId String?
+}
+
+// ============ ORGANIZATION CONTEXT ============
+
+model OrganizationContext {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  companyProfile  String   @default("") // Organization-supplied business description
+  brandDna        String   @default("") // Organization-supplied brand principles
+  industry        String   @default("")
+  products        String   @default("") // Products or services offered by the organization
+  toneOfVoice     String   @default("") // E.g., "Direct, sophisticated, confident"
+  policies        String   @default("") // High-level org policies
+  workflows       String   @default("") // Overview of canonical workflows
+  goals           String   @default("") // Strategic goals
+  preferences     String   @default("") // Global preferences (JSON or text)
+  connectedSystems String  @default("") // Summary of connected tools
+  
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ============ COMMERCE ABSTRACTION ============
+
+model CommerceObjectLink {
+  id             String   @id @default(cuid())
+  organizationId String
+  provider       String   // shopify, amazon, woocommerce
+  entityType     String   // PRODUCT, ORDER, CUSTOMER
+  externalId     String   // ID in the provider system
+  internalId     String   // ID of the canonical model
+  checksum       String?
+  syncedAt       DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider, entityType, externalId])
+  @@index([organizationId, internalId])
+}
+
+model SyncState {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  provider           String
+  entity             String   // PRODUCT, ORDER, CUSTOMER
+  lastSuccessfulSync DateTime?
+  lastAttempt        DateTime?
+  status             String   @default("IDLE") // IDLE, RUNNING, ERROR
+  recordsProcessed   Int      @default(0)
+  recordsFailed      Int      @default(0)
+  duration           Int      @default(0) // ms
+  cursor             String?
+  error              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider, entity])
+}
+
+// ============ KNOWLEDGE GRAPH ============
+
+enum RelationshipType {
+  BELONGS_TO
+  PURCHASED_BY
+  CONTAINS
+  RELATED_TO
+  GENERATED_FROM
+  USES
+  REFERENCES
+  MEMBER_OF
+  OWNS
+  CREATED_BY
+  UPDATED_BY
+}
+
+enum EmbeddingStatus {
+  NOT_INDEXED
+  PENDING
+  INDEXING
+  INDEXED
+  FAILED
+}
+
+model KnowledgeNode {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  type               String
+  title              String
+  summary            String
+  metadata           String?  // JSON
+  businessObjectType String
+  businessObjectId   String
+  checksum           String
+  
+  source             String   // e.g., COMMERCE, DOCUMENT, CRM
+  sourceProvider     String   // e.g., shopify, google_drive
+  confidence         String   // e.g., VERIFIED, INFERRED
+
+  embeddingStatus    EmbeddingStatus @default(NOT_INDEXED)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  sourceEdges        KnowledgeEdge[] @relation("SourceNode")
+  targetEdges        KnowledgeEdge[] @relation("TargetNode")
+
+  @@unique([organizationId, businessObjectType, businessObjectId])
+  @@index([organizationId, type])
+}
+
+model KnowledgeEdge {
+  id             String           @id @default(cuid())
+  organizationId String
+  sourceId       String
+  targetId       String
+  type           RelationshipType
+  metadata       String?          // JSON
+  
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceNode     KnowledgeNode    @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
+  targetNode     KnowledgeNode    @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, sourceId, targetId, type])
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+// ============ AI WORKFORCE ============
+
+model Prompt {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  version        String
+  department     String
+  variables      String   // JSON array of expected keys
+  systemPrompt   String
+  developerPrompt String
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([organizationId, name, version])
+}
+
+model AIExecutionLog {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  agent              String
+  runtimeVersion     String
+  promptVersion      String
+  model              String
+  provider           String
+  retrievedNodeCount Int
+  toolsSelected      String   // JSON array
+  toolExecutionTime  Int      // ms
+  totalLatency       Int      // ms
+  inputTokens        Int
+  outputTokens       Int
+  estimatedCost      Float
+  success            Boolean
+  errorReason        String?
+  
+  createdAt          DateTime @default(now())
+  
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ============ PAPERCLIP RUNTIME: RUNS, STEPS, WAKE REQUESTS ============
+
+model AgentRun {
+  id              String    @id @default(cuid())
+  organizationId  String
+  agentId         String
+  triggerType     String    // ASSIGNMENT | MENTION | SCHEDULE | APPROVAL_RESOLVED | MANUAL | AUTOMATION | COALESCED
+  triggerRef      String?   // issueId, commentId, approvalId, or null for manual
+  status          String    @default("QUEUED") // QUEUED | STARTING | RUNNING | COMPLETED | FAILED | CANCELLED
+  startedAt       DateTime?
+  completedAt     DateTime?
+  durationMs      Int?
+  inputTokens     Int       @default(0)
+  outputTokens    Int       @default(0)
+  cachedTokens    Int       @default(0)
+  estimatedCost   Decimal   @default(0) @db.Decimal(12, 4)
+  model           String?
+  provider        String?
+  issueId         String?
+  campaignItemId  String?
+  error           String?
+  outputSummary   String?
+  executionPlan   String?   // JSON array of planned steps (observability, not raw reasoning)
+  createdAt       DateTime  @default(now())
+
+  agent         Agent              @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  campaignItem  CampaignLaunchItem? @relation(fields: [campaignItemId], references: [id], onDelete: SetNull)
+  steps         AgentRunStep[]
+
+  @@index([agentId, status])
+  @@index([organizationId])
+  @@index([status])
+  @@index([campaignItemId])
+}
+
+model AgentRunStep {
+  id            String    @id @default(cuid())
+  runId         String
+  sequence      Int
+  type          String    // CONTEXT_LOAD | PLAN | TOOL_CALL | DELEGATE | COMMENT | STATUS_UPDATE | ARTIFACT | ERROR
+  toolName      String?
+  status        String    @default("RUNNING") // RUNNING | COMPLETED | FAILED | SKIPPED
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  inputSummary  String?
+  outputSummary String?
+  error         String?
+
+  run AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}
+
+model AgentWakeRequest {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  agentId            String
+  triggerType        String
+  triggerRef         String?
+  status             String    @default("ENQUEUED") // ENQUEUED | COALESCED | PROCESSED
+  coalescedIntoRunId String?
+  receivedAt         DateTime  @default(now())
+
+  @@index([agentId, status])
+  @@index([status])
+}
+
+// ============ INTERNAL CHAT SYSTEM (Discord-style) ============
+
+model Channel {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  type           ChannelType @default(COMPANY)
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messages     Message[]
+
+  @@index([organizationId])
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  channelId       String
+  parentMessageId String?  // self-relation for threading (null = top-level)
+  threadTitle     String?  // only set on parent message when thread is created
+  authorType      AuthorType
+  authorId        String
+  content         String
+  metadata        Json?    // { attachments: string[], mentions: string[] }
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  channel       Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  parentMessage Message? @relation("ThreadReplies", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies       Message[] @relation("ThreadReplies")
+
+  @@index([channelId])
+  @@index([parentMessageId])
+}
+
+enum ChannelType {
+  COMPANY
+  DEPARTMENT
+  AGENT
+}
+
+enum AuthorType {
+  AGENT
+  USER
+}

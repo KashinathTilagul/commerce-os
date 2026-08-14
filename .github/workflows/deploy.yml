@@ -1,0 +1,166 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Deploy
+        env:
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
+          QIKINK_MODE: ${{ secrets.QIKINK_MODE }}
+          QIKINK_CLIENT_ID: ${{ secrets.QIKINK_CLIENT_ID }}
+          QIKINK_CLIENT_SECRET: ${{ secrets.QIKINK_CLIENT_SECRET }}
+          BROWSER_WORKER_KEY: ${{ secrets.BROWSER_WORKER_KEY }}
+          BROWSER_SIDECAR_URL: ${{ secrets.BROWSER_SIDECAR_URL }}
+          BROWSER_USE_API_KEY: ${{ secrets.BROWSER_USE_API_KEY }}
+          BROWSER_USE_MODEL: ${{ secrets.BROWSER_USE_MODEL }}
+          OPENAI_BROWSER_MODEL: ${{ secrets.OPENAI_BROWSER_MODEL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          N8N_EKVAAR_WEBHOOK_URL: ${{ secrets.N8N_EKVAAR_WEBHOOK_URL }}
+          N8N_EKVAAR_WEBHOOK_SECRET: ${{ secrets.N8N_EKVAAR_WEBHOOK_SECRET }}
+          N8N_EKVAAR_WORKFLOW_ID: ${{ secrets.N8N_EKVAAR_WORKFLOW_ID }}
+          N8N_EKVAAR_EDITOR_URL: ${{ secrets.N8N_EKVAAR_EDITOR_URL }}
+          DOCKER_BUILDKIT: 1
+        run: |
+          set -e -o pipefail
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          cd /home/ubuntu/Ekvaar 2>/dev/null || cd /home/ubuntu/EKVAAR 2>/dev/null || { echo "[x] Repo directory not found"; exit 1; }
+          echo "[i] Deploying from: $(pwd)"
+          git fetch --prune origin main
+          git checkout -B main origin/main
+          echo "[i] Now at commit: $(git rev-parse --short HEAD)"
+
+          if [ $(/usr/sbin/swapon --show | wc -l) -eq 0 ]; then
+            echo "[i] Enabling 2GB swap space to prevent OOM build crashes..."
+            /usr/bin/sudo fallocate -l 2G /swapfile || /usr/bin/sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+            /usr/bin/sudo chmod 600 /swapfile
+            /usr/bin/sudo mkswap /swapfile || true
+            /usr/bin/sudo swapon /swapfile || true
+          fi
+
+          mkdir -p db apps/frontend/db
+          /usr/bin/sudo chmod -R 777 db apps/frontend/db 2>/dev/null || true
+
+          existing_env() {
+            [ -f .env ] && grep -m1 "^$1=" .env | cut -d= -f2- || true
+          }
+
+          QIKINK_MODE="${QIKINK_MODE:-$(existing_env QIKINK_MODE)}"
+          DATABASE_URL="${DATABASE_URL:-$(existing_env DATABASE_URL)}"
+          if [ -z "$DATABASE_URL" ] || [[ "$DATABASE_URL" != postgresql://* ]]; then
+            echo "[x] DATABASE_URL must be set to the Supabase PostgreSQL connection string."
+            exit 1
+          fi
+          if [[ "$DATABASE_URL" == postgresql://postgres:*@db.guxaxhofeglqkmrhahsw.supabase.co:5432/* ]]; then
+            DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:${DATABASE_URL#postgresql://postgres:}"
+            DATABASE_URL="${DATABASE_URL/@db.guxaxhofeglqkmrhahsw.supabase.co:5432/@aws-0-ap-south-1.pooler.supabase.com:5432}"
+          fi
+          if [[ "$DATABASE_URL" == postgresql://postgres:*@aws-0-ap-south-1.pooler.supabase.com:5432/* ]]; then
+            DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:${DATABASE_URL#postgresql://postgres:}"
+          fi
+          QIKINK_CLIENT_ID="${QIKINK_CLIENT_ID:-$(existing_env QIKINK_CLIENT_ID)}"
+          QIKINK_CLIENT_SECRET="${QIKINK_CLIENT_SECRET:-$(existing_env QIKINK_CLIENT_SECRET)}"
+          BROWSER_WORKER_KEY="${BROWSER_WORKER_KEY:-$(existing_env BROWSER_WORKER_KEY)}"
+          BROWSER_SIDECAR_URL="${BROWSER_SIDECAR_URL:-$(existing_env BROWSER_SIDECAR_URL)}"
+          BROWSER_USE_API_KEY="${BROWSER_USE_API_KEY:-$(existing_env BROWSER_USE_API_KEY)}"
+          BROWSER_USE_MODEL="${BROWSER_USE_MODEL:-$(existing_env BROWSER_USE_MODEL)}"
+          OPENAI_BROWSER_MODEL="${OPENAI_BROWSER_MODEL:-$(existing_env OPENAI_BROWSER_MODEL)}"
+          OPENAI_API_KEY="${OPENAI_API_KEY:-$(existing_env OPENAI_API_KEY)}"
+
+          printf '%s\n' \
+            "DATABASE_URL=${DATABASE_URL}" \
+            "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
+            "NEXTAUTH_URL=https://os.ekvaar.com" \
+            "CAMPAIGN_LAUNCHES_ENABLED=true" \
+            "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
+            "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
+            "COMPOSIO_API_KEY=${COMPOSIO_API_KEY}" \
+            "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" \
+            "GROQ_API_KEY=${GROQ_API_KEY}" \
+            "JWT_SECRET=${JWT_SECRET}" \
+            "CRON_SECRET=${CRON_SECRET}" \
+            "AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}" \
+            "AWS_REGION=us-east-1" \
+            "BEDROCK_MODEL_ID=amazon.nova-pro-v1:0" \
+            "SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}" \
+            "SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}" \
+            "SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}" \
+            "QIKINK_MODE=${QIKINK_MODE:-sandbox}" \
+            "QIKINK_CLIENT_ID=${QIKINK_CLIENT_ID}" \
+            "QIKINK_CLIENT_SECRET=${QIKINK_CLIENT_SECRET}" \
+            "BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}" \
+            "BROWSER_SIDECAR_URL=${BROWSER_SIDECAR_URL:-http://fastapi:8000}" \
+            "BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY}" \
+            "BROWSER_USE_MODEL=${BROWSER_USE_MODEL}" \
+            "OPENAI_BROWSER_MODEL=${OPENAI_BROWSER_MODEL}" \
+            "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+            "N8N_EKVAAR_WEBHOOK_URL=${N8N_EKVAAR_WEBHOOK_URL}" \
+            "N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET}" \
+            "N8N_EKVAAR_WORKFLOW_ID=${N8N_EKVAAR_WORKFLOW_ID}" \
+            "N8N_EKVAAR_EDITOR_URL=${N8N_EKVAAR_EDITOR_URL}" \
+            "BROWSER_HEADLESS=true" \
+            > .env
+
+          curl -fsS https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt \
+            -o db/supabase-ca.crt
+
+          if /usr/bin/sudo docker image inspect ekvaar-frontend >/dev/null 2>&1; then
+            /usr/bin/sudo docker compose up -d --no-build --force-recreate frontend nginx || true
+          fi
+
+          echo "[i] Disk before cleanup:"; df -h / || true
+
+          /usr/bin/sudo docker system prune -af || true
+          /usr/bin/sudo apt-get clean || true
+          /usr/bin/sudo journalctl --vacuum-size=100M || true
+          echo "[i] Disk after cleanup:"; df -h / || true
+
+          /usr/bin/sudo docker compose build --progress=plain 2>&1 || {
+            echo "[!] Docker build failed once; reclaiming unused Docker data and retrying..."
+            /usr/bin/sudo docker system prune -af || true
+            echo "[i] Disk before retry:"; df -h / || true
+            /usr/bin/sudo docker compose build --progress=plain 2>&1
+          }
+
+          /usr/bin/sudo docker compose up -d
+
+          /usr/bin/sudo docker compose restart nginx
+
+          /usr/bin/sudo docker image prune -af || true
+
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 3 -H "Host: os.ekvaar.com" https://localhost/api/health || echo 000)
+            [ "$STATUS" = "200" ] && break
+            echo "[i] Waiting for app... attempt $i/30 (HTTP $STATUS)"
+            sleep 3
+          done
+
+          if [ "$STATUS" != "200" ]; then
+            echo "[x] App failed to start (HTTP $STATUS). Container logs:"
+            /usr/bin/sudo docker compose logs --tail 150
+            exit 1
+          fi
+          echo "[ok] Deployed OK (HTTP $STATUS)"

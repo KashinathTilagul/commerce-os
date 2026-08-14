@@ -1,0 +1,12 @@
+name = "EKVAAR OS"
+client_id = "REPLACE_WITH_SHOPIFY_CLIENT_ID"
+application_url = "https://ekvaar.com"
+embedded = true
+
+[access_scopes]
+scopes = "read_products,write_products,read_inventory,write_inventory,read_orders,write_orders,read_customers,read_reports,read_themes,write_themes"
+optional_scopes = ["read_all_orders", "write_customers"]
+
+[access.admin]
+embedded_app_direct_api_access = true
+direct_api_mode = "offline"

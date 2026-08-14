@@ -1,0 +1,66 @@
+export const dynamic = 'force-dynamic'
+import { NextRequest } from 'next/server'
+import { createApiResponse, createApiError } from '@/lib/security'
+import { requireOrganization } from '@/lib/auth-guard'
+import { db } from '@/lib/db'
+import { z } from 'zod'
+
+const PaginationSchema = z.object({
+  page: z.coerce.number().int().min(1).max(1000).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  sortBy: z.string().max(30).optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+})
+
+export async function GET(req: NextRequest) {
+  const authResult = await requireOrganization()
+  if (!authResult.success) return authResult.response
+
+  try {
+    const { searchParams } = new URL(req.url)
+    const tier = searchParams.get('tier')
+    const paginationResult = PaginationSchema.safeParse({
+      page: searchParams.get('page') || '1',
+      limit: searchParams.get('limit') || '50',
+    })
+
+    const page = paginationResult.success ? paginationResult.data.page : 1
+    const limit = Math.min(paginationResult.success ? paginationResult.data.limit : 50, 100)
+
+    const customers = await db.customer.findMany({
+      where: { organizationId: authResult.organizationId, ...(tier && tier !== 'ALL' ? { tier } : {}) },
+      orderBy: { totalSpent: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: false,
+        city: true,
+        tier: true,
+        totalOrders: true,
+        totalSpent: true,
+        joinedAt: true,
+        lastActive: true,
+      },
+    })
+
+    const total = await db.customer.count({
+      where: { organizationId: authResult.organizationId, ...(tier && tier !== 'ALL' ? { tier } : {}) },
+    })
+
+    return createApiResponse({
+      customers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    })
+  } catch (error) {
+    console.error('[API] Customers error:', error)
+    return createApiError('Failed to fetch customers', 500)
+  }
+}

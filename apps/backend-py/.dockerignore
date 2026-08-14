@@ -1,0 +1,7 @@
+tests/
+scripts/
+__pycache__/
+*.pyc
+.env
+data/*.db-shm
+data/*.db-wal

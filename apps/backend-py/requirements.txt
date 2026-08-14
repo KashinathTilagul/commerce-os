@@ -1,0 +1,12 @@
+fastapi==0.109.2
+uvicorn==0.27.0.post1
+python-dotenv>=1.2.2
+pydantic
+edge-tts
+faster-whisper
+python-multipart
+pocket-tts
+scipy
+browser-use
+langchain-aws
+langchain-openai
