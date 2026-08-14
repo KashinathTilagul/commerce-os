@@ -12,7 +12,7 @@
 
 ## 💎 Overview
 
-**Fashion OS** is a self-hostable open-core desktop operating system engineered for fashion brands, retail operations, and e-commerce infrastructure. Wrapped in a Liquid Glass macOS Desktop Environment and driven by an autonomous Digital Employee Control Plane, Fashion OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
+**Fashion OS** is a self-hostable open-core desktop operating system engineered for fashion brands, retail operations, and e-commerce infrastructure. Wrapped in a Liquid Glass macOS Desktop Environment and driven by an autonomous AI Workforce Control Plane, Fashion OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
 
 Created, architected, and maintained by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (EKVAAR).
 
@@ -28,8 +28,8 @@ Created, architected, and maintained by **[Kashinath Tilagul](https://github.com
   <table>
     <tr>
       <td width="50%">
-        <img src="docs/assets/voice-assistant.png" alt="Conversational Voice Assistant & Board Room" />
-        <p align="center"><b>Conversational AI & Board Room KPI Command</b></p>
+        <img src="docs/assets/voice-assistant.png" alt="Conversational Voice Assistant & Command Center" />
+        <p align="center"><b>Conversational AI & Command Center KPI Command</b></p>
       </td>
       <td width="50%">
         <img src="docs/assets/integrations-hub.png" alt="800+ App Connections & Integrations Hub" />
@@ -45,7 +45,7 @@ Created, architected, and maintained by **[Kashinath Tilagul](https://github.com
 
 ```mermaid
 graph TD
-    A["🖥️ Liquid Glass macOS Desktop Shell"] --> B["⚡ Digital Employee Workforce Engine"]
+    A["🖥️ Liquid Glass macOS Desktop Shell"] --> B["⚡ AI Workforce Engine"]
     A --> C["🎙️ Voice AI Assistant Engine"]
     A --> D["📊 Retail & Fashion Modules"]
     B --> E["🤖 Agent Heartbeat & Run Traces"]
@@ -67,7 +67,7 @@ graph TD
 - **Global Spotlight (`Cmd+K`)**: Instant search across inventory SKUs, sales orders, digital employees, and system tools.
 - **Launchpad Grid (`F4` / `Cmd+L`)**: Clean view of installed applications and retail modules.
 
-### 2. 🤖 Digital Employee Workforce Control Plane
+### 2. 🤖 AI Workforce Control Plane
 - **Org Chart & Directory**: Visual rendering of executive and specialist agent hierarchies (CEO, CMO, CTO, CFO, COO).
 - **Kanban Task Boards**: Live tracking of production issues, marketing campaign deliverables, and product launches.
 - **Governance Approvals Queue**: Enforces human founder sign-off before executing high-risk financial or operational decisions.
@@ -84,14 +84,18 @@ graph TD
 
 | Module | Description | Core Capabilities |
 | :--- | :--- | :--- |
-| **Board Room** | Executive KPI Command | Real-time revenue analytics, active orders, acquisition cost, net margin |
+| **Command Center** | Executive KPI Command | Real-time revenue analytics, active orders, acquisition cost, net margin |
 | **Founder Inbox** | Priority Decision Queue | High-value transaction approvals, campaign sign-offs, agent overrides |
 | **Sales & Orders** | Omnichannel Fulfillment | Order status, inventory dispatch, channels tracking (Shopify, Custom) |
 | **Finance** | Financial Operations | Live P&L, expense tracking, margin analytics, payment reconciliation |
 | **Inventory & Ops** | Supply Chain & SKUs | Real-time stock levels, supplier management, automated reorder points |
 | **Campaigns** | Content & Marketing | Campaign planning, social media schedule, image asset generation |
-| **Brand Guardian** | Brand Identity Engine | Compliance scanner for visual assets, copy tone, and color guidelines |
-| **Originals** | VIP Drop System | Member tiers, garment care tracking, exclusive product release drops |
+| **Product Launches** | Autonomous Launch Pipeline | End-to-end product drops from research → Shopify publish |
+| **Brand Intelligence** | Brand Identity Engine | Compliance scanner for visual assets, copy tone, and color guidelines |
+| **Customers** | CRM & Community | Customer tiers, restoration tracking, VIP drop management |
+| **AI Infrastructure** | Model & Provider Health | Multi-model router status, token spend, fallback monitoring |
+| **Risk Center** | Governance & Approvals | Budget caps, approval queues, policy enforcement |
+| **n8n Marketing Studio** | Embedded Automation | Workflow execution, marketing dispatch, embedded n8n runtime |
 | **Integrations** | External Connectors | Shopify, Stripe, Razorpay, Slack, GitHub, Gmail connectors |
 
 ---
@@ -104,6 +108,11 @@ graph TD
 - **Notes**: Markdown-powered notebook with local persistence.
 - **Calendar**: Drop dates, marketing campaign schedules, and business milestones.
 - **Music**: Ambient Web Audio synthesizer and soundscape player.
+- **Calculator**: Quick financial and margin calculations.
+- **Chat**: Conversational AI assistant interface.
+- **Health Monitor**: System and service health status dashboard.
+- **Memory Explorer**: Agent memory graph and knowledge visualization.
+- **Knowledge Drive**: Workspace file management and artifact explorer.
 - **Settings**: System appearance, accent colors, voice profiles, and governance controls.
 
 ---
@@ -128,7 +137,7 @@ State       : Zustand
 Database    : PostgreSQL via Prisma ORM (Supabase Transaction Pooler)
 Auth        : NextAuth v4 (Credentials Session Guard)
 AI Engine   : Multi-Model Router (Anthropic Claude, OpenAI, Ollama)
-Deployment  : Docker Compose + Caddy / Nginx
+Deployment  : Docker Compose + Nginx
 ```
 
 ---
