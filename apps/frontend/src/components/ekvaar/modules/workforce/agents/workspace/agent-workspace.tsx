@@ -10,11 +10,12 @@ import { SkillsTab } from './skills-tab'
 import { ConfigurationTab } from './configuration-tab'
 import { RunsTab } from './runs-tab'
 import { BudgetTab } from './budget-tab'
+import { MarketingAutomationTab } from './marketing-automation-tab'
 import { timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
 import { invalidateWorkforceState } from '@/lib/query-invalidation'
 
-type Tab = 'dashboard' | 'instructions' | 'skills' | 'configuration' | 'runs' | 'budget'
+type Tab = 'dashboard' | 'instructions' | 'skills' | 'configuration' | 'runs' | 'budget' | 'marketing'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -111,6 +112,7 @@ export function AgentWorkspace({
   const statusLabel = STATUS_LABEL[agent.status] || agent.status
   const canPulse = !agent.isHuman && ['IDLE', 'RUNNING'].includes(agent.status)
   const isPaused = agent.status === 'PAUSED'
+  const tabs = agent.department === 'MARKETING' ? [...TABS, { id: 'marketing' as const, label: 'Marketing Automation' }] : TABS
 
   return (
     <div className="flex h-full flex-col">
@@ -233,7 +235,7 @@ export function AgentWorkspace({
 
         {/* Tab bar */}
         <div className="mt-4 flex items-center gap-1">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
@@ -257,6 +259,7 @@ export function AgentWorkspace({
         {tab === 'configuration' && <ConfigurationTab agent={agent} />}
         {tab === 'runs' && <RunsTab agentId={agent.id} />}
         {tab === 'budget' && <BudgetTab agent={agent} />}
+        {tab === 'marketing' && <MarketingAutomationTab agentId={agent.id} />}
       </div>
     </div>
   )

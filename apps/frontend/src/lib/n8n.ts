@@ -23,7 +23,7 @@ export async function triggerEkvaarMarketing(input: Record<string, unknown> = {}
     },
     body: JSON.stringify({ source: 'ekvaar-os', requestedAt: new Date().toISOString(), ...input }),
     cache: 'no-store',
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(180_000),
   })
 
   const text = await response.text()

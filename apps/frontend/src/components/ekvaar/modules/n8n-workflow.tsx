@@ -9,11 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ekvaar/desktop/toast'
 
-type N8nStatus = { configured: boolean; workflowId: string; editorUrl: string }
+type MarketingRun = { id: string; summary: string; timestamp: string; actorName: string; payload: { result?: { plan?: unknown } } }
+type N8nStatus = { configured: boolean; workflowId: string; editorUrl: string; runs: MarketingRun[] }
 
 export function N8nWorkflowApp() {
   const [instruction, setInstruction] = useState('Generate the next Ekvaar marketing content cycle')
-  const { data, isLoading } = useQuery<N8nStatus>({
+  const { data, isLoading, refetch } = useQuery<N8nStatus>({
     queryKey: ['n8n-status'],
     queryFn: async () => {
       const response = await fetch('/api/n8n')
@@ -32,7 +33,10 @@ export function N8nWorkflowApp() {
       if (!response.ok) throw new Error(result.error || 'n8n trigger failed')
       return result
     },
-    onSuccess: () => toast.success('Workflow started', 'Ekvaar marketing automation accepted the request'),
+    onSuccess: () => {
+      toast.success('Marketing cycle ready', 'The generated output is stored in Ekvaar OS')
+      refetch()
+    },
     onError: (error: any) => toast.error('Workflow not started', error.message),
   })
 
@@ -80,6 +84,17 @@ export function N8nWorkflowApp() {
                 Add <code>N8N_EKVAAR_WEBHOOK_URL</code> to the Ekvaar server environment to enable secure runs. The editor is already available.
               </div>
             )}
+          </CardContent>
+        </Card>
+        <Card className="mt-5 max-w-3xl">
+          <CardHeader><CardTitle>Marketing outputs</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {data?.runs?.length ? data.runs.map((item) => (
+              <details key={item.id} className="rounded-lg border p-3">
+                <summary className="cursor-pointer text-sm font-medium">{item.summary} · {new Date(item.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</summary>
+                <pre className="mt-3 max-h-96 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">{JSON.stringify(item.payload.result?.plan ?? item.payload.result, null, 2)}</pre>
+              </details>
+            )) : <p className="text-sm text-muted-foreground">No completed marketing outputs yet.</p>}
           </CardContent>
         </Card>
       </div>
