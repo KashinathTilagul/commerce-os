@@ -1,0 +1,7 @@
+ALTER TABLE "Agent"
+  ADD COLUMN "voiceEnabled" BOOLEAN NOT NULL DEFAULT true,
+  ADD COLUMN "voiceProvider" TEXT NOT NULL DEFAULT 'dograh',
+  ADD COLUMN "voiceId" TEXT NOT NULL DEFAULT 'auto',
+  ADD COLUMN "voiceLanguage" TEXT NOT NULL DEFAULT 'en-IN',
+  ADD COLUMN "voiceSpeed" DOUBLE PRECISION NOT NULL DEFAULT 1.0,
+  ADD COLUMN "dograhAssistantId" TEXT;

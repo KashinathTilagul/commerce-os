@@ -49,7 +49,10 @@ export async function PATCH(
     }
 
     const body = await req.json()
-    const { name, role, primeDirective, description, skills, status, avatarColor } = body
+    const {
+      name, role, primeDirective, description, skills, status, avatarColor,
+      voiceEnabled, voiceProvider, voiceId, voiceLanguage, voiceSpeed, dograhAssistantId,
+    } = body
 
     const data: any = {}
     if (name !== undefined) data.name = name
@@ -59,6 +62,12 @@ export async function PATCH(
     if (skills !== undefined) data.skills = skills
     if (status !== undefined) data.status = status
     if (avatarColor !== undefined) data.avatarColor = avatarColor
+    if (voiceEnabled !== undefined) data.voiceEnabled = Boolean(voiceEnabled)
+    if (voiceProvider !== undefined) data.voiceProvider = String(voiceProvider).slice(0, 40)
+    if (voiceId !== undefined) data.voiceId = String(voiceId).slice(0, 160)
+    if (voiceLanguage !== undefined) data.voiceLanguage = String(voiceLanguage).slice(0, 20)
+    if (voiceSpeed !== undefined) data.voiceSpeed = Math.min(1.5, Math.max(0.5, Number(voiceSpeed) || 1))
+    if (dograhAssistantId !== undefined) data.dograhAssistantId = dograhAssistantId ? String(dograhAssistantId).slice(0, 160) : null
 
     const updated = await db.agent.update({
       where: { id },

@@ -738,6 +738,15 @@ model Agent {
   learningHistory   String?  // JSON: { totalTasks, successfulTasks, improvedTasks }
   constraints       String?  // JSON array of learned constraints
 
+  // Human voice identity. Dograh owns the realtime voice pipeline; Ekvaar owns
+  // which voice belongs to each employee and whether that employee may speak.
+  voiceEnabled      Boolean  @default(true)
+  voiceProvider     String   @default("dograh")
+  voiceId           String   @default("auto")
+  voiceLanguage     String   @default("en-IN")
+  voiceSpeed        Float    @default(1.0)
+  dograhAssistantId String?
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   manager Agent?  @relation("AgentHierarchy", fields: [managerId], references: [id], onDelete: SetNull)
