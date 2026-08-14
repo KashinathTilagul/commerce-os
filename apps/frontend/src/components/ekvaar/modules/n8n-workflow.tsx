@@ -12,6 +12,13 @@ import { toast } from '@/components/ekvaar/desktop/toast'
 type MarketingRun = { id: string; summary: string; timestamp: string; actorName: string; payload: { result?: { plan?: unknown } } }
 type N8nStatus = { configured: boolean; workflowId: string; editorUrl: string; runs: MarketingRun[] }
 
+async function readApiJson(response: Response) {
+  const text = await response.text()
+  try { return text ? JSON.parse(text) : {} } catch {
+    throw new Error(`Ekvaar server returned ${response.status} ${response.statusText || 'an invalid response'}`)
+  }
+}
+
 export function N8nWorkflowApp() {
   const [instruction, setInstruction] = useState('Generate the next Ekvaar marketing content cycle')
   const { data, isLoading, refetch } = useQuery<N8nStatus>({
@@ -19,7 +26,9 @@ export function N8nWorkflowApp() {
     queryFn: async () => {
       const response = await fetch('/api/n8n')
       if (!response.ok) throw new Error('Could not read n8n status')
-      return response.json()
+      const result = await readApiJson(response)
+      if (!response.ok) throw new Error(result.error || 'Unable to load n8n status')
+      return result
     },
   })
   const run = useMutation({
@@ -29,7 +38,7 @@ export function N8nWorkflowApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ instruction }),
       })
-      const result = await response.json()
+      const result = await readApiJson(response)
       if (!response.ok) throw new Error(result.error || 'n8n trigger failed')
       return result
     },

@@ -8,6 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ekvaar/desktop/toast'
 
+async function readApiJson(response: Response) {
+  const text = await response.text()
+  try { return text ? JSON.parse(text) : {} } catch {
+    throw new Error(`Ekvaar server returned ${response.status} ${response.statusText || 'an invalid response'}`)
+  }
+}
+
 export function MarketingAutomationTab({ agentId }: { agentId: string }) {
   const queryClient = useQueryClient()
   const [instruction, setInstruction] = useState('Generate the next Ekvaar marketing content cycle')
@@ -15,8 +22,9 @@ export function MarketingAutomationTab({ agentId }: { agentId: string }) {
     queryKey: ['agent-marketing-automation', agentId],
     queryFn: async () => {
       const response = await fetch(`/api/agents/${agentId}/marketing-automation`)
-      if (!response.ok) throw new Error('Unable to load marketing outputs')
-      return response.json()
+      const result = await readApiJson(response)
+      if (!response.ok) throw new Error(result.error || 'Unable to load marketing outputs')
+      return result
     },
   })
   const run = useMutation({
@@ -24,7 +32,7 @@ export function MarketingAutomationTab({ agentId }: { agentId: string }) {
       const response = await fetch(`/api/agents/${agentId}/marketing-automation`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ instruction }),
       })
-      const result = await response.json()
+      const result = await readApiJson(response)
       if (!response.ok) throw new Error(result.error || 'Workflow failed')
       return result
     },

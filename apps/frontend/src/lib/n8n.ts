@@ -29,6 +29,7 @@ export async function triggerEkvaarMarketing(input: Record<string, unknown> = {}
   const text = await response.text()
   let payload: unknown = null
   try { payload = text ? JSON.parse(text) : null } catch { payload = text }
-  if (!response.ok) throw new Error(`n8n returned ${response.status}`)
-  return { accepted: true, status: response.status, payload }
+  if (!response.ok) throw new Error(`n8n returned ${response.status}${typeof payload === 'string' && payload ? `: ${payload.slice(0, 240)}` : ''}`)
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('n8n returned an invalid non-JSON response')
+  return { accepted: true, status: response.status, ...payload }
 }
