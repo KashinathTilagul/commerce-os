@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ExternalLink, Play, Workflow } from 'lucide-react'
+import { CheckCircle2, ExternalLink, Instagram, Linkedin, Play, Workflow } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -52,9 +52,9 @@ export function N8nWorkflowApp() {
   return (
     <div className="h-full bg-background">
       <PageHeader
-        eyebrow="Automation"
-        title="n8n Marketing Studio"
-        description="Create, review, store, and publish Ekvaar marketing through the live workflow."
+        eyebrow="Ekvaar AI Workspace · Marketing"
+        title="Marketing Command Center"
+        description="Ekvaar AI creates the campaign. OAuth-connected channels receive Founder-approved content. n8n stays behind the scenes as the automation runner."
         actions={data?.editorUrl ? (
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => window.open(data.editorUrl, '_blank', 'noopener,noreferrer')}>
             <ExternalLink className="h-3.5 w-3.5" /> Edit in n8n
@@ -78,6 +78,19 @@ export function N8nWorkflowApp() {
               <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Reviewer</div><div className="mt-1 font-medium">Grok 4.3</div></div>
               <div className="rounded-lg border p-3"><div className="text-xs text-muted-foreground">Timezone</div><div className="mt-1 font-medium">Asia/Kolkata</div></div>
             </div>
+            <div className="rounded-xl border border-neel/20 bg-neel/[0.04] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-medium">Publishing channels</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Connect with OAuth. No Page tokens are entered here.</div>
+                </div>
+                <CheckCircle2 className="h-4 w-4 text-arav" />
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { window.location.href = '/api/oauth/meta' }}><Instagram className="h-3.5 w-3.5" /> Connect Meta / Instagram</Button>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { window.location.href = '/api/oauth/linkedin' }}><Linkedin className="h-3.5 w-3.5" /> Connect LinkedIn</Button>
+              </div>
+            </div>
             <div>
               <label htmlFor="n8n-instruction" className="mb-2 block text-xs font-medium uppercase tracking-wider text-muted-foreground">AI Workspace instruction</label>
               <Input id="n8n-instruction" value={instruction} onChange={(event) => setInstruction(event.target.value)} maxLength={1000} />
@@ -86,11 +99,11 @@ export function N8nWorkflowApp() {
               <Button className="gap-1.5" disabled={!data?.configured || run.isPending || !instruction.trim()} onClick={() => run.mutate()}>
                 <Play className="h-3.5 w-3.5" /> {run.isPending ? 'Starting…' : 'Run workflow'}
               </Button>
-              <span className="text-xs text-muted-foreground">Workflow {data?.workflowId || 'IF1CS5po1jkq9M7D'} · publishing remains approval-gated</span>
+              <span className="text-xs text-muted-foreground">AI Workspace → Founder Inbox → OAuth channels · publishing remains approval-gated</span>
             </div>
             {!isLoading && !data?.configured && (
               <div className="rounded-lg border border-agni/30 bg-agni/10 p-3 text-sm">
-                Add <code>N8N_EKVAAR_WEBHOOK_URL</code> to the Ekvaar server environment to enable secure runs. The editor is already available.
+                Add <code>N8N_EKVAAR_WEBHOOK_URL</code> to the Ekvaar server environment to enable secure runs. Channel connections are managed above with OAuth.
               </div>
             )}
           </CardContent>

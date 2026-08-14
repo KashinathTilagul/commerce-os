@@ -10,7 +10,12 @@ const OAUTH_PROVIDERS = {
   meta: {
     authUrl: 'https://www.facebook.com/v18.0/dialog/oauth',
     tokenUrl: 'https://graph.facebook.com/v18.0/oauth/access_token',
-    scopes: ['ads_read', 'ads_management', 'business_management'],
+    scopes: ['business_management', 'pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'instagram_basic', 'instagram_content_publish'],
+  },
+  linkedin: {
+    authUrl: 'https://www.linkedin.com/oauth/v2/authorization',
+    tokenUrl: 'https://www.linkedin.com/oauth/v2/accessToken',
+    scopes: ['openid', 'profile', 'email', 'w_member_social'],
   },
   shopify: {
     authUrl: 'https://{shop}.myshopify.com/admin/oauth/authorize',
