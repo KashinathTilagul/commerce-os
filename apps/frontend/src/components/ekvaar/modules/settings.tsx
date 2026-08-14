@@ -548,6 +548,7 @@ export function Settings() {
 }
 
 const PROVIDER_OPTIONS = [
+  { value: 'omniroute', label: 'OmniRoute intelligent gateway' },
   { value: 'bedrock', label: 'AWS Bedrock' },
   { value: 'openrouter', label: 'OpenRouter' },
   { value: 'groq', label: 'Groq' },

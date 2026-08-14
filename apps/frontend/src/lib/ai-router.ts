@@ -1,6 +1,8 @@
 import { generateText } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
+import { db } from '@/lib/db'
+import { decryptSecret } from '@/lib/crypto'
 
 export type Tier = 'fast' | 'default' | 'reasoning'
 
@@ -18,32 +20,65 @@ function getBedrockModel(modelId: string) {
   return bedrock(modelId)
 }
 
-function getOpenRouterModel(modelId: string) {
+function getOpenRouterModel(modelId: string, apiKey = process.env.OPENROUTER_API_KEY || '', baseURL = 'https://openrouter.ai/api/v1') {
   const openrouter = createOpenAI({
-    baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: process.env.OPENROUTER_API_KEY || '',
+    baseURL,
+    apiKey,
   })
   return openrouter(modelId)
 }
 
-function getGroqModel(modelId: string) {
+function getGroqModel(modelId: string, apiKey = process.env.GROQ_API_KEY || '', baseURL = 'https://api.groq.com/openai/v1') {
   const groq = createOpenAI({
-    baseURL: 'https://api.groq.com/openai/v1',
-    apiKey: process.env.GROQ_API_KEY || '',
+    baseURL,
+    apiKey,
   })
   return groq(modelId)
 }
 
-function getOpenAIModel(modelId: string) {
+function getOpenAIModel(modelId: string, apiKey = process.env.OPENAI_API_KEY || '', baseURL?: string) {
   const openai = createOpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
+    apiKey,
+    ...(baseURL ? { baseURL } : {}),
   })
   return openai(modelId)
 }
 
 // Model fallback chains per tier
-function getModelChain(tier: Tier): Array<{ provider: string; model: string; instance: any }> {
+type ModelTarget = { provider: string; model: string; apiKey?: string; baseUrl?: string }
+
+function modelForTarget(target: ModelTarget) {
+  const provider = target.provider.toLowerCase()
+  if (provider === 'bedrock') return getBedrockModel(target.model)
+  if (provider === 'openrouter') return getOpenRouterModel(target.model, target.apiKey, target.baseUrl)
+  if (provider === 'groq') return getGroqModel(target.model, target.apiKey, target.baseUrl)
+  if (provider === 'omniroute') return getOpenAIModel(target.model || 'auto', target.apiKey || 'ekvaar-internal', target.baseUrl || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1')
+  return getOpenAIModel(target.model, target.apiKey, target.baseUrl)
+}
+
+async function configuredTargets(): Promise<ModelTarget[]> {
+  try {
+    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+    if (!settings) return []
+    return [
+      { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
+      { provider: settings.fallback1Provider, model: settings.fallback1Model, apiKey: decryptSecret(settings.fallback1ApiKey), baseUrl: settings.fallback1BaseUrl },
+      { provider: settings.fallback2Provider, model: settings.fallback2Model, apiKey: decryptSecret(settings.fallback2ApiKey), baseUrl: settings.fallback2BaseUrl },
+    ].filter((target) => target.provider && target.model && (target.apiKey || target.provider === 'omniroute' || target.provider === 'bedrock'))
+  } catch (error: any) {
+    console.warn('[AI Router] Could not load saved routing settings:', error?.message || error)
+    return []
+  }
+}
+
+async function getModelChain(tier: Tier): Promise<Array<{ provider: string; model: string; instance: any }>> {
   const chain: Array<{ provider: string; model: string; instance: any }> = []
+
+  const saved = await configuredTargets()
+  for (const target of saved) {
+    try { chain.push({ provider: target.provider, model: target.model, instance: modelForTarget(target) }) } catch {}
+  }
+  if (chain.length > 0) return chain
 
   // 1. Bedrock (Primary if AWS credentials set)
   const bedrockModelId = process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0'
@@ -84,7 +119,7 @@ async function runChain<T>(
   tier: Tier,
   fn: (model: any) => Promise<T>,
 ): Promise<{ result: T; provider: string; model: string }> {
-  const chain = getModelChain(tier)
+  const chain = await getModelChain(tier)
   let lastError: any = null
 
   for (const item of chain) {
@@ -168,7 +203,7 @@ export async function routeObject<T>(
     // Fallback: If LLM returned text instead of strict JSON, extract spoken text cleanly
     if (cleaned) {
       const spokenMatch = cleaned.match(/"spoken"\s*:\s*"([^"]+)"/)
-      const fallbackText = spokenMatch ? spokenMatch[1] : cleaned.replace(/[{}\[\]"]/g, ' ').trim()
+      const fallbackText = spokenMatch ? spokenMatch[1] : cleaned.replace(/[{}[\]"]/g, ' ').trim()
       return {
         spoken: fallbackText || 'Understood, Founder.',
         action: { type: 'none' },
