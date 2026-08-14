@@ -113,6 +113,7 @@ export function ApprovalsPage() {
                   {app.description && <div className="text-foreground/90 leading-relaxed bg-white/[0.02] p-2.5 rounded-lg border border-white/[0.04]">{app.description}</div>}
                   {app.amount > 0 && <div><strong className="text-foreground">Amount:</strong> ₹{app.amount}</div>}
                   {app.campaignLaunch && <div className="rounded-lg border border-cyan-300/10 bg-cyan-300/[0.03] p-2.5"><div><strong className="text-foreground">Campaign:</strong> {app.campaignLaunch.code} · {app.campaignLaunch.status}</div>{app.campaignRevision && <div className="mt-1"><strong className="text-foreground">Evidence:</strong> revision {app.campaignRevision.revisionNum} · <span className="font-mono">{app.campaignRevision.versionHash.slice(0, 12)}</span></div>}</div>}
+                  {app.marketingReadiness && !app.marketingReadiness.ready && <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.05] p-2.5 text-amber-300">Publish blocked: {app.marketingReadiness.mediaMissing} media missing, {app.marketingReadiness.rightsMissing} rights checks missing, {app.marketingReadiness.policyMissing} policy checks missing, and calendar count {app.marketingReadiness.actual}/{app.marketingReadiness.expected}.</div>}
                 </div>
 
                 {Array.isArray(app.campaignRevision?.evidenceJson?.plan?.calendar) && (
@@ -160,7 +161,7 @@ export function ApprovalsPage() {
                     </button>
                     <button
                       onClick={() => resolveMutation.mutate({ id: app.id, status: 'APPROVED', note: notes[app.id] })}
-                      disabled={resolveMutation.isPending}
+                      disabled={resolveMutation.isPending || Boolean(app.marketingReadiness && !app.marketingReadiness.ready)}
                       className="glass-l2 flex items-center gap-1 px-4 py-1.5 rounded-md text-[11px] font-medium text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 transition-colors"
                     >
                       <CheckCircle2 className="h-3.5 w-3.5" />

@@ -11,6 +11,18 @@ type MarketingResult = {
   plan?: { content_cycle?: { cycle_name?: string }; cycle_name?: string; calendar?: unknown[]; [key: string]: unknown }
 }
 
+export function getMarketingApprovalReadiness(evidence: any) {
+  const plan = evidence?.plan || evidence
+  const calendar = Array.isArray(plan?.calendar) ? plan.calendar : []
+  const expected = Number(plan?.publishing_summary?.total_items ?? plan?.content_cycle?.total_posts ?? calendar.length)
+  const countOk = calendar.length > 0 && calendar.length === expected
+  const mediaMissing = calendar.filter((entry: any) => entry?.format !== 'text_only' && !entry?.media_url && !entry?.asset_url && !entry?.image_url && !entry?.video_url && !entry?.preview_url)
+  const rightsMissing = calendar.filter((entry: any) => !entry?.rights_check || !/^PASS\b/i.test(String(entry.rights_check)))
+  const policyMissing = calendar.filter((entry: any) => !entry?.policy_check || !/^PASS\b/i.test(String(entry.policy_check)))
+  const ready = countOk && mediaMissing.length === 0 && rightsMissing.length === 0 && policyMissing.length === 0
+  return { ready, countOk, expected, actual: calendar.length, mediaMissing: mediaMissing.length, rightsMissing: rightsMissing.length, policyMissing: policyMissing.length }
+}
+
 export async function createMarketingFounderApproval(input: {
   organizationId: string
   requesterId?: string

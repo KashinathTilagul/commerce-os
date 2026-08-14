@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
+import { getMarketingApprovalReadiness } from '@/lib/marketing-approval'
 
 export async function GET() {
   const auth = await requireOrganization()
@@ -19,7 +20,12 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ approvals })
+    return NextResponse.json({ approvals: approvals.map((approval) => ({
+      ...approval,
+      marketingReadiness: approval.campaignRevision?.evidenceJson
+        ? getMarketingApprovalReadiness(approval.campaignRevision.evidenceJson)
+        : null,
+    })) })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to fetch approvals' }, { status: 500 })
   }
