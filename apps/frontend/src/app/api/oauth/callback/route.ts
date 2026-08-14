@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
-import { storeOAuthToken, getProviderConfig } from '@/lib/oauth'
+import { finalizeOAuthConnection, getProviderConfig, parseOAuthState } from '@/lib/oauth'
 
 export async function GET(req: NextRequest) {
   const url = req.nextUrl
@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/settings/integrations?error=missing_params', req.url))
   }
 
-  let state: { provider: string; organizationId: string }
+  let state: { provider: string; organizationId: string; issuedAt: number }
   try {
-    state = JSON.parse(decodeURIComponent(stateStr))
+    state = parseOAuthState(stateStr)
   } catch (e) {
     return NextResponse.redirect(new URL('/settings/integrations?error=invalid_state', req.url))
   }
@@ -60,15 +60,7 @@ export async function GET(req: NextRequest) {
     }
 
     const data = await response.json()
-    const expiresAt = data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined
-
-    await storeOAuthToken(organizationId, provider, {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
-      scope: data.scope,
-      expiresAt: (expiresAt || undefined) as any,
-      shopDomain,
-    })
+    await finalizeOAuthConnection(organizationId, provider, data, shopDomain)
 
     return NextResponse.redirect(new URL('/settings/integrations?success=1', req.url))
   } catch (err) {

@@ -1,5 +1,5 @@
 import { db } from './db'
-import { executeComposioTool } from './composio-service'
+import { executeTool } from './composio-service'
 
 export interface EmailPayload {
   to: string | string[]
@@ -40,10 +40,13 @@ export async function sendAgentEmail(
     })
 
     if (gmailIntegration) {
-      const result = await executeComposioTool(organizationId, 'gmail', 'GMAIL_SEND_EMAIL', {
-        recipient_email: Array.isArray(payload.to) ? payload.to[0] : payload.to,
-        subject,
-        body,
+      const result = await executeTool({
+        organizationId,
+        toolkitSlug: 'gmail',
+        toolSlug: 'gmail_send_email',
+        agentCode: 'CEO',
+        agentName: 'Krishna',
+        input: { recipient_email: Array.isArray(payload.to) ? payload.to[0] : payload.to, subject, body },
       })
 
       if (result.success) {
@@ -56,12 +59,13 @@ export async function sendAgentEmail(
       }
     }
 
-    // Fallback/Simulated delivery mode
+    // Never claim delivery without a provider receipt.
     return {
-      sent: true,
-      provider: 'simulated',
+      sent: false,
+      provider: 'error',
       recipient,
       subject,
+      error: 'Gmail is not connected',
     }
   } catch (err: any) {
     return {

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
-import { getOAuthToken, revokeOAuthToken, isTokenValid, getProviderConfig, storeOAuthToken } from '@/lib/oauth'
+import { revokeOAuthToken, getProviderConfig, createOAuthState, finalizeOAuthConnection } from '@/lib/oauth'
 
 export async function GET(
   req: NextRequest,
@@ -13,9 +13,14 @@ export async function GET(
   const { provider } = await params
   const config = getProviderConfig(provider)
   if (!config) return NextResponse.json({ error: 'Unsupported OAuth provider' }, { status: 400 })
+  const clientId = process.env[`${provider.toUpperCase()}_CLIENT_ID`] || ''
+  const clientSecret = process.env[`${provider.toUpperCase()}_CLIENT_SECRET`] || ''
+  if (!clientId || !clientSecret) {
+    return NextResponse.json({ error: `${provider} OAuth is not configured for this deployment. Add its client ID and secret before connecting.` }, { status: 503 })
+  }
 
   const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/oauth/callback`
-  const state = encodeURIComponent(JSON.stringify({ provider, organizationId: auth.organizationId }))
+  const state = createOAuthState(provider, auth.organizationId)
 
   let authUrl: string = config.authUrl
   if (provider === 'shopify') {
@@ -25,7 +30,7 @@ export async function GET(
   }
 
   const url = new URL(authUrl)
-  url.searchParams.set('client_id', process.env[`${provider.toUpperCase()}_CLIENT_ID`] || '')
+  url.searchParams.set('client_id', clientId)
   url.searchParams.set('redirect_uri', redirectUri)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('scope', config.scopes.join(' '))
@@ -74,14 +79,7 @@ export async function POST(
     }
 
     const data = await response.json()
-    const expiresAt = data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined
-    
-    await storeOAuthToken(auth.organizationId, provider, {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
-      scope: data.scope,
-      expiresAt,
-    })
+    await finalizeOAuthConnection(auth.organizationId, provider, data, shop)
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

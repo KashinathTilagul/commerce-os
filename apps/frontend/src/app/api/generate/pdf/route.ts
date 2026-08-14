@@ -7,7 +7,7 @@ import { generatePDF } from '@/lib/pdf-generator'
 
 const PDFGenerationSchema = z.object({
   template: z.string().default('report'),
-  data: z.record(z.any()),
+  data: z.record(z.string(), z.any()),
   title: z.string().min(1).max(200)
 })
 

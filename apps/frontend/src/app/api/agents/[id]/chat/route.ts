@@ -53,7 +53,7 @@ Instructions:
 You are chatting directly with the Founder, who can instruct you. If the Founder tells you to DO or produce something (write copy, make a plan, run an analysis, build something), set intent 'work' and put the task in 'task' — the system will open a ticket for you and you'll deliver the actual work on it. If it's a question or discussion, set intent 'answer' and just reply.
 Never claim you have already finished work in your reply — when intent is 'work', say you're on it (the deliverable lands on the ticket). Use the live status above for operational facts; never invent numbers. Stay in character, concise, no markdown.`
 
-    const { object } = await routeObject<z.infer<typeof ChatDecision>>('default', {
+    const { object } = await routeObject<z.infer<typeof ChatDecision>>('default', auth.organizationId, {
       schema: ChatDecision,
       system: systemPrompt,
       prompt: sanitizeInput(message, { maxLength: 5000 }),

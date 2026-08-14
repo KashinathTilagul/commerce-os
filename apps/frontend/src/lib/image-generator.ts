@@ -4,6 +4,7 @@ import { generateImage as generateModelImage } from 'ai'
 import { storeArtifact, initializeStorage } from './storage'
 import { db } from './db'
 import { createHash } from 'node:crypto'
+import { decryptSecret } from './crypto'
 
 export interface ImageGenerationOptions {
   prompt: string
@@ -37,8 +38,16 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
   const dimensions = ASPECT_RATIO_DIMENSIONS[options.aspectRatio] || ASPECT_RATIO_DIMENSIONS['1:1']
   
   try {
-    const bedrockKey = process.env.AWS_BEARER_TOKEN_BEDROCK
-    const openRouterKey = process.env.OPENROUTER_API_KEY
+    const settings = await db.systemSetting.findUnique({ where: { organizationId: options.organizationId } })
+    const targets = settings ? [
+      { provider: settings.primaryProvider, key: decryptSecret(settings.primaryApiKey) },
+      { provider: settings.fallback1Provider, key: decryptSecret(settings.fallback1ApiKey) },
+      { provider: settings.fallback2Provider, key: decryptSecret(settings.fallback2ApiKey) },
+    ] : []
+    const keyFor = (provider: string) => targets.find((target) => target.provider.toLowerCase() === provider && target.key)?.key
+    const bedrockKey = keyFor('bedrock')
+    const openRouterKey = keyFor('openrouter')
+    const openAIKey = keyFor('openai')
     let imageBuffer: Buffer | null = null
     let mimeType = 'image/png'
     const providerErrors: string[] = []
@@ -87,12 +96,12 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
       }
     }
 
-    if (!imageBuffer && process.env.OPENAI_API_KEY) {
+    if (!imageBuffer && openAIKey) {
       try {
         const size = options.aspectRatio === '16:9' ? '1536x1024' : options.aspectRatio === '9:16' ? '1024x1536' : '1024x1024'
         const response = await fetch('https://api.openai.com/v1/images/generations', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+          headers: { Authorization: `Bearer ${openAIKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1', prompt: enhancedPrompt, size, quality: 'medium', response_format: 'b64_json' }),
         })
         const payload = await response.json()
@@ -104,9 +113,8 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     }
 
     if (!imageBuffer) {
-      console.warn('[Image Generator] Providers unavailable; rendering vector fallback:', providerErrors.join(' | '))
-      imageBuffer = renderVectorFallback(options.prompt, dimensions.width, dimensions.height)
-      mimeType = 'image/svg+xml'
+      const detail = providerErrors.length > 0 ? ` Provider errors: ${providerErrors.join(' | ')}` : ''
+      throw new Error(`No working image provider is configured for this organization. Add Bedrock, OpenRouter, or OpenAI credentials in Settings.${detail}`)
     }
     
     // Store artifact
@@ -144,21 +152,6 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     console.error('[Image Generator] Image generation error:', error)
     throw new Error(`Image generation failed: ${error?.message || 'unknown error'}`)
   }
-}
-
-function renderVectorFallback(prompt: string, width: number, height: number) {
-  const digest = createHash('sha256').update(prompt).digest('hex')
-  const colorA = `#${digest.slice(0, 6)}`
-  const colorB = `#${digest.slice(6, 12)}`
-  const colorC = `#${digest.slice(12, 18)}`
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <defs><radialGradient id="g" cx="35%" cy="30%" r="85%"><stop stop-color="${colorA}"/><stop offset="0.55" stop-color="${colorB}"/><stop offset="1" stop-color="#05080d"/></radialGradient><filter id="b"><feGaussianBlur stdDeviation="28"/></filter></defs>
-  <rect width="100%" height="100%" fill="url(#g)"/>
-  <circle cx="${width * 0.52}" cy="${height * 0.5}" r="${Math.min(width, height) * 0.24}" fill="none" stroke="${colorC}" stroke-width="${Math.max(6, width / 120)}" opacity="0.8"/>
-  <circle cx="${width * 0.52}" cy="${height * 0.5}" r="${Math.min(width, height) * 0.13}" fill="${colorC}" opacity="0.32" filter="url(#b)"/>
-  <path d="M ${width * 0.18} ${height * 0.62} Q ${width * 0.5} ${height * 0.16} ${width * 0.84} ${height * 0.58}" fill="none" stroke="white" stroke-width="${Math.max(3, width / 240)}" opacity="0.42"/>
-</svg>`
-  return Buffer.from(svg)
 }
 
 export async function getImage(artifactId: string): Promise<Buffer | null> {

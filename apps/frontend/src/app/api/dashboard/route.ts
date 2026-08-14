@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError } from '@/lib/security'
-import { requireOrganization, requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
@@ -9,8 +9,7 @@ export async function GET(req: NextRequest) {
   if (!authResult.success) return authResult.response
 
   try {
-    const uid = authResult.user.id
-    const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks, agents, issues, approvals, events] = await Promise.all([
+    const [products, orders, customers, transactions, campaigns, aiSystems, restorations, brandChecks, agents, issues, approvals, events, systemSetting] = await Promise.all([
       db.product.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, name: true, sku: true, color: true, house: true, stock: true, reorderAt: true, status: true } }),
       db.order.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, orderNumber: true, total: true, status: true, paymentStatus: true, createdAt: true, channel: true, items: { select: { quantity: true, price: true, product: { select: { house: true, color: true } } } } } }),
       db.customer.findMany({ where: { organizationId: authResult.organizationId }, select: { id: true, tier: true, totalSpent: true } }),
@@ -23,6 +22,7 @@ export async function GET(req: NextRequest) {
       db.issue.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true } }),
       db.approval.findMany({ where: { organizationId: authResult.organizationId }, select: { status: true, isRead: true } }),
       db.event.findMany({ where: { organizationId: authResult.organizationId }, orderBy: { timestamp: 'desc' }, take: 10, select: { id: true, type: true, actorName: true, summary: true, severity: true, timestamp: true } }),
+      db.systemSetting.findUnique({ where: { organizationId: authResult.organizationId }, select: { primaryApiKey: true, fallback1ApiKey: true, fallback2ApiKey: true } }),
     ])
 
     const revenueOrders = orders.filter((o) => o.paymentStatus === 'PAID' && o.status !== 'CANCELLED' && o.status !== 'RETURNED')
@@ -47,9 +47,10 @@ export async function GET(req: NextRequest) {
     const expensesLast30 = transactions.filter((t) => t.type === 'EXPENSE' && new Date(t.date) >= last30).reduce((s, t) => s + t.amount, 0)
 
     const lowStock = products.filter((p) => p.stock <= (p.reorderAt ?? 20) && p.status !== 'DRAFT')
-    const aiHealth = aiSystems.length > 0 ? Math.round(aiSystems.reduce((s, a) => s + a.health, 0) / aiSystems.length) : 100
+    const hasConfiguredAI = Boolean(systemSetting?.primaryApiKey || systemSetting?.fallback1ApiKey || systemSetting?.fallback2ApiKey)
+    const aiHealth = !hasConfiguredAI ? 0 : aiSystems.length > 0 ? Math.round(aiSystems.reduce((s, a) => s + a.health, 0) / aiSystems.length) : 100
     const passCount = brandChecks.filter((c) => c.status === 'PASS').length
-    const brandCompliance = brandChecks.length > 0 ? Math.round((passCount / brandChecks.length) * 100) : 100
+    const brandCompliance = brandChecks.length > 0 ? Math.round((passCount / brandChecks.length) * 100) : 0
 
     const salesTrend: { date: string; revenue: number; orders: number }[] = []
     for (let i = 13; i >= 0; i--) {

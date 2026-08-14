@@ -94,6 +94,11 @@ export async function PATCH(
       },
     })
 
+    if (status === 'APPROVED' && approval.campaignRevision) {
+      const { publishDueMarketing } = await import('@/lib/social-publisher')
+      void publishDueMarketing(auth.organizationId).catch((error) => console.error('[SocialPublisher]', error))
+    }
+
     return NextResponse.json({ approval: updated })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Failed to update approval' }, { status: 500 })

@@ -7,7 +7,7 @@ import { generateVideo } from '@/lib/video-generator'
 
 const VideoGenerationSchema = z.object({
   template: z.string(),
-  data: z.record(z.any()),
+  data: z.record(z.string(), z.any()),
   duration: z.number().min(1).max(120).default(15),
   title: z.string().optional()
 })
