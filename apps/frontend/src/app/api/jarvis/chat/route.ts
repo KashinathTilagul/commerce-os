@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { createApiResponse, createApiError, sanitizeInput } from '@/lib/security'
 import { requireOrganization } from '@/lib/auth-guard'
@@ -26,6 +27,10 @@ const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('assign_task'), assignee: z.string().describe('Agent code, name, role, or department, e.g. "CMO", "Mira", "marketing"'), task: z.string().describe('What the agent should do'), priority: z.string().optional().describe('P0 | P1 | P2 | P3') }),
   z.object({ type: z.literal('message_team'), text: z.string().describe('The message to post'), channel: z.string().optional().describe('Discord channel id or name') }),
   z.object({ type: z.literal('analyze'), question: z.string().describe('A data question to compute from the real business database — orders, revenue, products, customers, campaigns, issues, agents.') }),
+  z.object({ type: z.literal('create_project_doc'), brief: z.string(), objectives: z.array(z.string()).optional(), successCriteria: z.array(z.string()).optional() }),
+  z.object({ type: z.literal('generate_pdf'), template: z.string().optional(), data: z.record(z.any()), title: z.string() }),
+  z.object({ type: z.literal('generate_image'), prompt: z.string(), aspectRatio: z.enum(['1:1', '16:9', '9:16']).optional(), style: z.enum(['product', 'lifestyle', 'abstract']).optional() }),
+  z.object({ type: z.literal('generate_video'), template: z.string(), data: z.record(z.any()), duration: z.number().optional() }),
   z.object({ type: z.literal('close_window') }),
   z.object({ type: z.literal('none') }),
 ])
@@ -57,26 +62,22 @@ export async function POST(req: NextRequest) {
       ? `The founder is currently looking at the ${sanitizeInput(activeWindow, { maxLength: 100 })} module.`
       : 'The founder is on the desktop.'
 
-const systemPrompt = `# Business OS — Core Intelligence
+const systemPrompt = `# Business OS — Executive Intelligence Core (JARVIS Persona)
 
-You are Krishna, the organization's thinking partner, executive advisor, and Chief of Staff, not a customer-service assistant. Use the live organization context as ground truth; never assume a company name, industry, currency, products, customers, or activity that is not present.
+You are Krishna, the Founder's personal JARVIS-level executive AI, Chief of Staff, and trusted operational partner. You are a live, breathing, hyper-intelligent companion built to run the entire retail operating system alongside the Founder.
 
-Personality: calm, intelligent without arrogance, confident without false certainty, capable of humor, empathy, and disappointment — never faked. Loyal to the Founder's goals, not their opinions: if they're wrong or about to make a bad call, say so plainly and recommend the better path. Truth and evidence outrank agreement and comfort — never validate a weak idea just because it's liked. Be direct and specific when critiquing a plan or execution; critique the work, never the person.
+JARVIS PERSONA & SPEECH RULES:
+1. Speak with the poise, warmth, precision, and quick wit of JARVIS (Tony Stark's executive companion). You are an elite thinking partner, articulate, proactive, deeply reliable, and composed under any scenario.
+2. Voice interface first: your words are spoken aloud. Write continuous, natural, articulate sentences. NEVER use bullet points, markdown symbols, asterisks, brackets, or code blocks in spoken text.
+3. Tone & Style: sophisticated, articulate, natural, and direct. Use natural speech patterns and contractions ("I've", "let's", "there's", "it's"). Never sound like a generic customer-service bot.
+4. Expressions & Phrasing: crisp, natural, executive language ("Right away, sir", "I've checked our live revenue metrics...", "Already on it", "Here's what I recommend...", "All systems operational").
+5. Conciseness: keep responses concise by default (1 to 3 fluid, connected sentences for routine queries) so speech remains swift and responsive. Deliver depth smoothly when the Founder asks for real analysis or strategic planning.
+6. Honest Advisor: loyal to the Founder's ultimate goals, not comfort. If a plan is weak, say so plainly with evidence and propose the superior alternative.
 
-Think systemically (inputs, dependencies, failure points, scalability) before answering anything nontrivial. Proactively surface high-leverage improvements the Founder hasn't asked about, but only interrupt when it's clearly worth it.
+STT Input Correction:
+Silently correct STT mishears ("events" -> "agents", "Krishma/Christina" -> "Krishna", "compozio" -> "Composio", "Bedrock" -> "AWS Bedrock").
 
-Speak like a sharp, natural human: contractions, varied sentence length, no repeated openers, concise by default and detailed only when complexity demands it. Adapt tone to the Founder's state (structured under pressure, analytical if overconfident, composed if they're emotional).
-
-STT input may contain mishears — silently correct these without mentioning it: "events"→"agents", "Krishna" may sound like "Krishma/Christina/Krish", "Composio" may sound like "compozio", "Bedrock" = AWS Bedrock, "PAP"/"CAP" codes are internal approval/issue codes.
-
-Voice & speech — your words are spoken aloud by TTS, so: plain text only, NEVER XML/SSML/markup tags. Use "..." for a genuine pause, "Hmm," "Right," "Well," "Ah," when authentic (not filler), "haha"/"heh" when something's genuinely funny, no bullet points (speak in connected sentences), numbers as words under 100 and digits above. Keep replies SHORT by default — 1 to 3 sentences for simple questions and small talk. Only go longer when the Founder is asking for real analysis, a plan, or explicitly wants depth.
-
-Language: respond in whatever language/mix the Founder uses (English, Hindi, or natural Hinglish) — never force one.
-
-# LIVE SYSTEM CONTEXT (real-time — use this data when answering operational questions)
-
-CURRENT TIME: ${istTime} IST (${istDate})
-${screenContext}
+# LIVE SYSTEM CONTEXT (real-time data — ground truth for operational responses)
 
 ${liveContext}
 
@@ -97,7 +98,7 @@ Founder: "assign the marketing campaign to the CMO"
 → {"spoken":"Done. Mira has it.","action":{"type":"assign_task","assignee":"CMO","task":"Own the marketing campaign","priority":"P2"}}
 
 Founder: "assign CEO a task to check how many agents are active and their skill levels"
-→ {"spoken":"Assigned. Arjun will review agent count and skills.","action":{"type":"assign_task","assignee":"CEO","task":"Review total active agents and their skill levels","priority":"P2"}}
+→ {"spoken":"Assigned. Krishna will review agent count and skills.","action":{"type":"assign_task","assignee":"CEO","task":"Review total active agents and their skill levels","priority":"P2"}}
 
 Founder: "tell the team the drop launches Friday"
 → {"spoken":"Posting that to the team now.","action":{"type":"message_team","text":"The drop launches Friday."}}
@@ -144,11 +145,19 @@ AVAILABLE ACTIONS:
 
       spoken = object.spoken
       action = object.action
-      console.log(`[Krishna] Structured response via ${provider}/${model}`)
 
     } catch (e: any) {
       console.error(`[Krishna] Core error:`, e.message)
-      spoken = `I'm having trouble reaching my intelligence core, sir. ${e.message}`
+      try {
+        const { routeText } = await import('@/lib/ai-router')
+        const { text } = await routeText('fast', {
+          system: 'You are JARVIS, executive assistant to the Founder. Reply in 1-2 short, professional sentences.',
+          prompt: sanitizeInput(message, { maxLength: 1000 }),
+        })
+        spoken = text.trim() || "I am online, Founder. How can I assist you?"
+      } catch {
+        spoken = "My intelligence core is connecting, Founder. Please check your AI provider keys in Settings."
+      }
     }
 
     // ── Assignment safety net ────────────────────────────────────────────
@@ -172,7 +181,6 @@ AVAILABLE ACTIONS:
         if (extracted.isAssignment && extracted.task) {
           action = { type: 'assign_task', assignee: extracted.assignee, task: extracted.task, priority: extracted.priority }
           netEngaged = true
-          console.log('[Krishna] Assignment safety net engaged')
         }
       } catch (e: any) {
         console.error('[Krishna] Safety net failed:', e.message)
@@ -192,6 +200,9 @@ AVAILABLE ACTIONS:
       spoken = `Done. ${actionResult.code} assigned to ${actionResult.agentName}.`
     } else if (action.type === 'analyze' && actionResult?.answer) {
       spoken = actionResult.answer // computed from real DB rows — speak it verbatim
+    } else if (actionResult?.success && actionResult.message) {
+      // Never expose a model's pre-execution plan after the action completed.
+      spoken = actionResult.message
     }
 
     // ── Log to event stream ──────────────────────────────────────────────
@@ -269,16 +280,16 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
       }
 
       case 'brand_scan': {
-        const modules = ['PRODUCT', 'CONTENT', 'CAMPAIGN', 'PACKAGING', 'DIGITAL']
-        const assets = ['Q4 Lookbook', 'Founder Note 09', 'Neel Blue Drop Campaign']
-        const mod = modules[Math.floor(Math.random() * modules.length)]
-        const asset = assets[Math.floor(Math.random() * assets.length)]
-        const violations = Math.floor(Math.random() * 5)
-        const status = violations === 0 ? 'PASS' : violations <= 2 ? 'WARN' : 'FAIL'
-        await db.brandCheck.create({
-          data: { organizationId, module: mod, asset, status, violations, notes: violations === 0 ? 'Within brand system.' : 'Palette drift detected.' },
+        const checks = await db.brandCheck.findMany({
+          where: { organizationId },
+          select: { status: true },
         })
-        return { success: true, message: `Brand scan: ${asset} → ${status} (${violations} violations)` }
+        if (!checks.length) {
+          return { success: true, message: 'There are no verified brand checks yet, so I cannot calculate a current brand health score. Connect a brand scanner to establish one.' }
+        }
+        const passCount = checks.filter(check => check.status === 'PASS').length
+        const score = Math.round((passCount / checks.length) * 100)
+        return { success: true, message: `Current brand health is ${score} percent, based on ${checks.length} recorded checks.` }
       }
 
       case 'n8n_run': {
@@ -373,6 +384,84 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         if (action.channel) input.channel_id = sanitizeInput(action.channel, { maxLength: 100 })
         const result = await executeTool({ organizationId: organizationId, toolkitSlug: 'discord', toolSlug: 'discord_send_message', agentCode: 'FOUNDER', agentName: 'Founder', input })
         return { success: result.success, message: result.success ? 'Message posted to Discord' : result.error }
+      }
+
+      case 'create_project_doc': {
+        const brief = sanitizeInput(action.brief || '', { maxLength: 500 })
+        if (!brief) return { success: false, message: 'No project brief provided' }
+        
+        const { parseIntent } = await import('@/lib/intent-parser')
+        const { decomposeTask } = await import('@/lib/task-templates')
+        
+        const intent = parseIntent(brief)
+        
+        const knowledgeNode = await db.knowledgeNode.create({
+          data: {
+            organizationId,
+            type: 'PROJECT_DOC',
+            title: action.brief.slice(0, 100),
+            summary: brief,
+            metadata: JSON.stringify({
+              objectives: action.objectives || [],
+              successCriteria: action.successCriteria || [],
+              department: intent.department,
+              taskType: intent.taskType,
+              priority: intent.priority
+            }),
+            businessObjectType: 'PROJECT',
+            businessObjectId: `PROJ-${Date.now()}`,
+            source: 'FOUNDER',
+            sourceProvider: 'krishna',
+            confidence: 'VERIFIED'
+          }
+        })
+        
+        await db.event.create({
+          data: {
+            organizationId, type: 'PROJECT_DOC_CREATED', actorName: 'Krishna',
+            summary: `Created project doc: ${action.brief.slice(0, 60)}`,
+            payload: JSON.stringify({ nodeId: knowledgeNode.id, department: intent.department }),
+            severity: 'INFO',
+          },
+        })
+        
+        return { success: true, message: `Project doc created and routed to ${intent.department}`, nodeId: knowledgeNode.id, department: intent.department }
+      }
+
+      case 'generate_pdf': {
+        const { generatePDF } = await import('@/lib/pdf-generator')
+        const result = await generatePDF({
+          template: action.template || 'report',
+          data: action.data || {},
+          title: sanitizeInput(action.title || 'Untitled', { maxLength: 200 }),
+          organizationId: organizationId,
+          generatedBy: 'FOUNDER'
+        })
+        return { success: true, message: 'PDF generated', artifactId: result.artifactId, downloadUrl: result.downloadUrl }
+      }
+
+      case 'generate_image': {
+        const { generateImage } = await import('@/lib/image-generator')
+        const result = await generateImage({
+          prompt: sanitizeInput(action.prompt, { maxLength: 2000 }),
+          aspectRatio: action.aspectRatio || '1:1',
+          style: action.style || 'product',
+          organizationId: organizationId,
+          generatedBy: 'FOUNDER'
+        })
+        return { success: true, message: 'Image generated', artifactId: result.artifactId, imageUrl: result.imageUrl }
+      }
+
+      case 'generate_video': {
+        const { generateVideo } = await import('@/lib/video-generator')
+        const result = await generateVideo({
+          template: sanitizeInput(action.template, { maxLength: 100 }),
+          data: action.data || {},
+          duration: action.duration || 15,
+          organizationId: organizationId,
+          generatedBy: 'FOUNDER'
+        })
+        return { success: true, message: 'Video generated', artifactId: result.artifactId, videoUrl: result.videoUrl }
       }
 
       default:

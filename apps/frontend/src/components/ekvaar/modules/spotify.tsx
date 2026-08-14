@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useSyncExternalStore } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, Home, ListMusic, User, Play, Pause, SkipBack, SkipForward, Loader2, LogOut, Smartphone, Laptop, Speaker, Monitor, RefreshCw } from 'lucide-react'
+import { Search, Home, ListMusic, User, Play, Pause, SkipBack, SkipForward, Loader2, LogOut, RefreshCw } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ekvaar/desktop/toast'
+import type { SpotifyTrack, SpotifyDevice, SdkState } from './spotify-types'
+import { getDeviceIcon, getTimeOfDay } from './spotify-types'
 
 declare global {
   interface Window {
@@ -15,48 +17,8 @@ declare global {
   }
 }
 
-interface SpotifyTrack {
-  id: string
-  name: string
-  artists: { name: string }[]
-  album: {
-    name: string
-    images: { url: string }[]
-  }
-  uri: string
-  duration_ms: number
-}
-
-interface SpotifyDevice {
-  id: string
-  name: string
-  type: string
-  is_active: boolean
-  volume_percent: number
-}
-
-function getDeviceIcon(type: string) {
-  switch (type?.toLowerCase()) {
-    case 'smartphone':
-      return <Smartphone className="h-4 w-4" />
-    case 'computer':
-      return <Laptop className="h-4 w-4" />
-    case 'speaker':
-      return <Speaker className="h-4 w-4" />
-    default:
-      return <Monitor className="h-4 w-4" />
-  }
-}
-
 // ── Module-level SDK singleton — survives window minimize/close so music keeps
 // playing and the "EKVAAR OS" device id stays stable across remounts ──────────
-interface SdkState {
-  status: string
-  deviceId: string | null
-  ready: boolean
-  isPlaying: boolean
-  track: SpotifyTrack | null
-}
 let sdkState: SdkState = { status: '', deviceId: null, ready: false, isPlaying: false, track: null }
 let sdkPlayer: any = null
 const sdkSubs = new Set<() => void>()
@@ -183,7 +145,6 @@ export function SpotifyApp() {
         if (data.token) {
           setToken(data.token)
         } else if (data.error) {
-          console.log('Spotify token error:', data.error)
         }
       })
       .catch(e => console.error('Token fetch error:', e))
@@ -791,9 +752,3 @@ export function SpotifyApp() {
   )
 }
 
-function getTimeOfDay(): string {
-  const h = new Date().getHours()
-  if (h < 12) return 'morning'
-  if (h < 18) return 'afternoon'
-  return 'evening'
-}

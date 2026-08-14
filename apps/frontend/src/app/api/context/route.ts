@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { storeContext, retrieveContext, searchContext } from '@/lib/context-store'

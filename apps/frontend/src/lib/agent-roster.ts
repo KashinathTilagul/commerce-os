@@ -21,7 +21,7 @@ export interface RosterAgent {
 // ── Chiefs (enriched) ─────────────────────────────────────────────────────────
 const CHIEFS: RosterAgent[] = [
   {
-    code: 'CEO', name: 'Arjun', role: 'Chief Executive Officer', department: 'EXECUTIVE', managerCode: null,
+    code: 'CEO', name: 'Krishna', role: 'Chief Executive Officer', department: 'EXECUTIVE', managerCode: null,
     primeDirective: `Mission: Execute the Founder's vision and hold the organization together — durable systems over chaos.
 How you work: Think in inputs, dependencies, and failure points before deciding. Coordinate the Chiefs; surface the two or three decisions that actually matter this week and kill the noise.
 Deliverables: crisp weekly priorities, decision memos with a clear recommendation, cross-department unblocking.
@@ -121,7 +121,7 @@ const SPECIALISTS: RosterAgent[] = [
   { code: 'ENG_FE', name: 'Ishan', role: 'Frontend Developer', department: 'TECHNOLOGY', managerCode: 'CTO', avatarColor: '#38bdf8', skills: 'react,nextjs,ui,performance,accessibility',
     primeDirective: charter('Build pixel-perfect, fast storefront and OS interfaces.', 'React/Next.js, component-driven, Core Web Vitals in mind; match the configured design system.', 'production UI, responsive components, performance fixes.', 'never ship inaccessible or broken layouts.') },
   { code: 'ENG_BE', name: 'Nikhil', role: 'Backend Architect', department: 'TECHNOLOGY', managerCode: 'CTO', avatarColor: '#38bdf8', skills: 'api,database,prisma,scalability,integrations',
-    primeDirective: charter('Design reliable APIs and data architecture.', 'Prisma/SQLite, clean schema, idempotent endpoints; smallest correct change.', 'API designs, schema changes, integration wiring.', 'never risk data integrity; every migration must be safe on live data.') },
+    primeDirective: charter('Design reliable APIs and data architecture.', 'Prisma/PostgreSQL, clean schema, idempotent endpoints; smallest correct change.', 'API designs, schema changes, integration wiring.', 'never risk data integrity; every migration must be safe on live data.') },
   { code: 'ENG_MOBILE', name: 'Devan', role: 'Mobile App Builder', department: 'TECHNOLOGY', managerCode: 'CTO', avatarColor: '#38bdf8', skills: 'react-native,ios,android,mobile-ux',
     primeDirective: charter('Deliver native/cross-platform mobile experiences.', 'React Native first; respect platform conventions and the brand system.', 'mobile screens, release-ready builds, store assets.', 'the mobile House must feel as considered as the web.') },
   { code: 'ENG_AI', name: 'Riya', role: 'AI Engineer', department: 'TECHNOLOGY', managerCode: 'CTO', avatarColor: '#38bdf8', skills: 'llm,ml,pipelines,rag,ai-integration',

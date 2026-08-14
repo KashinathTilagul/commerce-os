@@ -1,6 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireOrganization, requireAuth } from '@/lib/auth-guard'
+import { requireOrganization } from '@/lib/auth-guard'
+
+export const dynamic = 'force-dynamic'
+
+// GET /api/agents/[id] — return agent details, manager, reports
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireOrganization()
+  if (!auth.success) return auth.response
+
+  try {
+    const { id } = await params
+    const agent = await db.agent.findFirst({
+      where: { id, organizationId: auth.organizationId },
+      include: {
+        manager: { select: { id: true, name: true, role: true, code: true } },
+        reports: { select: { id: true, name: true, role: true, code: true, status: true } },
+        _count: { select: { reports: true, issuesAssigned: true, runs: true } }
+      }
+    })
+
+    if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(agent)
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
+}
 
 // PATCH /api/agents/[id] — update agent soul, skills, description, primeDirective, status
 export async function PATCH(

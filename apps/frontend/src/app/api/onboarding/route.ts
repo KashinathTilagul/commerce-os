@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
@@ -16,32 +17,41 @@ const OnboardingSchema = z.object({
 })
 
 export async function GET() {
-  const auth = await requireOrganization()
-  if (!auth.success) return auth.response
+  try {
+    const auth = await requireOrganization()
+    if (!auth.success) return auth.response
 
-  await seedIntegrations(auth.organizationId)
-  const organization = await db.organization.findUnique({
-    where: { id: auth.organizationId },
-    include: { context: true },
-  })
-  if (!organization) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
+    await seedIntegrations(auth.organizationId)
+    const organization = await db.organization.findUnique({
+      where: { id: auth.organizationId },
+      include: { context: true },
+    })
+    if (!organization) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
 
-  const integrations = await db.integration.findMany({
-    where: { organizationId: auth.organizationId },
-    select: { id: true, toolkitSlug: true, name: true, description: true, category: true, logoUrl: true, isConnected: true },
-    orderBy: [{ isConnected: 'desc' }, { name: 'asc' }],
-  })
+    const integrations = await db.integration.findMany({
+      where: { organizationId: auth.organizationId },
+      select: { id: true, toolkitSlug: true, name: true, description: true, category: true, logoUrl: true, isConnected: true },
+      orderBy: [{ isConnected: 'desc' }, { name: 'asc' }],
+    })
 
-  return NextResponse.json({
-    organization: {
-      name: organization.name,
-      slug: organization.slug,
-      onboardingStep: organization.onboardingStep,
-      onboardingCompletedAt: organization.onboardingCompletedAt,
-    },
-    context: organization.context,
-    integrations,
-  })
+    return NextResponse.json({
+      organization: {
+        name: organization.name,
+        slug: organization.slug,
+        onboardingStep: organization.onboardingStep,
+        onboardingCompletedAt: organization.onboardingCompletedAt,
+      },
+      context: organization.context,
+      integrations,
+    })
+  } catch (error: any) {
+    console.error('Onboarding GET Error:', error)
+    const isConnRefused = error?.code === 'ECONNREFUSED' || error?.message?.includes('ECONNREFUSED')
+    const message = isConnRefused
+      ? 'Database connection failed: Could not connect to PostgreSQL server on localhost:5432. Ensure PostgreSQL is running and DATABASE_URL is correct.'
+      : (error?.message || 'Could not load setup')
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function PATCH(req: NextRequest) {

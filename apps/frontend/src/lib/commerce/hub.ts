@@ -2,221 +2,137 @@ import { db } from '@/lib/db'
 import { CommerceMapper } from './mapper'
 import { KnowledgePipeline } from '@/lib/knowledge/pipeline'
 
-export class CommerceHub {
-  static async persistProduct(raw: any, orgId: string, provider: string) {
-    const canonical = CommerceMapper.toCanonicalProduct(raw, orgId)
-    const externalId = String(raw.id)
-    const checksum = CommerceMapper.generateChecksum(raw)
+type EntityType = 'PRODUCT' | 'ORDER' | 'CUSTOMER'
 
-    const link = await db.commerceObjectLink.findUnique({
-      where: {
-        organizationId_provider_entityType_externalId: {
-          organizationId: orgId,
-          provider,
-          entityType: 'PRODUCT',
-          externalId,
-        },
-      },
-    })
+interface PersistParams {
+  raw: any
+  orgId: string
+  provider: string
+  entityType: EntityType
+  toCanonical: (raw: any, orgId: string) => any
+  uniqueKey: (orgId: string, canonical: any) => any
+}
 
-    if (link && link.checksum === checksum) {
-      return { status: 'UNCHANGED' }
-    }
+// ponytail: three persist methods share 70% structure — extracted common pattern
+async function persistEntity(params: PersistParams) {
+  const { raw, orgId, provider, entityType, toCanonical, uniqueKey } = params
+  const canonical = toCanonical(raw, orgId)
+  const externalId = String(raw.id)
+  const checksum = CommerceMapper.generateChecksum(raw)
 
-    let internalId = link?.internalId
-
-    if (internalId) {
-      await db.product.update({
-        where: { id: internalId },
-        data: canonical,
-      })
-    } else {
-      const p = await db.product.upsert({
-        where: { organizationId_sku: { organizationId: orgId, sku: canonical.sku } },
-        create: canonical,
-        update: canonical,
-      })
-      internalId = p.id
-    }
-
-    await db.commerceObjectLink.upsert({
-      where: {
-        organizationId_provider_entityType_externalId: {
-          organizationId: orgId,
-          provider,
-          entityType: 'PRODUCT',
-          externalId,
-        },
-      },
-      create: {
+  const link = await db.commerceObjectLink.findUnique({
+    where: {
+      organizationId_provider_entityType_externalId: {
         organizationId: orgId,
         provider,
-        entityType: 'PRODUCT',
+        entityType,
         externalId,
-        internalId,
-        checksum,
       },
-      update: {
-        internalId,
-        checksum,
-        syncedAt: new Date(),
-      },
-    })
+    },
+  })
 
-    // Knowledge Graph Update
-    await KnowledgePipeline.ingest({
+  if (link && link.checksum === checksum) {
+    return { status: 'UNCHANGED' }
+  }
+
+  let internalId = link?.internalId
+
+  if (internalId) {
+    const updateOps: Record<EntityType, () => Promise<any>> = {
+      PRODUCT: () => db.product.update({ where: { id: internalId }, data: canonical }),
+      ORDER: () => db.order.update({ where: { id: internalId }, data: canonical }),
+      CUSTOMER: () => db.customer.update({ where: { id: internalId }, data: canonical }),
+    }
+    await updateOps[entityType]()
+  } else {
+    const upsertOps: Record<EntityType, () => Promise<{ id: string }>> = {
+      PRODUCT: () => db.product.upsert({
+        where: { organizationId_sku: uniqueKey(orgId, canonical) },
+        create: canonical,
+        update: canonical,
+      }),
+      ORDER: () => db.order.upsert({
+        where: { organizationId_orderNumber: uniqueKey(orgId, canonical) },
+        create: canonical,
+        update: canonical,
+      }),
+      CUSTOMER: () => db.customer.upsert({
+        where: { organizationId_email: uniqueKey(orgId, canonical) },
+        create: canonical,
+        update: canonical,
+      }),
+    }
+    const result = await upsertOps[entityType]()
+    internalId = result.id
+  }
+
+  await db.commerceObjectLink.upsert({
+    where: {
+      organizationId_provider_entityType_externalId: {
+        organizationId: orgId,
+        provider,
+        entityType,
+        externalId,
+      },
+    },
+    create: {
       organizationId: orgId,
-      source: 'COMMERCE',
-      sourceProvider: provider,
-      businessObjectType: 'PRODUCT',
-      businessObjectId: internalId,
-      rawObject: canonical
-    })
+      provider,
+      entityType,
+      externalId,
+      internalId,
+      checksum,
+    },
+    update: {
+      internalId,
+      checksum,
+      syncedAt: new Date(),
+    },
+  })
 
-    return { status: link ? 'UPDATED' : 'CREATED', internalId }
+  await KnowledgePipeline.ingest({
+    organizationId: orgId,
+    source: 'COMMERCE',
+    sourceProvider: provider,
+    businessObjectType: entityType,
+    businessObjectId: internalId,
+    rawObject: canonical,
+  })
+
+  return { status: link ? 'UPDATED' : 'CREATED', internalId }
+}
+
+export class CommerceHub {
+  static async persistProduct(raw: any, orgId: string, provider: string) {
+    return persistEntity({
+      raw,
+      orgId,
+      provider,
+      entityType: 'PRODUCT',
+      toCanonical: CommerceMapper.toCanonicalProduct,
+      uniqueKey: (orgId, canonical) => ({ organizationId: orgId, sku: canonical.sku }),
+    })
   }
 
   static async persistOrder(raw: any, orgId: string, provider: string) {
-    const canonical = CommerceMapper.toCanonicalOrder(raw, orgId)
-    const externalId = String(raw.id)
-    const checksum = CommerceMapper.generateChecksum(raw)
-
-    const link = await db.commerceObjectLink.findUnique({
-      where: {
-        organizationId_provider_entityType_externalId: {
-          organizationId: orgId,
-          provider,
-          entityType: 'ORDER',
-          externalId,
-        },
-      },
+    return persistEntity({
+      raw,
+      orgId,
+      provider,
+      entityType: 'ORDER',
+      toCanonical: CommerceMapper.toCanonicalOrder,
+      uniqueKey: (orgId, canonical) => ({ organizationId: orgId, orderNumber: canonical.orderNumber }),
     })
-
-    if (link && link.checksum === checksum) {
-      return { status: 'UNCHANGED' }
-    }
-
-    let internalId = link?.internalId
-
-    if (internalId) {
-      await db.order.update({
-        where: { id: internalId },
-        data: canonical,
-      })
-    } else {
-      const o = await db.order.upsert({
-        where: { organizationId_orderNumber: { organizationId: orgId, orderNumber: canonical.orderNumber } },
-        create: canonical,
-        update: canonical,
-      })
-      internalId = o.id
-    }
-
-    await db.commerceObjectLink.upsert({
-      where: {
-        organizationId_provider_entityType_externalId: {
-          organizationId: orgId,
-          provider,
-          entityType: 'ORDER',
-          externalId,
-        },
-      },
-      create: {
-        organizationId: orgId,
-        provider,
-        entityType: 'ORDER',
-        externalId,
-        internalId,
-        checksum,
-      },
-      update: {
-        internalId,
-        checksum,
-        syncedAt: new Date(),
-      },
-    })
-
-    await KnowledgePipeline.ingest({
-      organizationId: orgId,
-      source: 'COMMERCE',
-      sourceProvider: provider,
-      businessObjectType: 'ORDER',
-      businessObjectId: internalId,
-      rawObject: canonical
-    })
-
-    return { status: link ? 'UPDATED' : 'CREATED', internalId }
   }
 
   static async persistCustomer(raw: any, orgId: string, provider: string) {
-    const canonical = CommerceMapper.toCanonicalCustomer(raw, orgId)
-    const externalId = String(raw.id)
-    const checksum = CommerceMapper.generateChecksum(raw)
-
-    const link = await db.commerceObjectLink.findUnique({
-      where: {
-        organizationId_provider_entityType_externalId: {
-          organizationId: orgId,
-          provider,
-          entityType: 'CUSTOMER',
-          externalId,
-        },
-      },
+    return persistEntity({
+      raw,
+      orgId,
+      provider,
+      entityType: 'CUSTOMER',
+      toCanonical: CommerceMapper.toCanonicalCustomer,
+      uniqueKey: (orgId, canonical) => ({ organizationId: orgId, email: canonical.email }),
     })
-
-    if (link && link.checksum === checksum) {
-      return { status: 'UNCHANGED' }
-    }
-
-    let internalId = link?.internalId
-
-    if (internalId) {
-      await db.customer.update({
-        where: { id: internalId },
-        data: canonical,
-      })
-    } else {
-      const c = await db.customer.upsert({
-        where: { organizationId_email: { organizationId: orgId, email: canonical.email } },
-        create: canonical,
-        update: canonical,
-      })
-      internalId = c.id
-    }
-
-    await db.commerceObjectLink.upsert({
-      where: {
-        organizationId_provider_entityType_externalId: {
-          organizationId: orgId,
-          provider,
-          entityType: 'CUSTOMER',
-          externalId,
-        },
-      },
-      create: {
-        organizationId: orgId,
-        provider,
-        entityType: 'CUSTOMER',
-        externalId,
-        internalId,
-        checksum,
-      },
-      update: {
-        internalId,
-        checksum,
-        syncedAt: new Date(),
-      },
-    })
-
-    await KnowledgePipeline.ingest({
-      organizationId: orgId,
-      source: 'COMMERCE',
-      sourceProvider: provider,
-      businessObjectType: 'CUSTOMER',
-      businessObjectId: internalId,
-      rawObject: canonical
-    })
-
-    return { status: link ? 'UPDATED' : 'CREATED', internalId }
   }
 }

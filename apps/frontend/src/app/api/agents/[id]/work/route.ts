@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { runAgentWork } from '@/lib/agent-worker'

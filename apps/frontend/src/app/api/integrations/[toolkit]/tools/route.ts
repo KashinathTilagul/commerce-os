@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getToolsForToolkit } from '@/lib/composio-service'
 import { requireAuth } from '@/lib/auth-guard'

@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 import { ShopifyProvider } from '@/lib/commerce/shopify-provider'

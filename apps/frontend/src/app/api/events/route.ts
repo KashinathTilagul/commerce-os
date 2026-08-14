@@ -1,13 +1,17 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
-import { EventBus } from '@/lib/events/bus'
-import { EventTimelineEngine } from '@/lib/events/timeline'
+import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
-  const history = await EventBus.getHistory(auth.organizationId, 50)
+  const history = await db.event.findMany({
+    where: { organizationId: auth.organizationId },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  })
   return NextResponse.json({ events: history })
 }
 
@@ -17,18 +21,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const event = await EventBus.publish({
-      ...body,
-      organizationId: auth.organizationId,
-    })
 
-    await EventTimelineEngine.recordStage({
-      organizationId: auth.organizationId,
-      eventId: event.eventId,
-      stage: 'RAISED',
-      actor: event.source,
-      summary: `Event ${event.eventType} emitted by ${event.source}`,
-      details: event,
+    const event = await db.event.create({
+      data: {
+        ...body,
+        organizationId: auth.organizationId,
+      },
     })
 
     return NextResponse.json({ success: true, event })

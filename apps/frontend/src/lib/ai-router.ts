@@ -1,153 +1,134 @@
-import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
-import { createOpenAI } from '@ai-sdk/openai'
 import { generateText } from 'ai'
-import type { LanguageModel } from 'ai'
-import { toJSONSchema } from 'zod'
-import { db } from './db'
-import { decryptSecret } from './crypto'
+import { createOpenAI } from '@ai-sdk/openai'
+import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
 
-// ── Tiered multi-provider AI router ──────────────────────────────────────────
-// Bedrock + OpenRouter (and any OpenAI-compatible provider) behind one call.
-// Each tier is an ordered fallback chain; we try candidates in order and move
-// to the next on any error, so a flaky/underperforming provider never takes the
-// whole request down. Config comes from SystemSetting (primary + 2 fallbacks);
-// Bedrock is always appended as a guaranteed tail using the key stored today.
-//
-// ponytail: compression (Caveman/Headroom) is a deliberate phase-2 follow-up.
+export type Tier = 'fast' | 'default' | 'reasoning'
 
-export type Tier = 'reasoning' | 'default' | 'fast'
+// ── Model Provider Resolution ───────────────────────────────────────────────
 
-interface Candidate {
-  provider: string // 'bedrock' | 'openrouter' | 'groq' | 'openai' | ...
-  model: string
-  apiKey: string
-  baseUrl?: string
-}
+function getBedrockModel(modelId: string) {
+  const region = process.env.AWS_REGION || 'us-east-1'
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID || process.env.AWS_BEARER_TOKEN_BEDROCK
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || ''
 
-const BEDROCK_DEFAULT = process.env.BEDROCK_MODEL_ID?.replace('amazon-bedrock/', '') || 'zai.glm-5'
-
-let cached: { at: number; cfg: any } | null = null
-async function loadSettings(): Promise<any> {
-  // 30s cache — chat is bursty; avoids a DB read per turn
-  if (cached && Date.now() - cached.at < 30_000) return cached.cfg
-  let cfg: any = {}
-  try { cfg = (await db.systemSetting.findUnique({ where: { id: 'global' } })) || {} } catch {}
-  cached = { at: Date.now(), cfg }
-  return cfg
-}
-
-function dec(v?: string | null): string {
-  try { return decryptSecret(v) } catch { return '' }
-}
-
-// Known OpenAI-compatible providers' default base URLs, so picking a provider
-// in Settings works without also having to know/paste its API base URL.
-const PROVIDER_BASE_URLS: Record<string, string> = {
-  openrouter: 'https://openrouter.ai/api/v1',
-  groq: 'https://api.groq.com/openai/v1',
-}
-
-function makeModel(c: Candidate): LanguageModel {
-  if (c.provider === 'bedrock' || c.provider === 'amazon-bedrock') {
-    const br = createAmazonBedrock({ apiKey: c.apiKey, region: process.env.AWS_REGION || 'us-east-1' })
-    return br(c.model.replace('amazon-bedrock/', ''))
-  }
-  // OpenAI-compatible: OpenRouter, Groq, OpenAI, custom, etc.
-  const oa = createOpenAI({ name: c.provider, apiKey: c.apiKey, baseURL: c.baseUrl || PROVIDER_BASE_URLS[c.provider] || 'https://openrouter.ai/api/v1' })
-  return oa(c.model)
-}
-
-// Build the ordered candidate chain for a tier from settings.
-async function chainFor(tier: Tier): Promise<Candidate[]> {
-  const cfg = await loadSettings()
-
-  const bedrockSlot = [
-    { provider: cfg.primaryProvider, model: cfg.primaryModel, key: cfg.primaryApiKey },
-    { provider: cfg.fallback1Provider, model: cfg.fallback1Model, key: cfg.fallback1ApiKey },
-    { provider: cfg.fallback2Provider, model: cfg.fallback2Model, key: cfg.fallback2ApiKey },
-  ].find((candidate) => candidate.provider === 'bedrock' || candidate.provider === 'amazon-bedrock')
-  const bedrockKey = process.env.AWS_BEARER_TOKEN_BEDROCK || dec(bedrockSlot?.key) || ''
-  const bedrock: Candidate | null = bedrockKey
-    ? { provider: 'bedrock', model: bedrockSlot?.model || BEDROCK_DEFAULT, apiKey: bedrockKey }
-    : null
-
-  // OpenAI-compatible candidates from the fallback config slots (only if they
-  // carry their own key — we never send the Bedrock key to OpenRouter).
-  const slot = (prov?: string, model?: string, key?: string, url?: string): Candidate | null => {
-    const k = dec(key)
-    if (!prov || !model || !k) return null
-    if (prov === 'bedrock') return null // bedrock handled above
-    return { provider: prov, model, apiKey: k, baseUrl: url }
-  }
-  const primary = cfg.primaryProvider === 'bedrock' ? null
-    : slot(cfg.primaryProvider, cfg.primaryModel, cfg.primaryApiKey, cfg.primaryBaseUrl)
-  const fb1 = slot(cfg.fallback1Provider, cfg.fallback1Model, cfg.fallback1ApiKey, cfg.fallback1BaseUrl)
-  const fb2 = slot(cfg.fallback2Provider, cfg.fallback2Model, cfg.fallback2ApiKey, cfg.fallback2BaseUrl)
-
-  // Env-injected keys (the deploy already sets these) — used when Settings has
-  // no explicit OpenRouter/Groq config, so routing works out of the box.
-  const envOpenRouter: Candidate | null = process.env.OPENROUTER_API_KEY
-    ? { provider: 'openrouter', model: process.env.OPENROUTER_MODEL || 'anthropic/claude-3.5-sonnet', apiKey: process.env.OPENROUTER_API_KEY, baseUrl: 'https://openrouter.ai/api/v1' }
-    : null
-  const envGroq: Candidate | null = process.env.GROQ_API_KEY
-    ? { provider: 'groq', model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile', apiKey: process.env.GROQ_API_KEY, baseUrl: 'https://api.groq.com/openai/v1' }
-    : null
-
-  const openRouterFirst = [primary, fb1, fb2, envOpenRouter, envGroq].filter(Boolean) as Candidate[]
-
-  // Tier ordering:
-  //  reasoning → Bedrock (proven quality) first, then configured providers
-  //  default   → configured (cheaper/free) first, Bedrock as safety
-  //  fast      → configured cheap/free first, Bedrock as safety
-  let chain: Candidate[]
-  if (tier === 'reasoning') {
-    chain = [bedrock, ...openRouterFirst].filter(Boolean) as Candidate[]
-  } else {
-    chain = [...openRouterFirst, bedrock].filter(Boolean) as Candidate[]
-  }
-
-  // Dedupe by provider+model, keep first occurrence
-  const seen = new Set<string>()
-  chain = chain.filter(c => {
-    const k = `${c.provider}:${c.model}`
-    if (seen.has(k)) return false
-    seen.add(k)
-    return true
+  const bedrock = createAmazonBedrock({
+    region,
+    ...(accessKeyId ? { accessKeyId, secretAccessKey } : {}),
   })
+  return bedrock(modelId)
+}
 
-  if (chain.length === 0) throw new Error('No AI provider configured. Add a Bedrock or OpenRouter key in Settings.')
+function getOpenRouterModel(modelId: string) {
+  const openrouter = createOpenAI({
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: process.env.OPENROUTER_API_KEY || '',
+  })
+  return openrouter(modelId)
+}
+
+function getGroqModel(modelId: string) {
+  const groq = createOpenAI({
+    baseURL: 'https://api.groq.com/openai/v1',
+    apiKey: process.env.GROQ_API_KEY || '',
+  })
+  return groq(modelId)
+}
+
+function getOpenAIModel(modelId: string) {
+  const openai = createOpenAI({
+    apiKey: process.env.OPENAI_API_KEY || '',
+  })
+  return openai(modelId)
+}
+
+// Model fallback chains per tier
+function getModelChain(tier: Tier): Array<{ provider: string; model: string; instance: any }> {
+  const chain: Array<{ provider: string; model: string; instance: any }> = []
+
+  // 1. Bedrock (Primary if AWS credentials set)
+  const bedrockModelId = process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0'
+  if (process.env.AWS_BEARER_TOKEN_BEDROCK || process.env.AWS_ACCESS_KEY_ID) {
+    try { chain.push({ provider: 'bedrock', model: bedrockModelId, instance: getBedrockModel(bedrockModelId) }) } catch {}
+  }
+
+  // 2. OpenRouter
+  if (process.env.OPENROUTER_API_KEY) {
+    const model = tier === 'fast' ? 'meta-llama/llama-3.3-70b-instruct' : 'anthropic/claude-3.5-sonnet'
+    try { chain.push({ provider: 'openrouter', model, instance: getOpenRouterModel(model) }) } catch {}
+  }
+
+  // 3. Groq
+  if (process.env.GROQ_API_KEY) {
+    const model = tier === 'fast' ? 'llama-3.1-8b-instant' : 'llama-3.3-70b-versatile'
+    try { chain.push({ provider: 'groq', model, instance: getGroqModel(model) }) } catch {}
+  }
+
+  // 4. OpenAI
+  if (process.env.OPENAI_API_KEY) {
+    const model = tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o'
+    try { chain.push({ provider: 'openai', model, instance: getOpenAIModel(model) }) } catch {}
+  }
+
+  // Fallback default if no env keys are provided
+  if (chain.length === 0) {
+    const defaultModel = 'meta-llama/llama-3.3-70b-instruct'
+    chain.push({ provider: 'openrouter', model: defaultModel, instance: getOpenRouterModel(defaultModel) })
+  }
+
   return chain
 }
 
+// ── Run with Fallback Chain ──────────────────────────────────────────────────
+
 async function runChain<T>(
   tier: Tier,
-  attempt: (model: LanguageModel) => Promise<T>,
+  fn: (model: any) => Promise<T>,
 ): Promise<{ result: T; provider: string; model: string }> {
-  const chain = await chainFor(tier)
-  let lastErr: any
-  for (const c of chain) {
+  const chain = getModelChain(tier)
+  let lastError: any = null
+
+  for (const item of chain) {
     try {
-      const result = await attempt(makeModel(c))
-      if (c !== chain[0]) console.log(`[ai-router] ${tier}: fell back to ${c.provider}/${c.model}`)
-      return { result, provider: c.provider, model: c.model }
+      const result = await fn(item.instance)
+      return { result, provider: item.provider, model: item.model }
     } catch (e: any) {
-      lastErr = e
-      console.error(`[ai-router] ${tier}: ${c.provider}/${c.model} failed — ${e?.message}`)
+      console.warn(`[AI Router] Tier '${tier}' provider '${item.provider}' failed:`, e.message)
+      lastError = e
     }
   }
-  throw lastErr || new Error('All AI providers failed')
+
+  throw lastError || new Error(`All providers in tier '${tier}' failed`)
 }
 
-// Structured output with tiered fallback. Same options shape generateObject
-// used to take (opts.schema is a zod schema).
-//
-// ponytail: AI SDK v7's generateObject always requests response_format
-// json_schema whenever a schema is given, and most OpenAI-compatible
-// providers (Groq included) only support json_schema on a small model
-// whitelist — there's no SDK toggle to opt out anymore. Asking for JSON in
-// the prompt and validating with the schema ourselves works on every
-// provider, so this sidesteps the negotiation entirely instead of chasing
-// per-provider structured-output support.
+// Simple JSON Schema generator helper
+function toJSONSchema(schema: any): any {
+  if (schema._def?.typeName === 'ZodObject') {
+    const shape = schema._def.shape()
+    const properties: any = {}
+    const required: string[] = []
+
+    for (const [key, value] of Object.entries(shape)) {
+      properties[key] = toJSONSchema(value)
+      if ((value as any)._def?.typeName !== 'ZodOptional') {
+        required.push(key)
+      }
+    }
+
+    return { type: 'object', properties, required }
+  }
+
+  if (schema._def?.typeName === 'ZodString') return { type: 'string' }
+  if (schema._def?.typeName === 'ZodNumber') return { type: 'number' }
+  if (schema._def?.typeName === 'ZodBoolean') return { type: 'boolean' }
+  if (schema._def?.typeName === 'ZodArray') return { type: 'array', items: toJSONSchema(schema._def.type) }
+  if (schema._def?.typeName === 'ZodEnum') return { type: 'string', enum: schema._def.values }
+  if (schema._def?.typeName === 'ZodDiscriminatedUnion') return { type: 'object' }
+
+  return { type: 'string' }
+}
+
+// ── Public API ───────────────────────────────────────────────────────────────
+
 export async function routeObject<T>(
   tier: Tier,
   opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
@@ -161,17 +142,44 @@ export async function routeObject<T>(
       temperature: opts.temperature,
       maxOutputTokens: opts.maxOutputTokens,
     })
+
     const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
     const start = cleaned.indexOf('{')
     const end = cleaned.lastIndexOf('}')
-    if (start < 0 || end < start) throw new Error('Provider did not return the required JSON object')
-    const jsonText = cleaned.slice(start, end + 1)
-    return opts.schema.parse(JSON.parse(jsonText)) as T
+
+    if (start >= 0 && end > start) {
+      const jsonText = cleaned.slice(start, end + 1)
+      try {
+        const parsedJson = JSON.parse(jsonText)
+        const validated = opts.schema.safeParse(parsedJson)
+        if (validated.success) {
+          return validated.data as T
+        }
+        // Fallback for valid JSON objects that have a spoken string field
+        if (parsedJson && typeof parsedJson === 'object' && 'spoken' in parsedJson) {
+          return {
+            spoken: String(parsedJson.spoken),
+            action: parsedJson.action || { type: 'none' },
+          } as unknown as T
+        }
+      } catch {}
+    }
+
+    // Fallback: If LLM returned text instead of strict JSON, extract spoken text cleanly
+    if (cleaned) {
+      const spokenMatch = cleaned.match(/"spoken"\s*:\s*"([^"]+)"/)
+      const fallbackText = spokenMatch ? spokenMatch[1] : cleaned.replace(/[{}\[\]"]/g, ' ').trim()
+      return {
+        spoken: fallbackText || 'Understood, Founder.',
+        action: { type: 'none' },
+      } as unknown as T
+    }
+
+    throw new Error('Provider did not return a valid text response')
   })
   return { object: result, provider, model }
 }
 
-// generateText with tiered fallback.
 export async function routeText(
   tier: Tier,
   opts: { system: string; prompt: string; temperature?: number; maxOutputTokens?: number },

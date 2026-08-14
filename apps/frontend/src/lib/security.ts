@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { getServerSession } from "next-auth"
-import { authOptions } from "./auth"
-import { db } from "./db"
 import { filterSensitiveData } from "./sensitive-data"
 
 export { filterSensitiveData } from "./sensitive-data"
@@ -24,6 +21,8 @@ export const RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
   chat: { windowMs: 60000, maxRequests: 20 },
 }
 
+// ponytail: in-memory rate limits — single-container assumption, lost on restart. 
+// Use Redis + Upstash for multi-instance deployments.
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 export function checkRateLimit(ip: string, path: string): { allowed: boolean; retryAfter: number } {
@@ -156,17 +155,3 @@ setInterval(() => {
     }
   }
 }, 60000)
-
-export async function requireCapability(capabilityName: string): Promise<boolean> {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.organizationId) return false
-  
-  const capability = await db.capability.findFirst({
-    where: { 
-      organizationId: session.user.organizationId,
-      name: capabilityName
-    }
-  })
-  
-  return !!capability
-}

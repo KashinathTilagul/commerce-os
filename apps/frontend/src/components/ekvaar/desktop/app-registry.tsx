@@ -2,39 +2,47 @@
 
 import { useQuery } from '@tanstack/react-query'
 import {
-  LayoutDashboard, Inbox, Users, GitBranch, Terminal as TerminalIcon,
+  LayoutDashboard, Inbox, Users, Terminal as TerminalIcon,
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Music, Activity, Brain, Factory, Workflow as WorkflowIcon
+  AlertTriangle, Music, Activity, Brain, Rocket, Loader2, Workflow as WorkflowIcon
 } from 'lucide-react'
 
-import { CommandCenter } from '@/components/ekvaar/modules/command-center'
-import { FounderInbox } from '@/components/ekvaar/modules/founder-inbox'
-import { DigitalEmployeesHub } from '@/components/ekvaar/modules/digital-employees-hub'
-import { IssuesModule } from '@/components/ekvaar/modules/issues'
-import { TerminalModule } from '@/components/ekvaar/modules/terminal'
-import { Settings } from '@/components/ekvaar/modules/settings'
-import { Files } from '@/components/ekvaar/modules/files'
-import { Integrations } from '@/components/ekvaar/modules/integrations'
-import { Calculator } from '@/components/ekvaar/modules/calculator'
-import { Notes } from '@/components/ekvaar/modules/notes'
-import { CalendarApp } from '@/components/ekvaar/modules/calendar'
-import { SalesOrders } from '@/components/ekvaar/modules/sales-orders'
-import { FinanceModule } from '@/components/ekvaar/modules/finance'
-import { InventoryOps } from '@/components/ekvaar/modules/inventory-ops'
-import { CommunityModule } from '@/components/ekvaar/modules/community'
-import { CampaignsModule } from '@/components/ekvaar/modules/campaigns'
-import { BrandIntelligence } from '@/components/ekvaar/modules/brand-intelligence'
-import { AIInfrastructure } from '@/components/ekvaar/modules/ai-infrastructure'
-import { RiskCenter } from '@/components/ekvaar/modules/risk-center'
-import { SpotifyApp } from '@/components/ekvaar/modules/spotify'
-import { HealthMonitor } from '@/components/ekvaar/modules/health-monitor'
-import { WorkspaceExplorer } from '@/components/ekvaar/modules/workspace-explorer'
-import { MemoryExplorer } from '@/components/ekvaar/modules/memory-explorer'
-import { QikinkApp } from '@/components/ekvaar/modules/qikink'
-import { N8nWorkflowApp } from '@/components/ekvaar/modules/n8n-workflow'
+import dynamic from 'next/dynamic'
 import { OSManifest } from '@/lib/os-desktop/manifest'
+
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center h-full w-full bg-background text-muted-foreground gap-2 p-8">
+    <Loader2 className="h-5 w-5 animate-spin" />
+    <span className="text-xs">Loading module...</span>
+  </div>
+)
+
+const CommandCenter = dynamic(() => import('@/components/ekvaar/modules/command-center').then(m => m.CommandCenter), { loading: LoadingFallback })
+const Chat = dynamic(() => import('@/components/ekvaar/modules/chat').then(m => m.Chat), { loading: LoadingFallback })
+const DigitalEmployeesHub = dynamic(() => import('@/components/ekvaar/modules/digital-employees-hub').then(m => m.DigitalEmployeesHub), { loading: LoadingFallback })
+const TerminalModule = dynamic(() => import('@/components/ekvaar/modules/terminal').then(m => m.TerminalModule), { loading: LoadingFallback })
+const Settings = dynamic(() => import('@/components/ekvaar/modules/settings').then(m => m.Settings), { loading: LoadingFallback })
+const Files = dynamic(() => import('@/components/ekvaar/modules/files').then(m => m.Files), { loading: LoadingFallback })
+const Integrations = dynamic(() => import('@/components/ekvaar/modules/integrations').then(m => m.Integrations), { loading: LoadingFallback })
+const Calculator = dynamic(() => import('@/components/ekvaar/modules/calculator').then(m => m.Calculator), { loading: LoadingFallback })
+const Notes = dynamic(() => import('@/components/ekvaar/modules/notes').then(m => m.Notes), { loading: LoadingFallback })
+const CalendarApp = dynamic(() => import('@/components/ekvaar/modules/calendar').then(m => m.CalendarApp), { loading: LoadingFallback })
+const SalesOrders = dynamic(() => import('@/components/ekvaar/modules/sales-orders').then(m => m.SalesOrders), { loading: LoadingFallback })
+const FinanceModule = dynamic(() => import('@/components/ekvaar/modules/finance').then(m => m.FinanceModule), { loading: LoadingFallback })
+const InventoryOps = dynamic(() => import('@/components/ekvaar/modules/inventory-ops').then(m => m.InventoryOps), { loading: LoadingFallback })
+const CommunityModule = dynamic(() => import('@/components/ekvaar/modules/community').then(m => m.CommunityModule), { loading: LoadingFallback })
+const CampaignsModule = dynamic(() => import('@/components/ekvaar/modules/campaigns').then(m => m.CampaignsModule), { loading: LoadingFallback })
+const BrandIntelligence = dynamic(() => import('@/components/ekvaar/modules/brand-intelligence').then(m => m.BrandIntelligence), { loading: LoadingFallback })
+const AIInfrastructure = dynamic(() => import('@/components/ekvaar/modules/ai-infrastructure').then(m => m.AIInfrastructure), { loading: LoadingFallback })
+const RiskCenter = dynamic(() => import('@/components/ekvaar/modules/risk-center').then(m => m.RiskCenter), { loading: LoadingFallback })
+const SpotifyApp = dynamic(() => import('@/components/ekvaar/modules/spotify').then(m => m.SpotifyApp), { loading: LoadingFallback })
+const HealthMonitor = dynamic(() => import('@/components/ekvaar/modules/health-monitor').then(m => m.HealthMonitor), { loading: LoadingFallback })
+const WorkspaceExplorer = dynamic(() => import('@/components/ekvaar/modules/workspace-explorer').then(m => m.WorkspaceExplorer), { loading: LoadingFallback })
+const MemoryExplorer = dynamic(() => import('@/components/ekvaar/modules/memory-explorer').then(m => m.MemoryExplorer), { loading: LoadingFallback })
+const ProductLaunches = dynamic(() => import('@/components/ekvaar/modules/product-launches').then(m => m.ProductLaunches), { loading: LoadingFallback })
+const N8nWorkflowApp = dynamic(() => import('@/components/ekvaar/modules/n8n-workflow').then(m => m.N8nWorkflowApp), { loading: LoadingFallback })
 
 // To bridge legacy metadata that isn't in OSManifest yet
 export interface AppDef extends OSManifest {
@@ -109,21 +117,6 @@ export const APPS: AppDef[] = [
     menuItems: [{ label: 'File', items: ['Export Report', 'Close Window'] }]
   },
   {
-    id: 'inbox',
-    name: 'Founder Inbox',
-    shortName: 'Inbox',
-    version: '1.0.0',
-    icon: Inbox as any,
-    iconVariant: 'inbox',
-    category: 'core',
-    requiredCapabilities: [],
-    entryPoint: FounderInbox,
-    permissions: [],
-    gradient: 'linear-gradient(135deg, #C8302A 0%, #8B1E1A 100%)',
-    glyphColor: '#F5F1EA',
-    menuItems: [{ label: 'File', items: ['Export Inbox', 'Close Window'] }]
-  },
-  {
     id: 'agents',
     name: 'AI Workforce',
     shortName: 'Workforce',
@@ -135,21 +128,6 @@ export const APPS: AppDef[] = [
     entryPoint: DigitalEmployeesHub,
     permissions: [],
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #0A0A0A 100%)',
-    glyphColor: '#F5F1EA',
-    menuItems: [{ label: 'File', items: ['Close Window'] }]
-  },
-  {
-    id: 'issues',
-    name: 'Issues',
-    shortName: 'Issues',
-    version: '1.0.0',
-    icon: GitBranch as any,
-    iconVariant: 'issues',
-    category: 'core',
-    requiredCapabilities: [],
-    entryPoint: IssuesModule,
-    permissions: [],
-    gradient: 'linear-gradient(135deg, #2F4F3A 0%, #1F3A5F 100%)',
     glyphColor: '#F5F1EA',
     menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
@@ -212,6 +190,21 @@ export const APPS: AppDef[] = [
     gradient: 'linear-gradient(135deg, #5856D6 0%, #3634A3 100%)',
     glyphColor: '#F5F1EA',
     menuItems: [{ label: 'File', items: ['Close Window'] }]
+  },
+  {
+    id: 'product-launches',
+    name: 'Product Launches',
+    shortName: 'Launches',
+    version: '1.0.0',
+    icon: Rocket as any,
+    iconVariant: 'launches',
+    category: 'business',
+    requiredCapabilities: [],
+    entryPoint: ProductLaunches,
+    permissions: [],
+    gradient: 'linear-gradient(135deg, #1F3A5F 0%, #2F4F3A 55%, #C8302A 100%)',
+    glyphColor: '#F5F1EA',
+    menuItems: []
   },
   {
     id: 'n8n',
@@ -353,22 +346,6 @@ export const APPS: AppDef[] = [
     menuItems: []
   },
   {
-    id: 'qikink',
-    name: 'Qikink Operations',
-    shortName: 'Qikink',
-    version: '1.0.0',
-    icon: Factory as any,
-    iconVariant: 'qikink',
-    category: 'business',
-    requiredCapabilities: [],
-    organizationOnly: ['ekvaar'],
-    entryPoint: QikinkApp,
-    permissions: [],
-    gradient: 'linear-gradient(135deg, #111827 0%, #0F766E 55%, #F97316 100%)',
-    glyphColor: '#F5F1EA',
-    menuItems: []
-  },
-  {
     id: 'brand-intelligence',
     name: 'Brand Intelligence',
     shortName: 'Intelligence',
@@ -430,9 +407,10 @@ export const APPS: AppDef[] = [
   },
 ]
 
-export const APP_MAP: Record<string, AppDef> = Object.fromEntries(
-  APPS.map((app) => [app.id, app])
-)
+export const APP_MAP: Record<string, AppDef> = APPS.reduce((acc, app) => {
+  acc[app.id] = app
+  return acc
+}, {} as Record<string, AppDef>)
 
 // Hook for fetching dynamically available apps based on organization capabilities
 export function useAvailableApps() {
