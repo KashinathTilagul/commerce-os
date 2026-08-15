@@ -55,4 +55,4 @@ WORKDIR /app
 RUN mkdir -p /app/storage/pdf /app/storage/images /app/storage/videos /app/storage/audio /app/storage/templates \
     && chmod -R 777 /app/storage
 
-CMD ["sh", "-c", "cd /migration && node node_modules/prisma/build/index.js db push --accept-data-loss && cd /app && node server.js"]
+CMD ["sh", "-c", "cd /migration && node node_modules/prisma/build/index.js db execute --file prisma/migrations/20260815103000_tenant_system_settings/migration.sql && node node_modules/prisma/build/index.js db push --accept-data-loss && cd /app && node server.js"]
