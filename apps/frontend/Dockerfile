@@ -7,7 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json ./
-RUN npm install --legacy-peer-deps
+# Keep npm's download cache out of the committed layer. On the small
+# production runner the cache plus node_modules used to make BuildKit require
+# more than twice the actual dependency footprint while applying this layer.
+RUN npm_config_cache=/tmp/npm-cache npm install --legacy-peer-deps --no-audit --no-fund \
+    && rm -rf /tmp/npm-cache /root/.npm
 COPY . .
 # Dummy URL for prisma generate only — runtime uses the real DATABASE_URL from docker-compose
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"

@@ -213,11 +213,19 @@ jobs:
           /usr/bin/sudo journalctl --vacuum-size=100M || true
           echo "[i] Disk after cleanup:"; df -h / || true
 
-          /usr/bin/sudo docker compose --progress=plain build 2>&1 || {
-            echo "[!] Docker build failed once; reclaiming unused Docker data and retrying..."
-            /usr/bin/sudo docker system prune -af || true
-            echo "[i] Disk before retry:"; df -h / || true
-            /usr/bin/sudo docker compose --progress=plain build 2>&1
+          # The frontend is the largest local image. Build it while free space
+          # is at its maximum, then discard its BuildKit cache before building
+          # the smaller sidecars. Building every service in one invocation left
+          # their caches resident and starved the frontend dependency layer.
+          /usr/bin/sudo docker compose --progress=plain build frontend
+          /usr/bin/sudo docker builder prune -af || true
+          echo "[i] Disk after frontend build:"; df -h / || true
+
+          /usr/bin/sudo docker compose --progress=plain build upskill google-workspace fastapi 2>&1 || {
+            echo "[!] Sidecar build failed once; reclaiming unused build cache and retrying..."
+            /usr/bin/sudo docker builder prune -af || true
+            echo "[i] Disk before sidecar retry:"; df -h / || true
+            /usr/bin/sudo docker compose --progress=plain build upskill google-workspace fastapi 2>&1
           }
 
           # BuildKit cache is no longer needed once images are materialized.
