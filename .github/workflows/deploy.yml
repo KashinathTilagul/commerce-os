@@ -217,9 +217,14 @@ jobs:
           # Its intermediate layers cannot be reclaimed by `docker builder
           # prune`, which left several GB behind between service builds.
           if ! /usr/bin/sudo docker buildx version >/dev/null 2>&1; then
-            /usr/bin/sudo apt-get update
-            /usr/bin/sudo apt-get install -y --no-install-recommends docker-buildx-plugin
-            /usr/bin/sudo apt-get clean
+            BUILDX_VERSION=v0.36.1
+            BUILDX_SHA256=48af8a397ebd60178778bf63611dbcebe5f5e7a9be90eb9147b24b9587455778
+            curl -fsSL "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-amd64" \
+              -o /tmp/docker-buildx
+            printf '%s  %s\n' "$BUILDX_SHA256" /tmp/docker-buildx | sha256sum -c -
+            /usr/bin/sudo mkdir -p /usr/local/lib/docker/cli-plugins
+            /usr/bin/sudo install -m 0755 /tmp/docker-buildx /usr/local/lib/docker/cli-plugins/docker-buildx
+            rm -f /tmp/docker-buildx
           fi
           /usr/bin/sudo docker buildx version
 
