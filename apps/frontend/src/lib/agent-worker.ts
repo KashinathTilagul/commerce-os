@@ -64,7 +64,9 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
   }
 
   const runStartedAt = new Date()
-  const campaignRun = issue.campaignItem ? await db.agentRun.create({
+  // Record every run (not just campaign work) so the Runs tab / audit trail
+  // covers normal issue work too; campaignItemId stays null outside campaigns.
+  const agentRun = await db.agentRun.create({
     data: {
       organizationId,
       agentId,
@@ -73,9 +75,9 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
       status: 'RUNNING',
       startedAt: runStartedAt,
       issueId: issue.id,
-      campaignItemId: issue.campaignItem.id,
+      campaignItemId: issue.campaignItem?.id ?? null,
     },
-  }) : null
+  })
 
   if (issue.campaignItem) {
     await db.campaignLaunchItem.update({
@@ -186,16 +188,16 @@ Now produce YOUR deliverable:`
       const r = await routeText('reasoning', organizationId, { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
       deliverable = r.text.trim()
     } catch (e: any) {
-      if (campaignRun) await db.agentRun.update({
-        where: { id: campaignRun.id },
+      await db.agentRun.update({
+        where: { id: agentRun.id },
         data: { status: 'FAILED', error: e?.message || String(e), completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
       })
       return { ok: false, message: `Agent core error: ${e?.message || e}` }
     }
   }
   if (deliverable.length < 40 && !exactReply) {
-    if (campaignRun) await db.agentRun.update({
-      where: { id: campaignRun.id },
+    await db.agentRun.update({
+      where: { id: agentRun.id },
       data: { status: 'FAILED', error: 'Empty deliverable', completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
     })
     return { ok: false, message: `${agent.name} returned an empty deliverable — try again` }
@@ -321,6 +323,12 @@ Now produce YOUR deliverable:`
         prompt: `Ticket: ${issue.title}\n\nDeliverable you produced:\n${deliverable.slice(0, 3000)}\n\nDecide the status based on milestones.`,
         temperature: 0,
       })
+      // ponytail: routeObject silently returns a chat-shaped { spoken, action }
+      // fallback when the reply isn't schema-valid JSON, so `newStatus` arrives
+      // undefined and events render "→ undefined". Guard here; the catch below
+      // supplies the same sane default. Upgrade path: make routeObject strict
+      // for non-chat schemas.
+      if (!object?.newStatus) throw new Error('Status decision missing newStatus')
       work = object
     } catch {
       work = { progressNote: `Drafted the deliverable for ${issue.code}.`, newStatus: 'IN_REVIEW' }
@@ -394,7 +402,10 @@ Now produce YOUR deliverable:`
       currentTask: remaining > 0 ? agent.currentTask : null,
       tasksToday: done ? { increment: 1 } : undefined,
       tasksTotal: done ? { increment: 1 } : undefined,
-      tokenSpend: { increment: 120 },
+      // ponytail: routeText/routeObject don't surface token usage (the AI SDK's
+      // `usage` is dropped and the OmniRoute path doesn't parse it), so we don't
+      // track tokenSpend instead of faking a number. Ceiling: spend reporting is
+      // absent. Upgrade path: return usage from runChain and increment here.
     },
   })
 
@@ -407,11 +418,11 @@ Now produce YOUR deliverable:`
     },
   })
 
-  if (campaignRun) await db.agentRun.update({
-    where: { id: campaignRun.id },
+  await db.agentRun.update({
+    where: { id: agentRun.id },
     data: {
       status: work.newStatus === 'BLOCKED' ? 'FAILED' : 'COMPLETED',
-      error: work.newStatus === 'BLOCKED' ? work.blockedReason || 'Campaign item blocked' : null,
+      error: work.newStatus === 'BLOCKED' ? work.blockedReason || 'Work blocked' : null,
       outputSummary: deliverable.slice(0, 1000),
       completedAt: new Date(),
       durationMs: Date.now() - runStartedAt.getTime(),
@@ -579,7 +590,10 @@ export async function runAllBusyAgents(limit = 25): Promise<number> {
     try {
       const r = await runAgentWork(a.organizationId, a.id)
       if (r.ok && r.issueCode) worked++
-    } catch { /* keep going */ }
+    } catch (e: any) {
+      // keep going, but don't hide the failure
+      console.error(`[AgentWorker] runAgentWork failed for agent ${a.id}:`, e?.message || e)
+    }
   }
   return worked
 }

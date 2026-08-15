@@ -360,7 +360,18 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         })
         // Kick the agent to start working immediately (best-effort; long-lived
         // Node server keeps this running after the response is sent).
-        void import('@/lib/agent-worker').then(m => m.runAgentWork(organizationId, agent.id)).catch(() => {})
+        void import('@/lib/agent-worker').then(m => m.runAgentWork(organizationId, agent.id)).catch(async (err: any) => {
+          const reason = err?.message || String(err)
+          console.error(`[Jarvis] runAgentWork failed for ${agent.name} on ${code}:`, reason)
+          await db.event.create({
+            data: {
+              organizationId, type: 'AGENT_WORK', actorName: 'Krishna',
+              summary: `${agent.name} failed to start ${code}: ${reason}`,
+              payload: JSON.stringify({ code, agentCode: agent.code, error: String(reason) }),
+              severity: 'ERROR',
+            },
+          }).catch((e: any) => console.error('[Jarvis] could not record agent failure event:', e?.message || e))
+        })
         return { success: true, message: `${code} assigned to ${agent.name}`, agentName: agent.name, code }
       }
 
