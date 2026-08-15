@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle } from 'lucide-react'
+import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle, UserRound } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -37,6 +37,9 @@ export function Settings() {
   const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [orgNameValue, setOrgNameValue] = useState('')
   const [providerDraft, setProviderDraft] = useState<Record<string, string>>({})
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const orgNameTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
@@ -64,6 +67,36 @@ export function Settings() {
       return r.json()
     },
     refetchInterval: 30_000,
+  })
+  const { data: accountLogin } = useQuery<{ username: string; hasPassword: boolean }>({
+    queryKey: ['account-login'],
+    queryFn: async () => {
+      const r = await fetch('/api/account/password')
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(data.error || 'Failed to load login settings')
+      return data
+    },
+  })
+  const passwordMutation = useMutation({
+    mutationFn: async () => {
+      if (newPassword !== confirmPassword) throw new Error('New passwords do not match')
+      const r = await fetch('/api/account/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      const data = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(data.error || 'Failed to save password')
+      return data
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['account-login'], data)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      toast.success(accountLogin?.hasPassword ? 'Password changed' : 'Password login enabled')
+    },
+    onError: (error: Error) => toast.error('Could not save password', error.message),
   })
 
   // Sync server voice + prompt to local state (one-time on load)
@@ -176,6 +209,46 @@ export function Settings() {
       />
 
       <div className="px-6 lg:px-10 py-8 space-y-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <UserRound className="h-4 w-4" /> Login & Security
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Keep Google sign-in and add password login for the same account.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-1.5">
+              <label htmlFor="account-username" className="text-xs font-medium">Username</label>
+              <Input id="account-username" value={accountLogin?.username || ''} readOnly disabled className="max-w-md" />
+              <p className="text-[11px] text-muted-foreground">Your verified email is your username and cannot be changed here.</p>
+            </div>
+            {accountLogin?.hasPassword && (
+              <div className="grid gap-1.5 max-w-md">
+                <label htmlFor="current-password" className="text-xs font-medium">Current password</label>
+                <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
+              </div>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
+              <div className="grid gap-1.5">
+                <label htmlFor="new-password" className="text-xs font-medium">{accountLogin?.hasPassword ? 'New password' : 'Create password'}</label>
+                <Input id="new-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 8 characters" />
+              </div>
+              <div className="grid gap-1.5">
+                <label htmlFor="confirm-password" className="text-xs font-medium">Confirm password</label>
+                <Input id="confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+              </div>
+            </div>
+            <Button
+              onClick={() => passwordMutation.mutate()}
+              disabled={passwordMutation.isPending || newPassword.length < 8 || newPassword !== confirmPassword || Boolean(accountLogin?.hasPassword && !currentPassword)}
+              className="gap-2"
+            >
+              {passwordMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {accountLogin?.hasPassword ? 'Change password' : 'Enable password login'}
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Organization */}
         <Card>
           <CardHeader className="pb-3">
