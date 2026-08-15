@@ -206,10 +206,6 @@ jobs:
           curl -fsS https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt \
             -o db/supabase-ca.crt
 
-          if /usr/bin/sudo docker image inspect ekvaar-frontend >/dev/null 2>&1; then
-            /usr/bin/sudo docker compose up -d --no-build --force-recreate frontend nginx || true
-          fi
-
           echo "[i] Disk before cleanup:"; df -h / || true
 
           /usr/bin/sudo docker system prune -af || true
@@ -223,6 +219,18 @@ jobs:
             echo "[i] Disk before retry:"; df -h / || true
             /usr/bin/sudo docker compose --progress=plain build 2>&1
           }
+
+          # BuildKit cache is no longer needed once images are materialized.
+          # Reclaim it before pulling the external service images so the small
+          # self-hosted runner does not hit its disk ceiling during extraction.
+          /usr/bin/sudo docker builder prune -af || true
+          echo "[i] Disk before service startup:"; df -h / || true
+          AVAILABLE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
+          if [ "${AVAILABLE_KB:-0}" -lt 3145728 ]; then
+            echo "[x] Less than 3GB free after build; refusing a partial production restart."
+            /usr/bin/sudo docker system df || true
+            exit 1
+          fi
 
           /usr/bin/sudo docker compose up -d
 
