@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import { hashCampaignEvidence } from '@/lib/campaign-evidence'
 import { getMarketingApprovalReadiness } from '@/lib/marketing-approval'
+import { logGovernanceAction, AuditAction } from '@/lib/audit-logger'
 
 const ResolutionSchema = z.object({
   status: z.enum(['APPROVED', 'REJECTED', 'REVISION_REQUESTED']),
@@ -84,14 +85,29 @@ export async function PATCH(
       return result
     })
 
-    await db.event.create({
-      data: {
-        organizationId: auth.organizationId,
-        type: `APPROVAL_${status}`,
-        actorName: 'Founder',
-        summary: `Founder ${status.toLowerCase()} approval ${approval.code}: ${approval.title}`,
-        payload: JSON.stringify({ approvalCode: approval.code, resolution: status, launchId: approval.launchId, revisionId: approval.revisionId }),
+    // Enhanced audit logging
+    const auditAction = status === 'APPROVED' ? AuditAction.APPROVAL_GRANTED : 
+                       status === 'REJECTED' ? AuditAction.APPROVAL_DENIED : 
+                       AuditAction.APPROVAL_CANCELLED
+
+    await logGovernanceAction({
+      organizationId: auth.organizationId,
+      action: auditAction,
+      actorId: auth.user.id,
+      actorName: auth.user.name || 'Founder',
+      actorRole: auth.user.role,
+      approvalId: approval.id,
+      campaignId: approval.campaignLaunch?.id,
+      details: {
+        approvalCode: approval.code,
+        title: approval.title,
+        resolution: status,
+        note: note,
+        launchId: approval.launchId,
+        revisionId: approval.revisionId,
+        requester: approval.requester?.name,
       },
+      request: req,
     })
 
     if (status === 'APPROVED' && approval.campaignRevision) {
