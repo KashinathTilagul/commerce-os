@@ -213,6 +213,16 @@ jobs:
           /usr/bin/sudo journalctl --vacuum-size=100M || true
           echo "[i] Disk after cleanup:"; df -h / || true
 
+          # Compose silently fell back to Docker's legacy builder on the host.
+          # Its intermediate layers cannot be reclaimed by `docker builder
+          # prune`, which left several GB behind between service builds.
+          if ! /usr/bin/sudo docker buildx version >/dev/null 2>&1; then
+            /usr/bin/sudo apt-get update
+            /usr/bin/sudo apt-get install -y --no-install-recommends docker-buildx-plugin
+            /usr/bin/sudo apt-get clean
+          fi
+          /usr/bin/sudo docker buildx version
+
           # The frontend is the largest local image. Build it while free space
           # is at its maximum, then discard its BuildKit cache before building
           # the smaller sidecars. Building every service in one invocation left
@@ -221,11 +231,11 @@ jobs:
           /usr/bin/sudo docker builder prune -af || true
           echo "[i] Disk after frontend build:"; df -h / || true
 
-          /usr/bin/sudo docker compose --progress=plain build upskill google-workspace fastapi 2>&1 || {
+          /usr/bin/sudo docker compose --progress=plain build upskill google-workspace 2>&1 || {
             echo "[!] Sidecar build failed once; reclaiming unused build cache and retrying..."
             /usr/bin/sudo docker builder prune -af || true
             echo "[i] Disk before sidecar retry:"; df -h / || true
-            /usr/bin/sudo docker compose --progress=plain build upskill google-workspace fastapi 2>&1
+            /usr/bin/sudo docker compose --progress=plain build upskill google-workspace 2>&1
           }
 
           # BuildKit cache is no longer needed once images are materialized.
