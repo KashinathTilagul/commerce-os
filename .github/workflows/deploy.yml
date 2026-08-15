@@ -19,14 +19,15 @@ jobs:
         env:
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          AWS_BEARER_TOKEN_BEDROCK: ${{ secrets.AWS_BEARER_TOKEN_BEDROCK }}
+          ARTIFACT_SIGNING_SECRET: ${{ secrets.ARTIFACT_SIGNING_SECRET }}
+          N8N_ENCRYPTION_KEY: ${{ secrets.N8N_ENCRYPTION_KEY }}
+          OPEN_DESIGN_API_TOKEN: ${{ secrets.OPEN_DESIGN_API_TOKEN }}
+          COGNEE_LLM_API_KEY: ${{ secrets.COGNEE_LLM_API_KEY }}
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
           SPOTIFY_REDIRECT_URI: ${{ secrets.SPOTIFY_REDIRECT_URI }}
@@ -38,7 +39,12 @@ jobs:
           BROWSER_USE_API_KEY: ${{ secrets.BROWSER_USE_API_KEY }}
           BROWSER_USE_MODEL: ${{ secrets.BROWSER_USE_MODEL }}
           OPENAI_BROWSER_MODEL: ${{ secrets.OPENAI_BROWSER_MODEL }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          META_CLIENT_ID: ${{ secrets.META_CLIENT_ID }}
+          META_CLIENT_SECRET: ${{ secrets.META_CLIENT_SECRET }}
+          THREADS_CLIENT_ID: ${{ secrets.THREADS_CLIENT_ID }}
+          THREADS_CLIENT_SECRET: ${{ secrets.THREADS_CLIENT_SECRET }}
+          LINKEDIN_CLIENT_ID: ${{ secrets.LINKEDIN_CLIENT_ID }}
+          LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
           N8N_EKVAAR_WEBHOOK_URL: ${{ secrets.N8N_EKVAAR_WEBHOOK_URL }}
           N8N_EKVAAR_WEBHOOK_SECRET: ${{ secrets.N8N_EKVAAR_WEBHOOK_SECRET }}
           N8N_EKVAAR_WORKFLOW_ID: ${{ secrets.N8N_EKVAAR_WORKFLOW_ID }}
@@ -68,12 +74,28 @@ jobs:
             [ -f .env ] && grep -m1 "^$1=" .env | cut -d= -f2- || true
           }
 
-          QIKINK_MODE="${QIKINK_MODE:-$(existing_env QIKINK_MODE)}"
+          persisted_or_generated() {
+            local name="$1"
+            local supplied="${!name:-}"
+            local persisted
+            persisted="$(existing_env "$name")"
+            if [ -n "$supplied" ]; then
+              printf '%s' "$supplied"
+            elif [ -n "$persisted" ]; then
+              printf '%s' "$persisted"
+            else
+              openssl rand -hex 32
+            fi
+          }
+
           DATABASE_URL="${DATABASE_URL:-$(existing_env DATABASE_URL)}"
+          DIRECT_URL="${DIRECT_URL:-$(existing_env DIRECT_URL)}"
           if [ -z "$DATABASE_URL" ] || [[ "$DATABASE_URL" != postgresql://* ]]; then
             echo "[x] DATABASE_URL must be set to the Supabase PostgreSQL connection string."
             exit 1
           fi
+
+          # Normalize legacy direct URLs to the IPv4 Supabase session pooler.
           if [[ "$DATABASE_URL" == postgresql://postgres:*@db.guxaxhofeglqkmrhahsw.supabase.co:5432/* ]]; then
             DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:${DATABASE_URL#postgresql://postgres:}"
             DATABASE_URL="${DATABASE_URL/@db.guxaxhofeglqkmrhahsw.supabase.co:5432/@aws-0-ap-south-1.pooler.supabase.com:5432}"
@@ -81,6 +103,40 @@ jobs:
           if [[ "$DATABASE_URL" == postgresql://postgres:*@aws-0-ap-south-1.pooler.supabase.com:5432/* ]]; then
             DATABASE_URL="postgresql://postgres.guxaxhofeglqkmrhahsw:${DATABASE_URL#postgresql://postgres:}"
           fi
+
+          # Prisma CLI uses the session pooler; application traffic uses the
+          # transaction pooler with prepared statements disabled.
+          if [ -z "$DIRECT_URL" ]; then
+            DIRECT_URL="$DATABASE_URL"
+            DIRECT_URL="${DIRECT_URL/:6543\//:5432/}"
+            DIRECT_URL="${DIRECT_URL%%\?*}"
+          fi
+          if [[ "$DATABASE_URL" == *"pooler.supabase.com:5432/"* ]]; then
+            DATABASE_URL="${DATABASE_URL/:5432\//:6543/}"
+          fi
+          if [[ "$DATABASE_URL" == *":6543/"* ]] && [[ "$DATABASE_URL" != *"pgbouncer=true"* ]]; then
+            if [[ "$DATABASE_URL" == *"?"* ]]; then
+              DATABASE_URL="${DATABASE_URL}&pgbouncer=true&connection_limit=5"
+            else
+              DATABASE_URL="${DATABASE_URL}?pgbouncer=true&connection_limit=5"
+            fi
+          fi
+
+          NEXTAUTH_SECRET="$(persisted_or_generated NEXTAUTH_SECRET)"
+          JWT_SECRET="$(persisted_or_generated JWT_SECRET)"
+          CRON_SECRET="$(persisted_or_generated CRON_SECRET)"
+          ARTIFACT_SIGNING_SECRET="$(persisted_or_generated ARTIFACT_SIGNING_SECRET)"
+          N8N_ENCRYPTION_KEY="$(persisted_or_generated N8N_ENCRYPTION_KEY)"
+          N8N_EKVAAR_WEBHOOK_SECRET="$(persisted_or_generated N8N_EKVAAR_WEBHOOK_SECRET)"
+          OPEN_DESIGN_API_TOKEN="$(persisted_or_generated OPEN_DESIGN_API_TOKEN)"
+          COGNEE_LLM_API_KEY="$(persisted_or_generated COGNEE_LLM_API_KEY)"
+
+          GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-$(existing_env GOOGLE_CLIENT_ID)}"
+          GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-$(existing_env GOOGLE_CLIENT_SECRET)}"
+          SPOTIFY_CLIENT_ID="${SPOTIFY_CLIENT_ID:-$(existing_env SPOTIFY_CLIENT_ID)}"
+          SPOTIFY_CLIENT_SECRET="${SPOTIFY_CLIENT_SECRET:-$(existing_env SPOTIFY_CLIENT_SECRET)}"
+          SPOTIFY_REDIRECT_URI="${SPOTIFY_REDIRECT_URI:-$(existing_env SPOTIFY_REDIRECT_URI)}"
+          QIKINK_MODE="${QIKINK_MODE:-$(existing_env QIKINK_MODE)}"
           QIKINK_CLIENT_ID="${QIKINK_CLIENT_ID:-$(existing_env QIKINK_CLIENT_ID)}"
           QIKINK_CLIENT_SECRET="${QIKINK_CLIENT_SECRET:-$(existing_env QIKINK_CLIENT_SECRET)}"
           BROWSER_WORKER_KEY="${BROWSER_WORKER_KEY:-$(existing_env BROWSER_WORKER_KEY)}"
@@ -88,23 +144,38 @@ jobs:
           BROWSER_USE_API_KEY="${BROWSER_USE_API_KEY:-$(existing_env BROWSER_USE_API_KEY)}"
           BROWSER_USE_MODEL="${BROWSER_USE_MODEL:-$(existing_env BROWSER_USE_MODEL)}"
           OPENAI_BROWSER_MODEL="${OPENAI_BROWSER_MODEL:-$(existing_env OPENAI_BROWSER_MODEL)}"
-          OPENAI_API_KEY="${OPENAI_API_KEY:-$(existing_env OPENAI_API_KEY)}"
+          META_CLIENT_ID="${META_CLIENT_ID:-$(existing_env META_CLIENT_ID)}"
+          META_CLIENT_SECRET="${META_CLIENT_SECRET:-$(existing_env META_CLIENT_SECRET)}"
+          THREADS_CLIENT_ID="${THREADS_CLIENT_ID:-$(existing_env THREADS_CLIENT_ID)}"
+          THREADS_CLIENT_SECRET="${THREADS_CLIENT_SECRET:-$(existing_env THREADS_CLIENT_SECRET)}"
+          LINKEDIN_CLIENT_ID="${LINKEDIN_CLIENT_ID:-$(existing_env LINKEDIN_CLIENT_ID)}"
+          LINKEDIN_CLIENT_SECRET="${LINKEDIN_CLIENT_SECRET:-$(existing_env LINKEDIN_CLIENT_SECRET)}"
+          N8N_EKVAAR_WEBHOOK_URL="${N8N_EKVAAR_WEBHOOK_URL:-$(existing_env N8N_EKVAAR_WEBHOOK_URL)}"
+          N8N_EKVAAR_WORKFLOW_ID="${N8N_EKVAAR_WORKFLOW_ID:-$(existing_env N8N_EKVAAR_WORKFLOW_ID)}"
+          N8N_EKVAAR_EDITOR_URL="${N8N_EKVAAR_EDITOR_URL:-$(existing_env N8N_EKVAAR_EDITOR_URL)}"
 
           printf '%s\n' \
             "DATABASE_URL=${DATABASE_URL}" \
+            "DIRECT_URL=${DIRECT_URL}" \
             "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
             "NEXTAUTH_URL=https://os.ekvaar.com" \
+            "NEXT_PUBLIC_APP_URL=https://os.ekvaar.com" \
+            "ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET}" \
             "CAMPAIGN_LAUNCHES_ENABLED=true" \
             "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
             "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
-            "COMPOSIO_API_KEY=${COMPOSIO_API_KEY}" \
-            "OPENROUTER_API_KEY=${OPENROUTER_API_KEY}" \
-            "GROQ_API_KEY=${GROQ_API_KEY}" \
             "JWT_SECRET=${JWT_SECRET}" \
             "CRON_SECRET=${CRON_SECRET}" \
-            "AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}" \
             "AWS_REGION=us-east-1" \
             "BEDROCK_MODEL_ID=amazon.nova-pro-v1:0" \
+            "META_CLIENT_ID=${META_CLIENT_ID}" \
+            "META_CLIENT_SECRET=${META_CLIENT_SECRET}" \
+            "META_GRAPH_VERSION=v25.0" \
+            "THREADS_CLIENT_ID=${THREADS_CLIENT_ID}" \
+            "THREADS_CLIENT_SECRET=${THREADS_CLIENT_SECRET}" \
+            "LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID}" \
+            "LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET}" \
+            "LINKEDIN_API_VERSION=202606" \
             "SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}" \
             "SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}" \
             "SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}" \
@@ -116,13 +187,21 @@ jobs:
             "BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY}" \
             "BROWSER_USE_MODEL=${BROWSER_USE_MODEL}" \
             "OPENAI_BROWSER_MODEL=${OPENAI_BROWSER_MODEL}" \
-            "OPENAI_API_KEY=${OPENAI_API_KEY}" \
-            "N8N_EKVAAR_WEBHOOK_URL=${N8N_EKVAAR_WEBHOOK_URL}" \
+            "N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}" \
+            "N8N_HOST=os.ekvaar.com" \
+            "N8N_EDITOR_BASE_URL=https://os.ekvaar.com/automation/" \
+            "N8N_WEBHOOK_URL=https://os.ekvaar.com/automation/" \
+            "N8N_EKVAAR_WEBHOOK_URL=${N8N_EKVAAR_WEBHOOK_URL:-http://n8n:5678/automation/webhook/ekvaar-marketing}" \
             "N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET}" \
             "N8N_EKVAAR_WORKFLOW_ID=${N8N_EKVAAR_WORKFLOW_ID}" \
-            "N8N_EKVAAR_EDITOR_URL=${N8N_EKVAAR_EDITOR_URL}" \
+            "N8N_EKVAAR_EDITOR_URL=${N8N_EKVAAR_EDITOR_URL:-/automation/}" \
+            "OPEN_DESIGN_API_TOKEN=${OPEN_DESIGN_API_TOKEN}" \
+            "OPEN_DESIGN_ALLOWED_ORIGINS=https://os.ekvaar.com" \
+            "COGNEE_LLM_API_KEY=${COGNEE_LLM_API_KEY}" \
+            "COGNEE_LLM_MODEL=openai/auto" \
             "BROWSER_HEADLESS=true" \
             > .env
+          chmod 600 .env
 
           curl -fsS https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt \
             -o db/supabase-ca.crt
@@ -138,11 +217,11 @@ jobs:
           /usr/bin/sudo journalctl --vacuum-size=100M || true
           echo "[i] Disk after cleanup:"; df -h / || true
 
-          /usr/bin/sudo docker compose build --progress=plain 2>&1 || {
+          /usr/bin/sudo docker compose --progress=plain build 2>&1 || {
             echo "[!] Docker build failed once; reclaiming unused Docker data and retrying..."
             /usr/bin/sudo docker system prune -af || true
             echo "[i] Disk before retry:"; df -h / || true
-            /usr/bin/sudo docker compose build --progress=plain 2>&1
+            /usr/bin/sudo docker compose --progress=plain build 2>&1
           }
 
           /usr/bin/sudo docker compose up -d
