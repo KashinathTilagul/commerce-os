@@ -142,11 +142,13 @@ export async function generateVideo(options: VideoGenerationOptions): Promise<{ 
       data: {
         id: artifactId,
         organizationId: options.organizationId,
-        title,
+        title: `${title} (storyboard fallback)`,
         type: 'VIDEO',
         mimeType: 'text/html',
         storageLocation: metadata.path,
-        status: 'READY',
+        // Not a rendered video — don't claim READY. FAILED marks the real
+        // video generation failure; the HTML storyboard stays available.
+        status: 'FAILED',
         generatedBy: options.generatedBy,
         contentHash: createHash('sha256').update(buffer).digest('hex'),
         byteSize: buffer.length,

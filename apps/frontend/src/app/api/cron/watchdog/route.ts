@@ -27,6 +27,12 @@ export async function POST(req: NextRequest) {
     if (alreadyFlagged) continue
 
     const hoursStuck = Math.round((Date.now() - order.updatedAt.getTime()) / 3600000)
+    // Assign to an OPERATIONS agent so runAgentWork actually picks it up
+    // (it only selects issues where assigneeId matches the agent).
+    const opsAgent = await db.agent.findFirst({
+      where: { organizationId: order.organizationId, isHuman: false, department: 'OPERATIONS' },
+      select: { id: true },
+    })
     await db.issue.create({
       data: {
         organizationId: order.organizationId,
@@ -36,6 +42,7 @@ export async function POST(req: NextRequest) {
         priority: hoursStuck > 72 ? 'P0' : 'P1',
         type: 'TASK',
         department: 'OPERATIONS',
+        assigneeId: opsAgent?.id,
         status: 'BACKLOG',
       },
     })

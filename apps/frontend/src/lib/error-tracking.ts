@@ -331,19 +331,3 @@ export function captureWorkflowError(error: Error | unknown, workflowId: string,
     },
   })
 }
-
-// React Error Boundary wrapper (optional)
-export function withErrorTracking<P extends object>(
-  Component: React.ComponentType<P>,
-  fallback?: React.ReactNode,
-  context?: ErrorContext
-): React.ComponentType<P> {
-  return function ErrorTrackedComponent(props: P) {
-    try {
-      return <Component {...props} />
-    } catch (error) {
-      errorTracker.captureException(error, context)
-      return fallback ? <>{fallback}</> : null
-    }
-  }
-}

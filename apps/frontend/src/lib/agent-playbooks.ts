@@ -181,8 +181,8 @@ export async function runPlaybookSweep(): Promise<number> {
       })
 
       if (!recentRun) {
-        await executePlaybook(org.id, playbook.key)
-        executedCount++
+        const result = await executePlaybook(org.id, playbook.key)
+        if (result.ok) executedCount++
       }
     }
   }

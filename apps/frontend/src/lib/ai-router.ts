@@ -63,7 +63,11 @@ async function configuredTargets(organizationId: string): Promise<ModelTarget[]>
       { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
       { provider: settings.fallback1Provider, model: settings.fallback1Model, apiKey: decryptSecret(settings.fallback1ApiKey), baseUrl: settings.fallback1BaseUrl },
       { provider: settings.fallback2Provider, model: settings.fallback2Model, apiKey: decryptSecret(settings.fallback2ApiKey), baseUrl: settings.fallback2BaseUrl },
-    ].filter((target) => target.provider && target.model && target.apiKey)
+    ]
+      // OmniRoute accepts an empty model (defaults to 'auto'), so a configured
+      // key alone should still make the target usable.
+      .filter((target) => target.provider && target.apiKey && (target.model || target.provider.toLowerCase() === 'omniroute'))
+      .map((target) => (target.provider.toLowerCase() === 'omniroute' && !target.model ? { ...target, model: 'auto' } : target))
   } catch (error: any) {
     console.warn('[AI Router] Could not load saved routing settings:', error?.message || error)
     return []
@@ -107,7 +111,7 @@ async function runChain<T>(
 
 async function generateOmniRouteText(organizationId: string, model: string, opts: { system: string; prompt: string; temperature?: number; maxOutputTokens?: number }) {
   const settings = await db.systemSetting.findUnique({ where: { organizationId } }).catch(() => null)
-  const baseUrl = (settings?.primaryProvider === 'omniroute' ? settings.primaryBaseUrl : process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1').replace(/\/$/, '')
+  const baseUrl = ((settings?.primaryProvider === 'omniroute' && settings.primaryBaseUrl) || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1').replace(/\/$/, '')
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${settings?.primaryProvider === 'omniroute' ? decryptSecret(settings.primaryApiKey) : ''}`, 'Content-Type': 'application/json' },
