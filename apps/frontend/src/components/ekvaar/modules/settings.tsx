@@ -690,7 +690,7 @@ function ProviderSlot({
     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium">{title}</span>
-        <Select value={provider || ''} onValueChange={(v) => onChange('Provider', v)}>
+        <Select value={provider || ''} onValueChange={(v) => { onChange('Provider', v); onChange('BaseUrl', '') }}>
           <SelectTrigger className="h-7 w-44 text-xs"><SelectValue placeholder="Choose provider" /></SelectTrigger>
           <SelectContent>
             {PROVIDER_OPTIONS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
@@ -716,13 +716,13 @@ function ProviderSlot({
           className="h-8 text-xs font-mono"
         />
       </div>
-      {provider === 'openai' && (
+      {(provider === 'openai' || provider === 'omniroute') && (
         <div className="space-y-1">
           <label className="text-[11px] text-muted-foreground">Base URL</label>
           <Input
             value={baseUrl || ''}
             onChange={(e) => onChange('BaseUrl', e.target.value)}
-            placeholder="https://api.example.com/v1"
+            placeholder={provider === 'omniroute' ? 'http://localhost:20128/v1' : 'https://api.example.com/v1'}
             className="h-8 text-xs font-mono"
           />
         </div>

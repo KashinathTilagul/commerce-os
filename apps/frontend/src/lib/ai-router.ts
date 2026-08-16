@@ -109,25 +109,59 @@ async function runChain<T>(
   throw lastError || new Error(`All providers in tier '${tier}' failed`)
 }
 
+// A saved OmniRoute baseUrl equal to another provider's default is a stale
+// leftover from a provider switch (Settings hides the Base URL field for
+// OmniRoute) and would send the OmniRoute key to OpenRouter/Groq. Ignore it.
+const STALE_OMNIROUTE_URLS = new Set(['https://openrouter.ai/api/v1', 'https://api.groq.com/openai/v1'])
+
+// ponytail: the `omniroute` hostname only resolves inside the compose network;
+// on a host dev run the container is published on localhost. Fall back between
+// the two on connect errors only — an HTTP answer (even a 401) is a real
+// answer. Upgrade path: set OMNIROUTE_BASE_URL explicitly in every environment.
+const OMNIROUTE_DEFAULT_URLS = ['http://localhost:20128/v1', 'http://omniroute:20128/v1']
+
+function isConnectError(e: any): boolean {
+  const code = e?.cause?.code || e?.code || ''
+  return e instanceof TypeError || /ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT/.test(String(code))
+}
+
 async function generateOmniRouteText(organizationId: string, model: string, opts: { system: string; prompt: string; temperature?: number; maxOutputTokens?: number }) {
   const settings = await db.systemSetting.findUnique({ where: { organizationId } }).catch(() => null)
-  const baseUrl = ((settings?.primaryProvider === 'omniroute' && settings.primaryBaseUrl) || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1').replace(/\/$/, '')
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${settings?.primaryProvider === 'omniroute' ? decryptSecret(settings.primaryApiKey) : ''}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, stream: false, temperature: opts.temperature, max_tokens: opts.maxOutputTokens, messages: [{ role: 'system', content: opts.system }, { role: 'user', content: opts.prompt }] }),
-    signal: AbortSignal.timeout(180_000),
-  })
-  const raw = await response.text()
-  if (!response.ok) { try { throw new Error(JSON.parse(raw)?.error?.message || `OmniRoute returned ${response.status}`) } catch (error) { if (error instanceof SyntaxError) throw new Error(`OmniRoute returned ${response.status}`); throw error } }
-  try { return JSON.parse(raw)?.choices?.[0]?.message?.content || '' } catch {}
-  let text = ''
-  for (const line of raw.split(/\r?\n/)) {
-    if (!line.startsWith('data:') || line.trim() === 'data: [DONE]') continue
-    try { text += JSON.parse(line.slice(5).trim())?.choices?.[0]?.delta?.content || '' } catch {}
+  const saved = settings?.primaryProvider === 'omniroute' && settings.primaryBaseUrl ? settings.primaryBaseUrl.replace(/\/$/, '') : ''
+  const cleanSaved = saved && !STALE_OMNIROUTE_URLS.has(saved) ? saved : ''
+  const envUrl = (process.env.OMNIROUTE_BASE_URL || '').replace(/\/$/, '')
+  const urls = [...new Set([cleanSaved, envUrl, ...OMNIROUTE_DEFAULT_URLS].filter(Boolean))]
+  const apiKey = settings?.primaryProvider === 'omniroute' ? decryptSecret(settings.primaryApiKey) : ''
+  let lastError: any = null
+
+  for (const baseUrl of urls) {
+    let raw = ''
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, stream: false, temperature: opts.temperature, max_tokens: opts.maxOutputTokens, messages: [{ role: 'system', content: opts.system }, { role: 'user', content: opts.prompt }] }),
+        signal: AbortSignal.timeout(180_000),
+      })
+      raw = await response.text()
+      if (!response.ok) { try { throw new Error(JSON.parse(raw)?.error?.message || `OmniRoute returned ${response.status}`) } catch (error) { if (error instanceof SyntaxError) throw new Error(`OmniRoute returned ${response.status}`); throw error } }
+    } catch (e: any) {
+      if (!isConnectError(e)) throw e
+      lastError = e
+      console.warn(`[AI Router] OmniRoute unreachable at ${baseUrl}, trying next URL`)
+      continue
+    }
+    try { return JSON.parse(raw)?.choices?.[0]?.message?.content || '' } catch {}
+    let text = ''
+    for (const line of raw.split(/\r?\n/)) {
+      if (!line.startsWith('data:') || line.trim() === 'data: [DONE]') continue
+      try { text += JSON.parse(line.slice(5).trim())?.choices?.[0]?.delta?.content || '' } catch {}
+    }
+    if (!text) throw new Error('OmniRoute returned no text')
+    return text
   }
-  if (!text) throw new Error('OmniRoute returned no text')
-  return text
+
+  throw lastError || new Error('OmniRoute is not reachable at any known URL')
 }
 
 // Simple JSON Schema generator helper
