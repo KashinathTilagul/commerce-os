@@ -39,6 +39,20 @@ const KrishnaResponseSchema = z.object({
   action: ActionSchema,
 })
 
+// ponytail: the voice path re-aggregated a dozen DB counts on every utterance,
+// adding a full Supabase round-trip before the model even starts. 15s-stale
+// context flavour is imperceptible in conversation; the analyze action still
+// computes fresh numbers per request. Upgrade path: invalidate on writes.
+const SNAPSHOT_TTL_MS = 15_000
+const snapshotCache = new Map<string, { at: number; text: string }>()
+async function cachedLiveBusinessSnapshot(organizationId: string): Promise<string> {
+  const hit = snapshotCache.get(organizationId)
+  if (hit && Date.now() - hit.at < SNAPSHOT_TTL_MS) return hit.text
+  const text = await getLiveBusinessSnapshot(organizationId)
+  snapshotCache.set(organizationId, { at: Date.now(), text })
+  return text
+}
+
 export async function POST(req: NextRequest) {
   const authResult = await requireOrganization()
   if (!authResult.success) return authResult.response
@@ -50,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     // ── Live system context (DB-side aggregation, not raw row dumps) ────
     const uid = authResult.organizationId
-    const liveContext = await getLiveBusinessSnapshot(uid)
+    const liveContext = await cachedLiveBusinessSnapshot(uid)
 
     // ── Time & greeting ──────────────────────────────────────────────────
     const now = new Date()
@@ -203,6 +217,14 @@ AVAILABLE ACTIONS:
     } else if (actionResult?.success && actionResult.message) {
       // Never expose a model's pre-execution plan after the action completed.
       spoken = actionResult.message
+    }
+
+    // ── Echo guard ─────────────────────────────────────────────────────────
+    // Weak auto-routed models (seen with a stripped-down custom prompt behind
+    // an auto-routing gateway) sometimes parrot the founder's own words back.
+    // A voice assistant echoing its input is never a valid reply.
+    if (spoken.trim().toLowerCase() === message.trim().toLowerCase()) {
+      spoken = 'Hello, Founder. I heard you loud and clear — what shall we do about it?'
     }
 
     // ── Log to event stream ──────────────────────────────────────────────
