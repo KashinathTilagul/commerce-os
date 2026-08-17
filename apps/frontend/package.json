@@ -14,7 +14,7 @@
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build --webpack",
     "start": "next start",
-    "test": "node --import tsx --test src/lib/account-password.test.ts src/lib/commerce/shopify-provider.test.ts src/lib/product-launches.test.ts src/lib/campaign-workforce.test.ts src/lib/agent-playbooks.test.ts && node --import tsx --test --test-force-exit src/lib/security.test.ts",
+    "test": "node --import tsx --test --test-force-exit src/lib/account-password.test.ts src/lib/commerce/shopify-provider.test.ts src/lib/product-launches.test.ts src/lib/campaign-workforce.test.ts src/lib/agent-playbooks.test.ts && node --import tsx --test --test-force-exit src/lib/security.test.ts",
     "test:all": "npm run test",
     "test:playbooks": "node --import tsx --test src/lib/agent-playbooks.test.ts",
     "test:shopify": "node --import tsx --test src/lib/commerce/shopify-provider.test.ts",

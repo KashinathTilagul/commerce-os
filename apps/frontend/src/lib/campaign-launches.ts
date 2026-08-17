@@ -16,6 +16,7 @@ export interface CreateCampaignLaunchInput {
   brief: string
   priority?: CampaignPriority
   budgetCap?: string | null
+  hidden?: boolean
   items?: WorkItemDefinition[]
   validations?: WorkValidationDefinition[]
 }
@@ -56,6 +57,7 @@ export async function createCampaignLaunch(input: CreateCampaignLaunchInput) {
             brief: input.brief,
             priority: input.priority ?? 'P2',
             budgetCap: budgetValue(input.budgetCap),
+            hidden: input.hidden ?? false,
             status: 'EXECUTING',
             startedAt: new Date(),
           },
@@ -150,9 +152,11 @@ export async function createCampaignLaunch(input: CreateCampaignLaunchInput) {
   throw new Error('Campaign launch could not be created')
 }
 
-export function listCampaignLaunches(organizationId: string) {
+export function listCampaignLaunches(organizationId: string, options?: { includeHidden?: boolean }) {
   return db.campaignLaunch.findMany({
-    where: { organizationId, status: { not: 'CANCELLED' } },
+    // Silent-research launches are invisible in founder surfaces unless the
+    // founder explicitly asks for them (includeHidden from the API query).
+    where: { organizationId, status: { not: 'CANCELLED' }, ...(options?.includeHidden ? {} : { hidden: false }) },
     orderBy: { updatedAt: 'desc' },
     take: 20,
     include: {

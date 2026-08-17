@@ -40,6 +40,12 @@ export async function GET(
     // Read file from storage
     const fileBuffer = await fs.readFile(artifact.storageLocation)
     
+    // Header values must stay ASCII — titles carry "·"/"—" from LLM output,
+    // so the unicode name goes in filename* (RFC 5987) and an ASCII-safe one
+    // in filename.
+    const filename = `${artifact.title}.${getFileExtension(artifact.mimeType, artifact.type)}`
+    const asciiName = filename.replace(/[^\x20-\x7E]/g, '').trim() || `${artifact.id}.${getFileExtension(artifact.mimeType, artifact.type)}`
+    
     // Return file with appropriate headers
     return new NextResponse(fileBuffer, {
       status: 200,
@@ -47,7 +53,7 @@ export async function GET(
         'Content-Type': artifact.mimeType,
         // Generated assets are consumed inside the workboard. Inline keeps media
         // previewable while the direct URL remains available for download/share.
-        'Content-Disposition': `inline; filename="${artifact.title}.${getFileExtension(artifact.mimeType, artifact.type)}"`,
+        'Content-Disposition': `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
         'Content-Length': fileBuffer.length.toString()
       }
     })

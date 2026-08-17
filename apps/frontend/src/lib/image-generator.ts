@@ -5,6 +5,7 @@ import { storeArtifact, initializeStorage } from './storage'
 import { db } from './db'
 import { createHash } from 'node:crypto'
 import { decryptSecret } from './crypto'
+import { BRAND_IMAGE_STYLE_LINE } from './brand-guard'
 
 export interface ImageGenerationOptions {
   prompt: string
@@ -31,9 +32,10 @@ const ASPECT_RATIO_DIMENSIONS: Record<string, { width: number; height: number }>
 export async function generateImage(options: ImageGenerationOptions): Promise<{ artifactId: string; imageUrl: string }> {
   await initializeStorage()
   
-  // Apply style template to prompt
+  // Apply style template to prompt. Brand context rides with every prompt —
+  // the agent's brand instructions never reach the image model itself.
   const styleTemplate = IMAGE_PROMPT_TEMPLATES[options.style] || IMAGE_PROMPT_TEMPLATES['product']
-  const enhancedPrompt = styleTemplate.replace('{prompt}', options.prompt)
+  const enhancedPrompt = `${BRAND_IMAGE_STYLE_LINE} ${styleTemplate.replace('{prompt}', options.prompt)}`
   
   const dimensions = ASPECT_RATIO_DIMENSIONS[options.aspectRatio] || ASPECT_RATIO_DIMENSIONS['1:1']
   
@@ -45,6 +47,7 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
       { provider: settings.fallback2Provider, key: decryptSecret(settings.fallback2ApiKey) },
     ] : []
     const keyFor = (provider: string) => targets.find((target) => target.provider.toLowerCase() === provider && target.key)?.key
+    const omnirouteKey = keyFor('omniroute')
     const bedrockKey = keyFor('bedrock')
     const openRouterKey = keyFor('openrouter')
     const openAIKey = keyFor('openai')
@@ -52,7 +55,28 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     let mimeType = 'image/png'
     const providerErrors: string[] = []
 
-    if (bedrockKey) {
+    if (!imageBuffer && omnirouteKey) {
+      try {
+        const baseUrl = settings?.primaryBaseUrl || process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1'
+        const response = await fetch(`${baseUrl}/images/generations`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${omnirouteKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: process.env.OMNIROUTE_IMAGE_MODEL || 'antigravity/gemini-3.1-flash-image',
+            prompt: enhancedPrompt,
+            n: 1,
+            size: `${dimensions.width}x${dimensions.height}`,
+          }),
+        })
+        const payload = await response.json()
+        if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OmniRoute returned ${response.status}`)
+        imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
+      } catch (error: any) {
+        providerErrors.push(`OmniRoute: ${error?.message || 'unknown error'}`)
+      }
+    }
+
+    if (!imageBuffer && bedrockKey) {
       try {
         // Use the API-key provider, matching the Bedrock credentials deployed
         // for agent text generation. An invalid key falls through to OpenRouter.
@@ -114,7 +138,7 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
 
     if (!imageBuffer) {
       const detail = providerErrors.length > 0 ? ` Provider errors: ${providerErrors.join(' | ')}` : ''
-      throw new Error(`No working image provider is configured for this organization. Add Bedrock, OpenRouter, or OpenAI credentials in Settings.${detail}`)
+      throw new Error(`No working image provider is configured for this organization. Add OmniRoute, Bedrock, OpenRouter, or OpenAI credentials in Settings.${detail}`)
     }
     
     // Store artifact

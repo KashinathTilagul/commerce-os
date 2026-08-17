@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import { GlassPanel } from '@/components/ui/glass-system'
 import {
-  LayoutDashboard, Users, Network, Target, FolderKanban, ListChecks,
+  LayoutDashboard, Users, Network, ListChecks,
   ShieldCheck, Activity, DollarSign, Settings as SettingsIcon,
 } from 'lucide-react'
 
@@ -36,8 +36,7 @@ const NAV: NavGroup[] = [
   {
     label: 'Work',
     items: [
-      { id: 'goals', label: 'Goals', icon: Target },
-      { id: 'projects', label: 'Projects', icon: FolderKanban },
+      // Goals & Projects removed — the Overview wizard rail is the single entry point for work.
       { id: 'issues', label: 'Issues', icon: ListChecks },
     ],
   },
