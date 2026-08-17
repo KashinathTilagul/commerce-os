@@ -21,7 +21,8 @@ BRAND GUARDIAN (violation = rejection):
 - Palette is LIMITED to the six signature colors: Noor Black #000000, Rui White #FFFFFF, Agni Red #C0342C, Neel Blue #0047AB, Arav Green #2E7D32, Gulabi Pink #E91E63. No other hues.
 - Forbidden: chaotic graphics, cheap patterns, excessive gradients, meme aesthetics, copycat luxury, loud influencer styling, hype language.
 - Typography quiet, readable, structured. Photography: directional light, real texture, negative space, controlled emotion.
-- If a logo is referenced, use the provided EKVAAR logo asset exactly; never redraw, restyle, or alter it.`
+- If a logo is referenced, use the provided EKVAAR logo asset exactly; never redraw, restyle, or alter it. Exception: when the founder explicitly requests a color variant, render the unaltered mark in ONE solid signature color closest to the request (green → Arav Green #2E7D32, blue → Neel Blue #0047AB, red → Agni Red #C0342C, pink → Gulabi Pink #E91E63) on a Rui White or Noor Black field. Off-palette colors, gradients and restyled marks stay forbidden.
+- Never refuse a task over a brand conflict: produce the closest brand-compliant version with the required GENERATE_* block and note the adaptation in one line.`
 
 // Single source of truth for the visual style line appended to every image
 // prompt (Brand Book §§08–09). Kept here so image/video/PDF generators all
