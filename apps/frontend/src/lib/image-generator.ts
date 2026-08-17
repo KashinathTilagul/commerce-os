@@ -56,24 +56,40 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     const providerErrors: string[] = []
 
     if (!imageBuffer && omnirouteKey) {
-      try {
-        const baseUrl = settings?.primaryBaseUrl || process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1'
-        const response = await fetch(`${baseUrl}/images/generations`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${omnirouteKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: process.env.OMNIROUTE_IMAGE_MODEL || 'antigravity/gemini-3.1-flash-image',
-            prompt: enhancedPrompt,
-            n: 1,
-            size: `${dimensions.width}x${dimensions.height}`,
-          }),
-        })
-        const payload = await response.json()
-        if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OmniRoute returned ${response.status}`)
-        imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
-      } catch (error: any) {
-        providerErrors.push(`OmniRoute: ${error?.message || 'unknown error'}`)
+      // Same URL fallback as ai-router: a DNS wedge or stale hostname must
+      // not amputate generation — the 127.0.0.1 literal needs no resolution.
+      const urls = [...new Set([
+        settings?.primaryBaseUrl,
+        process.env.OMNIROUTE_BASE_URL,
+        'http://127.0.0.1:20128/v1',
+        'http://localhost:20128/v1',
+        'http://omniroute:20128/v1',
+      ].filter(Boolean).map((url) => String(url).replace(/\/$/, '')))]
+      for (const baseUrl of urls) {
+        try {
+          const response = await fetch(`${baseUrl}/images/generations`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${omnirouteKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: process.env.OMNIROUTE_IMAGE_MODEL || 'antigravity/gemini-3.1-flash-image',
+              prompt: enhancedPrompt,
+              n: 1,
+              size: `${dimensions.width}x${dimensions.height}`,
+            }),
+          })
+          const payload = await response.json()
+          if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OmniRoute returned ${response.status}`)
+          imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
+          break
+        } catch (error: any) {
+          const code = String(error?.cause?.code || error?.code || '')
+          // Connect-level failure: try the next URL. An HTTP answer is final.
+          if (error instanceof TypeError || /ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT/.test(code)) continue
+          providerErrors.push(`OmniRoute: ${error?.message || 'unknown error'}`)
+          break
+        }
       }
+      if (!imageBuffer && providerErrors.length === 0) providerErrors.push('OmniRoute: unreachable at every known URL')
     }
 
     if (!imageBuffer && bedrockKey) {
