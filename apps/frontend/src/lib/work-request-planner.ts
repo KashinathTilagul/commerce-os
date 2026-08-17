@@ -33,6 +33,11 @@ export function parseGeneratedMediaJSON<T = Record<string, unknown>>(json: strin
   try {
     return JSON.parse(json) as T
   } catch (originalError) {
+    // Employees sometimes double-encode the block ({"prompt":\"...\"}):
+    // unwrap the extra escape layer and retry before char-level repair.
+    if (/^\{\s*\\"/.test(json)) {
+      try { return JSON.parse(json.replace(/\\"/g, '"')) as T } catch {}
+    }
     let sanitized = ''
     let inString = false
     let escaped = false

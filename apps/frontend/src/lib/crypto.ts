@@ -26,11 +26,17 @@ export function encryptSecret(plain: string): string {
 export function decryptSecret(stored: string | null | undefined): string {
   if (!stored) return ''
   if (!stored.startsWith(PREFIX)) return stored
-  const raw = Buffer.from(stored.slice(PREFIX.length), 'base64')
-  const iv = raw.subarray(0, 12)
-  const tag = raw.subarray(12, 28)
-  const ciphertext = raw.subarray(28)
-  const decipher = createDecipheriv(ALGO, getKey(), iv)
-  decipher.setAuthTag(tag)
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+  // Never throws: a value encrypted under a different JWT_SECRET (shared DB
+  // across environments) degrades to "no key" instead of crashing callers.
+  try {
+    const raw = Buffer.from(stored.slice(PREFIX.length), 'base64')
+    const iv = raw.subarray(0, 12)
+    const tag = raw.subarray(12, 28)
+    const ciphertext = raw.subarray(28)
+    const decipher = createDecipheriv(ALGO, getKey(), iv)
+    decipher.setAuthTag(tag)
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+  } catch {
+    return ''
+  }
 }

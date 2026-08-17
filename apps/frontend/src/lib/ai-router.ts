@@ -59,6 +59,8 @@ async function configuredTargets(organizationId: string): Promise<ModelTarget[]>
   try {
     const settings = await db.systemSetting.findUnique({ where: { organizationId } })
     if (!settings) return []
+    // decryptSecret is null/secret-mismatch safe (returns ''), so one bad
+    // slot only drops itself — never wipes the org's whole provider chain.
     return [
       { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
       { provider: settings.fallback1Provider, model: settings.fallback1Model, apiKey: decryptSecret(settings.fallback1ApiKey), baseUrl: settings.fallback1BaseUrl },
