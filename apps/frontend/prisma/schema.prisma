@@ -303,6 +303,7 @@ model CampaignLaunch {
   status         CampaignLaunchStatus @default(DRAFT)
   priority       CampaignPriority     @default(P2)
   budgetCap      Decimal?             @db.Decimal(12, 2)
+  hidden         Boolean              @default(false)
   version        Int                  @default(1)
   rollbackState  Json?
   startedAt      DateTime?

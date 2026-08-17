@@ -46,3 +46,42 @@ LIVE SYSTEM STATUS (real-time data as of now):
     return 'Live system data temporarily unavailable.'
   }
 }
+
+// Structured finance figures for PDF reports — real DB aggregates, so the
+// report always contains actual rows/columns instead of whatever JSON the
+// LLM happens to emit in its GENERATE_PDF block.
+export async function getFinanceReportData(organizationId: string): Promise<{ summary: string; table: { headers: string[]; rows: string[][] } }> {
+  const last30 = new Date(Date.now() - 30 * 86400000)
+  const [revenueAgg, expenseAgg, recentRevenueAgg, totalOrders, pendingOrders, openIssues, totalAgents, runningAgents] = await Promise.all([
+    db.transaction.aggregate({ where: { organizationId, type: 'INCOME' }, _sum: { amount: true } }),
+    db.transaction.aggregate({ where: { organizationId, type: 'EXPENSE' }, _sum: { amount: true } }),
+    db.transaction.aggregate({ where: { organizationId, type: 'INCOME', date: { gte: last30 } }, _sum: { amount: true } }),
+    db.order.count({ where: { organizationId } }),
+    db.order.count({ where: { organizationId, status: { in: ['PENDING', 'PROCESSING'] } } }),
+    db.issue.count({ where: { organizationId, status: { in: ['BACKLOG', 'IN_PROGRESS', 'BLOCKED'] } } }),
+    db.agent.count({ where: { organizationId } }),
+    db.agent.count({ where: { organizationId, status: { in: ['ACTIVE', 'RUNNING'] } } }),
+  ])
+
+  const revenue = revenueAgg._sum.amount || 0
+  const expenses = expenseAgg._sum.amount || 0
+  const recentRevenue = recentRevenueAgg._sum.amount || 0
+  const fmt = (amount: number) => `₹${(amount / 100000).toFixed(2)} lakh`
+
+  return {
+    summary: `Total revenue of ${fmt(revenue)} against expenses of ${fmt(expenses)}, leaving a net P&L of ${fmt(revenue - expenses)}. Revenue in the last 30 days: ${fmt(recentRevenue)}. Figures are pulled live from the organization's ledger at generation time.`,
+    table: {
+      headers: ['Metric', 'Value'],
+      rows: [
+        ['Total revenue', fmt(revenue)],
+        ['Revenue (last 30 days)', fmt(recentRevenue)],
+        ['Total expenses', fmt(expenses)],
+        ['Net P&L', fmt(revenue - expenses)],
+        ['Orders (total)', String(totalOrders)],
+        ['Orders pending/processing', String(pendingOrders)],
+        ['Open issues', String(openIssues)],
+        ['AI agents running', `${runningAgents}/${totalAgents}`],
+      ],
+    },
+  }
+}

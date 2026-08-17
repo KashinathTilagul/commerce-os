@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Workforce — Step-by-Step UI Mockup (Ekvaar theme)</title>
+<style>
+  :root {
+    --bg: #040b10;
+    --ink: #e8edf2;
+    --muted: #8b98a5;
+    --cyan: #67e8f9;          /* cyan-300 accent, as in production */
+    --cyan-dim: rgba(103, 232, 249, 0.3);
+    --line: rgba(255, 255, 255, 0.06);
+    --line2: rgba(255, 255, 255, 0.08);
+    --glass1: rgba(255, 255, 255, 0.03);
+    --glass2: rgba(255, 255, 255, 0.05);
+    /* EKVAAR six signature colors (brand guard palette) */
+    --noor: #000000; --rui: #FFFFFF; --agni: #C0342C;
+    --neel: #0047AB; --arav: #2E7D32; --gulabi: #E91E63;
+    --ok: #34d399; --run: #22d3ee; --blocked: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(circle at 18% 0%, rgba(17,151,177,0.12), transparent 35%),
+                linear-gradient(180deg, rgba(4,11,16,0.3), transparent 55%), var(--bg);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 12px; line-height: 1.5; height: 100vh; overflow: hidden;
+  }
+  .display { font-family: Georgia, "Times New Roman", serif; letter-spacing: -0.01em; }
+  .shell { display: flex; height: 100vh; }
+
+  /* ── Sidebar (WorkforceShell, consolidated) ─────────────────────── */
+  .sidebar { width: 208px; border-right: 1px solid var(--line); background: var(--glass1); padding: 16px 0; overflow-y: auto; flex-shrink: 0; }
+  .side-title { padding: 0 16px 16px; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+  .nav-group { margin-bottom: 4px; }
+  .nav-label { padding: 12px 16px 4px; font-size: 9px; font-weight: 500; letter-spacing: 0.15em; text-transform: uppercase; color: rgba(139,152,165,0.6); }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 6px 16px; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--ink); }
+  .nav-item.active { background: rgba(255,255,255,0.08); color: var(--ink); }
+  .nav-item .dot { width: 14px; height: 14px; border: 1px solid currentColor; border-radius: 3px; opacity: 0.7; flex-shrink: 0; }
+  .nav-item.removed { opacity: 0.35; text-decoration: line-through; }
+
+  /* ── Main pane ──────────────────────────────────────────────────── */
+  .main { flex: 1; overflow-y: auto; }
+  .page-head { border-bottom: 1px solid var(--line); padding: 20px 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .eyebrow { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.18em; color: rgba(103,232,249,0.7); margin-bottom: 4px; }
+  h1.display { font-size: 20px; font-weight: 500; }
+  .sub { margin-top: 4px; font-size: 12px; color: var(--muted); }
+  .btn-ghost { border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 12px; font-size: 11px; color: var(--muted); background: none; cursor: pointer; }
+  .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--ink); }
+
+  .content { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+  .panel { background: var(--glass2); border: 1px solid var(--line2); border-radius: 16px; padding: 20px; }
+
+  /* ── Step pills ─────────────────────────────────────────────────── */
+  .steps { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .pill { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line2); border-radius: 999px; padding: 6px 14px; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+  .pill .n { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 9px; border: 1px solid currentColor; }
+  .pill.done { color: var(--ok); border-color: rgba(52,211,153,0.3); background: rgba(52,211,153,0.06); }
+  .pill.current { color: var(--cyan); border-color: var(--cyan-dim); background: rgba(103,232,249,0.06); }
+  .step-arrow { color: rgba(139,152,165,0.4); font-size: 10px; }
+
+  /* ── Ask box ────────────────────────────────────────────────────── */
+  .ask-panel { position: relative; overflow: hidden; border-color: rgba(103,232,249,0.15); display: flex; gap: 16px; }
+  .ask-panel .glow { position: absolute; right: -80px; top: -96px; width: 224px; height: 224px; border-radius: 50%; background: rgba(34,211,238,0.1); filter: blur(48px); pointer-events: none; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--cyan-dim); background: rgba(34,211,238,0.1); color: #a5f3fc; display: grid; place-items: center; font-size: 18px; flex-shrink: 0; }
+  .ask-body { flex: 1; min-width: 0; }
+  .ask-label { font-size: 12px; font-weight: 500; margin-bottom: 8px; }
+  textarea { width: 100%; min-height: 72px; resize: none; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: var(--ink); padding: 12px 16px; font: inherit; outline: none; }
+  textarea:focus { border-color: rgba(103,232,249,0.35); }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .chip { border: 1px solid var(--line2); border-radius: 999px; padding: 4px 12px; font-size: 10px; color: var(--muted); cursor: pointer; background: rgba(255,255,255,0.02); }
+  .chip:hover { color: var(--cyan); border-color: var(--cyan-dim); }
+  .chip.private { border-style: dashed; }
+  .ask-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+  .hint { font-size: 10px; color: var(--muted); }
+  .btn-primary { background: var(--cyan); color: #020617; border: none; border-radius: 8px; padding: 8px 16px; font-size: 11px; font-weight: 600; cursor: pointer; }
+  .btn-primary:hover { background: #a5f3fc; }
+
+  /* ── Layout: rail + wizard ──────────────────────────────────────── */
+  .grid { display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: start; }
+  .rail-label { font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); margin-bottom: 12px; }
+  .rail-card { width: 100%; text-align: left; border-radius: 12px; border: 1px solid var(--line2); background: rgba(255,255,255,0.02); padding: 12px; margin-bottom: 8px; cursor: pointer; color: var(--ink); }
+  .rail-card:hover { background: rgba(255,255,255,0.04); }
+  .rail-card.sel { border-color: var(--cyan-dim); background: rgba(103,232,249,0.06); }
+  .rail-code { font-family: ui-monospace, monospace; font-size: 10px; color: rgba(103,232,249,0.8); }
+  .rail-title { margin-top: 6px; font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rail-meta { margin-top: 6px; font-size: 9px; color: var(--muted); }
+
+  /* ── Status chips (STATUS_COLORS verbatim) ─────────────────────── */
+  .status { border-radius: 999px; padding: 3px 8px; font-size: 8px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; white-space: nowrap; }
+  .status.completed { border: 1px solid rgba(52,211,153,0.3); background: rgba(52,211,153,0.1); color: #6ee7b7; }
+  .status.running   { border: 1px solid rgba(34,211,238,0.35); background: rgba(34,211,238,0.1); color: #a5f3fc; }
+  .status.blocked   { border: 1px solid rgba(248,113,113,0.3); background: rgba(248,113,113,0.1); color: #fca5a5; }
+  .status.generic   { border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); color: var(--muted); }
+
+  /* ── Step rows (plan/execute list) ─────────────────────────────── */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+  .metric { border: 1px solid var(--line2); border-radius: 12px; background: rgba(0,0,0,0.1); padding: 12px; }
+  .metric .v { font-size: 16px; font-weight: 500; }
+  .metric .l { margin-top: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+  .step-row { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line2); border-radius: 12px; padding: 12px 16px; margin-bottom: 8px; background: rgba(255,255,255,0.02); }
+  .step-num { font-family: ui-monospace, monospace; font-size: 9px; color: var(--muted); width: 20px; flex-shrink: 0; }
+  .step-info { flex: 1; min-width: 0; }
+  .step-title { font-size: 11px; font-weight: 500; }
+  .step-assign { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 9px; color: var(--muted); }
+  .agent-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .brand-badge { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(52,211,153,0.25); border-radius: 999px; padding: 2px 8px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.1em; color: #6ee7b7; }
+  .private-badge { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed rgba(139,152,165,0.4); border-radius: 999px; padding: 2px 8px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+  .btn-small { border: 1px solid var(--cyan-dim); background: rgba(103,232,249,0.06); color: #a5f3fc; border-radius: 8px; padding: 5px 12px; font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; }
+  .btn-small:hover { background: rgba(103,232,249,0.12); }
+  .btn-link { background: none; border: none; color: rgba(103,232,249,0.8); font-size: 10px; cursor: pointer; padding: 0; }
+
+  /* ── Result panel (hidden until explicit request) ──────────────── */
+  .result { margin-top: 16px; border: 1px solid var(--line2); border-radius: 12px; background: rgba(0,0,0,0.2); overflow: hidden; }
+  .result-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line2); }
+  .result-body { padding: 16px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .asset { border: 1px solid var(--line2); border-radius: 12px; background: rgba(0,0,0,0.3); overflow: hidden; width: 240px; }
+  .asset-img { height: 240px; display: grid; place-items: center; background: linear-gradient(135deg, var(--noor) 0%, #101418 55%, var(--neel) 130%); position: relative; }
+  .logo-mark { width: 92px; height: 92px; border: 2px solid var(--rui); border-radius: 50%; display: grid; place-items: center; font-family: Georgia, serif; font-size: 34px; color: var(--rui); letter-spacing: 0.08em; }
+  .asset-img .tag { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 3px; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; border: 1px solid rgba(255,255,255,0.25); }
+  .asset-actions { display: flex; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--line2); }
+  .asset-actions .btn-small { flex: 1; text-align: center; }
+  .notice { margin-top: 12px; font-size: 10px; color: rgba(110,231,183,0.8); }
+
+  .mock-note { padding: 10px 24px 24px; font-size: 10px; color: rgba(139,152,165,0.6); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Sidebar: same WorkforceShell, Projects/Goals removed (folded into wizard rail) -->
+  <aside class="sidebar">
+    <div class="side-title">AI Workforce</div>
+    <div class="nav-group">
+      <div class="nav-item active"><span class="dot"></span> Overview</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Workforce</div>
+      <div class="nav-item"><span class="dot"></span> Agents</div>
+      <div class="nav-item"><span class="dot"></span> Org Chart</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Work</div>
+      <div class="nav-item removed"><span class="dot"></span> Goals</div>
+      <div class="nav-item removed"><span class="dot"></span> Projects</div>
+      <div class="nav-item"><span class="dot"></span> Issues</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Control</div>
+      <div class="nav-item"><span class="dot"></span> Approvals</div>
+      <div class="nav-item"><span class="dot"></span> Activity</div>
+      <div class="nav-item"><span class="dot"></span> Costs</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">System</div>
+      <div class="nav-item"><span class="dot"></span> Settings</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <div class="eyebrow">✦ Krishna Command</div>
+        <h1 class="display">Krishna Work Center</h1>
+        <p class="sub">Ask for anything — image, reel, carousel, story, finance report, Shopify update, or private research. Krishna plans, executes, and delivers step by step.</p>
+      </div>
+      <button class="btn-ghost">🛡 Founder Inbox</button>
+    </div>
+
+    <div class="content">
+
+      <!-- Step pills -->
+      <div class="steps">
+        <span class="pill done"><span class="n">✓</span> 1 · Ask</span><span class="step-arrow">→</span>
+        <span class="pill done"><span class="n">✓</span> 2 · Plan</span><span class="step-arrow">→</span>
+        <span class="pill done"><span class="n">✓</span> 3 · Execute</span><span class="step-arrow">→</span>
+        <span class="pill current"><span class="n">4</span> 4 · Deliver</span>
+      </div>
+
+      <!-- STEP 1 — Ask -->
+      <div class="panel ask-panel">
+        <div class="glow"></div>
+        <div class="avatar">◉</div>
+        <div class="ask-body">
+          <div class="ask-label">What should Krishna handle?</div>
+          <textarea>Make an image of our logo for an Instagram post</textarea>
+          <div class="chips">
+            <span class="chip">Image</span><span class="chip">Video / Reel</span><span class="chip">Carousel</span>
+            <span class="chip">Instagram Story</span><span class="chip">Finance Report</span><span class="chip">Shopify Update</span>
+            <span class="chip private">🔒 Research (private)</span>
+          </div>
+          <div class="ask-foot">
+            <span class="hint">Every task is brand-enforced. Research stays hidden from the activity log.</span>
+            <button class="btn-primary">➤ Assign work</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <!-- Work-request rail (replaces Projects/Goals) -->
+        <div>
+          <div class="rail-label">Work requests</div>
+          <button class="rail-card sel">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="rail-code">CMP-042</span><span class="status completed">Completed</span>
+            </div>
+            <div class="rail-title">Logo image for Instagram post</div>
+            <div class="rail-meta">1/1 complete</div>
+          </button>
+          <button class="rail-card">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="rail-code">CMP-041</span><span class="status running">Executing</span>
+            </div>
+            <div class="rail-title">Finance report FY25-26</div>
+            <div class="rail-meta">0/1 complete</div>
+          </button>
+          <button class="rail-card">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="rail-code">CMP-040</span><span class="status blocked">Blocked</span>
+            </div>
+            <div class="rail-title">Reel — House of Originals</div>
+            <div class="rail-meta">Run / Resume available</div>
+          </button>
+          <div class="rail-label" style="margin-top:16px">Private (hidden)</div>
+          <button class="rail-card" style="border-style:dashed;opacity:0.75">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="rail-code">🔒 private</span><span class="status generic">Hidden</span>
+            </div>
+            <div class="rail-title">Research request — ask Krishna to show results</div>
+            <div class="rail-meta">Not shown in activity log</div>
+          </button>
+        </div>
+
+        <!-- STEPS 2–4 — plan / execute / deliver list -->
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--line2);padding-bottom:16px">
+            <div>
+              <div class="rail-code">CMP-042</div>
+              <h2 class="display" style="font-size:17px;margin-top:4px">Logo image for Instagram post</h2>
+              <p class="sub" style="font-size:11px">Make an image of our logo for an Instagram post</p>
+            </div>
+            <span class="status completed">Completed</span>
+          </div>
+
+          <div class="metrics">
+            <div class="metric"><div class="v">✓ 1/1</div><div class="l">Completed</div></div>
+            <div class="metric"><div class="v">0</div><div class="l">Active now</div></div>
+            <div class="metric"><div class="v">0</div><div class="l">Blocked</div></div>
+          </div>
+
+          <!-- step rows -->
+          <div class="step-row">
+            <span class="step-num">01</span>
+            <div class="step-info">
+              <div class="step-title">Generate requested image</div>
+              <div class="step-assign"><span class="agent-dot" style="background:#E91E63"></span> Image Designer · DES_IMG
+                <span class="brand-badge" style="margin-left:8px">🛡 Brand enforced</span>
+              </div>
+            </div>
+            <span class="status completed">Completed</span>
+            <button class="btn-small">Show result</button>
+          </div>
+          <div class="step-row" style="opacity:0.85">
+            <span class="step-num">02</span>
+            <div class="step-info">
+              <div class="step-title">Background research — competitor pricing</div>
+              <div class="step-assign"><span class="agent-dot" style="background:#0047AB"></span> Growth
+                <span class="private-badge" style="margin-left:8px">🔒 Private · appears as “Work blocked”</span>
+              </div>
+            </div>
+            <span class="status generic">Hidden</span>
+          </div>
+
+          <!-- STEP 4 result panel — renders only after explicit "Show result" -->
+          <div class="result">
+            <div class="result-head">
+              <div><span class="rail-code">01</span> <span style="font-size:11px;font-weight:500;margin-left:8px">Generate requested image</span></div>
+              <span style="font-size:9px;color:var(--muted)">Image Designer · shown on request</span>
+            </div>
+            <div class="result-body">
+              <div class="asset">
+                <div class="asset-img">
+                  <div class="logo-mark">E</div>
+                  <div class="tag">
+                    <span class="sw" style="background:#000000"></span><span class="sw" style="background:#FFFFFF"></span>
+                    <span class="sw" style="background:#C0342C"></span><span class="sw" style="background:#0047AB"></span>
+                    <span class="sw" style="background:#2E7D32"></span><span class="sw" style="background:#E91E63"></span>
+                  </div>
+                </div>
+                <div class="asset-actions">
+                  <button class="btn-small">📷 Post to Instagram</button>
+                  <button class="btn-small">⬇ Download</button>
+                  <button class="btn-small">↗ Open</button>
+                </div>
+              </div>
+              <div style="flex:1;min-width:200px;font-size:11px;color:rgba(232,237,242,0.85)">
+                EKVAAR monogram rendered on Noor Black with Rui White mark — palette limited to the six signature colors, logo referenced from the brand knowledge base. Restrained, architectural, cinematic.<br /><br />
+                <span class="notice">✓ Artifact stored · viewable · downloadable · ready for one-click Instagram publish</span>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-link" style="margin-top:16px">Open employee work log →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mocknote">
+      Mockup — same theme as production (dark glass, white/[0.06] borders, cyan-300 accent, STATUS_COLORS chips). Goals & Projects removed from sidebar; their data lives in the work-request rail. Results render only after an explicit “Show result”. Private research appears in Activity only as “Work blocked”.
+    </div>
+  </main>
+</div>
+</body>
+</html>

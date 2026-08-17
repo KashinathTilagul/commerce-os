@@ -64,6 +64,16 @@ test('plans only the work requested and reserves the full graph for campaigns', 
   assert.deepEqual(planWorkRequest('Create a short audio file').items.map((item) => item.type), ['AUDIO'])
   assert.deepEqual(planWorkRequest('What is current revenue?').items.map((item) => item.type), ['FINANCE_QUERY'])
   assert.equal(planWorkRequest('Launch a new collection campaign on Instagram and Shopify').items.length, 14)
+  // New intents: silent research, Instagram formats, Shopify update, finance report.
+  const research = planWorkRequest('Research competitor pricing silently')
+  assert.equal(research.kind, 'RESEARCH')
+  assert.equal(research.hidden, true)
+  assert.deepEqual(research.items.map((item) => item.type), ['ANSWER'])
+  assert.deepEqual(planWorkRequest('Create an Instagram story for Independence Day').items.map((item) => item.type), ['SOCIAL_POST'])
+  assert.deepEqual(planWorkRequest('Make a reel about the new collection').items.map((item) => item.type), ['SOCIAL_POST'])
+  assert.deepEqual(planWorkRequest('Update the Shopify product description for the noor kurta').items.map((item) => item.type), ['SHOPIFY_UPDATE'])
+  assert.deepEqual(planWorkRequest('Prepare a finance report for FY25-26').items.map((item) => item.type), ['FINANCE_REPORT'])
+  assert.equal(planWorkRequest('Create an Instagram story for Independence Day').hidden, false)
 })
 
 test('extracts exact reply requests without spending another model call', () => {
@@ -84,6 +94,15 @@ test('parses model media JSON containing literal control characters in strings',
     '{"data":{"summary":"line one\nline two\tready"}}',
   )
   assert.equal(parsed.data.summary, 'line one\nline two\tready')
+})
+
+test('repairs JS-style media JSON (unquoted keys, single quotes, trailing commas)', () => {
+  const parsed = parseGeneratedMediaJSON<{ prompt: string; aspectRatio: string; style: string; count: number }>(
+    "{prompt:'Festive kurta set', aspectRatio: '1:1', style: 'product', count: 3,}",
+  )
+  assert.equal(parsed.prompt, 'Festive kurta set')
+  assert.equal(parsed.aspectRatio, '1:1')
+  assert.equal(parsed.count, 3)
 })
 
 test('campaign blueprint is a complete acyclic 14-item employee workflow', () => {

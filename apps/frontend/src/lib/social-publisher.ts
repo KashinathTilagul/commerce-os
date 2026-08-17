@@ -99,6 +99,12 @@ async function publishEntry(organizationId: string, entry: ContentEntry) {
   throw new Error(`Unsupported platform: ${entry.platform}`)
 }
 
+// One-click Instagram publish — thin wrapper so routes reuse the exact same
+// Graph API container/publish flow as the scheduled campaign publisher.
+export function publishInstagramEntry(organizationId: string, entry: ContentEntry) {
+  return publishInstagram(organizationId, { ...entry, platform: 'Instagram' })
+}
+
 export async function publishDueMarketing(organizationId?: string) {
   const revisions = await db.campaignRevision.findMany({
     where: { status: 'APPROVED', publishStatus: { in: ['READY', 'PUBLISHING', 'PARTIALLY_PUBLISHED'] }, ...(organizationId ? { launch: { organizationId } } : {}) },
