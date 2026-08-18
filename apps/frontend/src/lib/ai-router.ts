@@ -38,6 +38,14 @@ function getOpenAIModel(modelId: string, apiKey: string, baseURL?: string) {
   return openai(modelId)
 }
 
+function getHuggingFaceModel(modelId: string, apiKey: string, baseURL = 'https://router.huggingface.co/openai/v1') {
+  const hf = createOpenAI({
+    baseURL,
+    apiKey,
+  })
+  return hf(modelId || 'meta-llama/Llama-3.3-70B-Instruct')
+}
+
 function getOmniRouteModel(modelId: string, apiKey: string, baseURL = process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1') {
   return createOpenAI({ apiKey, baseURL }).chat(modelId || 'auto')
 }
@@ -51,6 +59,7 @@ function modelForTarget(target: ModelTarget) {
   if (provider === 'bedrock') return getBedrockModel(target.model, target.apiKey)
   if (provider === 'openrouter') return getOpenRouterModel(target.model, target.apiKey, target.baseUrl)
   if (provider === 'groq') return getGroqModel(target.model, target.apiKey, target.baseUrl)
+  if (provider === 'huggingface' || provider === 'hf') return getHuggingFaceModel(target.model, target.apiKey, target.baseUrl)
   if (provider === 'omniroute') return getOmniRouteModel(target.model, target.apiKey || '', target.baseUrl || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1')
   return getOpenAIModel(target.model, target.apiKey, target.baseUrl)
 }

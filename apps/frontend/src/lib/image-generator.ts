@@ -51,9 +51,41 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     const bedrockKey = keyFor('bedrock')
     const openRouterKey = keyFor('openrouter')
     const openAIKey = keyFor('openai')
+    const huggingFaceKey = keyFor('huggingface') || keyFor('hf') || (process.env.HUGGINGFACE_API_KEY ? process.env.HUGGINGFACE_API_KEY : undefined)
     let imageBuffer: Buffer | null = null
     let mimeType = 'image/png'
     const providerErrors: string[] = []
+
+    if (!imageBuffer && huggingFaceKey) {
+      try {
+        const hfModel = process.env.HUGGINGFACE_IMAGE_MODEL || 'black-forest-labs/FLUX.1-schnell'
+        const response = await fetch(`https://api-inference.huggingface.co/models/${hfModel}`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${huggingFaceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inputs: enhancedPrompt,
+            parameters: {
+              width: dimensions.width,
+              height: dimensions.height,
+            },
+          }),
+        })
+
+        if (!response.ok) {
+          const errText = await response.text().catch(() => '')
+          throw new Error(`HuggingFace returned ${response.status}: ${errText}`)
+        }
+
+        const arrayBuffer = await response.arrayBuffer()
+        imageBuffer = Buffer.from(arrayBuffer)
+        mimeType = response.headers.get('content-type') || 'image/png'
+      } catch (error: any) {
+        providerErrors.push(`HuggingFace: ${error?.message || 'unknown error'}`)
+      }
+    }
 
     if (!imageBuffer && omnirouteKey) {
       // Same URL fallback as ai-router: a DNS wedge or stale hostname must
