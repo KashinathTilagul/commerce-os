@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { GlassPanel } from '@/components/ui/glass-system'
-import { FileText, Upload, Download, Trash2, Loader2, Eye, X, FileType, ImageIcon, FileCode, FilePdf, FileAudio, FileVideo, FileSpreadsheet } from 'lucide-react'
+import { FileText, Upload, Download, Trash2, Loader2, Eye, X, FileType, ImageIcon, FileCode, FileAudio, FileVideo, FileSpreadsheet, FileJson } from 'lucide-react'
 import { toast } from '@/components/ekvaar/desktop/toast'
 
 interface Artifact {
@@ -91,7 +91,7 @@ export function ReferencesTab({ agent }: { agent: any }) {
 
   const getFileIcon = (mimeType: string) => {
     if (mimeType.startsWith('image/')) return <ImageIcon className="h-5 w-5 text-emerald-400" />
-    if (mimeType === 'application/pdf') return <FilePdf className="h-5 w-5 text-red-400" />
+    if (mimeType === 'application/pdf') return <FileText className="h-5 w-5 text-red-400" />
     if (mimeType.startsWith('text/') || mimeType === 'application/json') return <FileCode className="h-5 w-5 text-cyan-400" />
     if (mimeType.startsWith('audio/')) return <FileAudio className="h-5 w-5 text-amber-400" />
     if (mimeType.startsWith('video/')) return <FileVideo className="h-5 w-5 text-purple-400" />

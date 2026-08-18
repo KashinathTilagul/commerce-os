@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, AlertTriangle, Archive, ArrowRight, Bot, Check, ExternalLink, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Video, Volume2 } from 'lucide-react'
+import { Activity, AlertTriangle, Archive, ArrowRight, Bot, Check, ExternalLink, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Users, TrendingUp, Zap, Target, Circle } from 'lucide-react'
 import { GlassPanel } from '@/components/ui/glass-system'
 
 type CampaignItem = {
@@ -64,6 +64,17 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
       if (!response.ok) return []
       return response.json()
     },
+  })
+
+  const { data: agents = [] } = useQuery<any[]>({
+    queryKey: ['workforce-agents'],
+    queryFn: async () => {
+      const response = await fetch('/api/agents')
+      if (!response.ok) return []
+      const data = await response.json()
+      return (data.agents || data || [])
+    },
+    refetchInterval: 30000,
   })
 
   const createCampaign = useMutation({
@@ -189,6 +200,15 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
         </GlassPanel>
 
         {error && <GlassPanel level={2} className="rounded-xl border-red-400/20 p-4 text-[12px] text-red-300">{error.message}</GlassPanel>}
+
+        {/* Agent Workforce Summary */}
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <AgentSummaryCard agents={agents} />
+          <AgentSummaryCard agents={agents} metric="running" icon={<Activity className="h-3.5 w-3.5" />} label="Active" color="text-emerald-400" />
+          <AgentSummaryCard agents={agents} metric="paused" icon={<Circle className="h-3.5 w-3.5" />} label="Paused" color="text-amber-400" />
+          <AgentSummaryCard agents={agents} metric="budget" icon={<Zap className="h-3.5 w-3.5" />} label="Budget Used" color="text-cyan-400" />
+        </div>
+
         {isLoading ? (
           <div className="flex h-40 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-cyan-300" /></div>
         ) : campaigns.length === 0 ? (
@@ -337,4 +357,76 @@ function Status({ status }: { status: string }) {
 
 function Metric({ value, label, icon }: { value: string; label: string; icon: React.ReactNode }) {
   return <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3"><div className="flex items-center gap-2 text-[16px] font-medium">{icon}{value}</div><div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div></div>
+}
+
+function AgentSummaryCard({ agents = [], metric = 'total', icon, label, color }: { agents: any[]; metric?: 'total' | 'running' | 'paused' | 'budget'; icon?: React.ReactNode; label?: string; color?: string }) {
+  if (metric === 'total') {
+    const count = agents.filter((a) => !a.isHuman).length
+    return (
+      <GlassPanel level={2} className="rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
+            <Users className="h-4.5 w-4.5" />
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">AI Workforce</div>
+            <div className="mt-1 font-display text-2xl tracking-tight">{count}</div>
+          </div>
+        </div>
+      </GlassPanel>
+    )
+  }
+  if (metric === 'running') {
+    const count = agents.filter((a) => !a.isHuman && a.status === 'RUNNING').length
+    return (
+      <GlassPanel level={2} className="rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${color}/10`}>
+            {icon}
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+            <div className="mt-1 font-display text-2xl tracking-tight {color}">{count}</div>
+          </div>
+        </div>
+      </GlassPanel>
+    )
+  }
+  if (metric === 'paused') {
+    const count = agents.filter((a) => !a.isHuman && a.status === 'PAUSED').length
+    return (
+      <GlassPanel level={2} className="rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${color}/10`}>
+            {icon}
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+            <div className="mt-1 font-display text-2xl tracking-tight {color}">{count}</div>
+          </div>
+        </div>
+      </GlassPanel>
+    )
+  }
+  if (metric === 'budget') {
+    const totalSpend = agents.filter((a) => !a.isHuman).reduce((sum, a) => sum + (a.tokenSpend || 0), 0)
+    const totalBudget = agents.filter((a) => !a.isHuman).reduce((sum, a) => sum + (a.tokenBudget || 0), 0)
+    const pct = totalBudget > 0 ? Math.round((totalSpend / totalBudget) * 100) : 0
+    const budgetColor = pct >= 100 ? 'text-red-400' : pct >= 80 ? 'text-amber-400' : 'text-emerald-400'
+    return (
+      <GlassPanel level={2} className="rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${color}/10`}>
+            {icon}
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+            <div className="mt-1 font-display text-2xl tracking-tight {budgetColor}">{pct}%</div>
+            <div className="text-[10px] text-muted-foreground">₹{Number(totalSpend).toLocaleString()} / ₹{Number(totalBudget).toLocaleString()}</div>
+          </div>
+        </div>
+      </GlassPanel>
+    )
+  }
+  return null
 }
