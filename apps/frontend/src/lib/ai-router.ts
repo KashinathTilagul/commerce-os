@@ -8,9 +8,9 @@ export type Tier = 'fast' | 'default' | 'reasoning'
 
 // ── Model Provider Resolution ───────────────────────────────────────────────
 
-function getBedrockModel(modelId: string) {
+function getBedrockModel(modelId: string, apiKey?: string) {
   const region = process.env.AWS_REGION || 'us-east-1'
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID || process.env.AWS_BEARER_TOKEN_BEDROCK
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID || process.env.AWS_BEARER_TOKEN_BEDROCK || apiKey
   const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || ''
 
   const bedrock = createAmazonBedrock({
@@ -49,7 +49,7 @@ type ModelTarget = { provider: string; model: string; apiKey?: string; baseUrl?:
 
 function modelForTarget(target: ModelTarget) {
   const provider = target.provider.toLowerCase()
-  if (provider === 'bedrock') return getBedrockModel(target.model)
+  if (provider === 'bedrock') return getBedrockModel(target.model, target.apiKey)
   if (provider === 'openrouter') return getOpenRouterModel(target.model, target.apiKey, target.baseUrl)
   if (provider === 'groq') return getGroqModel(target.model, target.apiKey, target.baseUrl)
   if (provider === 'omniroute') return getOpenAIModel(target.model || 'auto', target.apiKey || 'ekvaar-internal', target.baseUrl || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1')
