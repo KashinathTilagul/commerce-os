@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
-import { ArrowLeft, Circle, Play, Pause, Loader2, MoreHorizontal, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Circle, Play, Pause, Loader2, MoreHorizontal, RotateCcw, FileText } from 'lucide-react'
 import { GlassPanel } from '@/components/ui/glass-system'
 import { DashboardTab } from './dashboard-tab'
 import { InstructionsTab } from './instructions-tab'
@@ -11,11 +11,12 @@ import { ConfigurationTab } from './configuration-tab'
 import { RunsTab } from './runs-tab'
 import { BudgetTab } from './budget-tab'
 import { MarketingAutomationTab } from './marketing-automation-tab'
+import { ReferencesTab } from './references-tab'
 import { timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
 import { invalidateWorkforceState } from '@/lib/query-invalidation'
 
-type Tab = 'dashboard' | 'instructions' | 'skills' | 'configuration' | 'runs' | 'budget' | 'marketing'
+type Tab = 'dashboard' | 'instructions' | 'skills' | 'configuration' | 'runs' | 'budget' | 'marketing' | 'references'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -24,6 +25,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'configuration', label: 'Configuration' },
   { id: 'runs', label: 'Runs' },
   { id: 'budget', label: 'Budget' },
+  { id: 'references', label: 'References' },
 ]
 
 const STATUS_DOT: Record<string, string> = {
@@ -260,6 +262,7 @@ export function AgentWorkspace({
         {tab === 'runs' && <RunsTab agentId={agent.id} />}
         {tab === 'budget' && <BudgetTab agent={agent} />}
         {tab === 'marketing' && <MarketingAutomationTab agentId={agent.id} />}
+        {tab === 'references' && <ReferencesTab agent={agent} />}
       </div>
     </div>
   )
