@@ -84,6 +84,17 @@ export function Settings() {
     }
   }, [])
 
+  // Auto-save provider draft with debounce so changes don't require manual apply
+  useEffect(() => {
+    if (Object.keys(providerDraft).length === 0) return
+    const timer = setTimeout(() => {
+      mutation.mutate(providerDraft, {
+        onSuccess: () => setProviderDraft({}),
+      })
+    }, 700)
+    return () => clearTimeout(timer)
+  }, [providerDraft, mutation])
+
   const mutation = useMutation({
     mutationFn: async (updates: any) => {
       const r = await fetch('/api/settings', {
@@ -555,6 +566,39 @@ const PROVIDER_OPTIONS = [
   { value: 'openai', label: 'OpenAI-compatible (custom)' },
 ]
 
+const PROVIDER_MODELS: Record<string, { value: string; label: string }[]> = {
+  bedrock: [
+    { value: 'amazon.nova-pro-v1:0', label: 'Nova Pro (recommended)' },
+    { value: 'amazon.nova-lite-v1:0', label: 'Nova Lite' },
+    { value: 'zai.glm-5', label: 'Zhipu GLM-5' },
+    { value: 'anthropic.claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
+    { value: 'anthropic.claude-3-haiku', label: 'Claude 3 Haiku' },
+  ],
+  openrouter: [
+    { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
+    { value: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (free)' },
+    { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (free)' },
+    { value: 'meta-llama/llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
+    { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (free)' },
+  ],
+  groq: [
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
+    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
+    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
+  ],
+  openai: [
+    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'o1-preview', label: 'o1 Preview' },
+    { value: 'o1-mini', label: 'o1 Mini' },
+  ],
+  omniroute: [
+    { value: 'auto', label: 'Auto (intelligent routing)' },
+    { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
+    { value: 'gpt-4o', label: 'GPT-4o' },
+  ],
+}
+
 function ProviderSlot({
   title, provider, model, apiKey, baseUrl, hasApiKey, onChange,
 }: {
@@ -566,11 +610,22 @@ function ProviderSlot({
   hasApiKey?: boolean
   onChange: (field: 'Provider' | 'Model' | 'ApiKey' | 'BaseUrl', value: string) => void
 }) {
+  const [customModel, setCustomModel] = useState(model || '')
+  const [showCustomModel, setShowCustomModel] = useState(false)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  const availableModels = provider ? (PROVIDER_MODELS[provider] || []) : []
+
+  const debouncedSave = (field: 'Provider' | 'Model' | 'ApiKey' | 'BaseUrl', value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => onChange(field, value), 600)
+  }
+
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium">{title}</span>
-        <Select value={provider || ''} onValueChange={(v) => onChange('Provider', v)}>
+        <Select value={provider || ''} onValueChange={(v) => { onChange('Provider', v); setShowCustomModel(false) }}>
           <SelectTrigger className="h-7 w-44 text-xs"><SelectValue placeholder="Choose provider" /></SelectTrigger>
           <SelectContent>
             {PROVIDER_OPTIONS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
@@ -578,30 +633,69 @@ function ProviderSlot({
         </Select>
       </div>
       <div className="space-y-1">
-        <label className="text-[11px] text-muted-foreground flex items-center gap-1"><Key className="h-3 w-3" /> API Key</label>
+        <label className="text-[11px] text-muted-foreground flex items-center gap-1">
+          <Key className="h-3 w-3" /> API Key
+          {hasApiKey && !apiKey && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 ml-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> configured
+            </span>
+          )}
+        </label>
         <Input
           type="password"
           value={apiKey || ''}
-          onChange={(e) => onChange('ApiKey', e.target.value)}
-          placeholder={hasApiKey ? '•••••••••••••••• (key set)' : 'Paste your API key here...'}
+          onChange={(e) => debouncedSave('ApiKey', e.target.value)}
+          onBlur={() => { if (debounceRef.current) clearTimeout(debounceRef.current); onChange('ApiKey', apiKey || '') }}
+          placeholder={hasApiKey ? 'Key configured — paste to replace' : 'Paste your API key here...'}
           className="h-8 text-xs font-mono"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-[11px] text-muted-foreground">Model ID</label>
-        <Input
-          value={model || ''}
-          onChange={(e) => onChange('Model', e.target.value)}
-          placeholder={provider === 'bedrock' ? 'amazon-bedrock/zai.glm-5' : provider === 'groq' ? 'llama-3.3-70b-versatile' : 'model-id'}
-          className="h-8 text-xs font-mono"
-        />
+        <label className="text-[11px] text-muted-foreground">Model</label>
+        {provider && !showCustomModel ? (
+          <div className="flex gap-2">
+            <Select
+              value={availableModels.some(m => m.value === model) ? model || '' : '__custom__'}
+              onValueChange={(v) => {
+                if (v === '__custom__') {
+                  setShowCustomModel(true)
+                } else {
+                  setCustomModel(v)
+                  onChange('Model', v)
+                }
+              }}
+            >
+              <SelectTrigger className="h-8 flex-1 text-xs"><SelectValue placeholder="Choose model" /></SelectTrigger>
+              <SelectContent>
+                {availableModels.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                <SelectItem value="__custom__">Custom model ID...</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Input
+              value={customModel || model || ''}
+              onChange={(e) => { setCustomModel(e.target.value); debouncedSave('Model', e.target.value) }}
+              onBlur={() => { setShowCustomModel(false); onChange('Model', customModel || model || '') }}
+              placeholder={provider === 'bedrock' ? 'amazon.nova-pro-v1:0' : provider === 'groq' ? 'llama-3.3-70b-versatile' : 'model-id'}
+              className="h-8 text-xs font-mono flex-1"
+            />
+            {provider && availableModels.length > 0 && (
+              <Button variant="outline" size="sm" className="h-8 text-[10px]" onClick={() => { setShowCustomModel(false); setCustomModel(model || '') }}>
+                Browse
+              </Button>
+            )}
+          </div>
+        )}
       </div>
       {provider === 'openai' && (
         <div className="space-y-1">
           <label className="text-[11px] text-muted-foreground">Base URL</label>
           <Input
             value={baseUrl || ''}
-            onChange={(e) => onChange('BaseUrl', e.target.value)}
+            onChange={(e) => debouncedSave('BaseUrl', e.target.value)}
+            onBlur={() => { if (debounceRef.current) clearTimeout(debounceRef.current); onChange('BaseUrl', baseUrl || '') }}
             placeholder="https://api.example.com/v1"
             className="h-8 text-xs font-mono"
           />
