@@ -6,11 +6,7 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-<<<<<<< HEAD
-  AlertTriangle, Music, Activity, Brain, Rocket, Loader2, Workflow as WorkflowIcon, Palette
-=======
   AlertTriangle, Music, Activity, Brain, Rocket, Loader2
->>>>>>> session/agent_02bc07f5-35f7-4d0e-9335-0ce1f09323db
 } from 'lucide-react'
 
 import dynamic from 'next/dynamic'
@@ -46,11 +42,6 @@ const HealthMonitor = dynamic(() => import('@/components/ekvaar/modules/health-m
 const WorkspaceExplorer = dynamic(() => import('@/components/ekvaar/modules/workspace-explorer').then(m => m.WorkspaceExplorer), { loading: LoadingFallback })
 const MemoryExplorer = dynamic(() => import('@/components/ekvaar/modules/memory-explorer').then(m => m.MemoryExplorer), { loading: LoadingFallback })
 const ProductLaunches = dynamic(() => import('@/components/ekvaar/modules/product-launches').then(m => m.ProductLaunches), { loading: LoadingFallback })
-<<<<<<< HEAD
-const N8nWorkflowApp = dynamic(() => import('@/components/ekvaar/modules/n8n-workflow').then(m => m.N8nWorkflowApp), { loading: LoadingFallback })
-const OpenDesignApp = dynamic(() => import('@/components/ekvaar/modules/open-design').then(m => m.OpenDesignApp), { loading: LoadingFallback })
-=======
->>>>>>> session/agent_02bc07f5-35f7-4d0e-9335-0ce1f09323db
 
 // To bridge legacy metadata that isn't in OSManifest yet
 export interface AppDef extends OSManifest {
@@ -199,7 +190,7 @@ export const APPS: AppDef[] = [
     glyphColor: '#F5F1EA',
     menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
-  {
+{
     id: 'product-launches',
     name: 'Product Launches',
     shortName: 'Launches',
@@ -214,40 +205,7 @@ export const APPS: AppDef[] = [
     glyphColor: '#F5F1EA',
     menuItems: []
   },
-<<<<<<< HEAD
-  {
-    id: 'n8n',
-    name: 'n8n Marketing Studio',
-    shortName: 'n8n',
-    version: '1.0.0',
-    icon: WorkflowIcon as any,
-    iconVariant: 'n8n',
-    category: 'core',
-    requiredCapabilities: [],
-    entryPoint: N8nWorkflowApp,
-    permissions: ['provider:read', 'provider:write'],
-    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #C0342C 55%, #0047AB 100%)',
-    glyphColor: '#FFFFFF',
-    menuItems: [{ label: 'Workflow', items: ['Run', 'Edit in n8n', 'Close Window'] }]
-  },
-  {
-    id: 'open-design',
-    name: 'Open Design',
-    shortName: 'Design',
-    version: '0.18.2',
-    icon: Palette as any,
-    iconVariant: 'open-design',
-    category: 'core',
-    requiredCapabilities: [],
-    entryPoint: OpenDesignApp,
-    permissions: ['provider:read', 'provider:write'],
-    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #F5F1EA 58%, #C8302A 100%)',
-    glyphColor: '#0A0A0A',
-    menuItems: [{ label: 'Design', items: ['Open full workspace', 'Close Window'] }]
-  },
-=======
->>>>>>> session/agent_02bc07f5-35f7-4d0e-9335-0ce1f09323db
-  
+
   // Utilities
   {
     id: 'calculator',

@@ -149,31 +149,19 @@ model Organization {
   taskTemplates    TaskTemplate[]
   systemSetting    SystemSetting?
   productLaunches  ProductLaunch[]
-  campaignLaunches CampaignLaunch[]
-<<<<<<< HEAD
+campaignLaunches CampaignLaunch[]
   campaignPolicy   CampaignPolicy?
+  marketingTasks   MarketingTask[]
   outboxMessages   OutboxMessage[]
 
-  context         OrganizationContext?
-  commerceLinks   CommerceObjectLink[]
-  syncStates      SyncState[]
-  knowledgeNodes  KnowledgeNode[]
-  knowledgeEdges  KnowledgeEdge[]
-  prompts         Prompt[]
-=======
-  campaignPolicy CampaignPolicy?
-  marketingTasks   MarketingTask[]
-  outboxMessages OutboxMessage[]
-  
-  context        OrganizationContext?
-  commerceLinks  CommerceObjectLink[]
-  syncStates     SyncState[]
-  knowledgeNodes KnowledgeNode[]
-  knowledgeEdges KnowledgeEdge[]
-  prompts        Prompt[]
->>>>>>> session/agent_02bc07f5-35f7-4d0e-9335-0ce1f09323db
-  aiExecutionLogs AIExecutionLog[]
-  channels        Channel[]
+  context          OrganizationContext?
+  commerceLinks    CommerceObjectLink[]
+  syncStates       SyncState[]
+  knowledgeNodes   KnowledgeNode[]
+  knowledgeEdges   KnowledgeEdge[]
+  prompts          Prompt[]
+  aiExecutionLogs  AIExecutionLog[]
+  channels         Channel[]
 }
 
 model User {
