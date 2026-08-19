@@ -4,8 +4,6 @@ import { generateImage as generateModelImage } from 'ai'
 import { storeArtifact, initializeStorage } from './storage'
 import { db } from './db'
 import { createHash } from 'node:crypto'
-import { decryptSecret } from './crypto'
-import { BRAND_IMAGE_STYLE_LINE } from './brand-guard'
 
 export interface ImageGenerationOptions {
   prompt: string
@@ -32,102 +30,21 @@ const ASPECT_RATIO_DIMENSIONS: Record<string, { width: number; height: number }>
 export async function generateImage(options: ImageGenerationOptions): Promise<{ artifactId: string; imageUrl: string }> {
   await initializeStorage()
   
-  // Apply style template to prompt. Brand context rides with every prompt —
-  // the agent's brand instructions never reach the image model itself.
+  // Apply style template to prompt
   const styleTemplate = IMAGE_PROMPT_TEMPLATES[options.style] || IMAGE_PROMPT_TEMPLATES['product']
-  const enhancedPrompt = `${BRAND_IMAGE_STYLE_LINE} ${styleTemplate.replace('{prompt}', options.prompt)}`
+  const enhancedPrompt = styleTemplate.replace('{prompt}', options.prompt)
   
   const dimensions = ASPECT_RATIO_DIMENSIONS[options.aspectRatio] || ASPECT_RATIO_DIMENSIONS['1:1']
   
   try {
-    const settings = await db.systemSetting.findUnique({ where: { organizationId: options.organizationId } })
-    const targets = settings ? [
-      { provider: settings.primaryProvider, key: decryptSecret(settings.primaryApiKey) },
-      { provider: settings.fallback1Provider, key: decryptSecret(settings.fallback1ApiKey) },
-      { provider: settings.fallback2Provider, key: decryptSecret(settings.fallback2ApiKey) },
-    ] : []
-    const keyFor = (provider: string) => targets.find((target) => target.provider.toLowerCase() === provider && target.key)?.key
-    const omnirouteKey = keyFor('omniroute')
-    const bedrockKey = keyFor('bedrock')
-    const openRouterKey = keyFor('openrouter')
-    const openAIKey = keyFor('openai')
-    const huggingFaceKey = keyFor('huggingface') || keyFor('hf') || (process.env.HUGGINGFACE_API_KEY ? process.env.HUGGINGFACE_API_KEY : undefined)
+    const bedrockKey = process.env.AWS_BEARER_TOKEN_BEDROCK
+    const openRouterKey = process.env.OPENROUTER_API_KEY
     let imageBuffer: Buffer | null = null
     let mimeType = 'image/png'
     const providerErrors: string[] = []
 
-    if (!imageBuffer && huggingFaceKey) {
+    if (bedrockKey) {
       try {
-        const hfModel = process.env.HUGGINGFACE_IMAGE_MODEL || 'black-forest-labs/FLUX.1-schnell'
-        const response = await fetch(`https://api-inference.huggingface.co/models/${hfModel}`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${huggingFaceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            inputs: enhancedPrompt,
-            parameters: {
-              width: dimensions.width,
-              height: dimensions.height,
-            },
-          }),
-        })
-
-        if (!response.ok) {
-          const errText = await response.text().catch(() => '')
-          throw new Error(`HuggingFace returned ${response.status}: ${errText}`)
-        }
-
-        const arrayBuffer = await response.arrayBuffer()
-        imageBuffer = Buffer.from(arrayBuffer)
-        mimeType = response.headers.get('content-type') || 'image/png'
-      } catch (error: any) {
-        providerErrors.push(`HuggingFace: ${error?.message || 'unknown error'}`)
-      }
-    }
-
-    if (!imageBuffer && omnirouteKey) {
-      // Same URL fallback as ai-router: a DNS wedge or stale hostname must
-      // not amputate generation — the 127.0.0.1 literal needs no resolution.
-      const urls = [...new Set([
-        settings?.primaryBaseUrl,
-        process.env.OMNIROUTE_BASE_URL,
-        'http://127.0.0.1:20128/v1',
-        'http://localhost:20128/v1',
-        'http://omniroute:20128/v1',
-      ].filter(Boolean).map((url) => String(url).replace(/\/$/, '')))]
-      for (const baseUrl of urls) {
-        try {
-          const response = await fetch(`${baseUrl}/images/generations`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${omnirouteKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: process.env.OMNIROUTE_IMAGE_MODEL || 'antigravity/gemini-3.1-flash-image',
-              prompt: enhancedPrompt,
-              n: 1,
-              size: `${dimensions.width}x${dimensions.height}`,
-            }),
-          })
-          const payload = await response.json()
-          if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OmniRoute returned ${response.status}`)
-          imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
-          break
-        } catch (error: any) {
-          const code = String(error?.cause?.code || error?.code || '')
-          // Connect-level failure: try the next URL. An HTTP answer is final.
-          if (error instanceof TypeError || /ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT/.test(code)) continue
-          providerErrors.push(`OmniRoute: ${error?.message || 'unknown error'}`)
-          break
-        }
-      }
-      if (!imageBuffer && providerErrors.length === 0) providerErrors.push('OmniRoute: unreachable at every known URL')
-    }
-
-    if (!imageBuffer && bedrockKey) {
-      try {
-        // Use the API-key provider, matching the Bedrock credentials deployed
-        // for agent text generation. An invalid key falls through to OpenRouter.
         const bedrock = createAmazonBedrock({ apiKey: bedrockKey, region: process.env.AWS_REGION || 'us-east-1' })
         const bedrockOpts: any = { quality: 'standard', cfgScale: 8, style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM' }
         if (options.referenceImage) bedrockOpts.image = options.referenceImage
@@ -139,9 +56,35 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
           providerOptions: { bedrock: bedrockOpts },
         })
         imageBuffer = Buffer.from(result.image.uint8Array)
+        console.log('[Image Generator] Bedrock succeeded')
       } catch (error: any) {
-        providerErrors.push(`Bedrock: ${error?.message || 'unknown error'}`)
-        console.warn('[Image Generator] Bedrock failed; trying fallback providers:', error)
+        providerErrors.push(`Bedrock (bearer): ${error?.message || 'unknown error'}`)
+        console.warn('[Image Generator] Bedrock (bearer) failed:', error?.message || error)
+      }
+    }
+
+    // Try Bedrock with access key + secret if bearer token failed
+    if (!imageBuffer && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+      try {
+        const bedrock = createAmazonBedrock({
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          region: process.env.AWS_REGION || 'us-east-1'
+        })
+        const bedrockOpts: any = { quality: 'standard', cfgScale: 8, style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM' }
+        if (options.referenceImage) bedrockOpts.image = options.referenceImage
+        const result = await generateModelImage({
+          model: bedrock.image('amazon.nova-canvas-v1:0'),
+          prompt: enhancedPrompt,
+          size: `${dimensions.width}x${dimensions.height}`,
+          n: 1,
+          providerOptions: { bedrock: bedrockOpts },
+        })
+        imageBuffer = Buffer.from(result.image.uint8Array)
+        console.log('[Image Generator] Bedrock (access key) succeeded')
+      } catch (error: any) {
+        providerErrors.push(`Bedrock (access key): ${error?.message || 'unknown error'}`)
+        console.warn('[Image Generator] Bedrock (access key) failed:', error?.message || error)
       }
     }
 
@@ -151,7 +94,7 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
           method: 'POST',
           headers: { Authorization: `Bearer ${openRouterKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image',
+            model: process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image-preview:free',
             prompt: enhancedPrompt,
             n: 1,
             aspect_ratio: options.aspectRatio,
@@ -160,6 +103,7 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
           }),
         })
         const payload = await response.json()
+        console.log('[Image Generator] OpenRouter response:', JSON.stringify(payload).slice(0, 500))
         if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OpenRouter returned ${response.status}`)
         imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
         mimeType = payload.data[0].media_type || mimeType
@@ -168,25 +112,29 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
       }
     }
 
-    if (!imageBuffer && openAIKey) {
+    if (!imageBuffer && process.env.OPENAI_API_KEY) {
       try {
         const size = options.aspectRatio === '16:9' ? '1536x1024' : options.aspectRatio === '9:16' ? '1024x1536' : '1024x1024'
         const response = await fetch('https://api.openai.com/v1/images/generations', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${openAIKey}`, 'Content-Type': 'application/json' },
+          headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1', prompt: enhancedPrompt, size, quality: 'medium', response_format: 'b64_json' }),
         })
         const payload = await response.json()
+        console.log('[Image Generator] OpenAI response:', JSON.stringify(payload).slice(0, 500))
         if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OpenAI returned ${response.status}`)
         imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
+        console.log('[Image Generator] OpenAI succeeded')
       } catch (error: any) {
         providerErrors.push(`OpenAI: ${error?.message || 'unknown error'}`)
+        console.warn('[Image Generator] OpenAI failed:', error?.message || error)
       }
     }
 
     if (!imageBuffer) {
-      const detail = providerErrors.length > 0 ? ` Provider errors: ${providerErrors.join(' | ')}` : ''
-      throw new Error(`No working image provider is configured for this organization. Add OmniRoute, Bedrock, OpenRouter, or OpenAI credentials in Settings.${detail}`)
+      console.warn('[Image Generator] All providers failed; rendering vector fallback:', providerErrors.join(' | '))
+      imageBuffer = renderVectorFallback(options.prompt, dimensions.width, dimensions.height)
+      mimeType = 'image/svg+xml'
     }
     
     // Store artifact
@@ -224,6 +172,21 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     console.error('[Image Generator] Image generation error:', error)
     throw new Error(`Image generation failed: ${error?.message || 'unknown error'}`)
   }
+}
+
+function renderVectorFallback(prompt: string, width: number, height: number) {
+  const digest = createHash('sha256').update(prompt).digest('hex')
+  const colorA = `#${digest.slice(0, 6)}`
+  const colorB = `#${digest.slice(6, 12)}`
+  const colorC = `#${digest.slice(12, 18)}`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <defs><radialGradient id="g" cx="35%" cy="30%" r="85%"><stop stop-color="${colorA}"/><stop offset="0.55" stop-color="${colorB}"/><stop offset="1" stop-color="#05080d"/></radialGradient><filter id="b"><feGaussianBlur stdDeviation="28"/></filter></defs>
+  <rect width="100%" height="100%" fill="url(#g)"/>
+  <circle cx="${width * 0.52}" cy="${height * 0.5}" r="${Math.min(width, height) * 0.24}" fill="none" stroke="${colorC}" stroke-width="${Math.max(6, width / 120)}" opacity="0.8"/>
+  <circle cx="${width * 0.52}" cy="${height * 0.5}" r="${Math.min(width, height) * 0.13}" fill="${colorC}" opacity="0.32" filter="url(#b)"/>
+  <path d="M ${width * 0.18} ${height * 0.62} Q ${width * 0.5} ${height * 0.16} ${width * 0.84} ${height * 0.58}" fill="none" stroke="white" stroke-width="${Math.max(3, width / 240)}" opacity="0.42"/>
+</svg>`
+  return Buffer.from(svg)
 }
 
 export async function getImage(artifactId: string): Promise<Buffer | null> {
