@@ -13,6 +13,22 @@ services:
       retries: 5
     restart: unless-stopped
 
+  omniroute:
+    image: diegosouzapw/omniroute:latest
+    ports:
+      - "20128:20128"
+    environment:
+      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY}
+      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
+    volumes:
+      - omniroutedata:/root/.omniroute
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:20128/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./apps/frontend
@@ -31,29 +47,15 @@ services:
       - CRON_SECRET=${CRON_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-https://os.ekvaar.com}
       - CAMPAIGN_LAUNCHES_ENABLED=${CAMPAIGN_LAUNCHES_ENABLED:-true}
-      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - COMPOSIO_API_KEY=${COMPOSIO_API_KEY}
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-zai.glm-5}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
-      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
-      - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}
-      - QIKINK_MODE=${QIKINK_MODE:-sandbox}
-      - QIKINK_CLIENT_ID=${QIKINK_CLIENT_ID}
-      - QIKINK_CLIENT_SECRET=${QIKINK_CLIENT_SECRET}
+      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
+      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY}
       - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}
       - BROWSER_SIDECAR_URL=${BROWSER_SIDECAR_URL}
-      - N8N_EKVAAR_WEBHOOK_URL=${N8N_EKVAAR_WEBHOOK_URL}
-      - N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET}
-      - N8N_EKVAAR_WORKFLOW_ID=${N8N_EKVAAR_WORKFLOW_ID}
-      - N8N_EKVAAR_EDITOR_URL=${N8N_EKVAAR_EDITOR_URL}
     restart: unless-stopped
     depends_on:
       redis:
+        condition: service_healthy
+      omniroute:
         condition: service_healthy
       fastapi:
         condition: service_started
@@ -81,22 +83,20 @@ services:
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must point to Supabase}
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET}
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-amazon.nova-pro-v1:0}
-      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
-      - COMPOSIO_API_KEY=${COMPOSIO_API_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - GROQ_API_KEY=${GROQ_API_KEY}
+      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
+      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY}
       - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}
       - BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY}
       - BROWSER_USE_MODEL=${BROWSER_USE_MODEL}
       - OPENAI_BROWSER_MODEL=${OPENAI_BROWSER_MODEL}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - BROWSER_HEADLESS=${BROWSER_HEADLESS:-true}
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
+      omniroute:
+        condition: service_healthy
 
 volumes:
   redisdata:
+  omniroutedata:

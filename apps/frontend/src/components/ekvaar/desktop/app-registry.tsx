@@ -190,7 +190,7 @@ export const APPS: AppDef[] = [
     glyphColor: '#F5F1EA',
     menuItems: [{ label: 'File', items: ['Close Window'] }]
   },
-  {
+{
     id: 'product-launches',
     name: 'Product Launches',
     shortName: 'Launches',
@@ -205,7 +205,11 @@ export const APPS: AppDef[] = [
     glyphColor: '#F5F1EA',
     menuItems: []
   },
+<<<<<<< ours
   
+=======
+
+>>>>>>> theirs
   // Utilities
   {
     id: 'calculator',

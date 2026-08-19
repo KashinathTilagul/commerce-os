@@ -250,24 +250,24 @@ export function Settings() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ProviderSlot
-              title="Primary"
-              provider={providerDraft.primaryProvider ?? s.primaryProvider} model={providerDraft.primaryModel ?? s.primaryModel} apiKey={providerDraft.primaryApiKey ?? ''} baseUrl={providerDraft.primaryBaseUrl ?? s.primaryBaseUrl}
-              hasApiKey={Boolean(s.hasPrimaryApiKey) && providerDraft.primaryApiKey === undefined}
-              onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`primary${field}`]: value }))}
-            />
-            <ProviderSlot
-              title="Fallback 1"
-              provider={providerDraft.fallback1Provider ?? s.fallback1Provider} model={providerDraft.fallback1Model ?? s.fallback1Model} apiKey={providerDraft.fallback1ApiKey ?? ''} baseUrl={providerDraft.fallback1BaseUrl ?? s.fallback1BaseUrl}
-              hasApiKey={Boolean(s.hasFallback1ApiKey) && providerDraft.fallback1ApiKey === undefined}
-              onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`fallback1${field}`]: value }))}
-            />
-            <ProviderSlot
-              title="Fallback 2"
-              provider={providerDraft.fallback2Provider ?? s.fallback2Provider} model={providerDraft.fallback2Model ?? s.fallback2Model} apiKey={providerDraft.fallback2ApiKey ?? ''} baseUrl={providerDraft.fallback2BaseUrl ?? s.fallback2BaseUrl}
-              hasApiKey={Boolean(s.hasFallback2ApiKey) && providerDraft.fallback2ApiKey === undefined}
-              onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`fallback2${field}`]: value }))}
-            />
+<ProviderSlot
+  title="Primary"
+  provider={providerDraft.primaryProvider ?? s.primaryProvider} model={providerDraft.primaryModel ?? s.primaryModel} apiKey={providerDraft.primaryApiKey ?? ''}
+  hasApiKey={Boolean(s.hasPrimaryApiKey) && providerDraft.primaryApiKey === undefined}
+  onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`primary${field}`]: value }))}
+/>
+<ProviderSlot
+  title="Fallback 1"
+  provider={providerDraft.fallback1Provider ?? s.fallback1Provider} model={providerDraft.fallback1Model ?? s.fallback1Model} apiKey={providerDraft.fallback1ApiKey ?? ''}
+  hasApiKey={Boolean(s.hasFallback1ApiKey) && providerDraft.fallback1ApiKey === undefined}
+  onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`fallback1${field}`]: value }))}
+/>
+<ProviderSlot
+  title="Fallback 2"
+  provider={providerDraft.fallback2Provider ?? s.fallback2Provider} model={providerDraft.fallback2Model ?? s.fallback2Model} apiKey={providerDraft.fallback2ApiKey ?? ''}
+  hasApiKey={Boolean(s.hasFallback2ApiKey) && providerDraft.fallback2ApiKey === undefined}
+  onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`fallback2${field}`]: value }))}
+/>
             <Row label="Max token budget %" desc="Auto-pause agents at this threshold">
               <div className="w-56">
                 <Slider value={[s.maxTokens ?? 80]} onValueChange={(v) => handleChange('maxTokens', v[0])} max={100} step={5} />
@@ -559,59 +559,37 @@ export function Settings() {
 }
 
 const PROVIDER_OPTIONS = [
-  { value: 'omniroute', label: 'OmniRoute intelligent gateway' },
-  { value: 'bedrock', label: 'AWS Bedrock' },
-  { value: 'openrouter', label: 'OpenRouter' },
-  { value: 'groq', label: 'Groq' },
-  { value: 'openai', label: 'OpenAI-compatible (custom)' },
+  { value: 'omniroute', label: 'OmniRoute Gateway' },
 ]
 
 const PROVIDER_MODELS: Record<string, { value: string; label: string; vision?: boolean }[]> = {
-  bedrock: [
-    { value: 'amazon.nova-pro-v1:0', label: 'Nova Pro (recommended, vision)', vision: true },
-    { value: 'amazon.nova-lite-v1:0', label: 'Nova Lite (vision)', vision: true },
-    { value: 'zai.glm-5', label: 'Zhipu GLM-5' },
-    { value: 'anthropic.claude-3-5-sonnet', label: 'Claude 3.5 Sonnet (vision)', vision: true },
-    { value: 'anthropic.claude-3-haiku', label: 'Claude 3 Haiku (vision)', vision: true },
-  ],
-  openrouter: [
-    { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (vision)', vision: true },
-    { value: 'anthropic/claude-3-haiku', label: 'Claude 3 Haiku (vision)', vision: true },
-    { value: 'google/gemini-pro-1.5', label: 'Gemini 1.5 Pro (vision)', vision: true },
-    { value: 'google/gemini-flash-1.5', label: 'Gemini 1.5 Flash (vision)', vision: true },
-    { value: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (free)' },
-    { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (free)' },
-    { value: 'meta-llama/llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
-    { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (free)' },
-  ],
-  groq: [
-    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
-    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
-    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
-  ],
-  openai: [
-    { value: 'gpt-4o', label: 'GPT-4o (vision)', vision: true },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini (vision)', vision: true },
-    { value: 'o1-preview', label: 'o1 Preview' },
-    { value: 'o1-mini', label: 'o1 Mini' },
-  ],
   omniroute: [
     { value: 'auto', label: 'Auto (intelligent routing)' },
-    { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (vision)', vision: true },
-    { value: 'gpt-4o', label: 'GPT-4o (vision)', vision: true },
+    { value: 'auto/coding', label: 'Auto Coding' },
+    { value: 'auto/fast', label: 'Auto Fast' },
+    { value: 'auto/cheap', label: 'Auto Cheap' },
+    { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (vision)', vision: true },
+    { value: 'anthropic/claude-3-haiku', label: 'Claude 3 Haiku (vision)', vision: true },
+    { value: 'google/gemini-1.5-pro', label: 'Gemini 1.5 Pro (vision)', vision: true },
+    { value: 'google/gemini-1.5-flash', label: 'Gemini 1.5 Flash (vision)', vision: true },
+    { value: 'google/gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash (vision)', vision: true },
+    { value: 'openai/gpt-4o', label: 'GPT-4o (vision)', vision: true },
+    { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini (vision)', vision: true },
+    { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (free)' },
+    { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (free)' },
+    { value: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (free)' },
   ],
 }
 
 function ProviderSlot({
-  title, provider, model, apiKey, baseUrl, hasApiKey, onChange,
+  title, provider, model, apiKey, hasApiKey, onChange,
 }: {
   title: string
   provider?: string
   model?: string
   apiKey?: string
-  baseUrl?: string
   hasApiKey?: boolean
-  onChange: (field: 'Provider' | 'Model' | 'ApiKey' | 'BaseUrl', value: string) => void
+  onChange: (field: 'Provider' | 'Model' | 'ApiKey', value: string) => void
 }) {
   const [customModel, setCustomModel] = useState(model || '')
   const [showCustomModel, setShowCustomModel] = useState(false)
@@ -619,7 +597,7 @@ function ProviderSlot({
 
   const availableModels = provider ? (PROVIDER_MODELS[provider] || []) : []
 
-  const debouncedSave = (field: 'Provider' | 'Model' | 'ApiKey' | 'BaseUrl', value: string) => {
+  const debouncedSave = (field: 'Provider' | 'Model' | 'ApiKey', value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => onChange(field, value), 600)
   }
@@ -688,7 +666,7 @@ function ProviderSlot({
               value={customModel || model || ''}
               onChange={(e) => { setCustomModel(e.target.value); debouncedSave('Model', e.target.value) }}
               onBlur={() => { setShowCustomModel(false); onChange('Model', customModel || model || '') }}
-              placeholder={provider === 'bedrock' ? 'amazon.nova-pro-v1:0' : provider === 'groq' ? 'llama-3.3-70b-versatile' : 'model-id'}
+              placeholder={'anthropic/claude-3.5-sonnet'}
               className="h-8 text-xs font-mono flex-1"
             />
             {provider && availableModels.length > 0 && (
@@ -699,18 +677,6 @@ function ProviderSlot({
           </div>
         )}
       </div>
-      {provider === 'openai' && (
-        <div className="space-y-1">
-          <label className="text-[11px] text-muted-foreground">Base URL</label>
-          <Input
-            value={baseUrl || ''}
-            onChange={(e) => debouncedSave('BaseUrl', e.target.value)}
-            onBlur={() => { if (debounceRef.current) clearTimeout(debounceRef.current); onChange('BaseUrl', baseUrl || '') }}
-            placeholder="https://api.example.com/v1"
-            className="h-8 text-xs font-mono"
-          />
-        </div>
-      )}
     </div>
   )
 }

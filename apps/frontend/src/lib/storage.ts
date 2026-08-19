@@ -44,7 +44,9 @@ export async function storeArtifact(
   await initializeStorage()
   
   const dir = path.join(STORAGE_ROOT, getStorageDir(type))
-  const filename = customFilename || `${id}${getArtifactExt(type)}`
+  // Titles come from LLM output — strip path separators so a name like
+  // "slide 2/3" cannot escape the artifact directory.
+  const filename = (customFilename || `${id}${getArtifactExt(type)}`).replace(/[/\\]/g, ' ')
   const filepath = path.join(dir, filename)
   
   await fs.writeFile(filepath, content)
