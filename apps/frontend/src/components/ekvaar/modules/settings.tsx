@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle } from 'lucide-react'
+import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle, Server } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { OmniRouteSettings } from './omniroute-settings'
 
 export function Settings() {
   const { mode, accent, setMode, setAccent } = useThemeStore()
@@ -259,6 +260,21 @@ export function Settings() {
                 <div className="text-right text-xs font-mono mt-1">{s.maxTokens ?? 80}%</div>
               </div>
             </Row>
+          </CardContent>
+        </Card>
+
+        {/* OmniRoute Gateway */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <Server className="h-4 w-4" /> OmniRoute Gateway
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Central AI routing layer — all EKVAAR OS AI calls go through OmniRoute.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <OmniRouteSettings />
           </CardContent>
         </Card>
 
