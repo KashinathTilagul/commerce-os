@@ -1,5 +1,5 @@
 const WORKFLOW_ID = 'IF1CS5po1jkq9M7D'
-const DEFAULT_EDITOR_URL = `https://kashinathtilagul.app.n8n.cloud/workflow/${WORKFLOW_ID}`
+const DEFAULT_EDITOR_URL = `/automation/workflow/${WORKFLOW_ID}`
 
 export function getN8nStatus() {
   return {
