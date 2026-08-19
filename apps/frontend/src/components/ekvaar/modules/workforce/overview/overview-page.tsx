@@ -386,7 +386,7 @@ function AgentSummaryCard({ agents = [], metric = 'total', icon, label, color }:
           </div>
           <div>
             <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
-            <div className="mt-1 font-display text-2xl tracking-tight {color}">{count}</div>
+            <div className={`mt-1 font-display text-2xl tracking-tight ${color}`}>{count}</div>
           </div>
         </div>
       </GlassPanel>
@@ -402,7 +402,7 @@ function AgentSummaryCard({ agents = [], metric = 'total', icon, label, color }:
           </div>
           <div>
             <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
-            <div className="mt-1 font-display text-2xl tracking-tight {color}">{count}</div>
+            <div className={`mt-1 font-display text-2xl tracking-tight ${color}`}>{count}</div>
           </div>
         </div>
       </GlassPanel>
@@ -421,7 +421,7 @@ function AgentSummaryCard({ agents = [], metric = 'total', icon, label, color }:
           </div>
           <div>
             <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
-            <div className="mt-1 font-display text-2xl tracking-tight {budgetColor}">{pct}%</div>
+            <div className={`mt-1 font-display text-2xl tracking-tight ${budgetColor}`}>{pct}%</div>
             <div className="text-[10px] text-muted-foreground">₹{Number(totalSpend).toLocaleString()} / ₹{Number(totalBudget).toLocaleString()}</div>
           </div>
         </div>

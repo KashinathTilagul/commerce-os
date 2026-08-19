@@ -566,16 +566,19 @@ const PROVIDER_OPTIONS = [
   { value: 'openai', label: 'OpenAI-compatible (custom)' },
 ]
 
-const PROVIDER_MODELS: Record<string, { value: string; label: string }[]> = {
+const PROVIDER_MODELS: Record<string, { value: string; label: string; vision?: boolean }[]> = {
   bedrock: [
-    { value: 'amazon.nova-pro-v1:0', label: 'Nova Pro (recommended)' },
-    { value: 'amazon.nova-lite-v1:0', label: 'Nova Lite' },
+    { value: 'amazon.nova-pro-v1:0', label: 'Nova Pro (recommended, vision)', vision: true },
+    { value: 'amazon.nova-lite-v1:0', label: 'Nova Lite (vision)', vision: true },
     { value: 'zai.glm-5', label: 'Zhipu GLM-5' },
-    { value: 'anthropic.claude-3-5-sonnet', label: 'Claude 3.5 Sonnet' },
-    { value: 'anthropic.claude-3-haiku', label: 'Claude 3 Haiku' },
+    { value: 'anthropic.claude-3-5-sonnet', label: 'Claude 3.5 Sonnet (vision)', vision: true },
+    { value: 'anthropic.claude-3-haiku', label: 'Claude 3 Haiku (vision)', vision: true },
   ],
   openrouter: [
-    { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
+    { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (vision)', vision: true },
+    { value: 'anthropic/claude-3-haiku', label: 'Claude 3 Haiku (vision)', vision: true },
+    { value: 'google/gemini-pro-1.5', label: 'Gemini 1.5 Pro (vision)', vision: true },
+    { value: 'google/gemini-flash-1.5', label: 'Gemini 1.5 Flash (vision)', vision: true },
     { value: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (free)' },
     { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (free)' },
     { value: 'meta-llama/llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
@@ -587,15 +590,15 @@ const PROVIDER_MODELS: Record<string, { value: string; label: string }[]> = {
     { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
   ],
   openai: [
-    { value: 'gpt-4o', label: 'GPT-4o' },
-    { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+    { value: 'gpt-4o', label: 'GPT-4o (vision)', vision: true },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini (vision)', vision: true },
     { value: 'o1-preview', label: 'o1 Preview' },
     { value: 'o1-mini', label: 'o1 Mini' },
   ],
   omniroute: [
     { value: 'auto', label: 'Auto (intelligent routing)' },
-    { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5' },
-    { value: 'gpt-4o', label: 'GPT-4o' },
+    { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (vision)', vision: true },
+    { value: 'gpt-4o', label: 'GPT-4o (vision)', vision: true },
   ],
 }
 
@@ -667,7 +670,14 @@ function ProviderSlot({
             >
               <SelectTrigger className="h-8 flex-1 text-xs"><SelectValue placeholder="Choose model" /></SelectTrigger>
               <SelectContent>
-                {availableModels.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                {availableModels.map(m => (
+                  <SelectItem key={m.value} value={m.value}>
+                    <span className="flex items-center gap-2">
+                      {m.label}
+                      {m.vision && <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300">vision</span>}
+                    </span>
+                  </SelectItem>
+                ))}
                 <SelectItem value="__custom__">Custom model ID...</SelectItem>
               </SelectContent>
             </Select>

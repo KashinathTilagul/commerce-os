@@ -6,6 +6,32 @@ import { decryptSecret } from '@/lib/crypto'
 
 export type Tier = 'fast' | 'default' | 'reasoning'
 
+// Vision-capable model identifiers
+const VISION_MODELS = new Set([
+  'gpt-4o',
+  'gpt-4o-mini',
+  'o1-preview',
+  'o1-mini',
+  'claude-3.5-sonnet',
+  'claude-3-haiku',
+  'claude-3-opus',
+  'gemini-pro-1.5',
+  'gemini-flash-1.5',
+  'amazon.nova-pro-v1:0',
+  'amazon.nova-lite-v1:0',
+  'claude-sonnet-4.5',
+])
+
+function supportsVision(modelId: string): boolean {
+  const normalized = modelId.toLowerCase()
+  return VISION_MODELS.has(normalized) ||
+    normalized.includes('vision') ||
+    normalized.includes('gpt-4o') ||
+    normalized.includes('claude-3') ||
+    normalized.includes('gemini') ||
+    normalized.includes('nova-')
+}
+
 // ── Model Provider Resolution ───────────────────────────────────────────────
 
 function getBedrockModel(modelId: string, apiKey?: string) {
@@ -71,42 +97,52 @@ async function configuredTargets(): Promise<ModelTarget[]> {
   }
 }
 
-async function getModelChain(tier: Tier): Promise<Array<{ provider: string; model: string; instance: any }>> {
+async function getModelChain(tier: Tier, needsVision?: boolean): Promise<Array<{ provider: string; model: string; instance: any }>> {
   const chain: Array<{ provider: string; model: string; instance: any }> = []
 
   const saved = await configuredTargets()
   for (const target of saved) {
     try { chain.push({ provider: target.provider, model: target.model, instance: modelForTarget(target) }) } catch {}
   }
-  if (chain.length > 0) return chain
+  if (chain.length > 0) {
+    if (needsVision) {
+      // Prioritize vision-capable models
+      const visionModels = chain.filter(c => supportsVision(c.model))
+      if (visionModels.length > 0) return visionModels
+    }
+    return chain
+  }
 
   // 1. Bedrock (Primary if AWS credentials set)
-  const bedrockModelId = process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0'
+  const bedrockModelId = needsVision ? 'amazon.nova-pro-v1:0' : (process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0')
   if (process.env.AWS_BEARER_TOKEN_BEDROCK || process.env.AWS_ACCESS_KEY_ID) {
     try { chain.push({ provider: 'bedrock', model: bedrockModelId, instance: getBedrockModel(bedrockModelId) }) } catch {}
   }
 
-  // 2. OpenRouter
+  // 2. OpenRouter - prioritize vision models if needed
   if (process.env.OPENROUTER_API_KEY) {
-    const model = tier === 'fast' ? 'meta-llama/llama-3.3-70b-instruct' : 'anthropic/claude-3.5-sonnet'
+    const visionModel = tier === 'fast' ? 'anthropic/claude-3-haiku' : 'anthropic/claude-3.5-sonnet'
+    const nonVisionModel = tier === 'fast' ? 'meta-llama/llama-3.3-70b-instruct' : 'anthropic/claude-3.5-sonnet'
+    const model = needsVision ? visionModel : nonVisionModel
     try { chain.push({ provider: 'openrouter', model, instance: getOpenRouterModel(model) }) } catch {}
   }
 
-  // 3. Groq
-  if (process.env.GROQ_API_KEY) {
+  // 3. Groq (no vision support currently)
+  if (!needsVision && process.env.GROQ_API_KEY) {
     const model = tier === 'fast' ? 'llama-3.1-8b-instant' : 'llama-3.3-70b-versatile'
     try { chain.push({ provider: 'groq', model, instance: getGroqModel(model) }) } catch {}
   }
 
-  // 4. OpenAI
+  // 4. OpenAI - prioritize vision models if needed
   if (process.env.OPENAI_API_KEY) {
-    const model = tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o'
+    const visionModel = tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o'
+    const model = needsVision ? visionModel : visionModel // OpenAI models all support vision now
     try { chain.push({ provider: 'openai', model, instance: getOpenAIModel(model) }) } catch {}
   }
 
   // Fallback default if no env keys are provided
   if (chain.length === 0) {
-    const defaultModel = 'meta-llama/llama-3.3-70b-instruct'
+    const defaultModel = needsVision ? 'anthropic/claude-3.5-sonnet' : 'meta-llama/llama-3.3-70b-instruct'
     chain.push({ provider: 'openrouter', model: defaultModel, instance: getOpenRouterModel(defaultModel) })
   }
 
@@ -118,8 +154,9 @@ async function getModelChain(tier: Tier): Promise<Array<{ provider: string; mode
 async function runChain<T>(
   tier: Tier,
   fn: (model: any) => Promise<T>,
+  needsVision?: boolean
 ): Promise<{ result: T; provider: string; model: string }> {
-  const chain = await getModelChain(tier)
+  const chain = await getModelChain(tier, needsVision)
   let lastError: any = null
 
   for (const item of chain) {
@@ -133,6 +170,13 @@ async function runChain<T>(
   }
 
   throw lastError || new Error(`All providers in tier '${tier}' failed`)
+}
+
+export async function runVisionChain<T>(
+  tier: Tier,
+  fn: (model: any) => Promise<T>
+): Promise<{ result: T; provider: string; model: string }> {
+  return runChain(tier, fn, true)
 }
 
 // Simple JSON Schema generator helper
