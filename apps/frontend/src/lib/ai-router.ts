@@ -82,7 +82,7 @@ function modelForTarget(target: ModelTarget) {
   return getOpenAIModel(target.model, target.apiKey, target.baseUrl)
 }
 
-async function configuredTargets(): Promise<ModelTarget[]> {
+async function configuredTargets(organizationId?: string): Promise<ModelTarget[]> {
   try {
     const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
     if (!settings) return []
@@ -97,10 +97,10 @@ async function configuredTargets(): Promise<ModelTarget[]> {
   }
 }
 
-async function getModelChain(tier: Tier, needsVision?: boolean): Promise<Array<{ provider: string; model: string; instance: any }>> {
+async function getModelChain(tier: Tier, needsVision?: boolean, organizationId?: string): Promise<Array<{ provider: string; model: string; instance: any }>> {
   const chain: Array<{ provider: string; model: string; instance: any }> = []
 
-  const saved = await configuredTargets()
+  const saved = await configuredTargets(organizationId)
   for (const target of saved) {
     try { chain.push({ provider: target.provider, model: target.model, instance: modelForTarget(target) }) } catch {}
   }
@@ -154,9 +154,10 @@ async function getModelChain(tier: Tier, needsVision?: boolean): Promise<Array<{
 async function runChain<T>(
   tier: Tier,
   fn: (model: any) => Promise<T>,
-  needsVision?: boolean
+  needsVision?: boolean,
+  organizationId?: string
 ): Promise<{ result: T; provider: string; model: string }> {
-  const chain = await getModelChain(tier, needsVision)
+  const chain = await getModelChain(tier, needsVision, organizationId)
   let lastError: any = null
 
   for (const item of chain) {
@@ -174,9 +175,10 @@ async function runChain<T>(
 
 export async function runVisionChain<T>(
   tier: Tier,
-  fn: (model: any) => Promise<T>
+  fn: (model: any) => Promise<T>,
+  organizationId?: string
 ): Promise<{ result: T; provider: string; model: string }> {
-  return runChain(tier, fn, true)
+  return runChain(tier, fn, true, organizationId)
 }
 
 // Simple JSON Schema generator helper
@@ -210,6 +212,7 @@ function toJSONSchema(schema: any): any {
 
 export async function routeObject<T>(
   tier: Tier,
+  organizationId: string,
   opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
 ): Promise<{ object: T; provider: string; model: string }> {
   const jsonSchema = JSON.stringify(toJSONSchema(opts.schema))
@@ -255,17 +258,18 @@ export async function routeObject<T>(
     }
 
     throw new Error('Provider did not return a valid text response')
-  })
+  }, organizationId)
   return { object: result, provider, model }
 }
 
 export async function routeText(
   tier: Tier,
+  organizationId: string,
   opts: { system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
 ): Promise<{ text: string; provider: string; model: string }> {
   const { result, provider, model } = await runChain(tier, async (m) => {
     const { text } = await generateText({ model: m, ...opts })
     return text
-  })
+  }, false, organizationId)
   return { text: result, provider, model }
 }
