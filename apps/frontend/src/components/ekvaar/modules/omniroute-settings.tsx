@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { GlassPanel } from '@/components/ui/glass-system'
-import { Server, Plug, PlugZap, RefreshCw, Settings, Activity, Shield, ExternalLink, Copy, Check } from 'lucide-react'
+import { Server, Plug, PlugZap, RefreshCw, Settings, Activity, Shield, ExternalLink, Copy, Check, Key } from 'lucide-react'
 import { toast } from '@/components/ekvaar/desktop/toast'
+import { Input } from '@/components/ui/input'
 
 interface OmniRouteStatus {
   connected: boolean

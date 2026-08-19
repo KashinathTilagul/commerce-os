@@ -205,11 +205,6 @@ export const APPS: AppDef[] = [
     glyphColor: '#F5F1EA',
     menuItems: []
   },
-<<<<<<< ours
-  
-=======
-
->>>>>>> theirs
   // Utilities
   {
     id: 'calculator',

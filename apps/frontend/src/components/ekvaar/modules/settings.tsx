@@ -84,6 +84,18 @@ export function Settings() {
     }
   }, [])
 
+  const mutation = useMutation({
+    mutationFn: async (updates: any) => {
+      const r = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      if (!r.ok) throw new Error((await r.text()) || 'Failed to save settings')
+      return r.json()
+    },
+  })
+
   // Auto-save provider draft with debounce so changes don't require manual apply
   useEffect(() => {
     if (Object.keys(providerDraft).length === 0) return
@@ -94,33 +106,6 @@ export function Settings() {
     }, 700)
     return () => clearTimeout(timer)
   }, [providerDraft, mutation])
-
-  const mutation = useMutation({
-    mutationFn: async (updates: any) => {
-      const r = await fetch('/api/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      })
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(data.error || 'Failed to save settings')
-      return data
-    },
-    onSuccess: (data, variables) => {
-      queryClient.setQueryData(['settings'], data)
-      if (Object.keys(variables).some((key) => /^(primary|fallback[12])/.test(key))) {
-        setProviderDraft({})
-      }
-      // Don't toast theme/accent — they already have their own toasts
-      const silent = ['theme', 'accent']
-      if (!Object.keys(variables).some(k => silent.includes(k))) {
-        toast.success('Saved')
-      }
-    },
-    onError: (error: Error) => {
-      toast.error('Save failed', error.message)
-    },
-  })
 
   const handleChange = (key: string, value: any) => {
     // Optimistic UI for theme immediately

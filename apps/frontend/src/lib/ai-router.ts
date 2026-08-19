@@ -203,7 +203,7 @@ export async function routeObject<T>(
     }
 
     throw new Error('Provider did not return a valid text response')
-  }, organizationId)
+  }, false, organizationId)
   return { object: result, provider, model }
 }
 
