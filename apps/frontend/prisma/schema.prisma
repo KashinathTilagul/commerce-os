@@ -151,6 +151,7 @@ model Organization {
   productLaunches ProductLaunch[]
   campaignLaunches CampaignLaunch[]
   campaignPolicy CampaignPolicy?
+  marketingTasks   MarketingTask[]
   outboxMessages OutboxMessage[]
   
   context        OrganizationContext?
@@ -592,6 +593,31 @@ model Campaign {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
+}
+
+model MarketingTask {
+  id              String   @id @default(cuid())
+  organizationId  String
+  code            String
+  type            String // SOCIAL_POST | CONTENT_CALENDAR | EMAIL_CAMPAIGN | AD_COPY | BLOG_POST
+  title           String
+  instruction     String
+  status          String   @default("PENDING") // PENDING | GENERATING | READY | APPROVED | SCHEDULED | PUBLISHED | REJECTED
+  content         String?
+  hashtags        String[] @default([])
+  platforms       String[]
+  platformDetails String[] @default([])
+  scheduledAt     DateTime?
+  approvedAt      DateTime?
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
 }
 
 model PurchaseOrder {

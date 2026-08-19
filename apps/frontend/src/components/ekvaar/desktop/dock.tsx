@@ -9,8 +9,8 @@ import { AppIcon } from './app-icon'
 import { DockContextMenu } from './dock-context-menu'
 import { toast } from './toast'
 
-const DEFAULT_DOCK_IDS = ['launchpad', 'command', 'inbox', 'agents', 'sales', 'inventory', 'integrations', 'n8n', 'settings']
-const REQUIRED_DOCK_IDS = ['n8n']
+const DEFAULT_DOCK_IDS = ['launchpad', 'command', 'inbox', 'agents', 'sales', 'inventory', 'integrations', 'settings']
+const REQUIRED_DOCK_IDS = ['settings']
 
 interface DockProps {
   onLaunchpad?: () => void

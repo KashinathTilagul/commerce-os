@@ -6,7 +6,7 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Music, Activity, Brain, Rocket, Loader2, Workflow as WorkflowIcon
+  AlertTriangle, Music, Activity, Brain, Rocket, Loader2
 } from 'lucide-react'
 
 import dynamic from 'next/dynamic'
@@ -42,7 +42,6 @@ const HealthMonitor = dynamic(() => import('@/components/ekvaar/modules/health-m
 const WorkspaceExplorer = dynamic(() => import('@/components/ekvaar/modules/workspace-explorer').then(m => m.WorkspaceExplorer), { loading: LoadingFallback })
 const MemoryExplorer = dynamic(() => import('@/components/ekvaar/modules/memory-explorer').then(m => m.MemoryExplorer), { loading: LoadingFallback })
 const ProductLaunches = dynamic(() => import('@/components/ekvaar/modules/product-launches').then(m => m.ProductLaunches), { loading: LoadingFallback })
-const N8nWorkflowApp = dynamic(() => import('@/components/ekvaar/modules/n8n-workflow').then(m => m.N8nWorkflowApp), { loading: LoadingFallback })
 
 // To bridge legacy metadata that isn't in OSManifest yet
 export interface AppDef extends OSManifest {
@@ -205,21 +204,6 @@ export const APPS: AppDef[] = [
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #2F4F3A 55%, #C8302A 100%)',
     glyphColor: '#F5F1EA',
     menuItems: []
-  },
-  {
-    id: 'n8n',
-    name: 'n8n Marketing Studio',
-    shortName: 'n8n',
-    version: '1.0.0',
-    icon: WorkflowIcon as any,
-    iconVariant: 'n8n',
-    category: 'core',
-    requiredCapabilities: [],
-    entryPoint: N8nWorkflowApp,
-    permissions: ['provider:read', 'provider:write'],
-    gradient: 'linear-gradient(135deg, #0A0A0A 0%, #C0342C 55%, #0047AB 100%)',
-    glyphColor: '#FFFFFF',
-    menuItems: [{ label: 'Workflow', items: ['Run', 'Edit in n8n', 'Close Window'] }]
   },
   
   // Utilities

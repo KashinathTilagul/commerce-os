@@ -104,8 +104,8 @@ Founder: "tell the team the drop launches Friday"
 → {"spoken":"Posting that to the team now.","action":{"type":"message_team","text":"The drop launches Friday."}}
 
 AVAILABLE ACTIONS:
-- Open app: {"type":"open_app","app":"<id>"} — apps: command, inbox, agents, issues, terminal, activity, settings, files, integrations, n8n, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai, opencode, risk
-- Run Ekvaar marketing automation: {"type":"n8n_run","instruction":"<what marketing work to generate>"}
+- Open app: {"type":"open_app","app":"<id>"} — apps: command, inbox, agents, issues, terminal, activity, settings, files, integrations, calculator, notes, calendar, music, house, sales, finance, inventory, community, campaigns, guardian, ai, opencode, risk
+- Run marketing automation: {"type":"marketing_run","instruction":"<what marketing work to generate>"}
 - Approve: {"type":"approve","query":"<title or code>"}
 - Reject: {"type":"reject","query":"<title or code>"}
 - Issue status: {"type":"issue_status","query":"<PAP-XX>","status":"IN_PROGRESS"}
@@ -292,21 +292,47 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
         return { success: true, message: `Current brand health is ${score} percent, based on ${checks.length} recorded checks.` }
       }
 
-      case 'n8n_run': {
+      case 'marketing_run': {
         const instruction = sanitizeInput(action.instruction || 'Generate the next Ekvaar marketing content cycle', { maxLength: 1000 })
-        const { triggerEkvaarMarketing } = await import('@/lib/n8n')
-        const result = await triggerEkvaarMarketing({ organizationId, instruction, requestedBy: 'Krishna' })
+        // Native marketing automation: create a campaign launch with CMO
+        const count = await db.campaignLaunch.count({ where: { organizationId } })
+        const code = `MKT-${String(count + 1).padStart(2, '0')}`
+        const launch = await db.campaignLaunch.create({
+          data: {
+            organizationId,
+            code,
+            title: instruction.slice(0, 80),
+            brief: instruction,
+            status: 'PENDING_APPROVAL',
+            priority: 'P1',
+            version: 1,
+          },
+        })
+        // Create approval for Founder review
+        await db.approval.create({
+          data: {
+            organizationId,
+            code: `APR-${String((await db.approval.count({ where: { organizationId } })) + 1).padStart(2, '0')}`,
+            title: `Marketing Campaign: ${launch.title}`,
+            type: 'CAMPAIGN_LAUNCH',
+            targetId: launch.id,
+            status: 'PENDING',
+            priority: 'P1',
+            requestedBy: 'Krishna (JARVIS)',
+            payload: JSON.stringify({ instruction, campaignId: launch.id }),
+          },
+        })
         await db.event.create({
           data: {
             organizationId,
-            type: 'N8N_WORKFLOW_TRIGGERED',
+            type: 'MARKETING_AUTOMATION_TRIGGERED',
             actorName: 'Krishna',
-            summary: `Triggered marketing automation: ${instruction.slice(0, 80)}`,
-            payload: JSON.stringify({ instruction }),
+            summary: `Native marketing automation triggered: ${instruction.slice(0, 80)}`,
+            payload: JSON.stringify({ instruction, campaignId: launch.id }),
             severity: 'INFO',
           },
         })
-        return { success: result.accepted, message: 'Ekvaar marketing workflow started' }
+        return { success: true, message: `Marketing campaign created (${code}). Awaiting your approval in Founder Inbox.` }
       }
 
       case 'tool_execute': {
