@@ -45,8 +45,6 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
 
     if (bedrockKey) {
       try {
-        // Use the API-key provider, matching the Bedrock credentials deployed
-        // for agent text generation. An invalid key falls through to OpenRouter.
         const bedrock = createAmazonBedrock({ apiKey: bedrockKey, region: process.env.AWS_REGION || 'us-east-1' })
         const bedrockOpts: any = { quality: 'standard', cfgScale: 8, style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM' }
         if (options.referenceImage) bedrockOpts.image = options.referenceImage
@@ -58,9 +56,35 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
           providerOptions: { bedrock: bedrockOpts },
         })
         imageBuffer = Buffer.from(result.image.uint8Array)
+        console.log('[Image Generator] Bedrock succeeded')
       } catch (error: any) {
-        providerErrors.push(`Bedrock: ${error?.message || 'unknown error'}`)
-        console.warn('[Image Generator] Bedrock failed; trying fallback providers:', error)
+        providerErrors.push(`Bedrock (bearer): ${error?.message || 'unknown error'}`)
+        console.warn('[Image Generator] Bedrock (bearer) failed:', error?.message || error)
+      }
+    }
+
+    // Try Bedrock with access key + secret if bearer token failed
+    if (!imageBuffer && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+      try {
+        const bedrock = createAmazonBedrock({
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+          region: process.env.AWS_REGION || 'us-east-1'
+        })
+        const bedrockOpts: any = { quality: 'standard', cfgScale: 8, style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM' }
+        if (options.referenceImage) bedrockOpts.image = options.referenceImage
+        const result = await generateModelImage({
+          model: bedrock.image('amazon.nova-canvas-v1:0'),
+          prompt: enhancedPrompt,
+          size: `${dimensions.width}x${dimensions.height}`,
+          n: 1,
+          providerOptions: { bedrock: bedrockOpts },
+        })
+        imageBuffer = Buffer.from(result.image.uint8Array)
+        console.log('[Image Generator] Bedrock (access key) succeeded')
+      } catch (error: any) {
+        providerErrors.push(`Bedrock (access key): ${error?.message || 'unknown error'}`)
+        console.warn('[Image Generator] Bedrock (access key) failed:', error?.message || error)
       }
     }
 
@@ -70,7 +94,7 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
           method: 'POST',
           headers: { Authorization: `Bearer ${openRouterKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image',
+            model: process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image-preview:free',
             prompt: enhancedPrompt,
             n: 1,
             aspect_ratio: options.aspectRatio,
@@ -79,6 +103,7 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
           }),
         })
         const payload = await response.json()
+        console.log('[Image Generator] OpenRouter response:', JSON.stringify(payload).slice(0, 500))
         if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OpenRouter returned ${response.status}`)
         imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
         mimeType = payload.data[0].media_type || mimeType
@@ -96,15 +121,18 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
           body: JSON.stringify({ model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1', prompt: enhancedPrompt, size, quality: 'medium', response_format: 'b64_json' }),
         })
         const payload = await response.json()
+        console.log('[Image Generator] OpenAI response:', JSON.stringify(payload).slice(0, 500))
         if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OpenAI returned ${response.status}`)
         imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
+        console.log('[Image Generator] OpenAI succeeded')
       } catch (error: any) {
         providerErrors.push(`OpenAI: ${error?.message || 'unknown error'}`)
+        console.warn('[Image Generator] OpenAI failed:', error?.message || error)
       }
     }
 
     if (!imageBuffer) {
-      console.warn('[Image Generator] Providers unavailable; rendering vector fallback:', providerErrors.join(' | '))
+      console.warn('[Image Generator] All providers failed; rendering vector fallback:', providerErrors.join(' | '))
       imageBuffer = renderVectorFallback(options.prompt, dimensions.width, dimensions.height)
       mimeType = 'image/svg+xml'
     }
