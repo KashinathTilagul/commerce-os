@@ -1,15 +1,16 @@
 import { z } from 'zod'
 import { db } from './db'
 import { routeObject, routeText } from './ai-router'
-import { getLiveBusinessSnapshot } from './business-snapshot'
+import { getLiveBusinessSnapshot, getFinanceReportData } from './business-snapshot'
 import { prepareAgentWithLearning, storeAgentPattern } from './agent-learning'
 import { decomposeTask } from './task-templates'
 import { generatePDF } from './pdf-generator'
 import { generateImage } from './image-generator'
 import { generateVideo } from './video-generator'
-import { generateAudio } from './audio-generator'
+import { generateAudio, synthesizeSpeech } from './audio-generator'
 import { syncCampaignItemAfterWork } from './campaign-execution'
 import { extractExactReply, parseGeneratedMediaJSON, shouldExecuteMedia } from './work-request-planner'
+import { BRAND_PROMPT_SECTION, brandLogoReference } from './brand-guard'
 
 const StatusSchema = z.object({
   progressNote: z.string().describe('1-2 sentences, first person, summarising what you just produced.'),
@@ -45,7 +46,7 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
     include: { 
       comments: { orderBy: { createdAt: 'asc' }, take: 20 },
       subtasks: true,
-      campaignItem: true,
+      campaignItem: { include: { launch: { select: { hidden: true } } } },
     },
   })
   
@@ -64,7 +65,9 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
   }
 
   const runStartedAt = new Date()
-  const campaignRun = issue.campaignItem ? await db.agentRun.create({
+  // Record every run (not just campaign work) so the Runs tab / audit trail
+  // covers normal issue work too; campaignItemId stays null outside campaigns.
+  const agentRun = await db.agentRun.create({
     data: {
       organizationId,
       agentId,
@@ -73,9 +76,9 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
       status: 'RUNNING',
       startedAt: runStartedAt,
       issueId: issue.id,
-      campaignItemId: issue.campaignItem.id,
+      campaignItemId: issue.campaignItem?.id ?? null,
     },
-  }) : null
+  })
 
   if (issue.campaignItem) {
     await db.campaignLaunchItem.update({
@@ -127,16 +130,26 @@ export async function runAgentWork(organizationId: string, agentId: string, targ
   const refs = (issue as any).attachments?.slice(0,2) || []
   const refContext = refs.length ? `\n\nREFERENCES (use up to 2, describe exact placement/transfer in GENERATE_*):\n${refs.map((r:any,i:number)=>`${i+1}. ${r.type} ${r.name}: ${r.url}`).join('\n')}` : ''
   const plannedType = issue.campaignItem?.type
-  const mediaInstruction = plannedType === 'IMAGE'
-    ? '- Return exactly one block: GENERATE_IMAGE: {"prompt":"...","aspectRatio":"1:1","style":"product"}'
-    : plannedType === 'VIDEO'
-      ? '- Return exactly one block: GENERATE_VIDEO: {"template":"BrandVideo","data":{"text":"..."},"duration":5,"title":"..."}'
-      : plannedType === 'PDF'
+  // SOCIAL_POST is produced as an image (or a video for reels) and
+  // FINANCE_REPORT as a PDF — map to the underlying generator so
+  // gating/instructions share one code path.
+  const effectiveMediaType = plannedType === 'SOCIAL_POST'
+    ? (/\breels?\b/i.test(issue.campaignItem?.title || '') ? 'VIDEO' : 'IMAGE')
+    : plannedType === 'FINANCE_REPORT' ? 'PDF' : plannedType
+  const verticalFormat = /story|reel/i.test(issue.campaignItem?.title || '')
+  const isCarousel = plannedType === 'SOCIAL_POST' && /carousel/i.test(`${issue.campaignItem?.title || ''} ${issue.description || ''}`)
+  const mediaInstruction = effectiveMediaType === 'IMAGE'
+    ? isCarousel
+      ? '- This is a CAROUSEL — it needs multiple slides. Return one GENERATE_IMAGE block per slide (3 to 5 blocks, in slide order), e.g.\n  GENERATE_IMAGE: {"prompt":"Slide 1 ...","aspectRatio":"1:1","style":"product"}\n  GENERATE_IMAGE: {"prompt":"Slide 2 ...","aspectRatio":"1:1","style":"product"}\n  Each block becomes a separate image file, so make every slide visually distinct.'
+      : `- Return exactly one block: GENERATE_IMAGE: {"prompt":"...","aspectRatio":"${verticalFormat ? '9:16' : '1:1'}","style":"product"}`
+    : effectiveMediaType === 'VIDEO'
+      ? '- This is a REEL — a UGC-style video with real motion, spoken dialogue and music, built from your scenes. Return exactly one block:\n  GENERATE_VIDEO: {"template":"InstagramReel","duration":14,"title":"...","scenes":[{"prompt":"what is visually happening in scene 1","line":"the line spoken aloud over scene 1"},{"prompt":"scene 2 visual","line":"scene 2 spoken line"}]}\n  Write 2 to 4 scenes in story order. Each "prompt" becomes a 9:16 visual — describe action, light and setting, no text overlays. Each "line" is spoken as voiceover: short (under 15 words), conversational, brand voice.'
+      : effectiveMediaType === 'PDF'
         ? '- Return exactly one block: GENERATE_PDF: {"template":"report","data":{"title":"...","content":"..."},"title":"..."}'
-        : plannedType === 'AUDIO'
+        : effectiveMediaType === 'AUDIO'
           ? '- Return exactly one block: GENERATE_AUDIO: {"text":"...","title":"...","voice":"onyx"}'
           : '- This is not a media task. Do not emit any GENERATE_* block.'
-  const mediaExample = plannedType && ['IMAGE', 'VIDEO', 'PDF', 'AUDIO'].includes(plannedType)
+  const mediaExample = effectiveMediaType && ['IMAGE', 'VIDEO', 'PDF', 'AUDIO'].includes(effectiveMediaType)
     ? '\nUse the required GENERATE_* block so the system creates and stores the requested file.'
     : ''
 
@@ -155,6 +168,7 @@ RULES:
 FILE GENERATION POLICY:
 ${mediaInstruction}
 Never request a different media type from the planned ticket type.
+${BRAND_PROMPT_SECTION}
 ${constraintsSection}
 ${patternsSection}
 ${milestoneContext}
@@ -183,22 +197,32 @@ Now produce YOUR deliverable:`
     deliverable = exactReply
   } else {
     try {
-      const r = await routeText('reasoning', { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
+      const r = await routeText('reasoning', organizationId, { system, prompt, temperature: 0.6, maxOutputTokens: 2000 })
       deliverable = r.text.trim()
     } catch (e: any) {
-      if (campaignRun) await db.agentRun.update({
-        where: { id: campaignRun.id },
+      await db.agentRun.update({
+        where: { id: agentRun.id },
         data: { status: 'FAILED', error: e?.message || String(e), completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
       })
       return { ok: false, message: `Agent core error: ${e?.message || e}` }
     }
   }
   if (deliverable.length < 40 && !exactReply) {
-    if (campaignRun) await db.agentRun.update({
-      where: { id: campaignRun.id },
+    await db.agentRun.update({
+      where: { id: agentRun.id },
       data: { status: 'FAILED', error: 'Empty deliverable', completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
     })
     return { ok: false, message: `${agent.name} returned an empty deliverable — try again` }
+  }
+
+  // An employee that opens its deliverable with "BLOCKED:" is reporting it
+  // cannot finish — count that as a block, never as a completed deliverable.
+  if (/^\s*BLOCKED\s*[:\-]/i.test(deliverable)) {
+    await db.agentRun.update({
+      where: { id: agentRun.id },
+      data: { status: 'FAILED', error: `Agent self-reported blocked: ${deliverable.slice(0, 200)}`, completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },
+    })
+    return { ok: false, message: `${agent.name} blocked: ${deliverable.slice(0, 200)}` }
   }
 
   // DETECT AND EXECUTE MULTIMODAL GENERATION
@@ -208,36 +232,48 @@ Now produce YOUR deliverable:`
   // ponytail: LLMs wrap JSON in fences or add prose — strip fences before extraction
   const cleanedDeliverable = deliverable.replace(/```(?:json)?\s*([\s\S]*?)```/g, '$1')
 
-  // Extract a balanced JSON object starting at the first '{' after a marker.
+  // Extract balanced JSON objects starting after each occurrence of a marker.
   // The old regex /{[\s\S]*?}/ was non-greedy and broke on nested braces (every
   // PDF/video call has nested "data" objects). Bracket-counting is the smallest
-  // correct fix.
-  function extractJSON(text: string, marker: string): { json: string; fullMatch: string } | null {
-    const idx = text.indexOf(marker)
-    if (idx < 0) return null
-    const start = text.indexOf('{', idx + marker.length)
-    if (start < 0) return null
-    let depth = 0
-    for (let i = start; i < text.length; i++) {
-      if (text[i] === '{') depth++
-      else if (text[i] === '}') depth--
-      if (depth === 0) return { json: text.slice(start, i + 1), fullMatch: text.slice(idx, i + 1) }
+  // correct fix. Multiple blocks are needed for carousels (one image per slide).
+  function extractAllJSON(text: string, marker: string, cap: number): { json: string; fullMatch: string }[] {
+    const matches: { json: string; fullMatch: string }[] = []
+    let cursor = 0
+    while (matches.length < cap) {
+      const idx = text.indexOf(marker, cursor)
+      if (idx < 0) break
+      const start = text.indexOf('{', idx + marker.length)
+      if (start < 0) break
+      let depth = 0
+      let end = -1
+      for (let i = start; i < text.length; i++) {
+        if (text[i] === '{') depth++
+        else if (text[i] === '}') depth--
+        if (depth === 0) { end = i; break }
+      }
+      if (end < 0) break
+      matches.push({ json: text.slice(start, end + 1), fullMatch: text.slice(idx, end + 1) })
+      cursor = end + 1
     }
-    return null
+    return matches
   }
+  const extractJSON = (text: string, marker: string) => extractAllJSON(text, marker, 1)[0] ?? null
 
-  const imageMatch = shouldExecuteMedia(plannedType, 'IMAGE') ? extractJSON(cleanedDeliverable, 'GENERATE_IMAGE') : null
-  if (imageMatch) {
+  const imageMatches = shouldExecuteMedia(effectiveMediaType, 'IMAGE') ? extractAllJSON(cleanedDeliverable, 'GENERATE_IMAGE', 5) : []
+  for (let slideIndex = 0; slideIndex < imageMatches.length; slideIndex++) {
+    const imageMatch = imageMatches[slideIndex]
     try {
       const params = parseGeneratedMediaJSON<any>(imageMatch.json)
+      // Brand guard: logo requests always reference the house logo asset.
+      const wantsLogo = !params.referenceImage && /logo|brand/i.test(issue.description || '')
       const result = await generateImage({
         prompt: params.prompt,
-        aspectRatio: params.aspectRatio || '1:1',
+        aspectRatio: params.aspectRatio || (verticalFormat ? '9:16' : '1:1'),
         style: params.style || 'product',
         organizationId,
         generatedBy: agentId,
-        title: params.title,
-        referenceImage: params.referenceImage,
+        title: imageMatches.length > 1 ? `${params.title || issue.title} — slide ${slideIndex + 1} of ${imageMatches.length}` : params.title,
+        referenceImage: params.referenceImage || (wantsLogo ? await brandLogoReference(organizationId) : undefined),
       })
       multimodalResults.push(`✅ Generated Image: ${result.imageUrl}`)
       deliverable = deliverable.replace(imageMatch.fullMatch, '').trim()
@@ -246,13 +282,27 @@ Now produce YOUR deliverable:`
     }
   }
 
-  const pdfMatch = shouldExecuteMedia(plannedType, 'PDF') ? extractJSON(cleanedDeliverable, 'GENERATE_PDF') : null
+  const pdfMatch = shouldExecuteMedia(effectiveMediaType, 'PDF') ? extractJSON(cleanedDeliverable, 'GENERATE_PDF') : null
   if (pdfMatch) {
     try {
       const params = parseGeneratedMediaJSON<any>(pdfMatch.json)
+      // Finance reports must show real numbers: build summary + table rows
+      // from live DB aggregates instead of trusting the LLM's JSON (which
+      // arrives as a flat "content" string and renders empty columns).
+      let pdfData: Record<string, any> = params.data || {}
+      if (plannedType === 'FINANCE_REPORT') {
+        const live = await getFinanceReportData(organizationId)
+        pdfData = {
+          ...pdfData,
+          title: pdfData.title || params.title || issue.title,
+          summary: live.summary,
+          table: live.table,
+          sections: pdfData.content ? [{ heading: 'Analysis', content: String(pdfData.content) }] : pdfData.sections || [],
+        }
+      }
       const result = await generatePDF({
         template: params.template || 'report',
-        data: params.data || {},
+        data: pdfData,
         title: params.title || issue.title,
         organizationId,
         generatedBy: agentId,
@@ -264,17 +314,59 @@ Now produce YOUR deliverable:`
     }
   }
 
-  const videoMatch = shouldExecuteMedia(plannedType, 'VIDEO') ? extractJSON(cleanedDeliverable, 'GENERATE_VIDEO') : null
+  const videoMatch = shouldExecuteMedia(effectiveMediaType, 'VIDEO') ? extractJSON(cleanedDeliverable, 'GENERATE_VIDEO') : null
   if (videoMatch) {
     try {
       const params = parseGeneratedMediaJSON<any>(videoMatch.json)
+      // UGC reel: each scene is a 9:16 still (motion comes from the renderer)
+      // plus a spoken line. Scene stills are stored as image artifacts too,
+      // so the house can reuse them. A failed scene is skipped, not fatal —
+      // the reel renders with whatever scenes succeeded.
+      const sceneSpecs = Array.isArray(params.scenes) ? params.scenes.filter((s: any) => s?.prompt).slice(0, 4) : []
+      const reelScenes: { imagePath: string; voicePath?: string; line?: string }[] = []
+      for (let sceneIndex = 0; sceneIndex < sceneSpecs.length; sceneIndex++) {
+        const spec = sceneSpecs[sceneIndex]
+        try {
+          // Image providers hiccup transiently ("terminated"); one retry per
+          // scene keeps a flaky call from amputating the reel.
+          let image: { artifactId: string; imageUrl: string } | null = null
+          let lastError: any = null
+          for (let attempt = 0; attempt < 2 && !image; attempt++) {
+            try {
+              image = await generateImage({
+                prompt: spec.prompt,
+                aspectRatio: '9:16',
+                style: 'lifestyle',
+                organizationId,
+                generatedBy: agentId,
+                title: `${params.title || issue.title} — scene ${sceneIndex + 1} of ${sceneSpecs.length}`,
+              })
+            } catch (e) { lastError = e }
+          }
+          if (!image) throw lastError || new Error('image generation failed')
+          const stored = await db.artifact.findUnique({ where: { id: image.artifactId }, select: { storageLocation: true } })
+          if (!stored?.storageLocation) throw new Error('scene image was not stored')
+          const scene: { imagePath: string; voicePath?: string; line?: string } = { imagePath: stored.storageLocation }
+          if (spec.line) {
+            const speech = await synthesizeSpeech(String(spec.line), organizationId)
+            if (speech) { scene.voicePath = speech.path; scene.line = String(spec.line) }
+          }
+          reelScenes.push(scene)
+        } catch (e: any) {
+          multimodalFailures.push(`Reel scene ${sceneIndex + 1} failed: ${e.message}`)
+        }
+      }
+      if (sceneSpecs.length > 0 && reelScenes.length === 0) {
+        throw new Error('all reel scenes failed to render')
+      }
       const result = await generateVideo({
-        template: params.template || 'BrandVideo',
+        template: params.template || (verticalFormat ? 'InstagramReel' : 'BrandVideo'),
         data: params.data || {},
         duration: params.duration || 15,
         organizationId,
         generatedBy: agentId,
         title: params.title,
+        scenes: reelScenes.length > 0 ? reelScenes : undefined,
       })
       multimodalResults.push(`✅ Generated Video: ${result.videoUrl}`)
       deliverable = deliverable.replace(videoMatch.fullMatch, '').trim()
@@ -283,7 +375,7 @@ Now produce YOUR deliverable:`
     }
   }
 
-  const audioMatch = shouldExecuteMedia(plannedType, 'AUDIO') ? extractJSON(cleanedDeliverable, 'GENERATE_AUDIO') : null
+  const audioMatch = shouldExecuteMedia(effectiveMediaType, 'AUDIO') ? extractJSON(cleanedDeliverable, 'GENERATE_AUDIO') : null
   if (audioMatch) {
     try {
       const params = parseGeneratedMediaJSON<any>(audioMatch.json)
@@ -301,8 +393,8 @@ Now produce YOUR deliverable:`
     }
   }
 
-  if (plannedType && ['IMAGE', 'VIDEO', 'PDF', 'AUDIO'].includes(plannedType) && multimodalResults.length === 0 && multimodalFailures.length === 0) {
-    multimodalFailures.push(`${plannedType} generation failed: the employee did not return the required GENERATE_${plannedType} instruction.`)
+  if (effectiveMediaType && ['IMAGE', 'VIDEO', 'PDF', 'AUDIO'].includes(effectiveMediaType) && multimodalResults.length === 0 && multimodalFailures.length === 0) {
+    multimodalFailures.push(`${effectiveMediaType} generation failed: the employee did not return the required GENERATE_${effectiveMediaType} instruction.`)
   }
 
   if (multimodalResults.length > 0) {
@@ -315,12 +407,18 @@ Now produce YOUR deliverable:`
     work = { progressNote: `Completed the requested deliverable for ${issue.code}.`, newStatus: 'DONE' }
   } else {
     try {
-      const { object } = await routeObject<z.infer<typeof StatusSchema>>('fast', {
+      const { object } = await routeObject<z.infer<typeof StatusSchema>>('fast', organizationId, {
         schema: StatusSchema,
         system: `You are ${agent.name}. You just produced a deliverable for ticket ${issue.code}. Decide its status honestly.`,
         prompt: `Ticket: ${issue.title}\n\nDeliverable you produced:\n${deliverable.slice(0, 3000)}\n\nDecide the status based on milestones.`,
         temperature: 0,
       })
+      // ponytail: routeObject silently returns a chat-shaped { spoken, action }
+      // fallback when the reply isn't schema-valid JSON, so `newStatus` arrives
+      // undefined and events render "→ undefined". Guard here; the catch below
+      // supplies the same sane default. Upgrade path: make routeObject strict
+      // for non-chat schemas.
+      if (!object?.newStatus) throw new Error('Status decision missing newStatus')
       work = object
     } catch {
       work = { progressNote: `Drafted the deliverable for ${issue.code}.`, newStatus: 'IN_REVIEW' }
@@ -394,24 +492,32 @@ Now produce YOUR deliverable:`
       currentTask: remaining > 0 ? agent.currentTask : null,
       tasksToday: done ? { increment: 1 } : undefined,
       tasksTotal: done ? { increment: 1 } : undefined,
-      tokenSpend: { increment: 120 },
+      // ponytail: routeText/routeObject don't surface token usage (the AI SDK's
+      // `usage` is dropped and the OmniRoute path doesn't parse it), so we don't
+      // track tokenSpend instead of faking a number. Ceiling: spend reporting is
+      // absent. Upgrade path: return usage from runChain and increment here.
     },
   })
 
+  // Hidden (silent-research) work is sanitized at write time: the activity
+  // log only ever sees "Work blocked" — no topic, agent, code, or output.
+  const hiddenWork = issue.campaignItem?.launch?.hidden === true
   await db.event.create({
-    data: {
-      organizationId, type: 'AGENT_WORK', actorId: agentId, actorName: agent.name,
-      summary: `${agent.name} worked ${issue.code} → ${work.newStatus} (${newMilestone}%)`,
-      payload: JSON.stringify({ code: issue.code, status: work.newStatus, milestone: newMilestone }),
-      severity: work.newStatus === 'BLOCKED' ? 'WARN' : 'INFO',
-    },
+    data: hiddenWork
+      ? { organizationId, type: 'WORK_BLOCKED', actorName: 'System', summary: 'Work blocked', payload: '{}', severity: 'INFO' }
+      : {
+          organizationId, type: 'AGENT_WORK', actorId: agentId, actorName: agent.name,
+          summary: `${agent.name} worked ${issue.code} → ${work.newStatus} (${newMilestone}%)`,
+          payload: JSON.stringify({ code: issue.code, status: work.newStatus, milestone: newMilestone }),
+          severity: work.newStatus === 'BLOCKED' ? 'WARN' : 'INFO',
+        },
   })
 
-  if (campaignRun) await db.agentRun.update({
-    where: { id: campaignRun.id },
+  await db.agentRun.update({
+    where: { id: agentRun.id },
     data: {
       status: work.newStatus === 'BLOCKED' ? 'FAILED' : 'COMPLETED',
-      error: work.newStatus === 'BLOCKED' ? work.blockedReason || 'Campaign item blocked' : null,
+      error: work.newStatus === 'BLOCKED' ? work.blockedReason || 'Work blocked' : null,
       outputSummary: deliverable.slice(0, 1000),
       completedAt: new Date(),
       durationMs: Date.now() - runStartedAt.getTime(),
@@ -493,7 +599,10 @@ export async function handleRejection(
   rejectionReasons: string[],
   correction?: string
 ): Promise<boolean> {
-  const issue = await db.issue.findFirst({ where: { id: issueId, organizationId } })
+  const issue = await db.issue.findFirst({
+    where: { id: issueId, organizationId },
+    include: { campaignItem: { include: { launch: { select: { hidden: true } } } } },
+  })
   if (!issue) return false
   
   // Check iteration count
@@ -508,15 +617,19 @@ export async function handleRejection(
       }
     })
     
+    // Hidden (silent-research) work never leaks to the activity log.
+    const hiddenWork = issue.campaignItem?.launch?.hidden === true
     await db.event.create({
-      data: {
-        organizationId,
-        type: 'ISSUE_ESCALATED',
-        actorName: 'System',
-        summary: `Issue ${issue.code} exceeded max iterations, escalated to founder`,
-        payload: JSON.stringify({ code: issue.code, iterations, reasons: rejectionReasons }),
-        severity: 'WARN'
-      }
+      data: hiddenWork
+        ? { organizationId, type: 'WORK_BLOCKED', actorName: 'System', summary: 'Work blocked', payload: '{}', severity: 'INFO' }
+        : {
+            organizationId,
+            type: 'ISSUE_ESCALATED',
+            actorName: 'System',
+            summary: `Issue ${issue.code} exceeded max iterations, escalated to founder`,
+            payload: JSON.stringify({ code: issue.code, iterations, reasons: rejectionReasons }),
+            severity: 'WARN'
+          }
     })
     
     return false
@@ -579,7 +692,10 @@ export async function runAllBusyAgents(limit = 25): Promise<number> {
     try {
       const r = await runAgentWork(a.organizationId, a.id)
       if (r.ok && r.issueCode) worked++
-    } catch { /* keep going */ }
+    } catch (e: any) {
+      // keep going, but don't hide the failure
+      console.error(`[AgentWorker] runAgentWork failed for agent ${a.id}:`, e?.message || e)
+    }
   }
   return worked
 }

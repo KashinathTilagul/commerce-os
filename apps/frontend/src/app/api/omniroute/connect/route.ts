@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       create: {
         id: 'global',
         ...updateData,
-      },
+      } as any,
     })
 
     return NextResponse.json({ success: true, baseUrl })

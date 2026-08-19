@@ -1,5 +1,13 @@
 // Template Engine for PDF generation
 import Handlebars from 'handlebars'
+import { BRAND_COLORS, BRAND_FONT_DISPLAY, BRAND_FONT_BODY, brandLogoDataUri, assertTemplateColors } from './brand-guard'
+
+// Brand Book §06: media may only use the six signature colors. Accents come
+// from BRAND_COLORS — never hard-code other hues in these templates.
+const AGNI = BRAND_COLORS['Agni Red']
+const NOOR = BRAND_COLORS['Noor Black']
+
+const LOGO_IMG = `{{#if logoDataUri}}<img src="{{logoDataUri}}" style="height: 44px; margin-bottom: 16px;" alt="EKVAAR">{{/if}}`
 
 const PDF_TEMPLATES: Record<string, string> = {
   report: `
@@ -8,20 +16,20 @@ const PDF_TEMPLATES: Record<string, string> = {
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; color: #1a1a1a; }
-    h1 { color: #C8302A; font-size: 28px; margin-bottom: 10px; }
-    h2 { color: #1F3A5F; font-size: 20px; margin-top: 30px; border-bottom: 2px solid #C8302A; padding-bottom: 5px; }
+    body { font-family: ${BRAND_FONT_BODY}; margin: 40px; color: #1a1a1a; }
+    h1 { color: ${AGNI}; font-family: ${BRAND_FONT_DISPLAY}; font-size: 28px; margin-bottom: 10px; }
+    h2 { color: ${NOOR}; font-family: ${BRAND_FONT_DISPLAY}; font-size: 20px; margin-top: 30px; border-bottom: 2px solid ${AGNI}; padding-bottom: 5px; }
     .meta { color: #666; font-size: 12px; margin-bottom: 20px; }
     .section { margin: 20px 0; }
     table { width: 100%; border-collapse: collapse; margin: 15px 0; }
     th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-    th { background-color: #1F3A5F; color: white; }
+    th { background-color: ${NOOR}; color: white; }
     tr:nth-child(even) { background-color: #f9f9f9; }
-    .highlight { background-color: #fff3cd; padding: 2px 5px; }
     .footer { margin-top: 50px; font-size: 10px; color: #999; text-align: center; }
   </style>
 </head>
 <body>
+  ${LOGO_IMG}
   <h1>{{title}}</h1>
   <div class="meta">
     Generated on {{date}} | {{organization}}
@@ -78,9 +86,9 @@ const PDF_TEMPLATES: Record<string, string> = {
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; }
+    body { font-family: ${BRAND_FONT_BODY}; margin: 40px; }
     .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-    .invoice-title { font-size: 32px; color: #1F3A5F; font-weight: bold; }
+    .invoice-title { font-size: 32px; color: ${NOOR}; font-family: ${BRAND_FONT_DISPLAY}; font-weight: bold; }
     .invoice-number { color: #666; }
     table { width: 100%; border-collapse: collapse; margin: 20px 0; }
     th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
@@ -90,6 +98,7 @@ const PDF_TEMPLATES: Record<string, string> = {
   </style>
 </head>
 <body>
+  ${LOGO_IMG}
   <div class="header">
     <div>
       <div class="invoice-title">INVOICE</div>
@@ -145,11 +154,11 @@ const PDF_TEMPLATES: Record<string, string> = {
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; margin: 40px; }
-    h1 { color: #C8302A; font-size: 32px; }
-    h2 { color: #1F3A5F; font-size: 22px; margin-top: 30px; }
+    body { font-family: ${BRAND_FONT_BODY}; margin: 40px; }
+    h1 { color: ${AGNI}; font-family: ${BRAND_FONT_DISPLAY}; font-size: 32px; }
+    h2 { color: ${NOOR}; font-family: ${BRAND_FONT_DISPLAY}; font-size: 22px; margin-top: 30px; }
     .section { margin: 25px 0; }
-    .highlight-box { background-color: #f0f7ff; border-left: 4px solid #C8302A; padding: 15px; margin: 15px 0; }
+    .highlight-box { background-color: #f5f5f5; border-left: 4px solid ${AGNI}; padding: 15px; margin: 15px 0; }
     ul { padding-left: 20px; }
     li { margin: 8px 0; }
     .timeline { background-color: #fafafa; padding: 15px; border-radius: 8px; margin: 15px 0; }
@@ -157,6 +166,7 @@ const PDF_TEMPLATES: Record<string, string> = {
   </style>
 </head>
 <body>
+  ${LOGO_IMG}
   <h1>{{title}}</h1>
   <div style="color: #666; margin-bottom: 30px;">Prepared for {{clientName}} | {{date}}</div>
   
@@ -203,7 +213,7 @@ const PDF_TEMPLATES: Record<string, string> = {
   
   <div class="section">
     <h2>Investment</h2>
-    <div style="font-size: 24px; font-weight: bold; color: #C8302A;">{{budget}}</div>
+    <div style="font-size: 24px; font-weight: bold; color: ${AGNI};">{{budget}}</div>
   </div>
   
   <div class="footer">
@@ -221,6 +231,8 @@ export function renderTemplate(templateName: string, data: Record<string, any>):
   const defaultData = {
     date: new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }),
     organization: 'Ekvaar',
+    // House logo on every document — the provided asset, never a redraw.
+    logoDataUri: brandLogoDataUri('logo-black'),
     ...data
   }
   
@@ -233,4 +245,17 @@ export function registerTemplate(name: string, html: string): void {
 
 export function getTemplateNames(): string[] {
   return Object.keys(PDF_TEMPLATES)
+}
+
+// Brand Book §06 — enforced, not advisory: every hue in these templates must
+// be a signature color or a neutral gray. Runs at module load, so an
+// off-palette edit fails the import instead of shipping an off-brand PDF.
+const isGrayscale = (hex: string) => {
+  const h = hex.slice(1)
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+  return full.slice(0, 2) === full.slice(2, 4) && full.slice(2, 4) === full.slice(4, 6)
+}
+for (const html of Object.values(PDF_TEMPLATES)) {
+  const hexes = html.match(/#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/g) || []
+  assertTemplateColors(hexes.filter((hex) => !isGrayscale(hex)))
 }

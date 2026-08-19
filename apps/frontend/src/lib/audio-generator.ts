@@ -1,9 +1,10 @@
-import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { promises as fs } from 'node:fs'
-import path from 'node:path'
-import { promisify } from 'node:util'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+import path from 'path'
+import { promises as fs } from 'fs'
 import { db } from './db'
+import { decryptSecret } from './crypto'
 import { initializeStorage, storeArtifact } from './storage'
 
 const execFileAsync = promisify(execFile)
@@ -16,15 +17,25 @@ export interface AudioGenerationOptions {
   voice?: string
 }
 
-export async function generateAudio(options: AudioGenerationOptions): Promise<{ artifactId: string; audioUrl: string }> {
-  await initializeStorage()
-  const text = options.text.trim().slice(0, 4000)
-  if (!text) throw new Error('Audio text is required')
+/**
+ * Speak text into a temp MP3 and return its path, or null when nothing works.
+ * OpenAI TTS when the org configured a speech key; otherwise the macOS `say`
+ * binary (offline, free, ships with the dev host and the Mac runtime).
+ *
+ * ponytail: `say` voices are robotic and English-only — ceiling for UGC reel
+ * dialogue quality. Upgrade path: set an OpenAI Speech key in Settings, or a
+ * cloud TTS provider; this function is the single swap point.
+ */
+export async function synthesizeSpeech(text: string, organizationId: string, voice?: string): Promise<{ path: string; provider: string } | null> {
+  const clean = text.trim().slice(0, 600)
+  if (!clean) return null
 
-  let audioBuffer: Buffer | null = null
-  let provider = 'openai'
-  const openAIKey = process.env.OPENAI_API_KEY
+  const tempDir = path.join(process.cwd(), 'storage', 'temp')
+  await fs.mkdir(tempDir, { recursive: true })
+  const outPath = path.join(tempDir, `vo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp3`)
 
+  const settings = await db.systemSetting.findUnique({ where: { organizationId } })
+  const openAIKey = settings?.speechProvider === 'openai' ? decryptSecret(settings.speechApiKey) : ''
   if (openAIKey) {
     try {
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -32,33 +43,45 @@ export async function generateAudio(options: AudioGenerationOptions): Promise<{ 
         headers: { Authorization: `Bearer ${openAIKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: process.env.OPENAI_TTS_MODEL || 'tts-1',
-          voice: options.voice || process.env.OPENAI_TTS_VOICE || 'onyx',
-          input: text,
+          voice: voice || process.env.OPENAI_TTS_VOICE || 'onyx',
+          input: clean,
           response_format: 'mp3',
         }),
       })
       if (!response.ok) throw new Error(`OpenAI returned ${response.status}`)
-      audioBuffer = Buffer.from(await response.arrayBuffer())
+      await fs.writeFile(outPath, Buffer.from(await response.arrayBuffer()))
+      return { path: outPath, provider: 'openai' }
     } catch (error) {
-      console.warn('[Audio Generator] OpenAI failed; using local speech synthesis:', error)
+      console.warn('[Audio Generator] OpenAI TTS failed; falling back to local speech:', error)
     }
   }
 
-  if (!audioBuffer) {
-    provider = 'espeak-ng'
-    const tempDir = path.join(process.cwd(), 'storage', 'temp')
-    await fs.mkdir(tempDir, { recursive: true })
-    const token = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-    const wavPath = path.join(tempDir, `${token}.wav`)
-    const mp3Path = path.join(tempDir, `${token}.mp3`)
+  if (process.platform === 'darwin') {
+    const aiffPath = outPath.replace(/\.mp3$/, '.aiff')
     try {
-      await execFileAsync('espeak-ng', ['-v', 'en+m3', '-s', '155', '-w', wavPath, text], { timeout: 30000 })
-      await execFileAsync('ffmpeg', ['-i', wavPath, '-codec:a', 'libmp3lame', '-q:a', '4', '-y', mp3Path], { timeout: 30000 })
-      audioBuffer = await fs.readFile(mp3Path)
-    } finally {
-      await Promise.all([fs.rm(wavPath, { force: true }), fs.rm(mp3Path, { force: true })])
+      // Text is LLM-generated — pass it as an argv entry, never into a shell string.
+      await execFileAsync('/usr/bin/say', ['-o', aiffPath, clean], { timeout: 60000 })
+      await execFileAsync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-i', aiffPath, '-codec:a', 'libmp3lame', '-qscale:a', '4', '-y', outPath], { timeout: 60000 })
+      await fs.unlink(aiffPath).catch(() => {})
+      return { path: outPath, provider: 'say' }
+    } catch (error) {
+      console.warn('[Audio Generator] Local speech synthesis failed:', error)
     }
   }
+
+  return null
+}
+
+export async function generateAudio(options: AudioGenerationOptions): Promise<{ artifactId: string; audioUrl: string }> {
+  await initializeStorage()
+  const text = options.text.trim().slice(0, 4000)
+  if (!text) throw new Error('Audio text is required')
+
+  const speech = await synthesizeSpeech(text, options.organizationId, options.voice)
+  if (!speech) throw new Error('No working speech provider is configured for this organization. Add a Speech API key in Settings.')
+
+  const audioBuffer = await fs.readFile(speech.path)
+  await fs.unlink(speech.path).catch(() => {})
 
   const artifactId = `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
   const title = options.title || 'Generated Audio'
@@ -75,7 +98,7 @@ export async function generateAudio(options: AudioGenerationOptions): Promise<{ 
       generatedBy: options.generatedBy,
       contentHash: createHash('sha256').update(audioBuffer).digest('hex'),
       byteSize: audioBuffer.length,
-      parameters: JSON.stringify({ text, voice: options.voice || 'male', provider }),
+      parameters: JSON.stringify({ text, voice: options.voice || 'male', provider: speech.provider }),
     },
   })
   return { artifactId, audioUrl: `/api/artifacts/${artifactId}` }

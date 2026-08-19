@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest) {
       create: {
         id: 'global',
         ...updateData,
-      },
+      } as any,
     })
 
     return NextResponse.json({ success: true })

@@ -5,21 +5,22 @@
  */
 
 import { db } from '@/lib/db'
+import { decryptSecret } from '@/lib/crypto'
 
 // Composio SDK — loaded dynamically to avoid SSR issues
-let composioClient: any = null
+const composioClients = new Map<string, any>()
 
-async function getComposio() {
-  if (composioClient) return composioClient
+async function getComposio(organizationId?: string) {
+  if (!organizationId) return null
+  if (composioClients.has(organizationId)) return composioClients.get(organizationId)
   try {
     const { Composio } = await import('@composio/core')
-    const apiKey = process.env.COMPOSIO_API_KEY
-    if (!apiKey || apiKey.includes('replace_with_real')) {
-      console.warn('COMPOSIO: No valid API key found. API Key is:', apiKey)
-      return null // No real key — fall back to demo mode
-    }
-    composioClient = new Composio({ apiKey })
-    return composioClient
+    const settings = await db.systemSetting.findUnique({ where: { organizationId }, select: { composioApiKey: true } })
+    const apiKey = settings?.composioApiKey ? decryptSecret(settings.composioApiKey) : ''
+    if (!apiKey) return null
+    const client = new Composio({ apiKey })
+    composioClients.set(organizationId, client)
+    return client
   } catch (error) {
     console.error('COMPOSIO: Error initializing Composio client:', error)
     return null
@@ -343,8 +344,8 @@ export const AGENT_TOOLKIT_ACCESS: Record<string, string[]> = {
 /**
  * List all available integration toolkits
  */
-export async function listToolkits() {
-  const composio = await getComposio()
+export async function listToolkits(organizationId?: string) {
+  const composio = await getComposio(organizationId)
   if (!composio) return TOOLKIT_CATALOG
 
   try {
@@ -405,13 +406,10 @@ function composioToolkit(slug: string): string {
 }
 
 export async function initiateConnection(toolkitSlug: string, entityId?: string): Promise<{ redirectUrl: string | null; connectedAccountId?: string; error?: string }> {
-  const composio = await getComposio()
+  const composio = await getComposio(entityId)
   
   if (!composio) {
-    const key = process.env.COMPOSIO_API_KEY
-    const reason = !key ? 'COMPOSIO_API_KEY is not set in environment' : 'Composio SDK failed to initialize (check server logs)'
-    console.error(`[initiateConnection] Composio client is null. Key present: ${!!key}, Key prefix: ${key?.slice(0, 6) || 'N/A'}`)
-    return { redirectUrl: null, error: reason }
+    return { redirectUrl: null, error: 'Add this organization\'s Composio API key in Settings before connecting apps.' }
   }
 
   try {
@@ -504,7 +502,7 @@ export async function executeTool(params: {
   input: Record<string, any>
 }): Promise<{ success: boolean; output: any; duration: number; error?: string }> {
   const startTime = Date.now()
-  const composio = await getComposio()
+  const composio = await getComposio(params.organizationId)
 
   // Find the integration in DB
   const integration = await db.integration.findFirst({
@@ -580,7 +578,7 @@ export async function seedIntegrations(organizationId: string) {
     select: { toolkitSlug: true },
   })
   const existingSlugs = new Set(existing.map((integration) => integration.toolkitSlug))
-  const catalog = await listToolkits()
+  const catalog = await listToolkits(organizationId)
   const missing = catalog.filter((toolkit) => !existingSlugs.has(toolkit.slug))
   if (missing.length > 0) {
     await db.integration.createMany({

@@ -16,7 +16,6 @@ __pycache__
 *.pyc
 storage
 db
-prisma/migrations
 scripts
 .github
 docs

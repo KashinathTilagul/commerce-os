@@ -14,13 +14,16 @@
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build --webpack",
     "start": "next start",
-    "test": "node --import tsx --test src/lib/commerce/shopify-provider.test.ts src/lib/product-launches.test.ts src/lib/campaign-workforce.test.ts src/lib/agent-playbooks.test.ts && node --import tsx --test --test-force-exit src/lib/security.test.ts",
+    "test": "node --import tsx --test --test-force-exit src/lib/account-password.test.ts src/lib/commerce/shopify-provider.test.ts src/lib/product-launches.test.ts src/lib/campaign-workforce.test.ts src/lib/agent-playbooks.test.ts && node --import tsx --test --test-force-exit src/lib/security.test.ts",
     "test:all": "npm run test",
     "test:playbooks": "node --import tsx --test src/lib/agent-playbooks.test.ts",
     "test:shopify": "node --import tsx --test src/lib/commerce/shopify-provider.test.ts",
     "test:product-launches": "node --import tsx --test src/lib/product-launches.test.ts",
     "test:campaign-workforce": "node --import tsx --test src/lib/campaign-workforce.test.ts",
     "test:security": "node --import tsx --test --test-force-exit src/lib/security.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
     "lint": "eslint .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
@@ -72,11 +75,12 @@
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.2.10",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "14.2.29",
+    "eslint-config-next": "16.3.1",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "puppeteer": "^25.7.0",
@@ -91,6 +95,9 @@
     "sharp": "^0.35.3",
     "find-my-way": "^9.7.0",
     "brace-expansion": "^5.0.8",
-    "valibot": "^1.4.2"
+    "valibot": "^1.4.2",
+    "nanoid": "^3.3.18",
+    "glob": "^11.0.0",
+    "deepmerge-ts": "^8.0.1"
   }
 }

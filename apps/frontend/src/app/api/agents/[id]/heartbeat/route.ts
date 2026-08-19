@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
-import { enqueueAgentJob } from '@/lib/queue'
+import { runAgentWork } from '@/lib/agent-worker'
 import { db } from '@/lib/db'
 
 export async function POST(
@@ -35,28 +35,24 @@ export async function POST(
       )
     }
 
-    const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    await enqueueAgentJob({
-      jobId: runId,
-      organizationId: orgId,
-      agentId,
-      agentRole: agent.role,
-      taskType: 'HEARTBEAT',
-      mission: agent.primeDirective,
-      createdAt: new Date().toISOString(),
-    })
+    // Run the agent's work directly. The BullMQ "agent-jobs" queue has no
+    // worker, so enqueueing there was a fake success — call the real work
+    // function and return its actual result.
+    const result = await runAgentWork(orgId, agentId)
 
     return NextResponse.json(
       {
-        status: 'queued',
-        runId,
-        message: `Heartbeat queued for ${agent.name}`,
+        ok: result.ok,
+        message: result.message,
+        issueCode: result.issueCode,
+        newStatus: result.newStatus,
+        milestone: result.milestone,
       },
-      { status: 202 }
+      { status: result.ok ? 200 : 500 }
     )
   } catch (error: any) {
     return NextResponse.json(
-      { error: error.message || 'Failed to queue heartbeat' },
+      { error: error.message || 'Failed to run heartbeat' },
       { status: 500 }
     )
   }

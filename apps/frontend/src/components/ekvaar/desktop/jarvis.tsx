@@ -168,6 +168,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const inputRef          = useRef<HTMLTextAreaElement>(null)
   const audioStopRef      = useRef<(() => void) | null>(null)
   const speakingRef       = useRef(false)
+  const speakGenRef       = useRef(0)
   const vuRef             = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const activeWindowName = activeId ? (APP_NAMES[activeId] || activeId) : null
@@ -213,6 +214,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   }, [gState])
 
   const stopTTS = useCallback(() => {
+    speakGenRef.current++
     if (audioStopRef.current) { audioStopRef.current(); audioStopRef.current = null }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel()
     speakingRef.current = false
@@ -287,7 +289,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       const rec = new SpeechRec()
       rec.continuous = true
       rec.interimResults = true
-      rec.lang = 'en-US'
+      rec.lang = 'en-IN'
       webSpeechRef.current = rec
       webSpeechFinal.current = ''
       rec.onresult = (e: any) => {
@@ -349,7 +351,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
           fd.append('audio', blob, 'audio.webm')
           const res = await fetch('/api/jarvis/stt', {
             method: 'POST', body: fd,
-            signal: AbortSignal.timeout(6000),
+            signal: AbortSignal.timeout(20_000),
           })
           if (res.ok) {
             const { transcript: t } = await res.json()
@@ -375,12 +377,43 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       if (avg > 10) lastSoundAt = Date.now()
       const silentFor = Date.now() - lastSoundAt
       const recordedFor = Date.now() - startedAt
-      if (silentFor > 2200 && recordedFor > 800) {
+      if (silentFor > 950 && recordedFor > 550) {
         clearInterval(vuRef.current!); vuRef.current = null
         if (recorderRef.current?.state !== 'inactive') recorderRef.current?.stop()
       }
     }, 80)
   }, [stopTTS])
+
+  const speakWithDevice = useCallback((clean: string, voiceId: string): Promise<void> => {
+    return new Promise<void>((resolve) => {
+      if (typeof window === 'undefined' || !('speechSynthesis' in window)) return resolve()
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        window.speechSynthesis.cancel()
+      }
+      window.speechSynthesis.resume()
+
+      setTimeout(() => {
+        const u = new SpeechSynthesisUtterance(clean)
+        applyVoiceToUtterance(u, window.speechSynthesis, voiceId)
+        let done = false
+        const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
+        audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
+        u.onend = finish
+        u.onerror = (e: any) => {
+          if (e.error !== 'canceled' && e.error !== 'interrupted') {
+            console.warn('[TTS Warning]', e.error || e)
+          }
+          finish()
+        }
+        setTimeout(finish, clean.length * 90 + 4000)
+        try {
+          window.speechSynthesis.speak(u)
+        } catch {
+          finish()
+        }
+      }, 50)
+    })
+  }, [])
 
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
@@ -390,65 +423,60 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     if (!clean) { setGlobal('idle'); return }
     setGlobal('talking')
     speakingRef.current = true
+    const gen = ++speakGenRef.current
 
     const voiceId = getSelectedVoiceId()
 
-    // ── 1. Try server neural TTS first (if neural API is available) ──
+    // ── 1. Neural TTS only if it answers fast; otherwise the device voice
+    // starts on its own deadline so speech follows the text within ~1.2s.
+    // A late neural reply is dropped rather than double-speaking. ──
+    let deviceStarted = false
+    let deviceDone: Promise<void> | null = null
+    const startDevice = () => {
+      if (deviceStarted || !speakingRef.current || speakGenRef.current !== gen) return
+      deviceStarted = true
+      deviceDone = speakWithDevice(clean, voiceId)
+    }
+    const deviceDeadline = setTimeout(startDevice, 1200)
+
     try {
       const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: clean, voice: voiceId, speed: 1.0 }),
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(20_000),
       })
-      if (res.ok && res.headers.get('content-type')?.includes('audio')) {
+      if (res.ok && res.headers.get('content-type')?.includes('audio') && speakingRef.current && !deviceStarted && speakGenRef.current === gen) {
+        clearTimeout(deviceDeadline)
         const audio = new Audio(URL.createObjectURL(await res.blob()))
         audio.volume = 1
-        audioStopRef.current = () => { audio.pause(); URL.revokeObjectURL(audio.src) }
         await new Promise<void>((resolve) => {
           audio.onended = () => resolve()
           audio.onerror = () => resolve()
+          // pause() fires neither onended nor onerror — resolve here so an
+          // interrupt can't leave the caller awaiting forever.
+          audioStopRef.current = () => { audio.pause(); URL.revokeObjectURL(audio.src); audioStopRef.current = null; resolve() }
           audio.play().catch(() => resolve())
         })
-        speakingRef.current = false
-        setGlobal('idle')
+        if (speakGenRef.current === gen) {
+          speakingRef.current = false
+          setGlobal('idle')
+          if (expanded && micSupported) setTimeout(() => startListening(), 140)
+        }
         return
       }
     } catch {}
 
-    // ── 2. Fallback to continuous, natural browser SpeechSynthesis ──
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      await new Promise<void>((resolve) => {
-        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-          window.speechSynthesis.cancel()
-        }
-        window.speechSynthesis.resume()
-
-        setTimeout(() => {
-          const u = new SpeechSynthesisUtterance(clean)
-          applyVoiceToUtterance(u, window.speechSynthesis, voiceId)
-          let done = false
-          const finish = () => { if (!done) { done = true; audioStopRef.current = null; resolve() } }
-          audioStopRef.current = () => { window.speechSynthesis.cancel(); finish() }
-          u.onend = finish
-          u.onerror = (e: any) => {
-            if (e.error !== 'canceled' && e.error !== 'interrupted') {
-              console.warn('[TTS Warning]', e.error || e)
-            }
-            finish()
-          }
-          setTimeout(finish, clean.length * 90 + 4000)
-          try {
-            window.speechSynthesis.speak(u)
-          } catch {
-            finish()
-          }
-        }, 50)
-      })
-    }
+    // ── 2. Device voice (already started by the deadline, or start now) ──
+    clearTimeout(deviceDeadline)
+    if (speakGenRef.current !== gen) return
+    startDevice()
+    if (deviceDone) await deviceDone
+    if (speakGenRef.current !== gen) return
     speakingRef.current = false
     setGlobal('idle')
-  }, [muted, stopTTS, stopListening])
+    if (expanded && micSupported) setTimeout(() => startListening(), 140)
+  }, [muted, stopTTS, stopListening, expanded, micSupported, startListening, speakWithDevice])
 
   const toggleListening = useCallback(() => {
     if (listeningRef.current) {

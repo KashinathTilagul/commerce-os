@@ -99,7 +99,7 @@ export async function analyze(organizationId: string, question: string): Promise
     .map(([name, d]) => `- ${name}: numeric[${d.nums.join(', ') || 'none'}] dims[${d.dims.join(', ')}] date=${d.date}`)
     .join('\n')
 
-  const { object: plan } = await routeObject<QueryPlan>('reasoning', {
+  const { object: plan } = await routeObject<QueryPlan>('reasoning', organizationId, {
     schema: PlanSchema,
     system: `You are the organization's data analyst. Convert the founder's question into a query plan over ONLY these datasets (use exact field names; never invent fields):\n${schemaHint}\n\nUse 'aggregate' with metrics/groupBy for "how many / total / average / by X"; use 'list' to show individual rows. Add timeRange for "this month" (mtd), "this year" (ytd), "last 30 days" (30d), "today".`,
     prompt: question,
@@ -108,7 +108,7 @@ export async function analyze(organizationId: string, question: string): Promise
 
   const data = await runPlan(organizationId, plan)
 
-  const { text } = await routeText('default', {
+  const { text } = await routeText('default', organizationId, {
     system: `You are the organization's data analyst. Answer the founder's question from the computed result below — cite the exact numbers and stay concise (1-3 sentences). Never invent figures beyond the data.`,
     prompt: `Question: ${question}\n\nQuery plan: ${JSON.stringify(plan)}\n\nComputed result: ${JSON.stringify(data)}`,
     temperature: 0.3,

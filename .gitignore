@@ -20,6 +20,9 @@ node_modules
 # production
 /build
 
+# generated runtime artifacts
+/apps/frontend/storage/
+
 # misc
 .DS_Store
 *.pem

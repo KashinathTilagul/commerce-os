@@ -22,7 +22,7 @@ export async function POST(
 
   if (!integration) {
     // Row missing (seeding was incomplete) — create it on demand from the catalog
-    const catalog = await listToolkits()
+    const catalog = await listToolkits(auth.organizationId)
     const meta = catalog.find(t => t.slug === toolkit)
     if (!meta) {
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 })

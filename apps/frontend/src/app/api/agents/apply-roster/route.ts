@@ -2,25 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { ROSTER } from '@/lib/agent-roster'
 import { syncAgentRoster } from '@/lib/agent-roster-sync'
+import { requireOrganization } from '@/lib/auth-guard'
 
 export const dynamic = 'force-dynamic'
 
-// Idempotently build the digital-employees org (Chiefs + specialists, with
-// hierarchy) for every user. Guarded by CRON_SECRET like /api/cron/watchdog;
-// triggered once from the box after a deploy. Safe to re-run.
+// Idempotently build the requesting organization's workforce only. A tenant
+// must never provision or mutate another tenant's employee graph.
 export async function POST(req: NextRequest) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 })
-  if (req.headers.get('x-cron-secret') !== secret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const organizations = await db.organization.findMany({ select: { id: true } })
-  let count = 0
-
-  for (const organization of organizations) {
-    count += await syncAgentRoster(db, organization.id)
-  }
+  const auth = await requireOrganization()
+  if (!auth.success) return auth.response
+  const count = await syncAgentRoster(db, auth.organizationId)
 
   return NextResponse.json({ ok: true, applied: count, roster: ROSTER.length })
 }

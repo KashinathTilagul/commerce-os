@@ -14,7 +14,7 @@ export interface OSManifest {
   requiredCommerceObjects?: string[]
   
   // Lifecycle & Routing
-  entryPoint: React.ComponentType<{ appId: string }>
+  entryPoint: React.ComponentType<any>
   routes?: { path: string; component: React.ComponentType<any> }[]
   
   // Intents (Command Palette interactions)

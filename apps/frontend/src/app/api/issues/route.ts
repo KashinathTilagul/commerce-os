@@ -3,12 +3,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireOrganization } from '@/lib/auth-guard'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
+  // Issues belonging to hidden (silent-research) launches stay invisible
+  // unless the founder explicitly asks for them.
+  const includeHidden = req.nextUrl.searchParams.get('includeHidden') === 'true'
   const issues = await db.issue.findMany({
-    where: { organizationId: auth.organizationId },
+    where: {
+      organizationId: auth.organizationId,
+      ...(includeHidden ? {} : { NOT: { campaignItem: { launch: { hidden: true } } } }),
+    },
     include: {
       assignee: { select: { id: true, name: true, code: true, avatarColor: true, role: true } },
       createdBy: { select: { id: true, name: true, code: true, avatarColor: true } },

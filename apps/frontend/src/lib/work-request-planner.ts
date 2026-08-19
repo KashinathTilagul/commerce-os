@@ -16,6 +16,10 @@ export interface WorkValidationDefinition {
 }
 
 const FULL_CAMPAIGN = /(?:\b(?:launch|run|build|plan)\b.{0,45}\b(?:campaign|collection launch|product launch)\b)|(?:\b(?:campaign|collection)\b.{0,45}\b(?:launch|rollout|go live)\b)/i
+const RESEARCH = /\b(research|investigate|background check|deep dive|silent study)\b/i
+const INSTAGRAM = /\b(instagram|\bstory\b|\bstories\b|\breel\b|\breels\b|carousel|ig post)\b/i
+const SHOPIFY = /\b(shopify|product description)\b/i
+const FINANCE_REPORT = /\b(finance|financial|p&l|revenue)\b.{0,40}\b(report|fiscal|fy)\b/i
 
 export function extractExactReply(request: string) {
   return request.match(/(?:reply with exactly|output as (?:a )?reply as)\s*:?\s*(.+)$/i)?.[1]?.trim() || null
@@ -29,6 +33,11 @@ export function parseGeneratedMediaJSON<T = Record<string, unknown>>(json: strin
   try {
     return JSON.parse(json) as T
   } catch (originalError) {
+    // Employees sometimes double-encode the block ({"prompt":\"...\"}):
+    // unwrap the extra escape layer and retry before char-level repair.
+    if (/^\{\s*\\"/.test(json)) {
+      try { return JSON.parse(json.replace(/\\"/g, '"')) as T } catch {}
+    }
     let sanitized = ''
     let inString = false
     let escaped = false
@@ -59,9 +68,64 @@ export function parseGeneratedMediaJSON<T = Record<string, unknown>>(json: strin
     try {
       return JSON.parse(sanitized) as T
     } catch {
-      throw originalError
+      // Models drift into JS-object syntax — unquoted keys, single quotes,
+      // trailing commas. Repair char-by-char (string-aware) and retry once.
+      try {
+        return JSON.parse(repairJson(sanitized)) as T
+      } catch {
+        throw originalError
+      }
     }
   }
+}
+
+function repairJson(input: string): string {
+  let out = ''
+  let inString = false
+  let escaped = false
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i]
+    if (escaped) { out += char; escaped = false; continue }
+    if (inString) {
+      if (char === '\\') escaped = true
+      else if (char === '"') inString = false
+      out += char
+      continue
+    }
+    if (char === '"') { inString = true; out += char; continue }
+    if (char === "'") {
+      // Convert single-quoted string to double-quoted.
+      let j = i + 1
+      let inner = ''
+      while (j < input.length && input[j] !== "'") {
+        if (input[j] === '\\') { inner += input.slice(j, j + 2); j += 2; continue }
+        inner += input[j] === '"' ? '\\"' : input[j]
+        j++
+      }
+      out += `"${inner}"`
+      i = j
+      continue
+    }
+    if (/[A-Za-z_$]/.test(char)) {
+      // Bare identifier — quote it only when it is a key (followed by ':'),
+      // so literal true/false/null values stay literals.
+      let j = i
+      while (j < input.length && /[A-Za-z0-9_$]/.test(input[j])) j++
+      const word = input.slice(i, j)
+      let k = j
+      while (k < input.length && /\s/.test(input[k])) k++
+      out += input[k] === ':' ? `"${word}"` : word
+      i = j - 1
+      continue
+    }
+    if (char === ',') {
+      let j = i + 1
+      while (j < input.length && /\s/.test(input[j])) j++
+      if (input[j] === '}' || input[j] === ']') continue // drop trailing comma
+    }
+    out += char
+  }
+  return out
 }
 
 const SPECIALISTS = [
@@ -77,8 +141,20 @@ export function planWorkRequest(brief: string) {
     return {
       kind: 'CAMPAIGN' as const,
       label: 'Full campaign workflow',
+      hidden: false,
       items: CAMPAIGN_ITEMS.map((item) => ({ ...item, dependsOn: [...item.dependsOn] })) as WorkItemDefinition[],
       validations: CAMPAIGN_VALIDATIONS.map((validation) => ({ ...validation })) as WorkValidationDefinition[],
+    }
+  }
+
+  // Silent research runs invisibly: hidden launch, sanitized activity log.
+  if (RESEARCH.test(brief)) {
+    return {
+      kind: 'RESEARCH' as const,
+      label: 'Private research',
+      hidden: true,
+      items: [{ code: '01', title: 'Background research', type: 'ANSWER', assigneeCode: 'GROWTH', dependsOn: [] }] as WorkItemDefinition[],
+      validations: [] as WorkValidationDefinition[],
     }
   }
 
@@ -87,19 +163,33 @@ export function planWorkRequest(brief: string) {
     if (!items.some((existing) => existing.type === item.type)) items.push(item)
   }
 
+  const financeReport = FINANCE_REPORT.test(brief)
+  if (financeReport) {
+    add({ title: 'Prepare finance report from live revenue data', type: 'FINANCE_REPORT', assigneeCode: 'CFO', dependsOn: [] })
+  }
+  if (SHOPIFY.test(brief)) {
+    add({ title: 'Draft Shopify product description update', type: 'SHOPIFY_UPDATE', assigneeCode: 'OPS_MANAGER', dependsOn: [] })
+  }
+  const instagram = INSTAGRAM.test(brief)
+  if (instagram) {
+    const format = /carousel/i.test(brief) ? 'carousel' : /\breels?\b/i.test(brief) ? 'reel' : /stor(y|ies)/i.test(brief) ? 'story' : 'feed'
+    add({ title: `Create Instagram ${format} asset`, type: 'SOCIAL_POST', assigneeCode: 'DES_IMG', dependsOn: [] })
+  }
+
   if (/\b(email|investor letter|outreach|newsletter|message|caption|copy|blog|article|post)\b/i.test(brief)) {
     add({ title: 'Write requested content', type: 'CONTENT', assigneeCode: 'MKT_CONTENT', dependsOn: [] })
   }
-  if (/\b(image|logo|poster|banner|visual|graphic|mockup|illustration|photo)\b/i.test(brief)) {
+  if (!instagram && /\b(image|logo|poster|banner|visual|graphic|mockup|illustration|photo)\b/i.test(brief)) {
     add({ title: 'Generate requested image', type: 'IMAGE', assigneeCode: 'DES_IMG', dependsOn: [] })
   }
-  if (/\b(video|reel|animation|motion|short film)\b/i.test(brief)) {
+  if (!instagram && /\b(video|animation|motion|short film)\b/i.test(brief)) {
     add({ title: 'Generate requested video', type: 'VIDEO', assigneeCode: 'MKT_VIDEO', dependsOn: [] })
   }
   if (/\b(audio|voiceover|voice-over|speech|spoken|sound file|podcast)\b/i.test(brief)) {
     add({ title: 'Generate requested audio', type: 'AUDIO', assigneeCode: 'MKT_VIDEO', dependsOn: [] })
   }
-  if (/\b(pdf|report|briefing document|document file)\b/i.test(brief)) {
+  // FINANCE_REPORT already produces a PDF through the same generator.
+  if (!financeReport && /\b(pdf|report|briefing document|document file)\b/i.test(brief)) {
     add({ title: 'Generate requested report', type: 'PDF', assigneeCode: 'EXE_SUMMARY', dependsOn: [] })
   }
 
@@ -113,6 +203,7 @@ export function planWorkRequest(brief: string) {
   return {
     kind: 'REQUEST' as const,
     label: items.length === 1 ? items[0].title : `${items.length} requested deliverables`,
+    hidden: false,
     items: items.map((item, index) => ({ ...item, code: String(index + 1).padStart(2, '0') })),
     validations: [] as WorkValidationDefinition[],
   }
