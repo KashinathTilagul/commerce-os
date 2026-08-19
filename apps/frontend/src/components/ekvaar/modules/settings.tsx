@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle, UserRound } from 'lucide-react'
+import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -37,14 +37,11 @@ export function Settings() {
   const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [orgNameValue, setOrgNameValue] = useState('')
   const [providerDraft, setProviderDraft] = useState<Record<string, string>>({})
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const orgNameTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
-    try { return localStorage.getItem('krishna_voice') || JARVIS_VOICE_ID } catch { return JARVIS_VOICE_ID }
+    try { return localStorage.getItem('krishna_voice') || 'en-IN-PrabhatNeural' } catch { return 'en-IN-PrabhatNeural' }
   })
   const [localSpeed, setLocalSpeed] = useState(0.86)
   const [localPitch, setLocalPitch] = useState(0.76)
@@ -58,45 +55,6 @@ export function Settings() {
       if (!r.ok) throw new Error('Failed to fetch settings')
       return r.json()
     },
-  })
-  const { data: serviceHealth } = useQuery<{ services: Array<{ name: string; configured: boolean; healthy: boolean; latencyMs?: number }> }>({
-    queryKey: ['system-services'],
-    queryFn: async () => {
-      const r = await fetch('/api/system/services')
-      if (!r.ok) throw new Error('Failed to read service health')
-      return r.json()
-    },
-    refetchInterval: 30_000,
-  })
-  const { data: accountLogin } = useQuery<{ username: string; hasPassword: boolean }>({
-    queryKey: ['account-login'],
-    queryFn: async () => {
-      const r = await fetch('/api/account/password')
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(data.error || 'Failed to load login settings')
-      return data
-    },
-  })
-  const passwordMutation = useMutation({
-    mutationFn: async () => {
-      if (newPassword !== confirmPassword) throw new Error('New passwords do not match')
-      const r = await fetch('/api/account/password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      })
-      const data = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(data.error || 'Failed to save password')
-      return data
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['account-login'], data)
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      toast.success(accountLogin?.hasPassword ? 'Password changed' : 'Password login enabled')
-    },
-    onError: (error: Error) => toast.error('Could not save password', error.message),
   })
 
   // Sync server voice + prompt to local state (one-time on load)
@@ -126,6 +84,17 @@ export function Settings() {
     }
   }, [])
 
+  // Auto-save provider draft with debounce so changes don't require manual apply
+  useEffect(() => {
+    if (Object.keys(providerDraft).length === 0) return
+    const timer = setTimeout(() => {
+      mutation.mutate(providerDraft, {
+        onSuccess: () => setProviderDraft({}),
+      })
+    }, 700)
+    return () => clearTimeout(timer)
+  }, [providerDraft, mutation])
+
   const mutation = useMutation({
     mutationFn: async (updates: any) => {
       const r = await fetch('/api/settings', {
@@ -139,7 +108,7 @@ export function Settings() {
     },
     onSuccess: (data, variables) => {
       queryClient.setQueryData(['settings'], data)
-      if (Object.keys(variables).some((key) => /^(primary|fallback[12]|composio|speech)/.test(key))) {
+      if (Object.keys(variables).some((key) => /^(primary|fallback[12])/.test(key))) {
         setProviderDraft({})
       }
       // Don't toast theme/accent — they already have their own toasts
@@ -209,46 +178,6 @@ export function Settings() {
       />
 
       <div className="px-6 lg:px-10 py-8 space-y-6">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
-              <UserRound className="h-4 w-4" /> Login & Security
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Keep Google sign-in and add password login for the same account.</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-1.5">
-              <label htmlFor="account-username" className="text-xs font-medium">Username</label>
-              <Input id="account-username" value={accountLogin?.username || ''} readOnly disabled className="max-w-md" />
-              <p className="text-[11px] text-muted-foreground">Your verified email is your username and cannot be changed here.</p>
-            </div>
-            {accountLogin?.hasPassword && (
-              <div className="grid gap-1.5 max-w-md">
-                <label htmlFor="current-password" className="text-xs font-medium">Current password</label>
-                <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} />
-              </div>
-            )}
-            <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
-              <div className="grid gap-1.5">
-                <label htmlFor="new-password" className="text-xs font-medium">{accountLogin?.hasPassword ? 'New password' : 'Create password'}</label>
-                <Input id="new-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 8 characters" />
-              </div>
-              <div className="grid gap-1.5">
-                <label htmlFor="confirm-password" className="text-xs font-medium">Confirm password</label>
-                <Input id="confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-              </div>
-            </div>
-            <Button
-              onClick={() => passwordMutation.mutate()}
-              disabled={passwordMutation.isPending || newPassword.length < 8 || newPassword !== confirmPassword || Boolean(accountLogin?.hasPassword && !currentPassword)}
-              className="gap-2"
-            >
-              {passwordMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {accountLogin?.hasPassword ? 'Change password' : 'Enable password login'}
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Organization */}
         <Card>
           <CardHeader className="pb-3">
@@ -317,7 +246,7 @@ export function Settings() {
               <Cpu className="h-4 w-4" /> Intelligence Core
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              These encrypted credentials belong only to this organization. Krishna will not borrow server keys or another workspace's configuration.
+              Krishna routes through these providers in order — Primary first, then each Fallback if the one before it fails or is unset. Mix free and paid keys as needed; a slot left blank is simply skipped.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -344,35 +273,6 @@ export function Settings() {
                 <Slider value={[s.maxTokens ?? 80]} onValueChange={(v) => handleChange('maxTokens', v[0])} max={100} step={5} />
                 <div className="text-right text-xs font-mono mt-1">{s.maxTokens ?? 80}%</div>
               </div>
-            </Row>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
-              <Key className="h-4 w-4" /> Organization Connections
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Keys are encrypted and isolated to this organization. They are never returned to the browser after saving.</p>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <Row label="Composio API key" desc="Required before this organization can connect Google, LinkedIn, Meta, or other Composio apps">
-              <Input
-                type="password"
-                value={providerDraft.composioApiKey ?? ''}
-                onChange={(event) => setProviderDraft((draft) => ({ ...draft, composioApiKey: event.target.value }))}
-                placeholder={s.hasComposioApiKey ? '•••••••••••••••• (key set)' : 'Paste this organization’s Composio key'}
-                className="h-9 w-80 text-xs font-mono"
-              />
-            </Row>
-            <Row label="Speech API key" desc="OpenAI speech key for Krishna’s real neural male voice; device speech is used only as an explicit fallback">
-              <Input
-                type="password"
-                value={providerDraft.speechApiKey ?? ''}
-                onChange={(event) => setProviderDraft((draft) => ({ ...draft, speechApiKey: event.target.value, speechProvider: 'openai' }))}
-                placeholder={s.hasSpeechApiKey ? '•••••••••••••••• (key set)' : 'Paste this organization’s speech key'}
-                className="h-9 w-80 text-xs font-mono"
-              />
             </Row>
           </CardContent>
         </Card>
@@ -406,7 +306,7 @@ export function Settings() {
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
               <Mic className="h-4 w-4" /> Krishna Voice
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">One verified male cloud voice plus the device fallback. Cloud voice requires this organization’s Speech API key above.</p>
+            <p className="text-xs text-muted-foreground mt-1">Pocket TTS (kyutai local neural) + Edge TTS cloud voices. Change takes effect immediately.</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <Row label="Voice" desc="Krishna's speaking voice">
@@ -420,7 +320,7 @@ export function Settings() {
                     }}
                     className="cursor-pointer bg-cyan-500/10 text-cyan-300 border-cyan-400/30 shadow-[0_0_14px_rgba(34,211,238,0.35)]"
                   >
-                    Krishna Male
+                    ⭐ JARVIS Preset
                   </Badge>
                   <Select
                     value={localVoice}
@@ -547,15 +447,6 @@ export function Settings() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {(serviceHealth?.services || []).map((service) => (
-              <div key={service.name} className="flex items-center justify-between py-2 border-b border-border/60">
-                <div>
-                  <div className="text-sm font-medium">{service.name}</div>
-                  <div className="text-[10px] font-mono text-muted-foreground">{service.configured ? `${service.latencyMs ?? '—'} ms` : 'Not configured'}</div>
-                </div>
-                <Badge variant={service.healthy ? 'outline' : 'secondary'}>{service.healthy ? 'HEALTHY' : service.configured ? 'UNREACHABLE' : 'OFF'}</Badge>
-              </div>
-            ))}
             {[
               { name: 'Workforce Engine', endpoint: '/api/workforce', status: 'ACTIVE' },
               { name: 'CEO Engine', endpoint: '/api/ceo', status: 'ACTIVE' },
@@ -675,6 +566,42 @@ const PROVIDER_OPTIONS = [
   { value: 'openai', label: 'OpenAI-compatible (custom)' },
 ]
 
+const PROVIDER_MODELS: Record<string, { value: string; label: string; vision?: boolean }[]> = {
+  bedrock: [
+    { value: 'amazon.nova-pro-v1:0', label: 'Nova Pro (recommended, vision)', vision: true },
+    { value: 'amazon.nova-lite-v1:0', label: 'Nova Lite (vision)', vision: true },
+    { value: 'zai.glm-5', label: 'Zhipu GLM-5' },
+    { value: 'anthropic.claude-3-5-sonnet', label: 'Claude 3.5 Sonnet (vision)', vision: true },
+    { value: 'anthropic.claude-3-haiku', label: 'Claude 3 Haiku (vision)', vision: true },
+  ],
+  openrouter: [
+    { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (vision)', vision: true },
+    { value: 'anthropic/claude-3-haiku', label: 'Claude 3 Haiku (vision)', vision: true },
+    { value: 'google/gemini-pro-1.5', label: 'Gemini 1.5 Pro (vision)', vision: true },
+    { value: 'google/gemini-flash-1.5', label: 'Gemini 1.5 Flash (vision)', vision: true },
+    { value: 'google/gemma-3-27b-it:free', label: 'Gemma 3 27B (free)' },
+    { value: 'meta-llama/llama-3.3-70b-instruct:free', label: 'Llama 3.3 70B (free)' },
+    { value: 'meta-llama/llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
+    { value: 'meta-llama/llama-3.1-8b-instruct:free', label: 'Llama 3.1 8B (free)' },
+  ],
+  groq: [
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
+    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
+    { value: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
+  ],
+  openai: [
+    { value: 'gpt-4o', label: 'GPT-4o (vision)', vision: true },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini (vision)', vision: true },
+    { value: 'o1-preview', label: 'o1 Preview' },
+    { value: 'o1-mini', label: 'o1 Mini' },
+  ],
+  omniroute: [
+    { value: 'auto', label: 'Auto (intelligent routing)' },
+    { value: 'claude-sonnet-4.5', label: 'Claude Sonnet 4.5 (vision)', vision: true },
+    { value: 'gpt-4o', label: 'GPT-4o (vision)', vision: true },
+  ],
+}
+
 function ProviderSlot({
   title, provider, model, apiKey, baseUrl, hasApiKey, onChange,
 }: {
@@ -686,11 +613,22 @@ function ProviderSlot({
   hasApiKey?: boolean
   onChange: (field: 'Provider' | 'Model' | 'ApiKey' | 'BaseUrl', value: string) => void
 }) {
+  const [customModel, setCustomModel] = useState(model || '')
+  const [showCustomModel, setShowCustomModel] = useState(false)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  const availableModels = provider ? (PROVIDER_MODELS[provider] || []) : []
+
+  const debouncedSave = (field: 'Provider' | 'Model' | 'ApiKey' | 'BaseUrl', value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => onChange(field, value), 600)
+  }
+
   return (
     <div className="rounded-lg border border-border bg-muted/20 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium">{title}</span>
-        <Select value={provider || ''} onValueChange={(v) => { onChange('Provider', v); onChange('BaseUrl', '') }}>
+        <Select value={provider || ''} onValueChange={(v) => { onChange('Provider', v); setShowCustomModel(false) }}>
           <SelectTrigger className="h-7 w-44 text-xs"><SelectValue placeholder="Choose provider" /></SelectTrigger>
           <SelectContent>
             {PROVIDER_OPTIONS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
@@ -698,31 +636,77 @@ function ProviderSlot({
         </Select>
       </div>
       <div className="space-y-1">
-        <label className="text-[11px] text-muted-foreground flex items-center gap-1"><Key className="h-3 w-3" /> API Key</label>
+        <label className="text-[11px] text-muted-foreground flex items-center gap-1">
+          <Key className="h-3 w-3" /> API Key
+          {hasApiKey && !apiKey && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 ml-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" /> configured
+            </span>
+          )}
+        </label>
         <Input
           type="password"
           value={apiKey || ''}
-          onChange={(e) => onChange('ApiKey', e.target.value)}
-          placeholder={hasApiKey ? '•••••••••••••••• (key set)' : 'Paste your API key here...'}
+          onChange={(e) => debouncedSave('ApiKey', e.target.value)}
+          onBlur={() => { if (debounceRef.current) clearTimeout(debounceRef.current); onChange('ApiKey', apiKey || '') }}
+          placeholder={hasApiKey ? 'Key configured — paste to replace' : 'Paste your API key here...'}
           className="h-8 text-xs font-mono"
         />
       </div>
       <div className="space-y-1">
-        <label className="text-[11px] text-muted-foreground">Model ID</label>
-        <Input
-          value={model || ''}
-          onChange={(e) => onChange('Model', e.target.value)}
-          placeholder={provider === 'bedrock' ? 'amazon-bedrock/zai.glm-5' : provider === 'groq' ? 'llama-3.3-70b-versatile' : 'model-id'}
-          className="h-8 text-xs font-mono"
-        />
+        <label className="text-[11px] text-muted-foreground">Model</label>
+        {provider && !showCustomModel ? (
+          <div className="flex gap-2">
+            <Select
+              value={availableModels.some(m => m.value === model) ? model || '' : '__custom__'}
+              onValueChange={(v) => {
+                if (v === '__custom__') {
+                  setShowCustomModel(true)
+                } else {
+                  setCustomModel(v)
+                  onChange('Model', v)
+                }
+              }}
+            >
+              <SelectTrigger className="h-8 flex-1 text-xs"><SelectValue placeholder="Choose model" /></SelectTrigger>
+              <SelectContent>
+                {availableModels.map(m => (
+                  <SelectItem key={m.value} value={m.value}>
+                    <span className="flex items-center gap-2">
+                      {m.label}
+                      {m.vision && <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-400/20 text-emerald-300">vision</span>}
+                    </span>
+                  </SelectItem>
+                ))}
+                <SelectItem value="__custom__">Custom model ID...</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Input
+              value={customModel || model || ''}
+              onChange={(e) => { setCustomModel(e.target.value); debouncedSave('Model', e.target.value) }}
+              onBlur={() => { setShowCustomModel(false); onChange('Model', customModel || model || '') }}
+              placeholder={provider === 'bedrock' ? 'amazon.nova-pro-v1:0' : provider === 'groq' ? 'llama-3.3-70b-versatile' : 'model-id'}
+              className="h-8 text-xs font-mono flex-1"
+            />
+            {provider && availableModels.length > 0 && (
+              <Button variant="outline" size="sm" className="h-8 text-[10px]" onClick={() => { setShowCustomModel(false); setCustomModel(model || '') }}>
+                Browse
+              </Button>
+            )}
+          </div>
+        )}
       </div>
-      {(provider === 'openai' || provider === 'omniroute') && (
+      {provider === 'openai' && (
         <div className="space-y-1">
           <label className="text-[11px] text-muted-foreground">Base URL</label>
           <Input
             value={baseUrl || ''}
-            onChange={(e) => onChange('BaseUrl', e.target.value)}
-            placeholder={provider === 'omniroute' ? 'http://localhost:20128/v1' : 'https://api.example.com/v1'}
+            onChange={(e) => debouncedSave('BaseUrl', e.target.value)}
+            onBlur={() => { if (debounceRef.current) clearTimeout(debounceRef.current); onChange('BaseUrl', baseUrl || '') }}
+            placeholder="https://api.example.com/v1"
             className="h-8 text-xs font-mono"
           />
         </div>

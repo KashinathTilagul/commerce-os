@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, AlertTriangle, Archive, ArrowRight, Bot, Check, ExternalLink, Eye, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Video, Volume2 } from 'lucide-react'
+import { Activity, AlertTriangle, Archive, ArrowRight, Bot, Check, ExternalLink, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Users, TrendingUp, Zap, Target, Circle } from 'lucide-react'
 import { GlassPanel } from '@/components/ui/glass-system'
 
 type CampaignItem = {
@@ -47,8 +47,6 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [planNotice, setPlanNotice] = useState('')
-  // Constraint: results only appear when the founder explicitly asks to see them.
-  const [revealed, setRevealed] = useState<Set<string>>(new Set())
   const { data: campaigns = [], isLoading, error } = useQuery<Campaign[]>({
     queryKey: ['campaign-launches'],
     queryFn: async () => {
@@ -66,6 +64,17 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
       if (!response.ok) return []
       return response.json()
     },
+  })
+
+  const { data: agents = [] } = useQuery<any[]>({
+    queryKey: ['workforce-agents'],
+    queryFn: async () => {
+      const response = await fetch('/api/agents')
+      if (!response.ok) return []
+      const data = await response.json()
+      return (data.agents || data || [])
+    },
+    refetchInterval: 30000,
   })
 
   const createCampaign = useMutation({
@@ -129,21 +138,6 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['campaign-provider-readiness'] }),
   })
 
-  // One-click Instagram publish — single click posts the delivered artifact.
-  const publishInstagram = useMutation({
-    mutationFn: async (artifactUrl: string) => {
-      const artifactId = artifactUrl.match(/\/api\/artifacts\/([A-Za-z0-9_-]+)/)?.[1]
-      const response = await fetch('/api/publish/instagram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ artifactId, mediaUrl: artifactId ? undefined : artifactUrl, format: 'image' }),
-      })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Instagram publish failed')
-      return data
-    },
-  })
-
   const selected = campaigns.find((campaign) => campaign.id === selectedId) ?? campaigns[0]
   const completed = selected?.items.filter((item) => item.status === 'COMPLETED').length ?? 0
   const running = selected?.items.filter((item) => ['READY', 'RUNNING', 'LEASED'].includes(item.status)).length ?? 0
@@ -151,18 +145,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
   const selectedItem = selected?.items.find((item) => item.id === selectedItemId)
     ?? selected?.items.find((item) => item.issue?.comments[0] || item.providerDraft)
   const latestOutput = selectedItem?.issue?.comments[0]?.body ?? ''
-  const assetUrl = latestOutput.match(/\/api\/artifacts\/[A-Za-z0-9_-]+/)?.[0]
   const latestRevision = selected?.revisions[0]
-  // Wizard position: Ask → Plan → Execute → Deliver.
-  const step = !selected ? 0 : completed === selected.items.length && completed > 0 ? 3 : selected.items.length > 0 ? 2 : 1
-  const intents: Array<{ label: string; brief: string }> = [
-    { label: '🖼 Image', brief: 'Create a brand image: ' },
-    { label: '📷 Instagram story', brief: 'Create an Instagram story: ' },
-    { label: '🎬 Reel', brief: 'Create an Instagram reel: ' },
-    { label: '📊 Finance report', brief: 'Prepare a finance report for FY25-26 with revenue and expenses' },
-    { label: '🛍 Shopify update', brief: 'Update Shopify product description: ' },
-    { label: '🔒 Research (private)', brief: 'Research (silent, do not surface): ' },
-  ]
 
   return (
     <div className="min-h-full bg-[radial-gradient(circle_at_18%_0%,rgba(17,151,177,0.12),transparent_35%),linear-gradient(180deg,rgba(4,11,16,0.3),transparent_55%)]">
@@ -173,21 +156,11 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
               <Sparkles className="h-3 w-3" /> Krishna Command
             </div>
             <h1 className="font-display text-xl tracking-tight">Krishna Work Center</h1>
-            <p className="mt-1 text-[12px] text-muted-foreground">Ask once — Krishna plans, the workforce executes, results appear only when you ask for them.</p>
+            <p className="mt-1 text-[12px] text-muted-foreground">Ask for an answer, email, report, asset, business update, or a complete launch. Krishna assigns only the work required.</p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="hidden items-center gap-1.5 md:flex">
-              {['Ask', 'Plan', 'Execute', 'Deliver'].map((label, index) => (
-                <div key={label} className="flex items-center gap-1.5">
-                  {index > 0 && <ArrowRight className="h-2.5 w-2.5 text-muted-foreground/40" />}
-                  <span className={`rounded-full border px-2.5 py-1 text-[9px] font-medium uppercase tracking-[0.12em] ${index === step ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-200' : index < step ? 'border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-300/80' : 'border-white/[0.08] bg-white/[0.02] text-muted-foreground'}`}>{index + 1} {label}</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => onNavigate('approvals')} className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-[11px] text-muted-foreground hover:bg-white/[0.05] hover:text-foreground">
-              <ShieldCheck className="h-3.5 w-3.5" /> Founder Inbox
-            </button>
-          </div>
+          <button onClick={() => onNavigate('approvals')} className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-[11px] text-muted-foreground hover:bg-white/[0.05] hover:text-foreground">
+            <ShieldCheck className="h-3.5 w-3.5" /> Founder Inbox
+          </button>
         </div>
       </div>
 
@@ -206,16 +179,9 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                 onKeyDown={(event) => {
                   if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && prompt.trim().length >= 10) createCampaign.mutate(prompt.trim())
                 }}
-                placeholder="Ask anything: an image, Instagram story/reel/carousel, finance report, Shopify update, private research, or an end-to-end campaign launch."
+                placeholder="Ask anything: current revenue, an investor email, a PDF report, an image, a video, or an end-to-end campaign launch."
                 className="min-h-24 w-full resize-none rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-[13px] leading-6 outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-cyan-300/35"
               />
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {intents.map((intent) => (
-                  <button key={intent.label} onClick={() => setPrompt(intent.brief)} className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] text-muted-foreground transition hover:border-cyan-300/25 hover:text-cyan-200">
-                    {intent.label}
-                  </button>
-                ))}
-              </div>
               <div className="mt-3 flex items-center justify-between gap-3">
                 <span className="text-[10px] text-muted-foreground">Krishna plans the smallest useful employee workflow before assigning it.</span>
                 <button
@@ -234,6 +200,15 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
         </GlassPanel>
 
         {error && <GlassPanel level={2} className="rounded-xl border-red-400/20 p-4 text-[12px] text-red-300">{error.message}</GlassPanel>}
+
+        {/* Agent Workforce Summary */}
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <AgentSummaryCard agents={agents} />
+          <AgentSummaryCard agents={agents} metric="running" icon={<Activity className="h-3.5 w-3.5" />} label="Active" color="text-emerald-400" />
+          <AgentSummaryCard agents={agents} metric="paused" icon={<Circle className="h-3.5 w-3.5" />} label="Paused" color="text-amber-400" />
+          <AgentSummaryCard agents={agents} metric="budget" icon={<Zap className="h-3.5 w-3.5" />} label="Budget Used" color="text-cyan-400" />
+        </div>
+
         {isLoading ? (
           <div className="flex h-40 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-cyan-300" /></div>
         ) : campaigns.length === 0 ? (
@@ -263,8 +238,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                   <p className="mt-1 line-clamp-2 max-w-3xl text-[11px] leading-5 text-muted-foreground">{selected.brief}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {/* Run/Resume survives only as BLOCKED recovery — execution is automatic. */}
-                  {(blocked > 0 || selected.status === 'BLOCKED') && (
+                  {!['APPROVAL_PENDING', 'APPROVED', 'PUBLISHING', 'PUBLISHED', 'CANCELLED'].includes(selected.status) && (
                     <button
                       onClick={() => runCampaign.mutate(selected.id)}
                       disabled={runCampaign.isPending}
@@ -293,30 +267,6 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                 <Metric value={String(running)} label="Active now" icon={<Activity className="h-3 w-3" />} />
                 <Metric value={String(blocked)} label="Blocked" icon={<AlertTriangle className="h-3 w-3" />} />
               </div>
-              {selected.items.length > 1 && (
-                // Human-readable plan: group tasks by the employee doing them,
-                // instead of leaving the founder to decode raw ticket cards.
-                <div className="mb-3 rounded-xl border border-white/[0.07] bg-black/10 p-4">
-                  <div className="mb-2 text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground">The plan — who does what</div>
-                  <div className="space-y-2">
-                    {Object.entries(selected.items.reduce<Record<string, CampaignItem[]>>((groups, item) => {
-                      const owner = item.assignee?.name ?? item.serviceKey ?? 'System'
-                      ;(groups[owner] ||= []).push(item)
-                      return groups
-                    }, {})).map(([owner, items]) => (
-                      <div key={owner} className="flex items-start gap-2 text-[11px] leading-5">
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: items[0].assignee?.avatarColor ?? '#67e8f9' }} />
-                        <div>
-                          <span className="font-medium">{owner}</span>
-                          <span className="text-muted-foreground">
-                            {' '}will {items.map((item, index) => `${index > 0 ? '; ' : ''}${item.title.toLowerCase()}${item.status === 'COMPLETED' ? ' ✓' : ['BLOCKED', 'FAILED'].includes(item.status) ? ' ⚠' : ''}`).join('')}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
               <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
                 {selected.items.map((item) => (
                   <button key={item.id} onClick={() => setSelectedItemId(item.id)} className={`rounded-xl border p-3 text-left transition hover:-translate-y-0.5 ${selectedItem?.id === item.id ? 'ring-1 ring-cyan-200/50' : ''} ${STATUS_COLORS[item.status] ?? 'border-white/[0.07] bg-white/[0.02] text-foreground'}`}>
@@ -328,7 +278,6 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                     <div className="mt-2 flex items-center gap-1.5 text-[9px] opacity-70">
                       <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.assignee?.avatarColor ?? '#67e8f9' }} />
                       {item.assignee?.name ?? item.serviceKey ?? 'System'}
-                      <span className="ml-auto flex items-center gap-1 text-emerald-300/70"><ShieldCheck className="h-2.5 w-2.5" /> Brand enforced</span>
                     </div>
                   </button>
                 ))}
@@ -340,40 +289,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
                     <span className="text-[9px] text-muted-foreground">{selectedItem.assignee?.name ?? selectedItem.serviceKey ?? 'System output'}</span>
                   </div>
                   <div className="space-y-4 p-4">
-                    {latestOutput ? (
-                      revealed.has(selectedItem.id) ? (
-                        <>
-                          <EmployeeOutput output={latestOutput} />
-                          {assetUrl && (
-                            <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.07] pt-3">
-                              <button
-                                onClick={() => publishInstagram.mutate(assetUrl)}
-                                disabled={publishInstagram.isPending}
-                                className="flex items-center gap-1.5 rounded-lg bg-cyan-300 px-3 py-1.5 text-[10px] font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-50"
-                              >
-                                {publishInstagram.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                                Post to Instagram
-                              </button>
-                              <a href={assetUrl} download className="flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-[10px] text-muted-foreground hover:bg-white/[0.05] hover:text-foreground">
-                                <ArrowRight className="h-3 w-3" /> Download
-                              </a>
-                              {publishInstagram.data && <span className="text-[9px] text-emerald-300">{publishInstagram.data.status === 'ALREADY_PUBLISHED' ? 'Already posted' : 'Posted to Instagram'}</span>}
-                              {publishInstagram.error && <span className="text-[9px] text-red-300">{publishInstagram.error.message}</span>}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        // Constraint: results never render unprompted — the founder clicks to reveal.
-                        <button
-                          onClick={() => setRevealed((prev) => new Set(prev).add(selectedItem.id))}
-                          className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/[0.05] px-4 py-6 text-[11px] font-medium text-cyan-200 transition hover:bg-cyan-300/10"
-                        >
-                          <Eye className="h-3.5 w-3.5" /> Show result
-                        </button>
-                      )
-                    ) : (
-                      <div className="text-[11px] text-muted-foreground">Output will appear here when this employee finishes.</div>
-                    )}
+                    {latestOutput ? <EmployeeOutput output={latestOutput} /> : <div className="text-[11px] text-muted-foreground">Output will appear here when this employee finishes.</div>}
                     {selectedItem.providerDraft && (
                       <div>
                         <div className="mb-2 text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Commerce draft</div>
@@ -441,4 +357,76 @@ function Status({ status }: { status: string }) {
 
 function Metric({ value, label, icon }: { value: string; label: string; icon: React.ReactNode }) {
   return <div className="rounded-xl border border-white/[0.07] bg-black/10 p-3"><div className="flex items-center gap-2 text-[16px] font-medium">{icon}{value}</div><div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div></div>
+}
+
+function AgentSummaryCard({ agents = [], metric = 'total', icon, label, color }: { agents: any[]; metric?: 'total' | 'running' | 'paused' | 'budget'; icon?: React.ReactNode; label?: string; color?: string }) {
+  if (metric === 'total') {
+    const count = agents.filter((a) => !a.isHuman).length
+    return (
+      <GlassPanel level={2} className="rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
+            <Users className="h-4.5 w-4.5" />
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">AI Workforce</div>
+            <div className="mt-1 font-display text-2xl tracking-tight">{count}</div>
+          </div>
+        </div>
+      </GlassPanel>
+    )
+  }
+  if (metric === 'running') {
+    const count = agents.filter((a) => !a.isHuman && a.status === 'RUNNING').length
+    return (
+      <GlassPanel level={2} className="rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${color}/10`}>
+            {icon}
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+            <div className={`mt-1 font-display text-2xl tracking-tight ${color}`}>{count}</div>
+          </div>
+        </div>
+      </GlassPanel>
+    )
+  }
+  if (metric === 'paused') {
+    const count = agents.filter((a) => !a.isHuman && a.status === 'PAUSED').length
+    return (
+      <GlassPanel level={2} className="rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${color}/10`}>
+            {icon}
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+            <div className={`mt-1 font-display text-2xl tracking-tight ${color}`}>{count}</div>
+          </div>
+        </div>
+      </GlassPanel>
+    )
+  }
+  if (metric === 'budget') {
+    const totalSpend = agents.filter((a) => !a.isHuman).reduce((sum, a) => sum + (a.tokenSpend || 0), 0)
+    const totalBudget = agents.filter((a) => !a.isHuman).reduce((sum, a) => sum + (a.tokenBudget || 0), 0)
+    const pct = totalBudget > 0 ? Math.round((totalSpend / totalBudget) * 100) : 0
+    const budgetColor = pct >= 100 ? 'text-red-400' : pct >= 80 ? 'text-amber-400' : 'text-emerald-400'
+    return (
+      <GlassPanel level={2} className="rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${color}/10`}>
+            {icon}
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
+            <div className={`mt-1 font-display text-2xl tracking-tight ${budgetColor}`}>{pct}%</div>
+            <div className="text-[10px] text-muted-foreground">₹{Number(totalSpend).toLocaleString()} / ₹{Number(totalBudget).toLocaleString()}</div>
+          </div>
+        </div>
+      </GlassPanel>
+    )
+  }
+  return null
 }

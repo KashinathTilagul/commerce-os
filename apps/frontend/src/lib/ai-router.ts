@@ -6,15 +6,47 @@ import { decryptSecret } from '@/lib/crypto'
 
 export type Tier = 'fast' | 'default' | 'reasoning'
 
+// Vision-capable model identifiers
+const VISION_MODELS = new Set([
+  'gpt-4o',
+  'gpt-4o-mini',
+  'o1-preview',
+  'o1-mini',
+  'claude-3.5-sonnet',
+  'claude-3-haiku',
+  'claude-3-opus',
+  'gemini-pro-1.5',
+  'gemini-flash-1.5',
+  'amazon.nova-pro-v1:0',
+  'amazon.nova-lite-v1:0',
+  'claude-sonnet-4.5',
+])
+
+function supportsVision(modelId: string): boolean {
+  const normalized = modelId.toLowerCase()
+  return VISION_MODELS.has(normalized) ||
+    normalized.includes('vision') ||
+    normalized.includes('gpt-4o') ||
+    normalized.includes('claude-3') ||
+    normalized.includes('gemini') ||
+    normalized.includes('nova-')
+}
+
 // ── Model Provider Resolution ───────────────────────────────────────────────
 
-function getBedrockModel(modelId: string, apiKey: string) {
+function getBedrockModel(modelId: string, apiKey?: string) {
   const region = process.env.AWS_REGION || 'us-east-1'
-  const bedrock = createAmazonBedrock({ region, apiKey })
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID || process.env.AWS_BEARER_TOKEN_BEDROCK || apiKey
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY || ''
+
+  const bedrock = createAmazonBedrock({
+    region,
+    ...(accessKeyId ? { accessKeyId, secretAccessKey } : {}),
+  })
   return bedrock(modelId)
 }
 
-function getOpenRouterModel(modelId: string, apiKey: string, baseURL = 'https://openrouter.ai/api/v1') {
+function getOpenRouterModel(modelId: string, apiKey = process.env.OPENROUTER_API_KEY || '', baseURL = 'https://openrouter.ai/api/v1') {
   const openrouter = createOpenAI({
     baseURL,
     apiKey,
@@ -22,7 +54,7 @@ function getOpenRouterModel(modelId: string, apiKey: string, baseURL = 'https://
   return openrouter(modelId)
 }
 
-function getGroqModel(modelId: string, apiKey: string, baseURL = 'https://api.groq.com/openai/v1') {
+function getGroqModel(modelId: string, apiKey = process.env.GROQ_API_KEY || '', baseURL = 'https://api.groq.com/openai/v1') {
   const groq = createOpenAI({
     baseURL,
     apiKey,
@@ -30,7 +62,7 @@ function getGroqModel(modelId: string, apiKey: string, baseURL = 'https://api.gr
   return groq(modelId)
 }
 
-function getOpenAIModel(modelId: string, apiKey: string, baseURL?: string) {
+function getOpenAIModel(modelId: string, apiKey = process.env.OPENAI_API_KEY || '', baseURL?: string) {
   const openai = createOpenAI({
     apiKey,
     ...(baseURL ? { baseURL } : {}),
@@ -38,61 +70,81 @@ function getOpenAIModel(modelId: string, apiKey: string, baseURL?: string) {
   return openai(modelId)
 }
 
-function getHuggingFaceModel(modelId: string, apiKey: string, baseURL = 'https://router.huggingface.co/openai/v1') {
-  const hf = createOpenAI({
-    baseURL,
-    apiKey,
-  })
-  return hf(modelId || 'meta-llama/Llama-3.3-70B-Instruct')
-}
-
-function getOmniRouteModel(modelId: string, apiKey: string, baseURL = process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1') {
-  return createOpenAI({ apiKey, baseURL }).chat(modelId || 'auto')
-}
-
 // Model fallback chains per tier
 type ModelTarget = { provider: string; model: string; apiKey?: string; baseUrl?: string }
 
 function modelForTarget(target: ModelTarget) {
   const provider = target.provider.toLowerCase()
-  if (!target.apiKey) throw new Error(`${target.provider} API key is not configured`)
   if (provider === 'bedrock') return getBedrockModel(target.model, target.apiKey)
   if (provider === 'openrouter') return getOpenRouterModel(target.model, target.apiKey, target.baseUrl)
   if (provider === 'groq') return getGroqModel(target.model, target.apiKey, target.baseUrl)
-  if (provider === 'huggingface' || provider === 'hf') return getHuggingFaceModel(target.model, target.apiKey, target.baseUrl)
-  if (provider === 'omniroute') return getOmniRouteModel(target.model, target.apiKey || '', target.baseUrl || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1')
+  if (provider === 'omniroute') return getOpenAIModel(target.model || 'auto', target.apiKey || 'ekvaar-internal', target.baseUrl || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1')
   return getOpenAIModel(target.model, target.apiKey, target.baseUrl)
 }
 
-async function configuredTargets(organizationId: string): Promise<ModelTarget[]> {
+async function configuredTargets(): Promise<ModelTarget[]> {
   try {
-    const settings = await db.systemSetting.findUnique({ where: { organizationId } })
+    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
     if (!settings) return []
-    // decryptSecret is null/secret-mismatch safe (returns ''), so one bad
-    // slot only drops itself — never wipes the org's whole provider chain.
     return [
       { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
       { provider: settings.fallback1Provider, model: settings.fallback1Model, apiKey: decryptSecret(settings.fallback1ApiKey), baseUrl: settings.fallback1BaseUrl },
       { provider: settings.fallback2Provider, model: settings.fallback2Model, apiKey: decryptSecret(settings.fallback2ApiKey), baseUrl: settings.fallback2BaseUrl },
-    ]
-      // OmniRoute accepts an empty model (defaults to 'auto'), so a configured
-      // key alone should still make the target usable.
-      .filter((target) => target.provider && target.apiKey && (target.model || target.provider.toLowerCase() === 'omniroute'))
-      .map((target) => (target.provider.toLowerCase() === 'omniroute' && !target.model ? { ...target, model: 'auto' } : target))
+    ].filter((target) => target.provider && target.model && (target.apiKey || target.provider === 'omniroute' || target.provider === 'bedrock'))
   } catch (error: any) {
     console.warn('[AI Router] Could not load saved routing settings:', error?.message || error)
     return []
   }
 }
 
-async function getModelChain(tier: Tier, organizationId: string): Promise<Array<{ provider: string; model: string; instance: any }>> {
+async function getModelChain(tier: Tier, needsVision?: boolean): Promise<Array<{ provider: string; model: string; instance: any }>> {
   const chain: Array<{ provider: string; model: string; instance: any }> = []
 
-  const saved = await configuredTargets(organizationId)
+  const saved = await configuredTargets()
   for (const target of saved) {
     try { chain.push({ provider: target.provider, model: target.model, instance: modelForTarget(target) }) } catch {}
   }
-  if (chain.length === 0) throw new Error('No AI provider is configured for this organization. Add an API key in Settings.')
+  if (chain.length > 0) {
+    if (needsVision) {
+      // Prioritize vision-capable models
+      const visionModels = chain.filter(c => supportsVision(c.model))
+      if (visionModels.length > 0) return visionModels
+    }
+    return chain
+  }
+
+  // 1. Bedrock (Primary if AWS credentials set)
+  const bedrockModelId = needsVision ? 'amazon.nova-pro-v1:0' : (process.env.BEDROCK_MODEL_ID || 'amazon.nova-pro-v1:0')
+  if (process.env.AWS_BEARER_TOKEN_BEDROCK || process.env.AWS_ACCESS_KEY_ID) {
+    try { chain.push({ provider: 'bedrock', model: bedrockModelId, instance: getBedrockModel(bedrockModelId) }) } catch {}
+  }
+
+  // 2. OpenRouter - prioritize vision models if needed
+  if (process.env.OPENROUTER_API_KEY) {
+    const visionModel = tier === 'fast' ? 'anthropic/claude-3-haiku' : 'anthropic/claude-3.5-sonnet'
+    const nonVisionModel = tier === 'fast' ? 'meta-llama/llama-3.3-70b-instruct' : 'anthropic/claude-3.5-sonnet'
+    const model = needsVision ? visionModel : nonVisionModel
+    try { chain.push({ provider: 'openrouter', model, instance: getOpenRouterModel(model) }) } catch {}
+  }
+
+  // 3. Groq (no vision support currently)
+  if (!needsVision && process.env.GROQ_API_KEY) {
+    const model = tier === 'fast' ? 'llama-3.1-8b-instant' : 'llama-3.3-70b-versatile'
+    try { chain.push({ provider: 'groq', model, instance: getGroqModel(model) }) } catch {}
+  }
+
+  // 4. OpenAI - prioritize vision models if needed
+  if (process.env.OPENAI_API_KEY) {
+    const visionModel = tier === 'fast' ? 'gpt-4o-mini' : 'gpt-4o'
+    const model = needsVision ? visionModel : visionModel // OpenAI models all support vision now
+    try { chain.push({ provider: 'openai', model, instance: getOpenAIModel(model) }) } catch {}
+  }
+
+  // Fallback default if no env keys are provided
+  if (chain.length === 0) {
+    const defaultModel = needsVision ? 'anthropic/claude-3.5-sonnet' : 'meta-llama/llama-3.3-70b-instruct'
+    chain.push({ provider: 'openrouter', model: defaultModel, instance: getOpenRouterModel(defaultModel) })
+  }
 
   return chain
 }
@@ -101,15 +153,15 @@ async function getModelChain(tier: Tier, organizationId: string): Promise<Array<
 
 async function runChain<T>(
   tier: Tier,
-  organizationId: string,
-  fn: (model: any, target: { provider: string; model: string }) => Promise<T>,
+  fn: (model: any) => Promise<T>,
+  needsVision?: boolean
 ): Promise<{ result: T; provider: string; model: string }> {
-  const chain = await getModelChain(tier, organizationId)
+  const chain = await getModelChain(tier, needsVision)
   let lastError: any = null
 
   for (const item of chain) {
     try {
-      const result = await fn(item.instance, item)
+      const result = await fn(item.instance)
       return { result, provider: item.provider, model: item.model }
     } catch (e: any) {
       console.warn(`[AI Router] Tier '${tier}' provider '${item.provider}' failed:`, e.message)
@@ -120,59 +172,11 @@ async function runChain<T>(
   throw lastError || new Error(`All providers in tier '${tier}' failed`)
 }
 
-// A saved OmniRoute baseUrl equal to another provider's default is a stale
-// leftover from a provider switch (Settings hides the Base URL field for
-// OmniRoute) and would send the OmniRoute key to OpenRouter/Groq. Ignore it.
-const STALE_OMNIROUTE_URLS = new Set(['https://openrouter.ai/api/v1', 'https://api.groq.com/openai/v1'])
-
-// ponytail: the `omniroute` hostname only resolves inside the compose network;
-// on a host dev run the container is published on localhost. Fall back between
-// the two on connect errors only — an HTTP answer (even a 401) is a real
-// answer. Upgrade path: set OMNIROUTE_BASE_URL explicitly in every environment.
-const OMNIROUTE_DEFAULT_URLS = ['http://localhost:20128/v1', 'http://omniroute:20128/v1']
-
-function isConnectError(e: any): boolean {
-  const code = e?.cause?.code || e?.code || ''
-  return e instanceof TypeError || /ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|UND_ERR_CONNECT/.test(String(code))
-}
-
-async function generateOmniRouteText(organizationId: string, model: string, opts: { system: string; prompt: string; temperature?: number; maxOutputTokens?: number }) {
-  const settings = await db.systemSetting.findUnique({ where: { organizationId } }).catch(() => null)
-  const saved = settings?.primaryProvider === 'omniroute' && settings.primaryBaseUrl ? settings.primaryBaseUrl.replace(/\/$/, '') : ''
-  const cleanSaved = saved && !STALE_OMNIROUTE_URLS.has(saved) ? saved : ''
-  const envUrl = (process.env.OMNIROUTE_BASE_URL || '').replace(/\/$/, '')
-  const urls = [...new Set([cleanSaved, envUrl, ...OMNIROUTE_DEFAULT_URLS].filter(Boolean))]
-  const apiKey = settings?.primaryProvider === 'omniroute' ? decryptSecret(settings.primaryApiKey) : ''
-  let lastError: any = null
-
-  for (const baseUrl of urls) {
-    let raw = ''
-    try {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, stream: false, temperature: opts.temperature, max_tokens: opts.maxOutputTokens, messages: [{ role: 'system', content: opts.system }, { role: 'user', content: opts.prompt }] }),
-        signal: AbortSignal.timeout(180_000),
-      })
-      raw = await response.text()
-      if (!response.ok) { try { throw new Error(JSON.parse(raw)?.error?.message || `OmniRoute returned ${response.status}`) } catch (error) { if (error instanceof SyntaxError) throw new Error(`OmniRoute returned ${response.status}`); throw error } }
-    } catch (e: any) {
-      if (!isConnectError(e)) throw e
-      lastError = e
-      console.warn(`[AI Router] OmniRoute unreachable at ${baseUrl}, trying next URL`)
-      continue
-    }
-    try { return JSON.parse(raw)?.choices?.[0]?.message?.content || '' } catch {}
-    let text = ''
-    for (const line of raw.split(/\r?\n/)) {
-      if (!line.startsWith('data:') || line.trim() === 'data: [DONE]') continue
-      try { text += JSON.parse(line.slice(5).trim())?.choices?.[0]?.delta?.content || '' } catch {}
-    }
-    if (!text) throw new Error('OmniRoute returned no text')
-    return text
-  }
-
-  throw lastError || new Error('OmniRoute is not reachable at any known URL')
+export async function runVisionChain<T>(
+  tier: Tier,
+  fn: (model: any) => Promise<T>
+): Promise<{ result: T; provider: string; model: string }> {
+  return runChain(tier, fn, true)
 }
 
 // Simple JSON Schema generator helper
@@ -206,13 +210,17 @@ function toJSONSchema(schema: any): any {
 
 export async function routeObject<T>(
   tier: Tier,
-  organizationId: string,
   opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
 ): Promise<{ object: T; provider: string; model: string }> {
   const jsonSchema = JSON.stringify(toJSONSchema(opts.schema))
-  const { result, provider, model } = await runChain(tier, organizationId, async (m, target) => {
-    const request = { system: `${opts.system}\n\nRespond with ONLY a single valid JSON object matching this JSON Schema — no markdown fences or prose:\n${jsonSchema}`, prompt: opts.prompt, temperature: opts.temperature, maxOutputTokens: opts.maxOutputTokens }
-    const text = target.provider === 'omniroute' ? await generateOmniRouteText(organizationId, target.model, request) : (await generateText({ model: m, ...request })).text
+  const { result, provider, model } = await runChain(tier, async (m) => {
+    const { text } = await generateText({
+      model: m,
+      system: `${opts.system}\n\nRespond with ONLY a single valid JSON object matching this JSON Schema — no markdown fences or prose:\n${jsonSchema}`,
+      prompt: opts.prompt,
+      temperature: opts.temperature,
+      maxOutputTokens: opts.maxOutputTokens,
+    })
 
     const cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
     const start = cleaned.indexOf('{')
@@ -253,11 +261,11 @@ export async function routeObject<T>(
 
 export async function routeText(
   tier: Tier,
-  organizationId: string,
   opts: { system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
 ): Promise<{ text: string; provider: string; model: string }> {
-  const { result, provider, model } = await runChain(tier, organizationId, async (m, target) => {
-    return target.provider === 'omniroute' ? generateOmniRouteText(organizationId, target.model, opts) : (await generateText({ model: m, ...opts })).text
+  const { result, provider, model } = await runChain(tier, async (m) => {
+    const { text } = await generateText({ model: m, ...opts })
+    return text
   })
   return { text: result, provider, model }
 }
