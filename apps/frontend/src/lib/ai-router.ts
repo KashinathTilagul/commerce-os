@@ -31,10 +31,24 @@ function supportsVision(modelId: string): boolean {
 
 // ── OmniRoute Only ─────────────────────────────────────────────────────────────
 
-function getOmniRouteModel(modelId: string, apiKey = process.env.OMNIROUTE_API_KEY || '', baseURL = process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1') {
+async function getOmniRouteConfig() {
+  try {
+    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+    return {
+      apiKey: settings?.primaryApiKey ? await decryptSecret(settings.primaryApiKey) : '',
+      baseUrl: settings?.primaryBaseUrl || '',
+    }
+  } catch {
+    return { apiKey: '', baseUrl: '' }
+  }
+}
+
+function getOmniRouteModel(modelId: string, apiKey = '', baseURL = '') {
+  const resolvedApiKey = apiKey || process.env.OMNIROUTE_API_KEY || ''
+  const resolvedBaseUrl = baseURL || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1'
   const omniroute = createOpenAI({
-    baseURL,
-    apiKey,
+    baseURL: resolvedBaseUrl,
+    apiKey: resolvedApiKey,
   })
   return omniroute(modelId)
 }
@@ -77,12 +91,12 @@ async function getModelChain(tier: Tier, needsVision?: boolean, organizationId?:
   }
 
   // OmniRoute fallback chain only
-  const omnirouteKey = process.env.OMNIROUTE_API_KEY
-  if (omnirouteKey) {
+  const omnirouteConfig = await getOmniRouteConfig()
+  if (omnirouteConfig.apiKey || process.env.OMNIROUTE_API_KEY) {
     const visionModel = tier === 'fast' ? 'anthropic/claude-3-haiku' : 'anthropic/claude-3.5-sonnet'
     const nonVisionModel = tier === 'fast' ? 'google/gemini-2.0-flash-exp' : 'anthropic/claude-3.5-sonnet'
     const model = needsVision ? visionModel : nonVisionModel
-    try { chain.push({ provider: 'omniroute', model, instance: getOmniRouteModel(model) }) } catch {}
+    try { chain.push({ provider: 'omniroute', model, instance: getOmniRouteModel(model, omnirouteConfig.apiKey, omnirouteConfig.baseUrl) }) } catch {}
   }
 
   // Final fallback

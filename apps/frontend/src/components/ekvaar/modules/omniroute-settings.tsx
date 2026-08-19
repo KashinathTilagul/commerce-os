@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { GlassPanel } from '@/components/ui/glass-system'
-import { Server, Plug, PlugZap, RefreshCw, Settings, Activity, Shield, ExternalLink, Copy, Check, Key } from 'lucide-react'
+import { Server, Plug, PlugZap, RefreshCw, Settings, Activity, Shield, ExternalLink, Copy, Check, Key, Image } from 'lucide-react'
 import { toast } from '@/components/ekvaar/desktop/toast'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 
 interface OmniRouteStatus {
   connected: boolean
@@ -27,6 +28,7 @@ export function OmniRouteSettings() {
   const queryClient = useQueryClient()
   const [baseUrl, setBaseUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
+  const [imageModel, setImageModel] = useState('google/gemini-2.0-flash-exp:image')
   const [copied, setCopied] = useState(false)
 
   const { data: status, isLoading, refetch } = useQuery<OmniRouteStatus>({
@@ -54,7 +56,7 @@ export function OmniRouteSettings() {
       const res = await fetch('/api/omniroute/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ baseUrl, apiKey }),
+        body: JSON.stringify({ baseUrl, apiKey, imageModel }),
       })
       if (!res.ok) throw new Error('Connection failed')
       return res.json()
@@ -93,11 +95,29 @@ export function OmniRouteSettings() {
     },
   })
 
+  const saveConfigMutation = useMutation({
+    mutationFn: async (updates: { baseUrl?: string; apiKey?: string; imageModel?: string }) => {
+      const res = await fetch('/api/omniroute/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      if (!res.ok) throw new Error('Failed to save config')
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success('Configuration saved')
+      queryClient.invalidateQueries({ queryKey: ['omniroute-status'] })
+    },
+    onError: () => toast.error('Failed to save configuration'),
+  })
+
   useEffect(() => {
     fetch('/api/omniroute/config')
       .then(res => res.ok ? res.json() : null)
       .then(cfg => {
         if (cfg?.baseUrl) setBaseUrl(cfg.baseUrl)
+        if (cfg?.imageModel) setImageModel(cfg.imageModel)
       })
       .catch(() => {})
   }, [])
@@ -204,38 +224,53 @@ export function OmniRouteSettings() {
       </GlassPanel>
 
       {/* Configuration */}
-      {!status?.connected && (
-        <GlassPanel level={2} className="rounded-xl p-5 space-y-4">
-          <h3 className="font-display text-sm flex items-center gap-2">
-            <Settings className="h-4 w-4" /> Connection Configuration
-          </h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-1">
-              <label className="text-[11px] text-muted-foreground">OmniRoute Base URL</label>
-              <Input
-                value={baseUrl}
-                onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder="http://omniroute:20128/v1"
-                className="h-8 text-xs font-mono"
-              />
-              <p className="text-[10px] text-muted-foreground">Internal endpoint of your OmniRoute deployment</p>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Key className="h-3 w-3" /> API Key
-              </label>
-              <Input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Paste your OmniRoute API key..."
-                className="h-8 text-xs font-mono"
-              />
-              <p className="text-[10px] text-muted-foreground">Encrypted at rest, never exposed to frontend</p>
-            </div>
+      <GlassPanel level={2} className="rounded-xl p-5 space-y-4">
+        <h3 className="font-display text-sm flex items-center gap-2">
+          <Settings className="h-4 w-4" /> Configuration
+        </h3>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground">OmniRoute Base URL</label>
+            <Input
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              onBlur={() => saveConfigMutation.mutate({ baseUrl })}
+              placeholder="http://omniroute:20128/v1"
+              className="h-8 text-xs font-mono"
+            />
+            <p className="text-[10px] text-muted-foreground">Internal endpoint of your OmniRoute deployment</p>
           </div>
-        </GlassPanel>
-      )}
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Key className="h-3 w-3" /> API Key
+            </label>
+            <Input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              onBlur={() => saveConfigMutation.mutate({ apiKey })}
+              placeholder="Paste your OmniRoute API key..."
+              className="h-8 text-xs font-mono"
+            />
+            <p className="text-[10px] text-muted-foreground">Encrypted at rest, never exposed to frontend</p>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-1">
+            <label className="text-[11px] text-muted-foreground flex items-center gap-1">
+              <Image className="h-3 w-3" /> Image Generation Model
+            </label>
+            <Input
+              value={imageModel}
+              onChange={(e) => setImageModel(e.target.value)}
+              onBlur={() => saveConfigMutation.mutate({ imageModel })}
+              placeholder="google/gemini-2.0-flash-exp:image"
+              className="h-8 text-xs font-mono"
+            />
+            <p className="text-[10px] text-muted-foreground">Model used for AI image generation via OmniRoute</p>
+          </div>
+        </div>
+      </GlassPanel>
 
       {/* Providers */}
       {status?.connected && (

@@ -3,6 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { generateImage as generateModelImage } from 'ai'
 import { storeArtifact, initializeStorage } from './storage'
 import { db } from './db'
+import { decryptSecret } from './crypto'
 import { createHash } from 'node:crypto'
 
 export interface ImageGenerationOptions {
@@ -29,7 +30,20 @@ const ASPECT_RATIO_DIMENSIONS: Record<string, { width: number; height: number }>
 
 const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1'
 const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || ''
-const OMNIROUTE_IMAGE_MODEL = process.env.OMNIROUTE_IMAGE_MODEL || 'google/gemini-2.0-flash-exp:image'
+const DEFAULT_IMAGE_MODEL = 'google/gemini-2.0-flash-exp:image'
+
+async function getOmniRouteImageConfig() {
+  try {
+    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+    return {
+      apiKey: settings?.primaryApiKey ? await decryptSecret(settings.primaryApiKey) : '',
+      baseUrl: settings?.primaryBaseUrl || '',
+      imageModel: settings?.omnirouteImageModel || DEFAULT_IMAGE_MODEL,
+    }
+  } catch {
+    return { apiKey: '', baseUrl: '', imageModel: DEFAULT_IMAGE_MODEL }
+  }
+}
 
 export async function generateImage(options: ImageGenerationOptions): Promise<{ artifactId: string; imageUrl: string }> {
   await initializeStorage()
@@ -44,14 +58,19 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     let mimeType = 'image/png'
     const providerErrors: string[] = []
 
-    if (OMNIROUTE_API_KEY) {
+    const omnirouteConfig = await getOmniRouteImageConfig()
+    const omnirouteApiKey = omnirouteConfig.apiKey || OMNIROUTE_API_KEY
+    const omnirouteBaseUrl = omnirouteConfig.baseUrl || OMNIROUTE_BASE_URL
+    const omnirouteImageModel = omnirouteConfig.imageModel || DEFAULT_IMAGE_MODEL
+
+    if (omnirouteApiKey) {
       try {
         const omniroute = createOpenAI({
-          baseURL: OMNIROUTE_BASE_URL,
-          apiKey: OMNIROUTE_API_KEY,
+          baseURL: omnirouteBaseUrl,
+          apiKey: omnirouteApiKey,
         })
         const result = await generateModelImage({
-          model: omniroute.image(OMNIROUTE_IMAGE_MODEL),
+          model: omniroute.image(omnirouteImageModel),
           prompt: enhancedPrompt,
           size: `${dimensions.width}x${dimensions.height}`,
           n: 1,

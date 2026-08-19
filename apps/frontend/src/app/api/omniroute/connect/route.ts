@@ -9,23 +9,26 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json()
-    const { baseUrl, apiKey } = body
+    const { baseUrl, apiKey, imageModel } = body
 
     if (!baseUrl) {
       return NextResponse.json({ error: 'baseUrl is required' }, { status: 400 })
     }
 
-    // Store OmniRoute configuration
+    const updateData: Record<string, string> = {
+      primaryBaseUrl: baseUrl,
+      primaryApiKey: apiKey || '',
+    }
+    if (imageModel !== undefined) {
+      updateData.omnirouteImageModel = imageModel
+    }
+
     await db.systemSetting.upsert({
       where: { id: 'global' },
-      update: {
-        primaryBaseUrl: baseUrl,
-        primaryApiKey: apiKey || '',
-      },
+      update: updateData,
       create: {
         id: 'global',
-        primaryBaseUrl: baseUrl,
-        primaryApiKey: apiKey || '',
+        ...updateData,
       },
     })
 
