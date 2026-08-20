@@ -75,7 +75,15 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
           size: `${dimensions.width}x${dimensions.height}`,
           n: 1,
         })
-        imageBuffer = Buffer.from(result.image.uint8Array)
+        const firstImage = result.images[0]
+        imageBuffer = firstImage?.uint8Array
+          ? Buffer.from(firstImage.uint8Array)
+          : firstImage?.base64
+            ? Buffer.from(firstImage.base64, 'base64')
+            : null
+        if (!imageBuffer) {
+          throw new Error('OmniRoute returned empty image data')
+        }
         console.log('[Image Generator] OmniRoute succeeded')
       } catch (error: any) {
         providerErrors.push(`OmniRoute: ${error?.message || 'unknown error'}`)
