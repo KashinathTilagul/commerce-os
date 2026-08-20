@@ -1002,6 +1002,7 @@ model SystemSetting {
   fallback2ApiKey   String @default("")
   fallback2BaseUrl  String @default("https://openrouter.ai/api/v1")
 
+  omnirouteImageModel String @default("google/gemini-2.0-flash-exp:image")
   composioApiKey String @default("")
   speechProvider String @default("openai")
   speechApiKey   String @default("")

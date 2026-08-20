@@ -1,8 +1,9 @@
-// Image Generator using AWS Bedrock Nova Canvas
-import { createAmazonBedrock } from '@ai-sdk/amazon-bedrock'
+// Image Generator using OmniRoute Gateway
+import { createOpenAI } from '@ai-sdk/openai'
 import { generateImage as generateModelImage } from 'ai'
 import { storeArtifact, initializeStorage } from './storage'
 import { db } from './db'
+import { decryptSecret } from './crypto'
 import { createHash } from 'node:crypto'
 
 export interface ImageGenerationOptions {
@@ -12,7 +13,7 @@ export interface ImageGenerationOptions {
   organizationId: string
   generatedBy?: string
   title?: string
-  referenceImage?: string // url or artifact id (max 2 supported upstream)
+  referenceImage?: string
 }
 
 const IMAGE_PROMPT_TEMPLATES: Record<string, string> = {
@@ -27,107 +28,66 @@ const ASPECT_RATIO_DIMENSIONS: Record<string, { width: number; height: number }>
   '9:16': { width: 720, height: 1280 }
 }
 
+const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1'
+const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || ''
+const DEFAULT_IMAGE_MODEL = 'google/gemini-2.0-flash-exp:image'
+
+async function getOmniRouteImageConfig() {
+  try {
+    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+    return {
+      apiKey: settings?.primaryApiKey ? await decryptSecret(settings.primaryApiKey) : '',
+      baseUrl: settings?.primaryBaseUrl || '',
+      imageModel: settings?.omnirouteImageModel || DEFAULT_IMAGE_MODEL,
+    }
+  } catch {
+    return { apiKey: '', baseUrl: '', imageModel: DEFAULT_IMAGE_MODEL }
+  }
+}
+
 export async function generateImage(options: ImageGenerationOptions): Promise<{ artifactId: string; imageUrl: string }> {
   await initializeStorage()
   
-  // Apply style template to prompt
   const styleTemplate = IMAGE_PROMPT_TEMPLATES[options.style] || IMAGE_PROMPT_TEMPLATES['product']
   const enhancedPrompt = styleTemplate.replace('{prompt}', options.prompt)
   
   const dimensions = ASPECT_RATIO_DIMENSIONS[options.aspectRatio] || ASPECT_RATIO_DIMENSIONS['1:1']
   
   try {
-    const bedrockKey = process.env.AWS_BEARER_TOKEN_BEDROCK
-    const openRouterKey = process.env.OPENROUTER_API_KEY
     let imageBuffer: Buffer | null = null
     let mimeType = 'image/png'
     const providerErrors: string[] = []
 
-    if (bedrockKey) {
+    const omnirouteConfig = await getOmniRouteImageConfig()
+    const omnirouteApiKey = omnirouteConfig.apiKey || OMNIROUTE_API_KEY
+    const omnirouteBaseUrl = omnirouteConfig.baseUrl || OMNIROUTE_BASE_URL
+    const omnirouteImageModel = omnirouteConfig.imageModel || DEFAULT_IMAGE_MODEL
+
+    if (omnirouteApiKey) {
       try {
-        const bedrock = createAmazonBedrock({ apiKey: bedrockKey, region: process.env.AWS_REGION || 'us-east-1' })
-        const bedrockOpts: any = { quality: 'standard', cfgScale: 8, style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM' }
-        if (options.referenceImage) bedrockOpts.image = options.referenceImage
+        const omniroute = createOpenAI({
+          baseURL: omnirouteBaseUrl,
+          apiKey: omnirouteApiKey,
+        })
         const result = await generateModelImage({
-          model: bedrock.image('amazon.nova-canvas-v1:0'),
+          model: omniroute.image(omnirouteImageModel),
           prompt: enhancedPrompt,
           size: `${dimensions.width}x${dimensions.height}`,
           n: 1,
-          providerOptions: { bedrock: bedrockOpts },
         })
-        imageBuffer = Buffer.from(result.image.uint8Array)
-        console.log('[Image Generator] Bedrock succeeded')
+        const firstImage = result.images[0]
+        imageBuffer = firstImage?.uint8Array
+          ? Buffer.from(firstImage.uint8Array)
+          : firstImage?.base64
+            ? Buffer.from(firstImage.base64, 'base64')
+            : null
+        if (!imageBuffer) {
+          throw new Error('OmniRoute returned empty image data')
+        }
+        console.log('[Image Generator] OmniRoute succeeded')
       } catch (error: any) {
-        providerErrors.push(`Bedrock (bearer): ${error?.message || 'unknown error'}`)
-        console.warn('[Image Generator] Bedrock (bearer) failed:', error?.message || error)
-      }
-    }
-
-    // Try Bedrock with access key + secret if bearer token failed
-    if (!imageBuffer && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-      try {
-        const bedrock = createAmazonBedrock({
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-          region: process.env.AWS_REGION || 'us-east-1'
-        })
-        const bedrockOpts: any = { quality: 'standard', cfgScale: 8, style: options.style === 'abstract' ? 'GRAPHIC_NOVEL_ILLUSTRATION' : 'PHOTOREALISM' }
-        if (options.referenceImage) bedrockOpts.image = options.referenceImage
-        const result = await generateModelImage({
-          model: bedrock.image('amazon.nova-canvas-v1:0'),
-          prompt: enhancedPrompt,
-          size: `${dimensions.width}x${dimensions.height}`,
-          n: 1,
-          providerOptions: { bedrock: bedrockOpts },
-        })
-        imageBuffer = Buffer.from(result.image.uint8Array)
-        console.log('[Image Generator] Bedrock (access key) succeeded')
-      } catch (error: any) {
-        providerErrors.push(`Bedrock (access key): ${error?.message || 'unknown error'}`)
-        console.warn('[Image Generator] Bedrock (access key) failed:', error?.message || error)
-      }
-    }
-
-    if (!imageBuffer && openRouterKey) {
-      try {
-        const response = await fetch('https://openrouter.ai/api/v1/images', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${openRouterKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image-preview:free',
-            prompt: enhancedPrompt,
-            n: 1,
-            aspect_ratio: options.aspectRatio,
-            quality: 'medium',
-            output_format: 'png',
-          }),
-        })
-        const payload = await response.json()
-        console.log('[Image Generator] OpenRouter response:', JSON.stringify(payload).slice(0, 500))
-        if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OpenRouter returned ${response.status}`)
-        imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
-        mimeType = payload.data[0].media_type || mimeType
-      } catch (error: any) {
-        providerErrors.push(`OpenRouter: ${error?.message || 'unknown error'}`)
-      }
-    }
-
-    if (!imageBuffer && process.env.OPENAI_API_KEY) {
-      try {
-        const size = options.aspectRatio === '16:9' ? '1536x1024' : options.aspectRatio === '9:16' ? '1024x1536' : '1024x1024'
-        const response = await fetch('https://api.openai.com/v1/images/generations', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1', prompt: enhancedPrompt, size, quality: 'medium', response_format: 'b64_json' }),
-        })
-        const payload = await response.json()
-        console.log('[Image Generator] OpenAI response:', JSON.stringify(payload).slice(0, 500))
-        if (!response.ok || !payload.data?.[0]?.b64_json) throw new Error(payload.error?.message || `OpenAI returned ${response.status}`)
-        imageBuffer = Buffer.from(payload.data[0].b64_json, 'base64')
-        console.log('[Image Generator] OpenAI succeeded')
-      } catch (error: any) {
-        providerErrors.push(`OpenAI: ${error?.message || 'unknown error'}`)
-        console.warn('[Image Generator] OpenAI failed:', error?.message || error)
+        providerErrors.push(`OmniRoute: ${error?.message || 'unknown error'}`)
+        console.warn('[Image Generator] OmniRoute failed:', error?.message || error)
       }
     }
 
@@ -137,12 +97,10 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
       mimeType = 'image/svg+xml'
     }
     
-    // Store artifact
     const artifactId = `IMG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const title = options.title || `Generated Image - ${options.style}`
     const metadata = await storeArtifact(artifactId, 'PNG', imageBuffer, `${title}.${mimeType === 'image/svg+xml' ? 'svg' : 'png'}`)
     
-    // Create database record
     const artifact = await db.artifact.create({
       data: {
         id: artifactId,
@@ -161,7 +119,7 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
           aspectRatio: options.aspectRatio,
           providerErrors,
         })
-      }
+      },
     })
     
     return {

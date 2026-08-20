@@ -147,6 +147,22 @@ services:
       retries: 5
     restart: unless-stopped
 
+  omniroute:
+    image: diegosouzapw/omniroute:latest
+    ports:
+      - "20128:20128"
+    environment:
+      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY}
+      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
+    volumes:
+      - omniroutedata:/root/.omniroute
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:20128/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./apps/frontend
@@ -168,6 +184,10 @@ services:
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://os.ekvaar.com}
       - ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET}
       - CAMPAIGN_LAUNCHES_ENABLED=${CAMPAIGN_LAUNCHES_ENABLED:-true}
+      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
+      - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY}
+      - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}
+      - BROWSER_SIDECAR_URL=${BROWSER_SIDECAR_URL}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - META_CLIENT_ID=${META_CLIENT_ID}
@@ -186,13 +206,10 @@ services:
       - QIKINK_MODE=${QIKINK_MODE:-sandbox}
       - QIKINK_CLIENT_ID=${QIKINK_CLIENT_ID}
       - QIKINK_CLIENT_SECRET=${QIKINK_CLIENT_SECRET}
-      - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}
-      - BROWSER_SIDECAR_URL=${BROWSER_SIDECAR_URL}
       - N8N_EKVAAR_WEBHOOK_URL=${N8N_EKVAAR_WEBHOOK_URL}
       - N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET}
       - N8N_EKVAAR_WORKFLOW_ID=${N8N_EKVAAR_WORKFLOW_ID}
       - N8N_EKVAAR_EDITOR_URL=${N8N_EKVAAR_EDITOR_URL}
-      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
       - COGNEE_API_URL=http://cognee:8000
       - DOGRAH_API_URL=${DOGRAH_API_URL:-}
       - GOOGLE_WORKSPACE_CLI_PATH=${GOOGLE_WORKSPACE_CLI_PATH:-gws}
@@ -207,16 +224,6 @@ services:
       redis:
         condition: service_healthy
       omniroute:
-        condition: service_healthy
-      n8n:
-        condition: service_healthy
-      cognee:
-        condition: service_healthy
-      open-design:
-        condition: service_healthy
-      upskill:
-        condition: service_healthy
-      google-workspace:
         condition: service_healthy
       fastapi:
         condition: service_started
@@ -244,7 +251,6 @@ services:
       - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must point to Supabase}
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET}
-      - AWS_REGION=${AWS_REGION:-us-east-1}
       - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-amazon.nova-pro-v1:0}
       - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}
       - BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY}
@@ -255,9 +261,12 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      omniroute:
+        condition: service_healthy
 
 volumes:
   redisdata:
+  omniroutedata:
   omniroute-data:
   n8n-data:
   cognee-system:
