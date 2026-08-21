@@ -144,10 +144,11 @@ services:
     volumes:
       - omniroutedata:/root/.omniroute
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:20128/health"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:20128/v1/models').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 12
+      start_period: 30s
     restart: unless-stopped
 
   frontend:
