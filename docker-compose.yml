@@ -1,17 +1,4 @@
 services:
-  omniroute:
-    image: diegosouzapw/omniroute:latest
-    expose:
-      - "20128"
-    volumes:
-      - omniroute-data:/app/data
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:20128/v1/models').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-    restart: unless-stopped
-
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     entrypoint: ["/bin/sh", "/opt/ekvaar/init.sh"]
