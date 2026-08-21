@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, AlertTriangle, Archive, ArrowRight, Bot, Check, ExternalLink, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Users, TrendingUp, Zap, Target, Circle } from 'lucide-react'
+import { Activity, AlertTriangle, Archive, ArrowRight, Bot, Check, ExternalLink, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Users, TrendingUp, Zap, Target, Circle, Video, Volume2 } from 'lucide-react'
 import { GlassPanel } from '@/components/ui/glass-system'
 
 type CampaignItem = {
