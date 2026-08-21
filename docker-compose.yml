@@ -139,15 +139,20 @@ services:
     ports:
       - "20128:20128"
     environment:
+      - DATA_DIR=/app/data
       - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY}
       - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
+      - PORT=20128
+      - DASHBOARD_PORT=20128
+      - REDIS_URL=redis://redis:6379
     volumes:
-      - omniroutedata:/root/.omniroute
+      - omniroutedata:/app/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:20128/health"]
-      interval: 10s
+      test: ["CMD", "node", "healthcheck.mjs"]
+      interval: 30s
       timeout: 5s
-      retries: 5
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   frontend:
@@ -211,7 +216,7 @@ services:
       redis:
         condition: service_healthy
       omniroute:
-        condition: service_healthy
+        condition: service_started
       fastapi:
         condition: service_started
 
@@ -249,7 +254,7 @@ services:
       redis:
         condition: service_healthy
       omniroute:
-        condition: service_healthy
+        condition: service_started
 
 volumes:
   redisdata:
