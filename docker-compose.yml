@@ -254,6 +254,7 @@ services:
 volumes:
   redisdata:
   omniroutedata:
+  omniroute-data:
   n8n-data:
   cognee-system:
   cognee-data:
