@@ -150,11 +150,12 @@ AVAILABLE ACTIONS:
     let action: z.infer<typeof ActionSchema> = { type: 'none' }
 
     try {
-      const { object, provider, model } = await routeObject<z.infer<typeof KrishnaResponseSchema>>('reasoning', uid, {
+      const { object, provider, model } = await routeObject<z.infer<typeof KrishnaResponseSchema>>('fast', uid, {
         schema: KrishnaResponseSchema,
         system: activePrompt,
         prompt: sanitizeInput(message, { maxLength: 5000 }),
-        temperature: 0.87,
+        temperature: 0.55,
+        maxOutputTokens: 420,
       })
 
       spoken = object.spoken

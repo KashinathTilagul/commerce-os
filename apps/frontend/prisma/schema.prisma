@@ -990,10 +990,10 @@ model SystemSetting {
   responseEagerness Float @default(0.85) // LLM temperature
 
   // 3-tier AI model cascade
-  primaryProvider String @default("openrouter")
-  primaryModel    String @default("google/gemma-3-27b-it:free")
+  primaryProvider String @default("omniroute")
+  primaryModel    String @default("auto/best-free")
   primaryApiKey   String @default("")
-  primaryBaseUrl  String @default("https://openrouter.ai/api/v1")
+  primaryBaseUrl  String @default("http://omniroute:20128/v1")
 
   fallback1Provider String @default("groq")
   fallback1Model    String @default("llama-3.3-70b-versatile")
@@ -1007,7 +1007,8 @@ model SystemSetting {
 
   omnirouteImageModel String @default("google/gemini-2.0-flash-exp:image")
   composioApiKey String @default("")
-  speechProvider String @default("openai")
+  composioWebhookSecret String @default("")
+  speechProvider String @default("deepgram")
   speechApiKey   String @default("")
 
   updatedAt DateTime @updatedAt
@@ -1019,7 +1020,7 @@ model SystemSetting {
 // so each account has its own voice/prompt without needing its own AI engine config.
 model UserPreference {
   userId        String   @id
-  ttsVoice      String   @default("openai:onyx")
+  ttsVoice      String   @default("deepgram:flux-naveen-en")
   ttsSpeed      Float    @default(1.0) // 0.5–2.0, maps to SSML rate
   ttsStability  Float    @default(0.75) // 0–1, maps to pitch offset
   ttsVolume     Float    @default(1.0) // 0–1.5, maps to SSML volume

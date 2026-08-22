@@ -7,7 +7,8 @@ import { useWindowStore } from '@/lib/window-store'
 import { APPS } from './app-registry'
 import { toast } from './toast'
 import { MessageScroller, Message, Bubble } from '@/components/ui/chat'
-import { getSelectedVoiceId, applyVoiceToUtterance } from '@/lib/voice-config'
+import { getSelectedVoiceId, getSelectedVoiceSpeed, applyVoiceToUtterance } from '@/lib/voice-config'
+import { decodePcm16Chunk, parseFluxTurn } from '@/lib/deepgram-voice'
 import type { FrameDebug, TrackerStatus, Pose } from '@/lib/hand-tracker'
 import { PINCH_ON } from '@/lib/hand-tracker'
 
@@ -44,6 +45,20 @@ function toSpeech(text: string): string {
 
 function toSentences(text: string): string[] {
   return text.match(/[^.!?]+[.!?]*/g)?.map(s => s.trim()).filter(s => s.length > 1) || [text]
+}
+
+let deepgramTokenCache: { value: string; expiresAt: number } | null = null
+async function getDeepgramAccessToken(): Promise<string> {
+  if (deepgramTokenCache && deepgramTokenCache.expiresAt > Date.now() + 5_000) return deepgramTokenCache.value
+  const response = await fetch('/api/jarvis/deepgram-token', { method: 'POST' })
+  if (!response.ok) throw new Error('Deepgram is not configured')
+  const data = await response.json()
+  if (!data.accessToken) throw new Error('Deepgram token missing')
+  deepgramTokenCache = {
+    value: data.accessToken,
+    expiresAt: Date.now() + Math.max(10, Number(data.expiresIn) || 30) * 1_000,
+  }
+  return data.accessToken
 }
 
 // ─── Pick the best available browser voice ───────────────────────────────────
@@ -158,6 +173,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null)
 
   const recorderRef       = useRef<MediaRecorder | null>(null)
+  const voiceSocketRef    = useRef<WebSocket | null>(null)
+  const micAudioContextRef = useRef<AudioContext | null>(null)
   const webSpeechRef      = useRef<any>(null)
   const webSpeechFinal    = useRef<string>('')
   const listeningRef      = useRef(false)
@@ -223,6 +240,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
   const stopListening = useCallback(() => {
     listeningRef.current = false
     setAnalyserNode(null)
+    micAudioContextRef.current?.close().catch(() => {})
+    micAudioContextRef.current = null
     if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
     if (webSpeechRef.current) {
       try {
@@ -234,6 +253,12 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       } catch {}
       webSpeechRef.current = null
     }
+    if (voiceSocketRef.current?.readyState === WebSocket.OPEN) {
+      try { voiceSocketRef.current.send(JSON.stringify({ type: 'CloseStream' })) } catch {}
+      const socket = voiceSocketRef.current
+      setTimeout(() => socket.close(), 500)
+    }
+    voiceSocketRef.current = null
     if (recorderRef.current && recorderRef.current.state !== 'inactive') {
       try { recorderRef.current.stop() } catch {}
     }
@@ -276,6 +301,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
       if (AudioCtx) {
         const ctx = new AudioCtx()
+        micAudioContextRef.current = ctx
         const src = ctx.createMediaStreamSource(stream)
         const ana = ctx.createAnalyser()
         ana.fftSize = 64
@@ -283,6 +309,82 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
         setAnalyserNode(ana)
       }
     } catch {}
+
+    // Deepgram Flux is the primary path: live multilingual transcription,
+    // model-integrated turn detection, and no upload/transcribe round trip.
+    try {
+      const accessToken = await getDeepgramAccessToken()
+      const params = new URLSearchParams({
+        model: 'flux-general-multi',
+        eager_eot_threshold: '0.5',
+        eot_threshold: '0.7',
+        eot_timeout_ms: '700',
+      })
+      for (const language of ['en', 'hi']) params.append('language_hint', language)
+      for (const term of ['Ekvaar', 'Krishna', 'Composio', 'OmniRoute']) params.append('keyterm', term)
+      const socket = new WebSocket(`wss://api.deepgram.com/v2/listen?${params}`, ['bearer', accessToken])
+      voiceSocketRef.current = socket
+      const opened = await new Promise<boolean>((resolve) => {
+        const timeout = setTimeout(() => resolve(false), 2_000)
+        socket.onopen = () => { clearTimeout(timeout); resolve(true) }
+        socket.onerror = () => { clearTimeout(timeout); resolve(false) }
+      })
+
+      if (opened) {
+        const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : ''
+        const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : {})
+        recorderRef.current = recorder
+        let finalized = false
+        let latestTranscript = ''
+
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) socket.send(event.data)
+        }
+        recorder.onstop = () => {
+          stream.getTracks().forEach(track => track.stop())
+          micAudioContextRef.current?.close().catch(() => {})
+          micAudioContextRef.current = null
+          setAnalyserNode(null)
+          setListening(false)
+          listeningRef.current = false
+          if (socket.readyState === WebSocket.OPEN) {
+            try { socket.send(JSON.stringify({ type: 'CloseStream' })) } catch {}
+          }
+        }
+        socket.onmessage = (event) => {
+          if (typeof event.data !== 'string') return
+          try {
+            const turn = parseFluxTurn(JSON.parse(event.data))
+            if (!turn || finalized) return
+            latestTranscript = turn.text
+            setTranscript(turn.text)
+            if (!turn.final) return
+            finalized = true
+            if (recorder.state !== 'inactive') recorder.stop()
+            socket.close()
+            voiceSocketRef.current = null
+            setTranscript('')
+            sendRef.current(turn.text)
+          } catch {}
+        }
+        socket.onclose = () => {
+          voiceSocketRef.current = null
+          if (finalized) return
+          if (recorder.state !== 'inactive') recorder.stop()
+          setTranscript('')
+          if (latestTranscript) sendRef.current(latestTranscript)
+          else setGlobal('idle')
+        }
+        recorder.start(80)
+        return
+      }
+
+      socket.close()
+      voiceSocketRef.current = null
+    } catch (error) {
+      console.warn('[Deepgram STT fallback]', error)
+    }
 
     const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (SpeechRec) {
@@ -311,7 +413,9 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       try { rec.start() } catch {}
     }
 
+    micAudioContextRef.current?.close().catch(() => {})
     const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    micAudioContextRef.current = audioCtx
     const analyser = audioCtx.createAnalyser()
     analyser.fftSize = 512
     audioCtx.createMediaStreamSource(stream).connect(analyser)
@@ -337,6 +441,7 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       }
       stream.getTracks().forEach(t => t.stop())
       audioCtx.close().catch(() => {})
+      micAudioContextRef.current = null
       setAnalyserNode(null)
       if (vuRef.current) { clearInterval(vuRef.current); vuRef.current = null }
       setListening(false)
@@ -415,6 +520,96 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     })
   }, [])
 
+  const speakWithDeepgram = useCallback(async (
+    clean: string,
+    voiceId: string,
+    onAudioStart: () => boolean,
+  ): Promise<boolean> => {
+    if (!voiceId.startsWith('deepgram:')) return false
+    try {
+      const accessToken = await getDeepgramAccessToken()
+      const model = voiceId.slice('deepgram:'.length)
+      const speed = getSelectedVoiceSpeed()
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioCtx) return false
+      const context: AudioContext = new AudioCtx({ sampleRate: 24_000 })
+      await context.resume()
+
+      return await new Promise<boolean>((resolve) => {
+        const params = new URLSearchParams({ model, encoding: 'linear16', sample_rate: '24000', speed: String(speed) })
+        const socket = new WebSocket(`wss://api.deepgram.com/v2/speak?${params}`, ['bearer', accessToken])
+        socket.binaryType = 'arraybuffer'
+        const sources = new Set<AudioBufferSourceNode>()
+        let carry = new Uint8Array()
+        let nextStart = 0
+        let started = false
+        let done = false
+        const timeout = setTimeout(() => finish(false), 15_000)
+
+        const stopAudio = () => {
+          for (const source of sources) {
+            try { source.stop() } catch {}
+          }
+          sources.clear()
+        }
+        const finish = (success: boolean) => {
+          if (done) return
+          done = true
+          clearTimeout(timeout)
+          stopAudio()
+          try { socket.close() } catch {}
+          context.close().catch(() => {})
+          if (audioStopRef.current === stop) audioStopRef.current = null
+          resolve(success)
+        }
+        const finishAfterQueuedAudio = () => {
+          const waitMs = Math.max(0, (nextStart - context.currentTime) * 1_000) + 40
+          setTimeout(() => finish(started), waitMs)
+        }
+        const stop = () => finish(false)
+        audioStopRef.current = stop
+
+        socket.onopen = () => {
+          socket.send(JSON.stringify({ type: 'Speak', text: clean }))
+          socket.send(JSON.stringify({ type: 'Flush' }))
+        }
+        socket.onmessage = (event) => {
+          if (typeof event.data === 'string') {
+            try {
+              const message = JSON.parse(event.data)
+              if (message.type === 'SpeechMetadata' || message.type === 'Flushed') finishAfterQueuedAudio()
+              if (message.type === 'Error') finish(false)
+            } catch {}
+            return
+          }
+          if (!(event.data instanceof ArrayBuffer) || done) return
+          const decoded = decodePcm16Chunk(event.data, carry)
+          carry = decoded.carry
+          if (!decoded.samples.length) return
+          if (!started) {
+            if (!onAudioStart()) return finish(false)
+            started = true
+          }
+          const buffer = context.createBuffer(1, decoded.samples.length, 24_000)
+          buffer.copyToChannel(decoded.samples, 0)
+          const source = context.createBufferSource()
+          source.buffer = buffer
+          source.connect(context.destination)
+          source.onended = () => sources.delete(source)
+          const at = Math.max(context.currentTime + 0.015, nextStart)
+          source.start(at)
+          nextStart = at + buffer.duration
+          sources.add(source)
+        }
+        socket.onerror = () => finish(false)
+        socket.onclose = () => { if (!done) finishAfterQueuedAudio() }
+      })
+    } catch (error) {
+      console.warn('[Deepgram TTS fallback]', error)
+      return false
+    }
+  }, [])
+
   const speakText = useCallback(async (text: string) => {
     if (muted) { setGlobal('idle'); return }
     stopTTS()
@@ -427,8 +622,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
 
     const voiceId = getSelectedVoiceId()
 
-    // ── 1. Neural TTS only if it answers fast; otherwise the device voice
-    // starts on its own deadline so speech follows the text within ~1.2s.
+    // ── 1. Flux streams raw PCM immediately; otherwise the device voice
+    // starts on its own deadline so speech follows the text without a long gap.
     // A late neural reply is dropped rather than double-speaking. ──
     let deviceStarted = false
     let deviceDone: Promise<void> | null = null
@@ -437,35 +632,49 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
       deviceStarted = true
       deviceDone = speakWithDevice(clean, voiceId)
     }
-    const deviceDeadline = setTimeout(startDevice, 1200)
+    const deviceDeadline = setTimeout(startDevice, 650)
 
-    try {
-      const res = await fetch('/api/jarvis/tts', {
+    const streamed = await speakWithDeepgram(clean, voiceId, () => {
+      if (deviceStarted || !speakingRef.current || speakGenRef.current !== gen) return false
+      clearTimeout(deviceDeadline)
+      return true
+    })
+    if (streamed && speakGenRef.current === gen) {
+      speakingRef.current = false
+      setGlobal('idle')
+      if (expanded && micSupported) setTimeout(() => startListening(), 80)
+      return
+    }
+
+    if (!deviceStarted) {
+      try {
+        const res = await fetch('/api/jarvis/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: clean, voice: voiceId, speed: 1.0 }),
+        body: JSON.stringify({ text: clean, voice: voiceId, speed: getSelectedVoiceSpeed() }),
         signal: AbortSignal.timeout(20_000),
       })
-      if (res.ok && res.headers.get('content-type')?.includes('audio') && speakingRef.current && !deviceStarted && speakGenRef.current === gen) {
-        clearTimeout(deviceDeadline)
-        const audio = new Audio(URL.createObjectURL(await res.blob()))
-        audio.volume = 1
-        await new Promise<void>((resolve) => {
-          audio.onended = () => resolve()
-          audio.onerror = () => resolve()
-          // pause() fires neither onended nor onerror — resolve here so an
-          // interrupt can't leave the caller awaiting forever.
-          audioStopRef.current = () => { audio.pause(); URL.revokeObjectURL(audio.src); audioStopRef.current = null; resolve() }
-          audio.play().catch(() => resolve())
-        })
-        if (speakGenRef.current === gen) {
-          speakingRef.current = false
-          setGlobal('idle')
-          if (expanded && micSupported) setTimeout(() => startListening(), 140)
+        if (res.ok && res.headers.get('content-type')?.includes('audio') && speakingRef.current && !deviceStarted && speakGenRef.current === gen) {
+          clearTimeout(deviceDeadline)
+          const audio = new Audio(URL.createObjectURL(await res.blob()))
+          audio.volume = 1
+          await new Promise<void>((resolve) => {
+            audio.onended = () => resolve()
+            audio.onerror = () => resolve()
+            // pause() fires neither onended nor onerror — resolve here so an
+            // interrupt can't leave the caller awaiting forever.
+            audioStopRef.current = () => { audio.pause(); URL.revokeObjectURL(audio.src); audioStopRef.current = null; resolve() }
+            audio.play().catch(() => resolve())
+          })
+          if (speakGenRef.current === gen) {
+            speakingRef.current = false
+            setGlobal('idle')
+            if (expanded && micSupported) setTimeout(() => startListening(), 80)
+          }
+          return
         }
-        return
-      }
-    } catch {}
+      } catch {}
+    }
 
     // ── 2. Device voice (already started by the deadline, or start now) ──
     clearTimeout(deviceDeadline)
@@ -475,8 +684,8 @@ export function Jarvis({ trigger, hasOpenWindows }: { trigger?: number; hasOpenW
     if (speakGenRef.current !== gen) return
     speakingRef.current = false
     setGlobal('idle')
-    if (expanded && micSupported) setTimeout(() => startListening(), 140)
-  }, [muted, stopTTS, stopListening, expanded, micSupported, startListening, speakWithDevice])
+    if (expanded && micSupported) setTimeout(() => startListening(), 80)
+  }, [muted, stopTTS, stopListening, expanded, micSupported, startListening, speakWithDevice, speakWithDeepgram])
 
   const toggleListening = useCallback(() => {
     if (listeningRef.current) {

@@ -10,7 +10,7 @@ import { decryptSecret } from '@/lib/crypto'
 // Composio SDK — loaded dynamically to avoid SSR issues
 const composioClients = new Map<string, any>()
 
-async function getComposio(organizationId?: string) {
+export async function getComposio(organizationId?: string) {
   if (!organizationId) return null
   if (composioClients.has(organizationId)) return composioClients.get(organizationId)
   try {
@@ -25,6 +25,111 @@ async function getComposio(organizationId?: string) {
     console.error('COMPOSIO: Error initializing Composio client:', error)
     return null
   }
+}
+
+export async function getComposioTriggerType(organizationId: string, slug: string) {
+  const composio = await getComposio(organizationId)
+  if (!composio) throw new Error('Add this organization\'s Composio API key in Settings first.')
+  return composio.triggers.getType(slug)
+}
+
+export async function listComposioTriggers(organizationId: string) {
+  const composio = await getComposio(organizationId)
+  if (!composio) throw new Error('Add this organization\'s Composio API key in Settings first.')
+  return composio.triggers.listActive({ showDisabled: true, limit: 100 })
+}
+
+export async function createComposioTrigger(params: {
+  organizationId: string
+  slug: string
+  triggerConfig: Record<string, unknown>
+  connectedAccountId?: string
+}) {
+  const composio = await getComposio(params.organizationId)
+  if (!composio) throw new Error('Add this organization\'s Composio API key in Settings first.')
+
+  const triggerType = await composio.triggers.getType(params.slug)
+  if (params.connectedAccountId) {
+    const integration = await db.integration.findFirst({
+      where: {
+        organizationId: params.organizationId,
+        connectedAccountId: params.connectedAccountId,
+        isConnected: true,
+      },
+      select: { id: true },
+    })
+    if (!integration) throw new Error('The selected connected account does not belong to this organization.')
+  }
+
+  const appUrl = process.env.NEXTAUTH_URL?.replace(/\/$/, '')
+  let delivery: 'signed-webhook' | 'local-listener' = 'local-listener'
+  if (appUrl?.startsWith('https://')) {
+    const subscription = await composio.triggers.setWebhookSubscription({
+      webhookUrl: `${appUrl}/api/webhooks/composio`,
+      enabledEvents: ['composio.trigger.message', 'composio.connected_account.expired'],
+      version: 'V3',
+    })
+    if (subscription.secret) {
+      const { encryptSecret } = await import('@/lib/crypto')
+      await db.systemSetting.update({
+        where: { organizationId: params.organizationId },
+        data: { composioWebhookSecret: encryptSecret(subscription.secret) },
+      })
+    }
+    const webhookSettings = await db.systemSetting.findUnique({
+      where: { organizationId: params.organizationId },
+      select: { composioWebhookSecret: true },
+    })
+    if (!subscription.secret && !webhookSettings?.composioWebhookSecret) {
+      throw new Error('The Composio webhook already exists, but Ekvaar does not have its signing secret. Paste that secret in Settings before creating triggers.')
+    }
+    delivery = 'signed-webhook'
+  }
+
+  const trigger = await composio.triggers.create(
+    params.organizationId,
+    params.slug,
+    {
+      connectedAccountId: params.connectedAccountId,
+      triggerConfig: params.triggerConfig,
+    },
+  )
+
+  return {
+    triggerId: trigger.triggerId,
+    triggerType: {
+      slug: triggerType.slug,
+      name: triggerType.name,
+      toolkit: triggerType.toolkit,
+      config: triggerType.config,
+    },
+    delivery,
+  }
+}
+
+export async function verifyComposioWebhook(params: {
+  organizationId: string
+  payload: string
+  id: string
+  timestamp: string
+  signature: string
+}) {
+  const composio = await getComposio(params.organizationId)
+  if (!composio) throw new Error('Composio is not configured for this organization.')
+  const settings = await db.systemSetting.findUnique({
+    where: { organizationId: params.organizationId },
+    select: { composioWebhookSecret: true },
+  })
+  const secret = settings?.composioWebhookSecret ? decryptSecret(settings.composioWebhookSecret) : ''
+  if (!secret) throw new Error('Composio webhook verification is not configured for this organization.')
+  return composio.triggers.verifyWebhook({
+    payload: params.payload,
+    id: params.id,
+    timestamp: params.timestamp,
+    signature: params.signature,
+    secret,
+    tolerance: 300,
+  })
 }
 
 // Catalog of integration toolkits available through Composio
@@ -405,11 +510,20 @@ function composioToolkit(slug: string): string {
   return COMPOSIO_TOOLKIT_MAP[slug] || slug
 }
 
-export async function initiateConnection(toolkitSlug: string, entityId?: string): Promise<{ redirectUrl: string | null; connectedAccountId?: string; error?: string }> {
+export async function initiateConnection(toolkitSlug: string, entityId?: string): Promise<{
+  redirectUrl: string | null
+  connectedAccountId?: string
+  error?: string
+  errorCode?: 'COMPOSIO_NOT_CONFIGURED' | 'COMPOSIO_AUTH_CONFIG_MISSING' | 'COMPOSIO_CONNECTION_FAILED'
+}> {
   const composio = await getComposio(entityId)
   
   if (!composio) {
-    return { redirectUrl: null, error: 'Add this organization\'s Composio API key in Settings before connecting apps.' }
+    return {
+      redirectUrl: null,
+      error: 'Composio needs one-time setup for this organization.',
+      errorCode: 'COMPOSIO_NOT_CONFIGURED',
+    }
   }
 
   try {
@@ -446,7 +560,11 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
     )
     if (!match) {
       const detail = ckToolkit === 'shopify' ? ` Expected organization-safe OAuth config ${SHOPIFY_AUTH_CONFIG_ID}.` : ''
-      return { redirectUrl: null, error: `No auth config found for "${ckToolkit}" on Composio.${detail} Please add this integration on your Composio dashboard first.` }
+      return {
+        redirectUrl: null,
+        error: `No auth config found for "${ckToolkit}" on Composio.${detail} Please add this integration on your Composio dashboard first.`,
+        errorCode: 'COMPOSIO_AUTH_CONFIG_MISSING',
+      }
     }
     const authConfigId = match.id
 
@@ -460,7 +578,7 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
     return { redirectUrl: connection.redirectUrl }
   } catch (error: any) {
     console.error(`[initiateConnection] Composio error for ${toolkitSlug}:`, error.message)
-    return { redirectUrl: null, error: `Composio: ${error.message}` }
+    return { redirectUrl: null, error: `Composio: ${error.message}`, errorCode: 'COMPOSIO_CONNECTION_FAILED' }
   }
 }
 

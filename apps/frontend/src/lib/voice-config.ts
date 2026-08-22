@@ -9,11 +9,14 @@ export interface VoiceOption {
 }
 
 export const WORKABLE_VOICES: VoiceOption[] = [
-  { id: 'openai:onyx', name: 'Krishna — Natural Male (Cloud)', category: 'Cloud neural', gender: 'male', lang: 'en-IN' },
+  { id: 'deepgram:flux-naveen-en', name: 'Naveen — Indian Male (Recommended)', category: 'Deepgram Flux', gender: 'male', lang: 'en-IN' },
+  { id: 'deepgram:flux-kai-en', name: 'Kai — Singaporean Male', category: 'Deepgram Flux', gender: 'male', lang: 'en-SG' },
+  { id: 'deepgram:flux-colin-en', name: 'Colin — British Male', category: 'Deepgram Flux', gender: 'male', lang: 'en-GB' },
+  { id: 'deepgram:flux-miles-en', name: 'Miles — American Male', category: 'Deepgram Flux', gender: 'male', lang: 'en-US' },
   { id: 'device:male', name: 'Device Male Voice (Fallback)', category: 'Device', gender: 'male', lang: 'en-IN' },
 ]
 
-export const JARVIS_VOICE_ID = 'openai:onyx'
+export const JARVIS_VOICE_ID = 'deepgram:flux-naveen-en'
 
 export function getJarvisProfile() {
   return {
@@ -32,6 +35,18 @@ export function getSelectedVoiceId(): string {
     return localStorage.getItem('krishna_voice') || JARVIS_VOICE_ID
   } catch {
     return JARVIS_VOICE_ID
+  }
+}
+
+export function getSelectedVoiceSpeed(): number {
+  if (typeof window === 'undefined') return 1
+  try {
+    const stored = localStorage.getItem('krishna_voice_speed')
+    if (!stored) return 1
+    const speed = Number(stored)
+    return Number.isFinite(speed) ? Math.min(1.15, Math.max(0.85, speed)) : 1
+  } catch {
+    return 1
   }
 }
 
@@ -71,7 +86,8 @@ export function getVoiceProfile(voiceId: string) {
   // Fallback heuristic for unknown voice IDs
   const isFemale = /female|woman|neerja|emma|ava|sonia|natasha|swara|eve|anna|alba|estelle|lola/i.test(voiceId)
   const isRyan = /ryan/i.test(voiceId)
-  const lang = voiceId.startsWith('hi-IN') ? 'hi-IN'
+  const lang = /naveen/i.test(voiceId) ? 'en-IN'
+    : voiceId.startsWith('hi-IN') ? 'hi-IN'
     : voiceId.startsWith('en-IN') ? 'en-IN'
     : voiceId.startsWith('en-GB') ? 'en-GB'
     : voiceId.startsWith('en-AU') ? 'en-AU' : 'en-US'

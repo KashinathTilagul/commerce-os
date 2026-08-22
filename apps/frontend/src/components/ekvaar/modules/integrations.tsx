@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
+import { useWindowStore } from '@/lib/window-store'
 
 const CATEGORY_META: Record<string, { label: string; color: string; icon: string }> = {
   ecommerce: { label: 'E-Commerce', color: '#C8302A', icon: '🛍️' },
@@ -40,6 +41,7 @@ export function Integrations() {
   const [executing, setExecuting] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const queryClient = useQueryClient()
+  const openWindow = useWindowStore((state) => state.open)
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['integrations'],
@@ -60,6 +62,11 @@ export function Integrations() {
         body: JSON.stringify({ action }),
       })
       const result = await r.json()
+      if (result.code === 'COMPOSIO_NOT_CONFIGURED') {
+        openWindow('settings', 'Settings')
+        toast.info('Composio setup opened', 'Save this organization\'s Composio API key, then return here and connect again.')
+        return
+      }
       if (!r.ok) throw new Error(result.error || 'Failed')
 
       if (result.action === 'redirect') {

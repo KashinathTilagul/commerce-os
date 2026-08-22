@@ -26,7 +26,9 @@ export const useToastStore = create<ToastStore>((set) => ({
   push: (t) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     const toast: Toast = { id, duration: 4000, ...t }
-    set((s) => ({ toasts: [...s.toasts, toast] }))
+    set((s) => s.toasts.some((existing) =>
+      existing.kind === toast.kind && existing.title === toast.title && existing.message === toast.message
+    ) ? s : { toasts: [...s.toasts, toast] })
     // Auto-dismiss
     setTimeout(() => {
       set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) }))

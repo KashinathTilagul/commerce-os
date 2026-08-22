@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { requireOrganization } from '@/lib/auth-guard'
 import { encryptSecret } from '@/lib/crypto'
 
-const API_KEY_FIELDS = ['primaryApiKey', 'fallback1ApiKey', 'fallback2ApiKey', 'composioApiKey', 'speechApiKey'] as const
+const API_KEY_FIELDS = ['primaryApiKey', 'fallback1ApiKey', 'fallback2ApiKey', 'composioApiKey', 'composioWebhookSecret', 'speechApiKey'] as const
 
 // Organization-owned configuration. Credentials never cross tenant boundaries.
 const SYSTEM_FIELDS = new Set([
@@ -13,7 +13,7 @@ const SYSTEM_FIELDS = new Set([
   'primaryProvider', 'primaryModel', 'primaryApiKey', 'primaryBaseUrl',
   'fallback1Provider', 'fallback1Model', 'fallback1ApiKey', 'fallback1BaseUrl',
   'fallback2Provider', 'fallback2Model', 'fallback2ApiKey', 'fallback2BaseUrl',
-  'composioApiKey',
+  'composioApiKey', 'composioWebhookSecret',
   'speechProvider', 'speechApiKey',
 ])
 
@@ -37,7 +37,7 @@ export async function GET() {
   const organization = await db.organization.findUnique({ where: { id: auth.organizationId }, select: { name: true } })
 
   // Never expose API keys in response
-  const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, speechApiKey, ...safeSettings } = settings as any
+  const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, composioWebhookSecret, speechApiKey, ...safeSettings } = settings as any
 
   return NextResponse.json({
     ...safeSettings,
@@ -47,6 +47,7 @@ export async function GET() {
     hasFallback1ApiKey: Boolean(fallback1ApiKey),
     hasFallback2ApiKey: Boolean(fallback2ApiKey),
     hasComposioApiKey: Boolean(composioApiKey),
+    hasComposioWebhookSecret: Boolean(composioWebhookSecret),
     hasSpeechApiKey: Boolean(speechApiKey),
   })
 }
@@ -101,7 +102,7 @@ export async function PATCH(req: Request) {
     }).catch(() => {})
 
     // Never expose API keys in response
-    const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, speechApiKey, ...safeSettings } = (settings || {}) as any
+    const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, composioWebhookSecret, speechApiKey, ...safeSettings } = (settings || {}) as any
 
     const org = await db.organization.findUnique({ where: { id: auth.organizationId }, select: { name: true } })
     return NextResponse.json({
@@ -112,6 +113,7 @@ export async function PATCH(req: Request) {
       hasFallback1ApiKey: Boolean(fallback1ApiKey),
       hasFallback2ApiKey: Boolean(fallback2ApiKey),
       hasComposioApiKey: Boolean(composioApiKey),
+      hasComposioWebhookSecret: Boolean(composioWebhookSecret),
       hasSpeechApiKey: Boolean(speechApiKey),
     })
   } catch (e: any) {

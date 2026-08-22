@@ -71,7 +71,11 @@ export async function POST(
   }
 
   if (connection.error) {
-    return NextResponse.json({ error: connection.error }, { status: 500 })
+    return NextResponse.json({
+      error: connection.error,
+      code: connection.errorCode,
+      setupApp: connection.errorCode === 'COMPOSIO_NOT_CONFIGURED' ? 'settings' : undefined,
+    }, { status: connection.errorCode === 'COMPOSIO_NOT_CONFIGURED' ? 428 : 502 })
   }
 
   return NextResponse.json({ error: 'Composio returned no redirect URL. The integration may not support OAuth or is not configured on the Composio dashboard.' }, { status: 500 })

@@ -42,12 +42,10 @@ export function Settings() {
   const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
   const [localVoice, setLocalVoice] = useState(() => {
-    try { return localStorage.getItem('krishna_voice') || 'en-IN-PrabhatNeural' } catch { return 'en-IN-PrabhatNeural' }
+    try { return localStorage.getItem('krishna_voice') || JARVIS_VOICE_ID } catch { return JARVIS_VOICE_ID }
   })
   const [localSpeed, setLocalSpeed] = useState(0.86)
-  const [localPitch, setLocalPitch] = useState(0.76)
   const speedOverriddenRef = useRef(false)
-  const pitchOverriddenRef = useRef(false)
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -62,18 +60,17 @@ export function Settings() {
   useEffect(() => {
     if (settings && !isLoading && !hasSyncedRef.current) {
       hasSyncedRef.current = true
-      if (settings.ttsVoice) setLocalVoice(settings.ttsVoice) // eslint-disable-line react-hooks/set-state-in-effect
-      if (settings.ttsSpeed !== undefined) setLocalSpeed(settings.ttsSpeed) // eslint-disable-line react-hooks/set-state-in-effect
-      if (settings.ttsStability !== undefined) setLocalPitch(settings.ttsStability) // eslint-disable-line react-hooks/set-state-in-effect
-      if (settings.krishnaPrompt !== undefined) setPromptValue(settings.krishnaPrompt) // eslint-disable-line react-hooks/set-state-in-effect
-      if (settings.organizationName !== undefined) setOrgNameValue(settings.organizationName) // eslint-disable-line react-hooks/set-state-in-effect
+      if (settings.ttsVoice) setLocalVoice(settings.ttsVoice)
+      if (settings.ttsSpeed !== undefined) setLocalSpeed(settings.ttsSpeed)
+      if (settings.ttsSpeed !== undefined) localStorage.setItem('krishna_voice_speed', String(settings.ttsSpeed))
+      if (settings.krishnaPrompt !== undefined) setPromptValue(settings.krishnaPrompt)
+      if (settings.organizationName !== undefined) setOrgNameValue(settings.organizationName)
     }
   }, [settings, isLoading])
 
   useEffect(() => {
-    if (localVoice === JARVIS_VOICE_ID && !speedOverriddenRef.current && !pitchOverriddenRef.current) {
+    if (localVoice === JARVIS_VOICE_ID && !speedOverriddenRef.current) {
       setLocalSpeed(0.86)
-      setLocalPitch(0.76)
     }
   }, [localVoice])
 
@@ -278,6 +275,43 @@ export function Settings() {
           </CardContent>
         </Card>
 
+        {/* Composio event bridge */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <Zap className="h-4 w-4" /> Composio Event Bridge
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Connect applications with OAuth, then let signed Composio triggers create events inside this organization.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Row label="Composio API key" desc="Organization-owned; used to create connections and triggers">
+              <Input
+                type="password"
+                value={providerDraft.composioApiKey ?? ''}
+                onChange={(event) => setProviderDraft((draft) => ({ ...draft, composioApiKey: event.target.value }))}
+                placeholder={s.hasComposioApiKey ? 'Composio API key saved' : 'Paste Composio API key'}
+                autoComplete="off"
+                className="w-80 font-mono text-xs"
+              />
+            </Row>
+            <Row label="Webhook signing secret" desc="Required to reject forged trigger events">
+              <Input
+                type="password"
+                value={providerDraft.composioWebhookSecret ?? ''}
+                onChange={(event) => setProviderDraft((draft) => ({ ...draft, composioWebhookSecret: event.target.value }))}
+                placeholder={s.hasComposioWebhookSecret ? 'Webhook secret saved' : 'Paste Composio webhook secret'}
+                autoComplete="off"
+                className="w-80 font-mono text-xs"
+              />
+            </Row>
+            <Row label="Webhook endpoint" desc="Register this URL in the Composio project">
+              <code className="rounded border border-border bg-muted px-2 py-1 text-xs">/api/webhooks/composio</code>
+            </Row>
+          </CardContent>
+        </Card>
+
         {/* Notifications */}
         <Card>
           <CardHeader className="pb-3">
@@ -307,9 +341,33 @@ export function Settings() {
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
               <Mic className="h-4 w-4" /> Krishna Voice
             </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">Pocket TTS (kyutai local neural) + Edge TTS cloud voices. Change takes effect immediately.</p>
+            <p className="text-xs text-muted-foreground mt-1">Deepgram Flux streaming STT and TTS, with the local voice sidecar as fallback. No OpenAI or Codex credits are used.</p>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Row label="Voice engine" desc="Organization-owned key; never exposed to the browser">
+              <div className="flex items-center gap-2">
+                <Select
+                  value={providerDraft.speechProvider ?? s.speechProvider ?? 'deepgram'}
+                  onValueChange={(value) => setProviderDraft((draft) => ({ ...draft, speechProvider: value }))}
+                >
+                  <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="deepgram">Deepgram Flux</SelectItem>
+                    <SelectItem value="local">Local fallback</SelectItem>
+                  </SelectContent>
+                </Select>
+                {(providerDraft.speechProvider ?? s.speechProvider ?? 'deepgram') === 'deepgram' && (
+                  <Input
+                    type="password"
+                    value={providerDraft.speechApiKey ?? ''}
+                    onChange={(event) => setProviderDraft((draft) => ({ ...draft, speechApiKey: event.target.value }))}
+                    placeholder={s.hasSpeechApiKey ? 'Deepgram key saved' : 'Paste Deepgram API key'}
+                    autoComplete="off"
+                    className="w-60 font-mono text-xs"
+                  />
+                )}
+              </div>
+            </Row>
             <Row label="Voice" desc="Krishna's speaking voice">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
@@ -346,38 +404,26 @@ export function Settings() {
               </div>
             </Row>
 
-            <Row label="Voice Speed" desc="How deliberate Jarvis sounds (0.7–1.3)">
+            <Row label="Voice Speed" desc="How deliberate Krishna sounds (0.85–1.15)">
               <div className="w-56">
                 <Slider
                   value={[localSpeed]}
                   onValueChange={(v) => {
                     speedOverriddenRef.current = true
                     setLocalSpeed(v[0])
+                    try { localStorage.setItem('krishna_voice_speed', String(v[0])) } catch {}
                     handleChange('ttsSpeed', v[0])
                   }}
-                  min={0.7}
-                  max={1.3}
+                  min={0.85}
+                  max={1.15}
                   step={0.05}
                 />
                 <div className="text-right text-xs font-mono mt-1">{localSpeed.toFixed(2)}</div>
               </div>
             </Row>
 
-            <Row label="Voice Pitch" desc="How deep Jarvis sounds (0.6–1.2)">
-              <div className="w-56">
-                <Slider
-                  value={[localPitch]}
-                  onValueChange={(v) => {
-                    pitchOverriddenRef.current = true
-                    setLocalPitch(v[0])
-                    handleChange('ttsStability', v[0])
-                  }}
-                  min={0.6}
-                  max={1.2}
-                  step={0.05}
-                />
-                <div className="text-right text-xs font-mono mt-1">{localPitch.toFixed(2)}</div>
-              </div>
+            <Row label="Turn taking" desc="Flux detects when you finish and supports natural interruption">
+              <Badge variant="outline" className="border-emerald-400/30 text-emerald-300">Live · multilingual</Badge>
             </Row>
           </CardContent>
         </Card>
@@ -565,10 +611,12 @@ const PROVIDER_OPTIONS = [
 
 const PROVIDER_MODELS: Record<string, { value: string; label: string; vision?: boolean }[]> = {
   omniroute: [
-    { value: 'auto', label: 'Auto (intelligent routing)' },
-    { value: 'auto/coding', label: 'Auto Coding' },
+    { value: 'auto/best-free', label: 'Best Free (recommended)' },
+    { value: 'auto/best-fast', label: 'Best Fast' },
+    { value: 'auto/gemini', label: 'Best Gemini' },
+    { value: 'auto', label: 'Auto Balanced' },
     { value: 'auto/fast', label: 'Auto Fast' },
-    { value: 'auto/cheap', label: 'Auto Cheap' },
+    { value: 'auto/cheap', label: 'Auto Cheapest' },
     { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet (vision)', vision: true },
     { value: 'anthropic/claude-3-haiku', label: 'Claude 3 Haiku (vision)', vision: true },
     { value: 'google/gemini-1.5-pro', label: 'Gemini 1.5 Pro (vision)', vision: true },

@@ -16,6 +16,20 @@ export async function POST(request: NextRequest) {
     }
 
     const settings = await db.systemSetting.findUnique({ where: { organizationId: auth.organizationId } })
+    const speechKey = settings?.speechApiKey ? decryptSecret(settings.speechApiKey) : ''
+    if (settings?.speechProvider === 'deepgram' && speechKey) {
+      const res = await fetch('https://api.deepgram.com/v1/listen?model=nova-3&smart_format=true&detect_language=true', {
+        method: 'POST',
+        headers: { Authorization: `Token ${speechKey}`, 'Content-Type': audioFile.type || 'audio/webm' },
+        body: audioFile,
+        signal: AbortSignal.timeout(12_000),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        return NextResponse.json({ transcript: data.results?.channels?.[0]?.alternatives?.[0]?.transcript || '' })
+      }
+    }
+
     const groqSlot = [
       { provider: settings?.primaryProvider, key: settings?.primaryApiKey },
       { provider: settings?.fallback1Provider, key: settings?.fallback1ApiKey },
@@ -43,7 +57,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ error: 'Configure a Groq key for server transcription, or use supported browser speech recognition.' }, { status: 503 })
+    const sidecar = process.env.JARVIS_SIDECAR_URL || process.env.FASTAPI_URL || 'http://localhost:8000'
+    const local = new FormData()
+    local.append('audio', audioFile, 'audio.webm')
+    const res = await fetch(`${sidecar}/api/jarvis/stt`, { method: 'POST', body: local, signal: AbortSignal.timeout(20_000) })
+    if (res.ok) return NextResponse.json(await res.json())
+
+    return NextResponse.json({ error: 'No speech recognition engine is available' }, { status: 503 })
   } catch (error) {
     console.error('STT Error:', error)
     return NextResponse.json({ transcript: '' })

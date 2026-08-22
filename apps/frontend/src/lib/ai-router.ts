@@ -33,9 +33,11 @@ function supportsVision(modelId: string): boolean {
 
 // ── OmniRoute Only ─────────────────────────────────────────────────────────────
 
-async function getOmniRouteConfig() {
+async function getOmniRouteConfig(organizationId?: string) {
   try {
-    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+    const settings = organizationId
+      ? await db.systemSetting.findUnique({ where: { organizationId } })
+      : null
     return {
       apiKey: settings?.primaryApiKey ? await decryptSecret(settings.primaryApiKey) : '',
       baseUrl: settings?.primaryBaseUrl || '',
@@ -72,7 +74,9 @@ function modelForTarget(target: ModelTarget) {
 
 async function configuredTargets(organizationId?: string): Promise<ModelTarget[]> {
   try {
-    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+    const settings = organizationId
+      ? await db.systemSetting.findUnique({ where: { organizationId } })
+      : null
     if (!settings) return []
     return [
       { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
@@ -101,7 +105,7 @@ async function getModelChain(tier: Tier, needsVision?: boolean, organizationId?:
   }
 
   // OmniRoute fallback chain only
-  const omnirouteConfig = await getOmniRouteConfig()
+  const omnirouteConfig = await getOmniRouteConfig(organizationId)
   if (omnirouteConfig.apiKey || process.env.OMNIROUTE_API_KEY) {
     const model = needsVision
       ? DEFAULT_MODEL_VISION
