@@ -136,8 +136,16 @@ async function assembleReel(scenes: ReelScene[], options: VideoGenerationOptions
   const filters: string[] = []
 
   for (let i = 0; i < n; i++) {
+    // ffmpeg has no SVG decoder — the image generator's vector fallback
+    // produces .svg stills, so rasterize them to PNG first
+    let imagePath = scenes[i].imagePath
+    if (imagePath.toLowerCase().endsWith('.svg')) {
+      const pngPath = path.join(tempDir, `scene-${i}-${Date.now()}.png`)
+      await sharp(imagePath).resize({ width: Math.max(width, height), fit: 'inside' }).png().toFile(pngPath)
+      imagePath = pngPath
+    }
     // Single-image input: zoompan expands one frame into sceneFrames frames.
-    inputs.push(`-i "${scenes[i].imagePath}"`)
+    inputs.push(`-i "${imagePath}"`)
     // Ken Burns: alternate slow zoom-in / zoom-out so cuts feel alive.
     const step = (0.15 / sceneFrames).toFixed(6)
     const zExpr = i % 2 === 0

@@ -41,13 +41,20 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
     onClose()
   }
 
+  // Enter opens the first (usually only) app matching the current search
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && allApps.length > 0) {
+      handleAppClick(allApps[0].id, allApps[0].name)
+    }
+  }
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          exit={{ opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[9500] flex flex-col"
           style={{
@@ -72,6 +79,7 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
                 className="pl-9 h-9 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/50"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 autoFocus
               />
             </div>
@@ -99,7 +107,6 @@ export function Launchpad({ open, onClose }: LaunchpadProps) {
                 return (
                   <motion.div
                     key={app.id}
-                    layout
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.08 + i * 0.015 }}

@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic'
+// side-effect import: starts the scheduled-post publisher interval
+import '@/lib/marketing-task-publisher'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'

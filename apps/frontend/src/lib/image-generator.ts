@@ -28,9 +28,10 @@ const ASPECT_RATIO_DIMENSIONS: Record<string, { width: number; height: number }>
   '9:16': { width: 720, height: 1280 }
 }
 
-const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1'
+const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1'
 const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || ''
-const DEFAULT_IMAGE_MODEL = 'google/gemini-2.0-flash-exp:image'
+const DEFAULT_IMAGE_MODEL = process.env.OMNIROUTE_IMAGE_MODEL_DEFAULT || 'antigravity/gemini-3.1-flash-image'
+const HF_IMAGE_MODEL = process.env.HUGGINGFACE_IMAGE_MODEL || 'black-forest-labs/FLUX.1-schnell'
 
 async function getOmniRouteImageConfig() {
   try {
@@ -88,6 +89,34 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
       } catch (error: any) {
         providerErrors.push(`OmniRoute: ${error?.message || 'unknown error'}`)
         console.warn('[Image Generator] OmniRoute failed:', error?.message || error)
+      }
+    }
+
+    // Hugging Face serverless fallback (real FLUX images) when the gateway
+    // image model is quota-blocked or unavailable
+    if (!imageBuffer && process.env.HUGGINGFACE_API_KEY) {
+      try {
+        const response = await fetch(`https://api-inference.huggingface.co/models/${HF_IMAGE_MODEL}`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inputs: enhancedPrompt,
+            parameters: { width: dimensions.width, height: dimensions.height },
+          }),
+        })
+        if (!response.ok) {
+          const errText = await response.text().catch(() => '')
+          throw new Error(`HuggingFace returned ${response.status}: ${errText.slice(0, 120)}`)
+        }
+        imageBuffer = Buffer.from(await response.arrayBuffer())
+        mimeType = response.headers.get('content-type') || 'image/png'
+        console.log('[Image Generator] HuggingFace succeeded')
+      } catch (error: any) {
+        providerErrors.push(`HuggingFace: ${error?.message || 'unknown error'}`)
+        console.warn('[Image Generator] HuggingFace failed:', error?.message || error)
       }
     }
 
