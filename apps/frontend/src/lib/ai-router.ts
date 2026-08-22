@@ -20,7 +20,9 @@ const VISION_MODELS = new Set([
 
 function supportsVision(modelId: string): boolean {
   const normalized = modelId.toLowerCase()
-  return VISION_MODELS.has(normalized) ||
+  // gateway "auto/*" combos route to whatever model can handle the input
+  return normalized.startsWith('auto/') ||
+    VISION_MODELS.has(normalized) ||
     normalized.includes('vision') ||
     normalized.includes('gpt-4o') ||
     normalized.includes('claude-3') ||
@@ -43,9 +45,17 @@ async function getOmniRouteConfig() {
   }
 }
 
+// docker-compose sets OMNIROUTE_BASE_URL to the service hostname; the code
+// default only applies outside docker (local dev), where the gateway port is
+// published to the host
+const DEFAULT_OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1'
+const DEFAULT_MODEL_FAST = process.env.OMNIROUTE_MODEL_FAST || 'auto/best-fast'
+const DEFAULT_MODEL_REASONING = process.env.OMNIROUTE_MODEL_REASONING || 'auto/best-reasoning'
+const DEFAULT_MODEL_VISION = process.env.OMNIROUTE_MODEL_VISION || 'auto/best-vision'
+
 function getOmniRouteModel(modelId: string, apiKey = '', baseURL = '') {
   const resolvedApiKey = apiKey || process.env.OMNIROUTE_API_KEY || ''
-  const resolvedBaseUrl = baseURL || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1'
+  const resolvedBaseUrl = baseURL || DEFAULT_OMNIROUTE_BASE_URL
   const omniroute = createOpenAI({
     baseURL: resolvedBaseUrl,
     apiKey: resolvedApiKey,
@@ -93,15 +103,15 @@ async function getModelChain(tier: Tier, needsVision?: boolean, organizationId?:
   // OmniRoute fallback chain only
   const omnirouteConfig = await getOmniRouteConfig()
   if (omnirouteConfig.apiKey || process.env.OMNIROUTE_API_KEY) {
-    const visionModel = tier === 'fast' ? 'anthropic/claude-3-haiku' : 'anthropic/claude-3.5-sonnet'
-    const nonVisionModel = tier === 'fast' ? 'google/gemini-2.0-flash-exp' : 'anthropic/claude-3.5-sonnet'
-    const model = needsVision ? visionModel : nonVisionModel
+    const model = needsVision
+      ? DEFAULT_MODEL_VISION
+      : tier === 'fast' ? DEFAULT_MODEL_FAST : DEFAULT_MODEL_REASONING
     try { chain.push({ provider: 'omniroute', model, instance: getOmniRouteModel(model, omnirouteConfig.apiKey, omnirouteConfig.baseUrl) }) } catch {}
   }
 
   // Final fallback
   if (chain.length === 0) {
-    const defaultModel = needsVision ? 'anthropic/claude-3.5-sonnet' : 'meta-llama/llama-3.3-70b-instruct:free'
+    const defaultModel = needsVision ? DEFAULT_MODEL_VISION : DEFAULT_MODEL_FAST
     chain.push({ provider: 'omniroute', model: defaultModel, instance: getOmniRouteModel(defaultModel) })
   }
 

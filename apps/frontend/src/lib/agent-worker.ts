@@ -217,7 +217,7 @@ Now produce YOUR deliverable:`
 
   // An employee that opens its deliverable with "BLOCKED:" is reporting it
   // cannot finish — count that as a block, never as a completed deliverable.
-  if (/^\s*BLOCKED\s*[:\-]/i.test(deliverable)) {
+  if (/^\s*BLOCKED\s*[:-]/i.test(deliverable)) {
     await db.agentRun.update({
       where: { id: agentRun.id },
       data: { status: 'FAILED', error: `Agent self-reported blocked: ${deliverable.slice(0, 200)}`, completedAt: new Date(), durationMs: Date.now() - runStartedAt.getTime() },

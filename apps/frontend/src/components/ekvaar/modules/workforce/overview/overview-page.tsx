@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Activity, AlertTriangle, Archive, ArrowRight, Bot, Check, ExternalLink, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Users, TrendingUp, Zap, Target, Circle } from 'lucide-react'
+import { Activity, AlertTriangle, Archive, ArrowRight, Bot, Check, ExternalLink, FileText, ImageIcon, Loader2, PlugZap, Send, ShieldCheck, Sparkles, Users, TrendingUp, Zap, Target, Circle, Video, Volume2, ListChecks, DollarSign} from 'lucide-react'
+import { useNavBadges } from '../workforce-shell'
 import { GlassPanel } from '@/components/ui/glass-system'
 
 type CampaignItem = {
@@ -39,6 +40,40 @@ const STATUS_COLORS: Record<string, string> = {
   READY: 'border-sky-400/25 bg-sky-400/[0.07] text-sky-200',
   BLOCKED: 'border-red-400/30 bg-red-400/10 text-red-300',
   FAILED: 'border-red-400/30 bg-red-400/10 text-red-300',
+}
+
+// One-click jumps into the sections where work lives, with live counts.
+function QuickNav({ onNavigate }: { onNavigate: (s: any) => void }) {
+  const badges = useNavBadges()
+  const items = [
+    { id: 'agents', label: 'Agents', icon: Users, hint: 'digital employees', badge: 0 },
+    { id: 'issues', label: 'Issues', icon: ListChecks, hint: 'open work', badge: badges.issues },
+    { id: 'approvals', label: 'Approvals', icon: ShieldCheck, hint: 'awaiting you', badge: badges.approvals },
+    { id: 'activity', label: 'Activity', icon: Activity, hint: 'live feed', badge: 0 },
+    { id: 'costs', label: 'Costs', icon: DollarSign, hint: 'spend & budgets', badge: 0 },
+  ]
+  return (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+      {items.map(({ id, label, icon: Icon, hint, badge }) => (
+        <button
+          key={id}
+          onClick={() => onNavigate(id)}
+          className="group relative flex items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3 text-left transition hover:border-cyan-300/25 hover:bg-cyan-300/[0.06]"
+        >
+          <Icon className="h-4 w-4 shrink-0 text-cyan-300/80" />
+          <div className="min-w-0">
+            <div className="text-[12px] font-medium text-foreground">{label}</div>
+            <div className="truncate text-[10px] text-muted-foreground">{hint}</div>
+          </div>
+          {badge > 0 && (
+            <span className="ml-auto rounded-full bg-amber-300/20 px-1.5 py-0.5 text-[9px] font-bold leading-none text-amber-200">
+              {badge > 99 ? '99+' : badge}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => void }) {
@@ -165,6 +200,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
       </div>
 
       <div className="space-y-5 p-6">
+        <QuickNav onNavigate={onNavigate} />
         <GlassPanel level={2} className="relative overflow-hidden rounded-2xl border-cyan-300/15 p-5">
           <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
           <div className="relative flex gap-4">

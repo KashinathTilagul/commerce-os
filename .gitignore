@@ -81,3 +81,9 @@ __pycache__/
 
 # Devin
 .devin/
+
+# Generated screenshots & test evidence (scratch)
+download/[0-9][0-9]-*
+download/test-*
+evidence_*.png
+.auth/

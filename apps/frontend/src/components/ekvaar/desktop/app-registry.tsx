@@ -6,7 +6,7 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Music, Activity, Brain, Rocket, Loader2
+  AlertTriangle, Music, Activity, Brain, Rocket, Loader2, Sparkles
 } from 'lucide-react'
 
 import dynamic from 'next/dynamic'
@@ -28,6 +28,7 @@ const Files = dynamic(() => import('@/components/ekvaar/modules/files').then(m =
 const Integrations = dynamic(() => import('@/components/ekvaar/modules/integrations').then(m => m.Integrations), { loading: LoadingFallback })
 const Calculator = dynamic(() => import('@/components/ekvaar/modules/calculator').then(m => m.Calculator), { loading: LoadingFallback })
 const Notes = dynamic(() => import('@/components/ekvaar/modules/notes').then(m => m.Notes), { loading: LoadingFallback })
+const NativeMarketingAutomation = dynamic(() => import('@/components/ekvaar/modules/native-marketing-automation').then(m => m.NativeMarketingAutomation), { loading: LoadingFallback })
 const CalendarApp = dynamic(() => import('@/components/ekvaar/modules/calendar').then(m => m.CalendarApp), { loading: LoadingFallback })
 const SalesOrders = dynamic(() => import('@/components/ekvaar/modules/sales-orders').then(m => m.SalesOrders), { loading: LoadingFallback })
 const FinanceModule = dynamic(() => import('@/components/ekvaar/modules/finance').then(m => m.FinanceModule), { loading: LoadingFallback })
@@ -206,6 +207,21 @@ export const APPS: AppDef[] = [
     menuItems: []
   },
   // Utilities
+  {
+    id: 'marketing',
+    name: 'Content Studio',
+    shortName: 'Content',
+    version: '1.0.0',
+    icon: Sparkles as any,
+    iconVariant: 'campaigns',
+    category: 'core',
+    requiredCapabilities: [],
+    entryPoint: NativeMarketingAutomation,
+    permissions: [],
+    gradient: 'linear-gradient(135deg, #FF3B6B 0%, #7C3AED 100%)',
+    glyphColor: '#F5F1EA',
+    menuItems: []
+  },
   {
     id: 'calculator',
     name: 'Calculator',

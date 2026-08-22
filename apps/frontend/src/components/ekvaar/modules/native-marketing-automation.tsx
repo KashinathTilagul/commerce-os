@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { GlassPanel } from '@/components/ui/glass-system'
-import { Loader2, Send, Zap, Sparkles, Calendar, Edit, Trash2, Eye, Check, X } from 'lucide-react'
+import { Loader2, Send, Zap, Sparkles, Calendar, Edit, Trash2, Check, X } from 'lucide-react'
 import { toast } from '@/components/ekvaar/desktop/toast'
 
 interface MarketingTask {
@@ -13,7 +13,11 @@ interface MarketingTask {
   instruction: string
   status: 'pending' | 'generating' | 'ready' | 'approved' | 'scheduled' | 'published' | 'rejected'
   content?: string
+  hashtags?: string[]
   platforms?: string[]
+  format?: string | null
+  mediaArtifactIds?: string[]
+  publishResults?: string[]
   scheduledAt?: string
   createdAt: string
   approvedAt?: string
@@ -28,10 +32,19 @@ interface MarketingAutomationState {
 const PLATFORMS = [
   { id: 'instagram', name: 'Instagram', icon: '📷' },
   { id: 'facebook', name: 'Facebook', icon: '📘' },
-  { id: 'twitter', name: 'X (Twitter)', icon: '🐦' },
+  { id: 'threads', name: 'Threads', icon: '🧵' },
   { id: 'linkedin', name: 'LinkedIn', icon: '💼' },
+  { id: 'twitter', name: 'X (Twitter)', icon: '🐦' },
   { id: 'email', name: 'Email', icon: '📧' },
   { id: 'blog', name: 'Blog', icon: '📝' },
+]
+
+const FORMATS = [
+  { id: 'image', name: '📷 Image', desc: 'Single image post' },
+  { id: 'carousel', name: '🎠 Carousel', desc: '3-4 image slideshow' },
+  { id: 'reel', name: '🎬 Reel', desc: 'Vertical video from scene stills' },
+  { id: 'story', name: '📱 Story', desc: '9:16 vertical frame' },
+  { id: 'none', name: '✍️ Text only', desc: 'Caption without media' },
 ]
 
 const TASK_TYPES = [
@@ -47,7 +60,10 @@ export function NativeMarketingAutomation() {
   const [instruction, setInstruction] = useState('')
   const [selectedType, setSelectedType] = useState<'social_post' | 'content_calendar' | 'email_campaign' | 'ad_copy' | 'blog_post'>('social_post')
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['instagram'])
+  const [selectedFormat, setSelectedFormat] = useState<string>('image')
   const [showForm, setShowForm] = useState(false)
+  const [postingTaskId, setPostingTaskId] = useState<string | null>(null)
+  const [scheduleValue, setScheduleValue] = useState('')
 
   const { data: tasks = [], isLoading, refetch } = useQuery<MarketingTask[]>({
     queryKey: ['native-marketing-tasks'],
@@ -61,7 +77,7 @@ export function NativeMarketingAutomation() {
   })
 
   const generateMutation = useMutation({
-    mutationFn: async (task: { type: string; instruction: string; platforms: string[] }) => {
+    mutationFn: async (task: { type: string; instruction: string; platforms: string[]; format: string }) => {
       const res = await fetch('/api/marketing/automation/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,16 +98,44 @@ export function NativeMarketingAutomation() {
     },
   })
 
-  const scheduleMutation = useMutation({
+  const publishNowMutation = useMutation({
     mutationFn: async (taskId: string) => {
+      const res = await fetch(`/api/marketing/automation/${taskId}/publish`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok && !data.results) throw new Error(data.error || 'Publish failed')
+      return data
+    },
+    onSuccess: (data: any) => {
+      const ok = data?.published
+      const firstResult = Array.isArray(data?.results) ? data.results.join(' · ') : ''
+      if (ok) toast.success(`Posted: ${firstResult}`)
+      else toast.error(firstResult || 'No platform could be published — check connected accounts')
+      setPostingTaskId(null)
+      refetch()
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Publish failed')
+    },
+  })
+
+  const scheduleAtMutation = useMutation({
+    mutationFn: async ({ taskId, scheduledAt }: { taskId: string; scheduledAt?: string }) => {
       const res = await fetch(`/api/marketing/automation/${taskId}/schedule`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt }),
       })
-      if (!res.ok) throw new Error('Scheduling failed')
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}))
+        throw new Error(error.error || 'Scheduling failed')
+      }
       return res.json()
     },
-    onSuccess: () => {
-      toast.success('Content scheduled')
+    onSuccess: (data: any) => {
+      const when = data?.task?.scheduledAt ? new Date(data.task.scheduledAt).toLocaleString() : 'the scheduled time'
+      toast.success(`Scheduled for ${when} — it will post automatically`)
+      setPostingTaskId(null)
+      setScheduleValue('')
       refetch()
     },
     onError: (err: any) => {
@@ -155,6 +199,7 @@ export function NativeMarketingAutomation() {
       type: selectedType,
       instruction,
       platforms: selectedPlatforms,
+      format: selectedFormat,
     })
     setInstruction('')
     setShowForm(false)
@@ -237,6 +282,26 @@ export function NativeMarketingAutomation() {
           </div>
 
           <div className="space-y-2">
+            <label className="text-[11px] text-muted-foreground">Media Format</label>
+            <div className="grid gap-2 grid-cols-2 md:grid-cols-5">
+              {FORMATS.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedFormat(f.id)}
+                  className={`rounded-lg border p-2.5 text-left transition ${
+                    selectedFormat === f.id
+                      ? 'border-cyan-300/30 bg-cyan-300/10 text-cyan-200'
+                      : 'border-white/07 bg-white/02 hover:bg-white/04'
+                  }`}
+                >
+                  <div className="font-medium text-xs">{f.name}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{f.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <label className="text-[11px] text-muted-foreground">Platforms</label>
             <div className="flex flex-wrap gap-2">
               {PLATFORMS.map(p => (
@@ -300,33 +365,41 @@ export function NativeMarketingAutomation() {
             </div>
           </div>
           <div className="divide-y divide-white/04">
-            {tasks.map(task => (
+            {tasks.map(task => {
+              const status = (task.status || '').toLowerCase() as MarketingTask['status']
+              return (
               <div key={task.id} className="px-5 py-4">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-[10px] text-cyan-300/80">{task.type.toUpperCase()}</span>
-                      <span className={`rounded-full border px-2 py-0.5 text-[8px] font-medium uppercase tracking-[0.12em] ${getStatusColor(task.status)}`}>
-                        <span className="flex items-center gap-1">{getStatusIcon(task.status)} {task.status}</span>
+                      {task.format && task.format !== 'none' && (
+                        <span className="font-mono text-[10px] text-cyan-300/60">{task.format.toUpperCase()}</span>
+                      )}
+                      <span className={`rounded-full border px-2 py-0.5 text-[8px] font-medium uppercase tracking-[0.12em] ${getStatusColor(status)}`}>
+                        <span className="flex items-center gap-1">{getStatusIcon(status)} {task.status}</span>
                       </span>
                     </div>
                     <div className="mt-1 font-medium truncate">{task.title}</div>
-                    <div className="mt-1 text-[10px] text-muted-foreground flex items-center gap-3">
+                    <div className="mt-1 text-[10px] text-muted-foreground flex items-center gap-3 flex-wrap">
                       <span>{task.platforms?.map(p => PLATFORMS.find(pl => pl.id === p)?.icon + ' ' + PLATFORMS.find(pl => pl.id === p)?.name).join(', ') || '—'}</span>
                       <span>{new Date(task.createdAt).toLocaleDateString()}</span>
+                      {task.scheduledAt && status === 'scheduled' && (
+                        <span className="text-purple-300">⏰ {new Date(task.scheduledAt).toLocaleString()}</span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {task.content && (
+                    {['ready', 'approved', 'scheduled'].includes(status) && (
                       <button
-                        onClick={() => alert(task.content)}
-                        className="glass-l2 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-white/08 transition-colors"
-                        title="View content"
+                        onClick={() => setPostingTaskId(postingTaskId === task.id ? null : task.id)}
+                        className="flex items-center gap-1.5 rounded-lg bg-cyan-300 px-3 h-7 text-[11px] font-semibold text-slate-950 transition hover:bg-cyan-200"
+                        title="Post to connected accounts"
                       >
-                        <Eye className="h-3.5 w-3.5" />
+                        <Send className="h-3 w-3" /> Post
                       </button>
                     )}
-                    {task.status === 'ready' && (
+                    {status === 'ready' && (
                       <button
                         onClick={() => approveMutation.mutate(task.id)}
                         disabled={approveMutation.isPending}
@@ -336,17 +409,7 @@ export function NativeMarketingAutomation() {
                         {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                       </button>
                     )}
-                    {task.status === 'approved' && (
-                      <button
-                        onClick={() => scheduleMutation.mutate(task.id)}
-                        disabled={scheduleMutation.isPending}
-                        className="glass-l2 flex h-7 w-7 items-center justify-center rounded-md text-purple-400 hover:bg-purple-400/10 transition-colors disabled:opacity-40"
-                        title="Schedule"
-                      >
-                        {scheduleMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Calendar className="h-3.5 w-3.5" />}
-                      </button>
-                    )}
-                    {task.status === 'ready' && (
+                    {status === 'ready' && (
                       <button
                         onClick={() => rejectMutation.mutate(task.id)}
                         disabled={rejectMutation.isPending}
@@ -366,14 +429,73 @@ export function NativeMarketingAutomation() {
                     </button>
                   </div>
                 </div>
-                
+
+                {/* Post now / Schedule options */}
+                {postingTaskId === task.id && (
+                  <div className="mb-3 rounded-lg border border-cyan-300/20 bg-cyan-300/05 p-3 space-y-2.5">
+                    <div className="text-[11px] font-medium text-cyan-200">How do you want to post this?</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={() => publishNowMutation.mutate(task.id)}
+                        disabled={publishNowMutation.isPending}
+                        className="flex items-center gap-1.5 rounded-lg bg-cyan-300 px-3 py-1.5 text-[11px] font-semibold text-slate-950 transition hover:bg-cyan-200 disabled:opacity-40"
+                      >
+                        {publishNowMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+                        Post now
+                      </button>
+                      <input
+                        type="datetime-local"
+                        value={scheduleValue}
+                        onChange={e => setScheduleValue(e.target.value)}
+                        className="rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 text-[11px] text-foreground outline-none focus:border-cyan-300/35"
+                      />
+                      <button
+                        onClick={() => scheduleAtMutation.mutate({ taskId: task.id, scheduledAt: scheduleValue ? new Date(scheduleValue).toISOString() : undefined })}
+                        disabled={scheduleAtMutation.isPending}
+                        className="flex items-center gap-1.5 rounded-lg border border-purple-300/30 bg-purple-300/10 px-3 py-1.5 text-[11px] font-medium text-purple-200 transition hover:bg-purple-300/20 disabled:opacity-40"
+                      >
+                        {scheduleAtMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calendar className="h-3 w-3" />}
+                        Schedule
+                      </button>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">Posts to every connected account selected above, at the time you pick.</div>
+                  </div>
+                )}
+
+                {/* Media thumbnails */}
+                {task.mediaArtifactIds && task.mediaArtifactIds.length > 0 && (
+                  <div className="mb-3 flex gap-2 flex-wrap">
+                    {task.mediaArtifactIds.map(id => (
+                      <img
+                        key={id}
+                        src={`/api/artifacts/${id}`}
+                        alt={`media ${id}`}
+                        className="h-24 w-24 rounded-lg border border-white/10 object-cover bg-black/30"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ))}
+                  </div>
+                )}
+
                 {task.content && (
-                  <div className="rounded-lg border border-white/06 bg-black/20 p-3 max-h-48 overflow-auto text-[11px] font-mono text-foreground/80">
+                  <div className="rounded-lg border border-white/06 bg-black/20 p-3 max-h-48 overflow-auto text-[11px] text-foreground/85 whitespace-pre-wrap">
                     {task.content}
+                    {task.hashtags && task.hashtags.length > 0 && (
+                      <div className="mt-2 text-cyan-300/70">{task.hashtags.join(' ')}</div>
+                    )}
+                  </div>
+                )}
+
+                {task.publishResults && task.publishResults.length > 0 && (
+                  <div className="mt-2 text-[10px] text-muted-foreground space-y-0.5">
+                    {task.publishResults.map((r, i) => (
+                      <div key={i} className={r.includes('failed') ? 'text-red-300/80' : r.includes('published') ? 'text-emerald-300/80' : ''}>{r}</div>
+                    ))}
                   </div>
                 )}
               </div>
-            ))}
+              )
+            })}
           </div>
         </GlassPanel>
       )}

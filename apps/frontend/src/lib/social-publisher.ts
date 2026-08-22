@@ -91,7 +91,7 @@ async function publishLinkedIn(organizationId: string, entry: ContentEntry) {
   return { id: post.response.headers.get('x-restli-id'), body: post.body }
 }
 
-async function publishEntry(organizationId: string, entry: ContentEntry) {
+export async function publishEntry(organizationId: string, entry: ContentEntry) {
   if (entry.platform === 'Instagram') return publishInstagram(organizationId, entry)
   if (entry.platform === 'Facebook') return publishFacebook(organizationId, entry)
   if (entry.platform === 'Threads') return publishThreads(organizationId, entry)

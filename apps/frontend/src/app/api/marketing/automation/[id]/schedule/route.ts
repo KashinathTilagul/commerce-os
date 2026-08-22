@@ -26,20 +26,22 @@ export async function POST(
     })
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
 
-    if (task.status !== 'APPROVED') {
-      return NextResponse.json({ error: 'Content must be approved before scheduling' }, { status: 400 })
+    if (!['READY', 'APPROVED'].includes(task.status)) {
+      return NextResponse.json({ error: 'Content must be generated (READY) or approved before scheduling' }, { status: 400 })
     }
 
     const updated = await db.marketingTask.update({
       where: { id },
       data: {
         status: 'SCHEDULED',
+        approvedAt: task.approvedAt ?? new Date(),
         scheduledAt: scheduledAt ? new Date(scheduledAt) : new Date(Date.now() + 24 * 60 * 60 * 1000),
         platforms: platforms || task.platforms,
       },
     })
 
-    // TODO: Integrate with actual social media APIs (Buffer, Later, Hootsuite, or direct APIs)
+    // Due SCHEDULED tasks are picked up by the scheduler in
+    // src/lib/marketing-task-publisher.ts (in-process interval + /api/cron/publish-marketing)
 
     await db.event.create({
       data: {
