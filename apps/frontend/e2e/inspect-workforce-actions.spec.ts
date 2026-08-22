@@ -42,6 +42,11 @@ test('workforce interactive buttons', async ({ page }) => {
   } catch (e: any) { log('Overview / Founder Inbox', false, String(e.message).slice(0, 80)) }
 
   try {
+    // Assign work is disabled until the brief has 10+ chars (by design)
+    await page.getByRole('button', { name: /^Overview/ }).first().click({ timeout: 5000 })
+    await page.waitForTimeout(1000)
+    await page.getByPlaceholder(/Ask anything: current revenue/).fill('Write a launch note for the red sneaker and queue a hero image for it.')
+    await page.waitForTimeout(300)
     await page.getByRole('button', { name: 'Assign work' }).click({ timeout: 5000 })
     await page.waitForTimeout(1500)
     const txt = await page.locator('body').innerText()
@@ -53,7 +58,7 @@ test('workforce interactive buttons', async ({ page }) => {
   } catch (e: any) { log('Overview / Assign work', false, String(e.message).slice(0, 80)) }
 
   // ── Agents: status filters ────────────────────────────────────────────────
-  await page.getByRole('button', { name: 'Agents', exact: true }).click({ timeout: 5000 })
+  await page.getByRole('button', { name: /^Agents/ }).first().click({ timeout: 5000 })
   await page.waitForTimeout(1500)
   for (const f of ['Active', 'Paused', 'Error', 'All 65']) {
     try {
@@ -69,7 +74,10 @@ test('workforce interactive buttons', async ({ page }) => {
     const card = page.locator('div.cursor-pointer, [class*=cursor-pointer]').filter({ hasText: /(Vega|Diya|Priya|Zara|Kael|Dhruv|Kavya)/ }).first()
     await card.click({ timeout: 6000 })
     await page.waitForTimeout(2000)
-    const tabs = ['Dashboard', 'Instructions', 'Skills', 'Configuration', 'Runs', 'Budget', 'References', 'Marketing Automation']
+    // Marketing Automation tab only exists for MARKETING-department agents
+    const tabButtons = await page.locator('button', { hasText: 'Marketing Automation' }).count()
+    const tabs = ['Dashboard', 'Instructions', 'Skills', 'Configuration', 'Runs', 'Budget', 'References',
+                  ...(tabButtons > 0 ? ['Marketing Automation'] : [])]
     for (const t of tabs) {
       try {
         await page.getByRole('button', { name: t, exact: true }).click({ timeout: 3000 })
@@ -91,7 +99,7 @@ test('workforce interactive buttons', async ({ page }) => {
   } catch (e: any) { log('Workspace / open agent', false, String(e.message).slice(0, 80)) }
 
   // ── Issues: Create Issue ──────────────────────────────────────────────────
-  await page.getByRole('button', { name: 'Issues', exact: true }).click({ timeout: 5000 })
+  await page.getByRole('button', { name: /^Issues/ }).first().click({ timeout: 5000 })
   await page.waitForTimeout(1500)
   try {
     await page.getByRole('button', { name: 'Create Issue' }).click({ timeout: 5000 })
@@ -108,7 +116,7 @@ test('workforce interactive buttons', async ({ page }) => {
   } catch (e: any) { log('Issues / Create Issue dialog', false, String(e.message).slice(0, 60)) }
 
   // ── Approvals: approve the top pending item ───────────────────────────────
-  await page.getByRole('button', { name: 'Approvals', exact: true }).click({ timeout: 5000 })
+  await page.getByRole('button', { name: /^Approvals/ }).first().click({ timeout: 5000 })
   await page.waitForTimeout(1500)
   try {
     await page.getByRole('button', { name: 'PENDING', exact: true }).click({ timeout: 4000 })
@@ -125,7 +133,7 @@ test('workforce interactive buttons', async ({ page }) => {
   } catch (e: any) { log('Approvals / Approve', false, String(e.message).slice(0, 60)) }
 
   // ── Settings: Save ────────────────────────────────────────────────────────
-  await page.getByRole('button', { name: 'Settings', exact: true }).first().click({ timeout: 5000 })
+  await page.getByRole('button', { name: /^Settings/ }).first().first().click({ timeout: 5000 })
   await page.waitForTimeout(1500)
   try {
     await page.getByRole('button', { name: 'Save Settings' }).click({ timeout: 5000 })

@@ -236,18 +236,21 @@ export function AgentWorkspace({
         </div>
 
         {/* Tab bar */}
-        <div className="mt-4 flex items-center gap-1">
+        <div className="mt-4 flex items-center gap-1 overflow-x-auto">
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors ${
+              className={`relative shrink-0 rounded-md px-3 py-1.5 text-[11.5px] font-medium transition-colors ${
                 tab === t.id
-                  ? 'bg-white/[0.10] text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-cyan-300/[0.12] text-cyan-100'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/[0.05]'
               }`}
             >
               {t.label}
+              {tab === t.id && (
+                <span className="absolute inset-x-2 -bottom-[1px] h-[2px] rounded bg-cyan-300" />
+              )}
             </button>
           ))}
         </div>

@@ -55,7 +55,7 @@ test('workforce section walk', async ({ page }) => {
 
   for (const section of SECTIONS) {
     try {
-      await page.getByRole('button', { name: section, exact: true }).first().click({ timeout: 5000 })
+      await page.getByRole('button', { name: new RegExp(`^${section}`) }).first().click({ timeout: 5000 })
       await page.waitForTimeout(2500)
       const headings = await page.locator('h1, h2, h3').allTextContents()
       const buttons = await page.locator('button:visible').allTextContents()
