@@ -48,7 +48,7 @@ export function BrandIntelligence() {
   useEffect(() => {
     if (orgContext && !hasSyncedRef.current) {
       hasSyncedRef.current = true
-      setValues(orgContext) // eslint-disable-line react-hooks/set-state-in-effect
+      setValues(orgContext)
     }
   }, [orgContext])
 

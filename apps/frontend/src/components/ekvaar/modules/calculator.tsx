@@ -16,7 +16,6 @@ export function Calculator() {
     if (win && !win.isMaximized && (win.size.width !== COMPACT_SIZE.width || win.size.height !== COMPACT_SIZE.height)) {
       resize(win.id, COMPACT_SIZE)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [win?.id])
 
   const [display, setDisplay] = useState('0')

@@ -6,7 +6,6 @@ import { db } from '@/lib/db'
 import { getMarketingApprovalReadiness } from '@/lib/marketing-approval'
 import { logGovernanceAction, AuditAction } from '@/lib/audit-logger'
 import { applyRateLimit } from '@/lib/rate-limiter'
-import { captureApiError } from '@/lib/error-tracking'
 
 export async function GET(request: NextRequest) {
   const auth = await requireOrganization()
@@ -61,10 +60,7 @@ export async function GET(request: NextRequest) {
         : null,
     })) })
   } catch (error: any) {
-    captureApiError(error, '/api/approvals', 'GET', {
-      userId: auth.user.id,
-      organizationId: auth.organizationId,
-    })
+    console.error('[Approvals GET]', { organizationId: auth.organizationId, error: error?.message || error })
     return NextResponse.json({ error: error.message || 'Failed to fetch approvals' }, { status: 500 })
   }
 }

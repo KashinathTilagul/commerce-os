@@ -52,9 +52,8 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password')
       } else {
-        // hard navigation — the soft router.push() left the page on /login
-        // even though the session cookie was set
-        window.location.href = '/'
+        router.replace('/')
+        router.refresh()
       }
     } catch {
       setError('An error occurred. Please try again.')
