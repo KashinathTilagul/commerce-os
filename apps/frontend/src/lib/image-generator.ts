@@ -29,16 +29,20 @@ const ASPECT_RATIO_DIMENSIONS: Record<string, { width: number; height: number }>
 }
 
 const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1'
-const OMNIROUTE_API_KEY = process.env.OMNIROUTE_API_KEY || ''
 const DEFAULT_IMAGE_MODEL = process.env.OMNIROUTE_IMAGE_MODEL_DEFAULT || 'antigravity/gemini-3.1-flash-image'
-const HF_IMAGE_MODEL = process.env.HUGGINGFACE_IMAGE_MODEL || 'black-forest-labs/FLUX.1-schnell'
 
-async function getOmniRouteImageConfig() {
+async function getOmniRouteImageConfig(organizationId: string) {
   try {
-    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+    const settings = await db.systemSetting.findUnique({ where: { organizationId } })
+    const slots = settings ? [
+      { provider: settings.primaryProvider, apiKey: settings.primaryApiKey, baseUrl: settings.primaryBaseUrl },
+      { provider: settings.fallback1Provider, apiKey: settings.fallback1ApiKey, baseUrl: settings.fallback1BaseUrl },
+      { provider: settings.fallback2Provider, apiKey: settings.fallback2ApiKey, baseUrl: settings.fallback2BaseUrl },
+    ] : []
+    const omniroute = slots.find((slot) => slot.provider.toLowerCase() === 'omniroute' && slot.apiKey)
     return {
-      apiKey: settings?.primaryApiKey ? await decryptSecret(settings.primaryApiKey) : '',
-      baseUrl: settings?.primaryBaseUrl || '',
+      apiKey: omniroute?.apiKey ? await decryptSecret(omniroute.apiKey) : '',
+      baseUrl: omniroute?.baseUrl || '',
       imageModel: settings?.omnirouteImageModel || DEFAULT_IMAGE_MODEL,
     }
   } catch {
@@ -59,8 +63,8 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     let mimeType = 'image/png'
     const providerErrors: string[] = []
 
-    const omnirouteConfig = await getOmniRouteImageConfig()
-    const omnirouteApiKey = omnirouteConfig.apiKey || OMNIROUTE_API_KEY
+    const omnirouteConfig = await getOmniRouteImageConfig(options.organizationId)
+    const omnirouteApiKey = omnirouteConfig.apiKey
     const omnirouteBaseUrl = omnirouteConfig.baseUrl || OMNIROUTE_BASE_URL
     const omnirouteImageModel = omnirouteConfig.imageModel || DEFAULT_IMAGE_MODEL
 
@@ -92,43 +96,16 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
       }
     }
 
-    // Hugging Face serverless fallback (real FLUX images) when the gateway
-    // image model is quota-blocked or unavailable
-    if (!imageBuffer && process.env.HUGGINGFACE_API_KEY) {
-      try {
-        const response = await fetch(`https://api-inference.huggingface.co/models/${HF_IMAGE_MODEL}`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            inputs: enhancedPrompt,
-            parameters: { width: dimensions.width, height: dimensions.height },
-          }),
-        })
-        if (!response.ok) {
-          const errText = await response.text().catch(() => '')
-          throw new Error(`HuggingFace returned ${response.status}: ${errText.slice(0, 120)}`)
-        }
-        imageBuffer = Buffer.from(await response.arrayBuffer())
-        mimeType = response.headers.get('content-type') || 'image/png'
-        console.log('[Image Generator] HuggingFace succeeded')
-      } catch (error: any) {
-        providerErrors.push(`HuggingFace: ${error?.message || 'unknown error'}`)
-        console.warn('[Image Generator] HuggingFace failed:', error?.message || error)
-      }
-    }
-
     if (!imageBuffer) {
-      console.warn('[Image Generator] All providers failed; rendering vector fallback:', providerErrors.join(' | '))
-      imageBuffer = renderVectorFallback(options.prompt, dimensions.width, dimensions.height)
-      mimeType = 'image/svg+xml'
+      const reason = omnirouteApiKey
+        ? providerErrors.join(' | ') || 'OmniRoute returned no media'
+        : 'No organization-owned image provider is configured'
+      throw new Error(`BLOCKED: ${reason}`)
     }
     
     const artifactId = `IMG-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
     const title = options.title || `Generated Image - ${options.style}`
-    const metadata = await storeArtifact(artifactId, 'PNG', imageBuffer, `${title}.${mimeType === 'image/svg+xml' ? 'svg' : 'png'}`)
+    const metadata = await storeArtifact(artifactId, 'PNG', imageBuffer, `${title}.png`)
     
     const artifact = await db.artifact.create({
       data: {
@@ -159,21 +136,6 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     console.error('[Image Generator] Image generation error:', error)
     throw new Error(`Image generation failed: ${error?.message || 'unknown error'}`)
   }
-}
-
-function renderVectorFallback(prompt: string, width: number, height: number) {
-  const digest = createHash('sha256').update(prompt).digest('hex')
-  const colorA = `#${digest.slice(0, 6)}`
-  const colorB = `#${digest.slice(6, 12)}`
-  const colorC = `#${digest.slice(12, 18)}`
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <defs><radialGradient id="g" cx="35%" cy="30%" r="85%"><stop stop-color="${colorA}"/><stop offset="0.55" stop-color="${colorB}"/><stop offset="1" stop-color="#05080d"/></radialGradient><filter id="b"><feGaussianBlur stdDeviation="28"/></filter></defs>
-  <rect width="100%" height="100%" fill="url(#g)"/>
-  <circle cx="${width * 0.52}" cy="${height * 0.5}" r="${Math.min(width, height) * 0.24}" fill="none" stroke="${colorC}" stroke-width="${Math.max(6, width / 120)}" opacity="0.8"/>
-  <circle cx="${width * 0.52}" cy="${height * 0.5}" r="${Math.min(width, height) * 0.13}" fill="${colorC}" opacity="0.32" filter="url(#b)"/>
-  <path d="M ${width * 0.18} ${height * 0.62} Q ${width * 0.5} ${height * 0.16} ${width * 0.84} ${height * 0.58}" fill="none" stroke="white" stroke-width="${Math.max(3, width / 240)}" opacity="0.42"/>
-</svg>`
-  return Buffer.from(svg)
 }
 
 export async function getImage(artifactId: string): Promise<Buffer | null> {

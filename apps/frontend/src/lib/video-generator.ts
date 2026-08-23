@@ -13,7 +13,7 @@ import sharp from 'sharp'
 import { storeArtifact, initializeStorage } from './storage'
 import { db } from './db'
 import { createHash } from 'node:crypto'
-import { BRAND_COLORS, BRAND_FONT_DISPLAY, BRAND_FONT_DISPLAY_SVG, brandLogoBuffer } from './brand-guard'
+import { BRAND_COLORS, BRAND_FONT_DISPLAY_SVG, brandLogoBuffer } from './brand-guard'
 
 const execAsync = promisify(exec)
 
@@ -274,65 +274,8 @@ export async function generateVideo(options: VideoGenerationOptions): Promise<{ 
       videoUrl: `/api/artifacts/${artifact.id}`
     }
   } catch (error: any) {
-    console.error('[Video Generator] FFmpeg error, storing storyboard evidence:', error.message)
-
-    // ponytail: FFmpeg not available — store an HTML5 motion storyboard as
-    // evidence of what would have rendered. Upgrade path: install FFmpeg in
-    // Docker (already done in Dockerfile) or switch to a cloud rendering API.
-    const text = options.data.text || options.data.title || title
-    const safeText = escapeXml(text)
-    const storyboard = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>${safeText}</title>
-<style>
-  * { margin:0; box-sizing:border-box; }
-  body { background:#0a0a1a; display:flex; align-items:center; justify-content:center;
-         min-height:100vh; font-family:${BRAND_FONT_DISPLAY}; overflow:hidden; }
-  .frame { width:${templateConfig.width/2}px; height:${templateConfig.height/2}px;
-           background:${NOOR}; border:1px solid rgba(255,255,255,0.08); border-radius:16px;
-           display:flex; flex-direction:column; align-items:center; justify-content:center;
-           position:relative; overflow:hidden; }
-  .rule { width:48px; height:4px; background:${AGNI}; margin-bottom:28px;
-          animation:fadeIn 1s ease-out; }
-  .label { font-size:11px; color:rgba(255,255,255,0.4); letter-spacing:4px; margin-bottom:24px;
-           animation:fadeIn 1s ease-out; }
-  .text { font-size:36px; font-weight:700; color:${RUI}; text-align:center; padding:0 40px;
-          animation:slideUp 0.8s ease-out 0.3s both; }
-  .meta { position:absolute; bottom:24px; font-size:12px; color:rgba(255,255,255,0.3);
-          animation:fadeIn 1.5s ease-out 0.6s both; }
-  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-  @keyframes slideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-</style></head>
-<body><div class="frame">
-  <div class="label">VIDEO STORYBOARD</div>
-  <div class="rule"></div>
-  <div class="text">${safeText}</div>
-  <div class="meta">${options.template} · ${duration}s · ${templateConfig.width}×${templateConfig.height} · Ekvaar OS</div>
-</div></body></html>`
-
-    const buffer = Buffer.from(storyboard, 'utf-8')
-    const metadata = await storeArtifact(artifactId, 'VIDEO', buffer, `${artifactId}.html`)
-
-    await db.artifact.create({
-      data: {
-        id: artifactId,
-        organizationId: options.organizationId,
-        title: `${title} (storyboard fallback)`,
-        type: 'VIDEO',
-        mimeType: 'text/html',
-        storageLocation: metadata.path,
-        // Not a rendered video — don't claim READY. FAILED marks the real
-        // video generation failure; the HTML storyboard stays available.
-        status: 'FAILED',
-        generatedBy: options.generatedBy,
-        contentHash: createHash('sha256').update(buffer).digest('hex'),
-        byteSize: buffer.length,
-        parameters: JSON.stringify({ template: options.template, duration, data: options.data, fallback: true })
-      }
-    })
-
-    // The storyboard is evidence, not a deliverable — throw so the worker
-    // marks the ticket BLOCKED instead of claiming a finished video.
-    throw new Error(`Video rendering failed: ${error?.message || 'ffmpeg unavailable'} (storyboard stored as ${artifactId})`)
+    console.error('[Video Generator] FFmpeg error:', error.message)
+    throw new Error(`BLOCKED: Video rendering failed: ${error?.message || 'ffmpeg unavailable'}`)
   }
 }
 

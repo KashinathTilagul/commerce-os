@@ -57,11 +57,10 @@ const DEFAULT_MODEL_REASONING = process.env.OMNIROUTE_MODEL_REASONING || 'auto/b
 const DEFAULT_MODEL_VISION = process.env.OMNIROUTE_MODEL_VISION || 'auto/best-vision'
 
 function getOmniRouteModel(modelId: string, apiKey = '', baseURL = '', headers?: Record<string, string>) {
-  const resolvedApiKey = apiKey || process.env.OMNIROUTE_API_KEY || ''
   const resolvedBaseUrl = baseURL || DEFAULT_OMNIROUTE_BASE_URL
   const omniroute = createOpenAI({
     baseURL: resolvedBaseUrl,
-    apiKey: resolvedApiKey,
+    apiKey,
     headers,
   })
   return omniroute(modelId)
@@ -101,7 +100,7 @@ async function configuredTargets(organizationId?: string, preloaded?: SavedRouti
       { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
       { provider: settings.fallback1Provider, model: settings.fallback1Model, apiKey: decryptSecret(settings.fallback1ApiKey), baseUrl: settings.fallback1BaseUrl },
       { provider: settings.fallback2Provider, model: settings.fallback2Model, apiKey: decryptSecret(settings.fallback2ApiKey), baseUrl: settings.fallback2BaseUrl },
-    ].filter((target) => target.provider && target.model && (target.apiKey || target.provider === 'omniroute'))
+    ].filter((target) => target.provider && target.model && target.apiKey)
   } catch (error: any) {
     console.warn('[AI Router] Could not load saved routing settings:', error?.message || error)
     return []
@@ -125,17 +124,15 @@ async function getModelChain(tier: Tier, needsVision?: boolean, organizationId?:
 
   // OmniRoute fallback chain only
   const omnirouteConfig = await getOmniRouteConfig(organizationId)
-  if (omnirouteConfig.apiKey || process.env.OMNIROUTE_API_KEY) {
+  if (omnirouteConfig.apiKey) {
     const model = needsVision
       ? DEFAULT_MODEL_VISION
       : tier === 'fast' ? DEFAULT_MODEL_FAST : DEFAULT_MODEL_REASONING
     try { chain.push({ provider: 'omniroute', model, instance: getOmniRouteModel(model, omnirouteConfig.apiKey, omnirouteConfig.baseUrl) }) } catch {}
   }
 
-  // Final fallback
   if (chain.length === 0) {
-    const defaultModel = needsVision ? DEFAULT_MODEL_VISION : DEFAULT_MODEL_FAST
-    chain.push({ provider: 'omniroute', model: defaultModel, instance: getOmniRouteModel(defaultModel) })
+    throw new Error('No organization-owned AI provider is configured')
   }
 
   return chain
@@ -230,27 +227,10 @@ export async function routeObject<T>(
         if (validated.success) {
           return validated.data as T
         }
-        // Fallback for valid JSON objects that have a spoken string field
-        if (parsedJson && typeof parsedJson === 'object' && 'spoken' in parsedJson) {
-          return {
-            spoken: String(parsedJson.spoken),
-            action: parsedJson.action || { type: 'none' },
-          } as unknown as T
-        }
       } catch {}
     }
 
-    // Fallback: If LLM returned text instead of strict JSON, extract spoken text cleanly
-    if (cleaned) {
-      const spokenMatch = cleaned.match(/"spoken"\s*:\s*"([^"]+)"/)
-      const fallbackText = spokenMatch ? spokenMatch[1] : cleaned.replace(/[{}[\]"]/g, ' ').trim()
-      return {
-        spoken: fallbackText || 'Understood, Founder.',
-        action: { type: 'none' },
-      } as unknown as T
-    }
-
-    throw new Error('Provider did not return a valid text response')
+    throw new Error('Provider response did not match the required schema')
   }, false, organizationId, opts.routingSettings)
   return { object: result, provider, model }
 }

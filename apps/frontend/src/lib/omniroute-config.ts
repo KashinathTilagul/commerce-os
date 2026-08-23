@@ -17,7 +17,7 @@ export function normalizeOmniRouteBaseUrl(value?: string) {
 export async function getOmniRouteConfig(organizationId: string) {
   const settings = await db.systemSetting.findUnique({ where: { organizationId } })
   const storedKey = settings?.primaryApiKey || ''
-  const apiKey = decryptSecret(storedKey) || process.env.OMNIROUTE_API_KEY || ''
+  const apiKey = decryptSecret(storedKey) || ''
   return {
     baseUrl: normalizeOmniRouteBaseUrl(settings?.primaryBaseUrl),
     apiKey,

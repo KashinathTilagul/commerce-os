@@ -47,8 +47,11 @@ export async function POST(req: NextRequest) {
     const { type, instruction, platforms, format } = GenerateSchema.parse(body)
 
     // Get brand context
-    const brandSettings = await db.systemSetting.findUnique({ where: { id: 'global' } })
-    const brandVoice = (brandSettings as any)?.brandVoice || 'Sophisticated, authentic, culturally aware fashion brand'
+    const organization = await db.organization.findUnique({
+      where: { id: auth.organizationId },
+      select: { context: { select: { toneOfVoice: true } } },
+    })
+    const brandVoice = organization?.context?.toneOfVoice || 'Clear, specific, and grounded in the organization profile'
 
     // Create marketing task record
     const taskCount = await db.marketingTask.count({ where: { organizationId: auth.organizationId } })
@@ -80,6 +83,7 @@ export async function POST(req: NextRequest) {
     // Generate media for visual formats
     const mediaArtifactIds: string[] = []
     const imagePrompts = (object.image_prompts || []).slice(0, 4)
+    let mediaFailure = ''
     try {
       if (format === 'carousel') {
         const prompts = imagePrompts.length >= 2 ? imagePrompts : [`${object.title} — hero shot`, `${object.title} — detail shot`, `${object.title} — styled look`]
@@ -145,14 +149,15 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch (mediaError: any) {
-      console.warn('[Marketing Generate] media generation degraded:', mediaError?.message)
+      mediaFailure = mediaError?.message || 'Media generation failed'
+      console.warn('[Marketing Generate] media generation blocked:', mediaFailure)
     }
 
     // Update task with generated content + media
     const updated = await db.marketingTask.update({
       where: { id: task.id },
       data: {
-        status: 'READY',
+        status: mediaFailure && format !== 'none' ? 'BLOCKED' : 'READY',
         content: object.content,
         title: object.title,
         hashtags: object.hashtags || [],
@@ -165,15 +170,15 @@ export async function POST(req: NextRequest) {
     await db.event.create({
       data: {
         organizationId: auth.organizationId,
-        type: 'MARKETING_CONTENT_GENERATED',
+        type: mediaFailure ? 'MARKETING_CONTENT_BLOCKED' : 'MARKETING_CONTENT_GENERATED',
         actorName: 'CMO (AI)',
         summary: `Generated ${type} (${format}, ${mediaArtifactIds.length} media) for ${platforms.join(', ')}: ${object.title}`,
-        payload: JSON.stringify({ taskId: task.id, type, platforms, title: object.title, mediaArtifactIds }),
-        severity: 'INFO',
+        payload: JSON.stringify({ taskId: task.id, type, platforms, title: object.title, mediaArtifactIds, blockedReason: mediaFailure || undefined }),
+        severity: mediaFailure ? 'WARNING' : 'INFO',
       },
     })
 
-    return NextResponse.json({ task: updated })
+    return NextResponse.json({ task: updated, blockedReason: mediaFailure || undefined })
   } catch (error: any) {
     console.error('[Marketing Generate] Error:', error)
     return NextResponse.json({ error: error.message || 'Generation failed' }, { status: 500 })

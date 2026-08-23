@@ -22,8 +22,8 @@ function dec(value?: string | null) {
   }
 }
 
-async function browserAiSettings() {
-  const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+async function browserAiSettings(organizationId: string) {
+  const settings = await db.systemSetting.findUnique({ where: { organizationId } })
   if (!settings) return {}
 
   const slots = [
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   try {
     const actionData = job.actionData ? JSON.parse(job.actionData) : {}
     const task = actionData.task || actionData.prompt || job.action || 'Take a snapshot and summarize the page.'
-    const aiSettings = await browserAiSettings()
+    const aiSettings = await browserAiSettings(job.organizationId)
     const response = await fetch(`${BROWSER_SIDECAR_URL}/api/browser/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

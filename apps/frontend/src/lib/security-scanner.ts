@@ -20,11 +20,11 @@ export async function runEngineeredSecurityScan(organizationId: string): Promise
   // Check 1: Audit System Setting Secrets
   totalChecks++
   try {
-    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
+    const settings = await db.systemSetting.findUnique({ where: { organizationId } })
     if (!settings?.primaryApiKey) {
       alerts.push({
         title: 'Primary AI API Key Missing',
-        description: 'Global system settings do not have a primary API key configured.',
+        description: 'This organization does not have a primary AI API key configured.',
         severity: 'WARNING',
         affectedPath: 'SystemSetting.primaryApiKey',
         recommendedPatch: 'Navigate to Settings and configure primary API key.',
