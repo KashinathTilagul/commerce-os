@@ -211,6 +211,7 @@ services:
       - UPSKILL_API_URL=http://upskill:8090
       - GOOGLE_WORKSPACE_API_URL=http://google-workspace:8091
       - N8N_INTERNAL_URL=http://n8n:5678
+      - N8N_INTERNAL_WEBHOOK_URL=http://n8n:5678/automation/webhook
       - FASTAPI_URL=http://fastapi:8000
       - JARVIS_SIDECAR_URL=http://fastapi:8000
     restart: unless-stopped

@@ -1011,6 +1011,12 @@ model SystemSetting {
   speechProvider String @default("deepgram")
   speechApiKey   String @default("")
 
+  // Krishna can call the model cascade directly or delegate reasoning to a
+  // founder-editable n8n workflow whose Chat Model is connected in the UI.
+  krishnaLlmMode        String  @default("direct") // direct | n8n_nodes
+  krishnaN8nWebhookPath String  @default("krishna-llm-nodes")
+  krishnaN8nFallback    Boolean @default(true)
+
   updatedAt DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

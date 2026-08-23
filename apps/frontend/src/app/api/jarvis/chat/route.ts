@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import { routeObject } from '@/lib/ai-router'
 import { getLiveBusinessSnapshot } from '@/lib/business-snapshot'
+import { runKrishnaNodeWorkflow } from '@/lib/krishna-node-router'
 
 const ChatSchema = z.object({
   message: z.string().min(1).max(10000),
@@ -23,6 +24,7 @@ const ActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('issue_status'), query: z.string(), status: z.string() }),
   z.object({ type: z.literal('brand_scan') }),
   z.object({ type: z.literal('n8n_run'), instruction: z.string().optional() }),
+  z.object({ type: z.literal('marketing_run'), instruction: z.string().optional() }),
   z.object({ type: z.literal('tool_execute'), toolkit: z.string(), tool: z.string(), agent: z.string().optional(), input: z.record(z.string(), z.any()).optional() }),
   z.object({ type: z.literal('assign_task'), assignee: z.string().describe('Agent code, name, role, or department, e.g. "CMO", "Mira", "marketing"'), task: z.string().describe('What the agent should do'), priority: z.string().optional().describe('P0 | P1 | P2 | P3') }),
   z.object({ type: z.literal('message_team'), text: z.string().describe('The message to post'), channel: z.string().optional().describe('Discord channel id or name') }),
@@ -64,7 +66,13 @@ export async function POST(req: NextRequest) {
 
     // ── Live system context (DB-side aggregation, not raw row dumps) ────
     const uid = authResult.organizationId
-    const liveContext = await cachedLiveBusinessSnapshot(uid)
+    // These reads are independent. Waiting for them serially added multiple
+    // database round trips before the model could receive the first token.
+    const [liveContext, cfg, systemSettings] = await Promise.all([
+      cachedLiveBusinessSnapshot(uid),
+      db.userPreference.findUnique({ where: { userId: authResult.user.id } }).catch(() => null),
+      db.systemSetting.findUnique({ where: { organizationId: uid } }),
+    ])
 
     // ── Time & greeting ──────────────────────────────────────────────────
     const now = new Date()
@@ -137,26 +145,45 @@ AVAILABLE ACTIONS:
 - Close window: {"type":"close_window"}
 - No action: {"type":"none"}`
 
-    // ── Load config overrides from DB ────────────────────────────────────
-    let cfg: any = {}
-    try {
-      cfg = await db.userPreference.findUnique({ where: { userId: authResult.user.id } }) || {}
-    } catch {}
-
     // Use custom prompt if set in Settings, otherwise default
-    const activePrompt = cfg.krishnaPrompt?.trim() || systemPrompt
+    const activePrompt = cfg?.krishnaPrompt?.trim() || systemPrompt
 
     let spoken = "I'm here, Founder. How can I assist?"
     let action: z.infer<typeof ActionSchema> = { type: 'none' }
 
     try {
-      const { object, provider, model } = await routeObject<z.infer<typeof KrishnaResponseSchema>>('fast', uid, {
-        schema: KrishnaResponseSchema,
-        system: activePrompt,
-        prompt: sanitizeInput(message, { maxLength: 5000 }),
-        temperature: 0.55,
-        maxOutputTokens: 420,
-      })
+      const cleanMessage = sanitizeInput(message, { maxLength: 5000 })
+      const runDirect = () => routeObject<z.infer<typeof KrishnaResponseSchema>>('fast', uid, {
+          schema: KrishnaResponseSchema,
+          system: activePrompt,
+          prompt: cleanMessage,
+          temperature: 0.4,
+          maxOutputTokens: 280,
+          routingSettings: systemSettings,
+        })
+
+      let object: z.infer<typeof KrishnaResponseSchema>
+      if (systemSettings?.krishnaLlmMode === 'n8n_nodes') {
+        try {
+          const mapped = await runKrishnaNodeWorkflow({
+            organizationId: uid,
+            userId: authResult.user.id,
+            message: cleanMessage,
+            system: activePrompt,
+            context: liveContext,
+            webhookPath: systemSettings.krishnaN8nWebhookPath,
+          })
+          const validatedNodeResponse = KrishnaResponseSchema.safeParse(mapped)
+          if (!validatedNodeResponse.success) throw new Error('The n8n workflow response does not match Krishna’s action contract')
+          object = validatedNodeResponse.data
+        } catch (nodeError) {
+          if (!systemSettings.krishnaN8nFallback) throw nodeError
+          console.warn('[Krishna] n8n node route failed; using direct fallback:', nodeError)
+          object = (await runDirect()).object
+        }
+      } else {
+        object = (await runDirect()).object
+      }
 
       spoken = object.spoken
       action = object.action
@@ -168,6 +195,8 @@ AVAILABLE ACTIONS:
         const { text } = await routeText('fast', uid, {
           system: 'You are JARVIS, executive assistant to the Founder. Reply in 1-2 short, professional sentences.',
           prompt: sanitizeInput(message, { maxLength: 1000 }),
+          maxOutputTokens: 120,
+          routingSettings: systemSettings,
         })
         spoken = text.trim() || "I am online, Founder. How can I assist you?"
       } catch {
@@ -229,8 +258,7 @@ AVAILABLE ACTIONS:
     }
 
     // ── Log to event stream ──────────────────────────────────────────────
-    try {
-      await db.event.create({
+    void db.event.create({
         data: {
           organizationId: uid,
           type: 'JARVIS_QUERY',
@@ -239,8 +267,7 @@ AVAILABLE ACTIONS:
           payload: JSON.stringify({ message: message.slice(0, 300), spoken: spoken.slice(0, 300), action }),
           severity: 'INFO',
         },
-      })
-    } catch {}
+      }).catch(() => {})
 
     return createApiResponse({ spoken, action: action || { type: 'none' }, actionResult })
   } catch (e: any) {
@@ -317,6 +344,8 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
 
       case 'marketing_run': {
         const instruction = sanitizeInput(action.instruction || 'Generate the next Ekvaar marketing content cycle', { maxLength: 1000 })
+        const requester = await db.agent.findFirst({ where: { organizationId, code: 'CEO' } })
+        if (!requester) return { success: false, message: 'Krishna’s agent record is unavailable' }
         // Native marketing automation: create a campaign launch with CMO
         const count = await db.campaignLaunch.count({ where: { organizationId } })
         const code = `MKT-${String(count + 1).padStart(2, '0')}`
@@ -326,7 +355,7 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
             code,
             title: instruction.slice(0, 80),
             brief: instruction,
-            status: 'PENDING_APPROVAL',
+            status: 'APPROVAL_PENDING',
             priority: 'P1',
             version: 1,
           },
@@ -337,12 +366,12 @@ async function executeAction(action: { type: string; [key: string]: any }, organ
             organizationId,
             code: `APR-${String((await db.approval.count({ where: { organizationId } })) + 1).padStart(2, '0')}`,
             title: `Marketing Campaign: ${launch.title}`,
-            type: 'CAMPAIGN_LAUNCH',
-            targetId: launch.id,
+            description: `Review and approve the generated marketing campaign: ${instruction}`,
+            type: 'CAMPAIGN',
+            requesterId: requester.id,
+            launchId: launch.id,
             status: 'PENDING',
-            priority: 'P1',
-            requestedBy: 'Krishna (JARVIS)',
-            payload: JSON.stringify({ instruction, campaignId: launch.id }),
+            inbox: 'UNREAD',
           },
         })
         await db.event.create({

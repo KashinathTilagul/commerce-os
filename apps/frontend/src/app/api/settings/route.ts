@@ -15,6 +15,7 @@ const SYSTEM_FIELDS = new Set([
   'fallback2Provider', 'fallback2Model', 'fallback2ApiKey', 'fallback2BaseUrl',
   'composioApiKey', 'composioWebhookSecret',
   'speechProvider', 'speechApiKey',
+  'krishnaLlmMode', 'krishnaN8nWebhookPath', 'krishnaN8nFallback',
 ])
 
 // Per-user Krishna voice/prompt preference
@@ -58,6 +59,12 @@ export async function PATCH(req: Request) {
 
   try {
     const raw = await req.json()
+    if (raw.krishnaLlmMode !== undefined && !['direct', 'n8n_nodes'].includes(raw.krishnaLlmMode)) {
+      return NextResponse.json({ error: 'Invalid Krishna LLM mode' }, { status: 400 })
+    }
+    if (raw.krishnaN8nWebhookPath !== undefined && !/^[A-Za-z0-9_-]{1,128}$/.test(raw.krishnaN8nWebhookPath)) {
+      return NextResponse.json({ error: 'The n8n webhook path may contain only letters, numbers, dashes, and underscores' }, { status: 400 })
+    }
     const systemBody = Object.fromEntries(
       Object.entries(raw).filter(([k]) => SYSTEM_FIELDS.has(k))
     )

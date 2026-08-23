@@ -67,16 +67,30 @@ function getOmniRouteModel(modelId: string, apiKey = '', baseURL = '') {
 
 // Model targets from DB settings
 type ModelTarget = { provider: string; model: string; apiKey?: string; baseUrl?: string }
+export type SavedRoutingSettings = {
+  primaryProvider: string
+  primaryModel: string
+  primaryApiKey: string
+  primaryBaseUrl: string
+  fallback1Provider: string
+  fallback1Model: string
+  fallback1ApiKey: string
+  fallback1BaseUrl: string
+  fallback2Provider: string
+  fallback2Model: string
+  fallback2ApiKey: string
+  fallback2BaseUrl: string
+}
 
 function modelForTarget(target: ModelTarget) {
   return getOmniRouteModel(target.model, target.apiKey, target.baseUrl)
 }
 
-async function configuredTargets(organizationId?: string): Promise<ModelTarget[]> {
+async function configuredTargets(organizationId?: string, preloaded?: SavedRoutingSettings | null): Promise<ModelTarget[]> {
   try {
-    const settings = organizationId
+    const settings = preloaded || (organizationId
       ? await db.systemSetting.findUnique({ where: { organizationId } })
-      : null
+      : null)
     if (!settings) return []
     return [
       { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
@@ -89,10 +103,10 @@ async function configuredTargets(organizationId?: string): Promise<ModelTarget[]
   }
 }
 
-async function getModelChain(tier: Tier, needsVision?: boolean, organizationId?: string): Promise<Array<{ provider: string; model: string; instance: any }>> {
+async function getModelChain(tier: Tier, needsVision?: boolean, organizationId?: string, routingSettings?: SavedRoutingSettings | null): Promise<Array<{ provider: string; model: string; instance: any }>> {
   const chain: Array<{ provider: string; model: string; instance: any }> = []
 
-  const saved = await configuredTargets(organizationId)
+  const saved = await configuredTargets(organizationId, routingSettings)
   for (const target of saved) {
     try { chain.push({ provider: target.provider, model: target.model, instance: modelForTarget(target) }) } catch {}
   }
@@ -128,9 +142,10 @@ async function runChain<T>(
   tier: Tier,
   fn: (model: any) => Promise<T>,
   needsVision?: boolean,
-  organizationId?: string
+  organizationId?: string,
+  routingSettings?: SavedRoutingSettings | null,
 ): Promise<{ result: T; provider: string; model: string }> {
-  const chain = await getModelChain(tier, needsVision, organizationId)
+  const chain = await getModelChain(tier, needsVision, organizationId, routingSettings)
   let lastError: any = null
 
   for (const item of chain) {
@@ -186,7 +201,7 @@ function toJSONSchema(schema: any): any {
 export async function routeObject<T>(
   tier: Tier,
   organizationId: string,
-  opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
+  opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number; routingSettings?: SavedRoutingSettings | null },
 ): Promise<{ object: T; provider: string; model: string }> {
   const jsonSchema = JSON.stringify(toJSONSchema(opts.schema))
   const { result, provider, model } = await runChain(tier, async (m) => {
@@ -231,18 +246,19 @@ export async function routeObject<T>(
     }
 
     throw new Error('Provider did not return a valid text response')
-  }, false, organizationId)
+  }, false, organizationId, opts.routingSettings)
   return { object: result, provider, model }
 }
 
 export async function routeText(
   tier: Tier,
   organizationId: string,
-  opts: { system: string; prompt: string; temperature?: number; maxOutputTokens?: number },
+  opts: { system: string; prompt: string; temperature?: number; maxOutputTokens?: number; routingSettings?: SavedRoutingSettings | null },
 ): Promise<{ text: string; provider: string; model: string }> {
+  const { routingSettings, ...generationOpts } = opts
   const { result, provider, model } = await runChain(tier, async (m) => {
-    const { text } = await generateText({ model: m, ...opts })
+    const { text } = await generateText({ model: m, ...generationOpts })
     return text
-  }, false, organizationId)
+  }, false, organizationId, routingSettings)
   return { text: result, provider, model }
 }

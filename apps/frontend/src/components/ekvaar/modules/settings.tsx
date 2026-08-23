@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle, Server } from 'lucide-react'
+import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle, Server, Workflow } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -37,7 +37,7 @@ export function Settings() {
   const [promptValue, setPromptValue] = useState('')
   const promptTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const [orgNameValue, setOrgNameValue] = useState('')
-  const [providerDraft, setProviderDraft] = useState<Record<string, string>>({})
+  const [providerDraft, setProviderDraft] = useState<Record<string, any>>({})
   const orgNameTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasSyncedRef = useRef(false)
   // Local voice state — reads from localStorage first so it's instant even before server responds
@@ -257,6 +257,57 @@ export function Settings() {
                 <div className="text-right text-xs font-mono mt-1">{s.maxTokens ?? 80}%</div>
               </div>
             </Row>
+          </CardContent>
+        </Card>
+
+        {/* Krishna LLM execution path */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <Workflow className="h-4 w-4" /> Krishna LLM Nodes
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Choose models visually in n8n. Ekvaar sends Krishna’s prompt to your internal workflow; provider credentials stay inside the model nodes.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Row label="Reasoning path" desc="Direct is fastest to configure; n8n Nodes lets you map and replace models visually">
+              <Select
+                value={providerDraft.krishnaLlmMode ?? s.krishnaLlmMode ?? 'direct'}
+                onValueChange={(value) => setProviderDraft((draft) => ({ ...draft, krishnaLlmMode: value }))}
+              >
+                <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="direct">Direct · OmniRoute</SelectItem>
+                  <SelectItem value="n8n_nodes">n8n Workflow Nodes</SelectItem>
+                </SelectContent>
+              </Select>
+            </Row>
+
+            {(providerDraft.krishnaLlmMode ?? s.krishnaLlmMode ?? 'direct') === 'n8n_nodes' && (
+              <>
+                <Row label="Webhook path" desc="Internal slug only; the default template uses krishna-llm-nodes">
+                  <Input
+                    value={providerDraft.krishnaN8nWebhookPath ?? s.krishnaN8nWebhookPath ?? 'krishna-llm-nodes'}
+                    onChange={(event) => setProviderDraft((draft) => ({ ...draft, krishnaN8nWebhookPath: event.target.value }))}
+                    className="w-64 font-mono text-xs"
+                    placeholder="krishna-llm-nodes"
+                  />
+                </Row>
+                <Row label="Direct fallback" desc="Use OmniRoute if the node workflow is unavailable or exceeds six seconds">
+                  <Switch
+                    checked={providerDraft.krishnaN8nFallback ?? s.krishnaN8nFallback ?? true}
+                    onCheckedChange={(value) => setProviderDraft((draft) => ({ ...draft, krishnaN8nFallback: value }))}
+                  />
+                </Row>
+                <div className="rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground space-y-2">
+                  <p>Connect any n8n Chat Model node to “Krishna LLM”. The workflow must return JSON containing <code>spoken</code> and <code>action</code>.</p>
+                  <Button variant="outline" size="sm" className="h-7 text-[11px]" onClick={() => window.open('/automation/', '_blank', 'noopener,noreferrer')}>
+                    Open n8n node editor
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
