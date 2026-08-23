@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle, Server, Workflow } from 'lucide-react'
+import { Moon, Sun, Monitor, Cpu, Shield, Bell, Palette, Zap, Loader2, Key, Mic, MessageSquare, Play, Trash2, AlertTriangle, Workflow } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -27,7 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { OmniRouteSettings } from './omniroute-settings'
+import { LlmConnectionsSettings } from './llm-connections-settings'
 
 export function Settings() {
   const { mode, accent, setMode, setAccent } = useThemeStore()
@@ -233,24 +233,17 @@ export function Settings() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-<ProviderSlot
-  title="Primary"
-  provider={providerDraft.primaryProvider ?? s.primaryProvider} model={providerDraft.primaryModel ?? s.primaryModel} apiKey={providerDraft.primaryApiKey ?? ''}
-  hasApiKey={Boolean(s.hasPrimaryApiKey) && providerDraft.primaryApiKey === undefined}
-  onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`primary${field}`]: value }))}
-/>
-<ProviderSlot
-  title="Fallback 1"
-  provider={providerDraft.fallback1Provider ?? s.fallback1Provider} model={providerDraft.fallback1Model ?? s.fallback1Model} apiKey={providerDraft.fallback1ApiKey ?? ''}
-  hasApiKey={Boolean(s.hasFallback1ApiKey) && providerDraft.fallback1ApiKey === undefined}
-  onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`fallback1${field}`]: value }))}
-/>
-<ProviderSlot
-  title="Fallback 2"
-  provider={providerDraft.fallback2Provider ?? s.fallback2Provider} model={providerDraft.fallback2Model ?? s.fallback2Model} apiKey={providerDraft.fallback2ApiKey ?? ''}
-  hasApiKey={Boolean(s.hasFallback2ApiKey) && providerDraft.fallback2ApiKey === undefined}
-  onChange={(field, value) => setProviderDraft((draft) => ({ ...draft, [`fallback2${field}`]: value }))}
-/>
+            <LlmConnectionsSettings
+              routes={[
+                { provider: providerDraft.primaryProvider ?? s.primaryProvider, model: providerDraft.primaryModel ?? s.primaryModel },
+                { provider: providerDraft.fallback1Provider ?? s.fallback1Provider, model: providerDraft.fallback1Model ?? s.fallback1Model },
+                { provider: providerDraft.fallback2Provider ?? s.fallback2Provider, model: providerDraft.fallback2Model ?? s.fallback2Model },
+              ]}
+              onRouteChange={(index, provider, model) => {
+                const prefix = index === 0 ? 'primary' : `fallback${index}`
+                setProviderDraft((draft) => ({ ...draft, [`${prefix}Provider`]: provider, [`${prefix}Model`]: model }))
+              }}
+            />
             <Row label="Max token budget %" desc="Auto-pause agents at this threshold">
               <div className="w-56">
                 <Slider value={[s.maxTokens ?? 80]} onValueChange={(v) => handleChange('maxTokens', v[0])} max={100} step={5} />
@@ -308,21 +301,6 @@ export function Settings() {
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
-
-        {/* OmniRoute Gateway */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
-              <Server className="h-4 w-4" /> OmniRoute Gateway
-            </CardTitle>
-            <p className="text-xs text-muted-foreground mt-1">
-              Central AI routing layer — all EKVAAR OS AI calls go through OmniRoute.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <OmniRouteSettings />
           </CardContent>
         </Card>
 

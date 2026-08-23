@@ -148,6 +148,7 @@ model Organization {
   knowledge        AgentKnowledge[]
   taskTemplates    TaskTemplate[]
   systemSetting    SystemSetting?
+  llmConnections   LlmConnection[]
   productLaunches  ProductLaunch[]
 campaignLaunches CampaignLaunch[]
   campaignPolicy   CampaignPolicy?
@@ -1020,6 +1021,25 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model LlmConnection {
+  id             String   @id @default(cuid())
+  organizationId String
+  provider       String
+  apiKey         String
+  baseUrl        String
+  status         String   @default("PENDING") // PENDING | LIVE | ERROR
+  models         String   @default("[]")
+  errorMessage   String?
+  lastTestedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider])
+  @@index([organizationId, status])
 }
 
 // Per-user Krishna voice/prompt preferences — split out from SystemSetting

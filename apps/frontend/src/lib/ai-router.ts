@@ -1,5 +1,6 @@
 import { generateText } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
+import { createAnthropic } from '@ai-sdk/anthropic'
 import { db } from '@/lib/db'
 import { decryptSecret } from '@/lib/crypto'
 
@@ -55,12 +56,13 @@ const DEFAULT_MODEL_FAST = process.env.OMNIROUTE_MODEL_FAST || 'auto/best-fast'
 const DEFAULT_MODEL_REASONING = process.env.OMNIROUTE_MODEL_REASONING || 'auto/best-reasoning'
 const DEFAULT_MODEL_VISION = process.env.OMNIROUTE_MODEL_VISION || 'auto/best-vision'
 
-function getOmniRouteModel(modelId: string, apiKey = '', baseURL = '') {
+function getOmniRouteModel(modelId: string, apiKey = '', baseURL = '', headers?: Record<string, string>) {
   const resolvedApiKey = apiKey || process.env.OMNIROUTE_API_KEY || ''
   const resolvedBaseUrl = baseURL || DEFAULT_OMNIROUTE_BASE_URL
   const omniroute = createOpenAI({
     baseURL: resolvedBaseUrl,
     apiKey: resolvedApiKey,
+    headers,
   })
   return omniroute(modelId)
 }
@@ -83,6 +85,9 @@ export type SavedRoutingSettings = {
 }
 
 function modelForTarget(target: ModelTarget) {
+  if (target.provider === 'anthropic' && target.apiKey) {
+    return createAnthropic({ apiKey: target.apiKey, baseURL: target.baseUrl })(target.model)
+  }
   return getOmniRouteModel(target.model, target.apiKey, target.baseUrl)
 }
 
@@ -92,11 +97,20 @@ async function configuredTargets(organizationId?: string, preloaded?: SavedRouti
       ? await db.systemSetting.findUnique({ where: { organizationId } })
       : null)
     if (!settings) return []
+    const connections = organizationId
+      ? await db.llmConnection.findMany({ where: { organizationId } })
+      : []
+    const connectionByProvider = new Map(connections.map((connection) => [connection.provider, connection]))
     return [
       { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
       { provider: settings.fallback1Provider, model: settings.fallback1Model, apiKey: decryptSecret(settings.fallback1ApiKey), baseUrl: settings.fallback1BaseUrl },
       { provider: settings.fallback2Provider, model: settings.fallback2Model, apiKey: decryptSecret(settings.fallback2ApiKey), baseUrl: settings.fallback2BaseUrl },
-    ].filter((target) => target.provider && target.model && (target.apiKey || target.provider === 'omniroute'))
+    ].map((target) => {
+      const connection = connectionByProvider.get(target.provider)
+      return connection
+        ? { ...target, apiKey: connection.status === 'LIVE' ? decryptSecret(connection.apiKey) : '', baseUrl: connection.baseUrl }
+        : target
+    }).filter((target) => target.provider && target.model && (target.apiKey || target.provider === 'omniroute'))
   } catch (error: any) {
     console.warn('[AI Router] Could not load saved routing settings:', error?.message || error)
     return []
