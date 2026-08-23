@@ -1,0 +1,83 @@
+name: Purge organization work history
+
+on:
+  workflow_dispatch:
+    inputs:
+      organization:
+        description: Exact organization ID, slug, or name
+        required: true
+        default: Ekvaar
+        type: string
+      apply:
+        description: Delete all issues and approvals for this organization
+        required: true
+        default: false
+        type: boolean
+      confirmation:
+        description: Type DELETE ALL ISSUES AND APPROVALS when apply is enabled
+        required: false
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    runs-on: self-hosted
+    steps:
+      - name: Preview and optionally purge
+        env:
+          TARGET_ORGANIZATION: ${{ inputs.organization }}
+          APPLY_PURGE: ${{ inputs.apply }}
+          PURGE_CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+          cd /home/ubuntu/Ekvaar 2>/dev/null || cd /home/ubuntu/EKVAAR
+          git fetch --prune origin main
+          git checkout -B main origin/main
+
+          existing_env() {
+            [ -f .env ] && grep -m1 "^$1=" .env | cut -d= -f2- || true
+          }
+
+          DATABASE_CONNECTION="$(existing_env DIRECT_URL)"
+          if [ -z "$DATABASE_CONNECTION" ]; then
+            DATABASE_CONNECTION="$(existing_env DATABASE_URL)"
+          fi
+          DATABASE_CONNECTION="${DATABASE_CONNECTION%%\?*}"
+          if [ -z "$DATABASE_CONNECTION" ]; then
+            echo "[x] No production database connection is configured."
+            exit 1
+          fi
+
+          run_psql() {
+            /usr/bin/sudo docker run --rm -i \
+              -e DATABASE_URL="$DATABASE_CONNECTION" \
+              -v "$PWD/ops:/sql:ro" \
+              postgres:17-alpine \
+              sh -c 'psql "$DATABASE_URL" "$@"' sh "$@"
+          }
+
+          ORGANIZATION_ID="$(run_psql -At -v ON_ERROR_STOP=1 -v target="$TARGET_ORGANIZATION" -c 'SELECT id FROM "Organization" WHERE id = :'\''target'\'' OR lower(COALESCE(slug, '\'''\'')) = lower(:'\''target'\'') OR lower(name) = lower(:'\''target'\'');')"
+          MATCH_COUNT="$(printf '%s\n' "$ORGANIZATION_ID" | sed '/^$/d' | wc -l | tr -d ' ')"
+          if [ "$MATCH_COUNT" -ne 1 ]; then
+            echo "[x] Expected exactly one organization match; found $MATCH_COUNT."
+            exit 1
+          fi
+
+          echo "[i] Current organization work history:"
+          run_psql -v organization_id="$ORGANIZATION_ID" -f /sql/preview-work-history.sql
+
+          if [ "$APPLY_PURGE" != "true" ]; then
+            echo "[i] Preview only. No rows were deleted."
+            exit 0
+          fi
+          if [ "$PURGE_CONFIRMATION" != "DELETE ALL ISSUES AND APPROVALS" ]; then
+            echo "[x] Confirmation text did not match. No rows were deleted."
+            exit 1
+          fi
+
+          run_psql -v organization_id="$ORGANIZATION_ID" -f /sql/purge-work-history.sql
+          echo "[i] Purge completed for the selected organization."
