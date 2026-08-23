@@ -5,3 +5,7 @@ allowBuilds:
   prisma: set this to true or false
   puppeteer: set this to true or false
   unrs-resolver: set this to true or false
+
+overrides:
+  glob: ^11.0.0
+  deepmerge-ts: ^8.0.1
