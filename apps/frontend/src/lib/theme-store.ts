@@ -28,11 +28,32 @@ export const useThemeStore = create<ThemeStore>((set) => ({
   },
 }))
 
+export function normalizeAccent(value: string) {
+  return /^#[0-9a-f]{6}$/i.test(value) ? value.toUpperCase() : '#C8302A'
+}
+
+export function accentForeground(accent: string) {
+  const hex = normalizeAccent(accent).slice(1)
+  const [red, green, blue] = [0, 2, 4].map((index) => Number.parseInt(hex.slice(index, index + 2), 16))
+  return (red * 299 + green * 587 + blue * 114) / 1000 >= 150 ? '#0A0A0A' : '#FFFFFF'
+}
+
 export function applyTheme(mode: ThemeMode, accent: string) {
   const isDark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  document.documentElement.classList.toggle('dark', isDark)
-  document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
-  document.documentElement.style.setProperty('--accent-color', accent)
+  const resolvedAccent = normalizeAccent(accent)
+  const foreground = accentForeground(resolvedAccent)
+  const root = document.documentElement
+  root.classList.toggle('dark', isDark)
+  root.style.colorScheme = isDark ? 'dark' : 'light'
+  root.style.setProperty('--accent-color', resolvedAccent)
+  root.style.setProperty('--primary', resolvedAccent)
+  root.style.setProperty('--primary-foreground', foreground)
+  root.style.setProperty('--ring', resolvedAccent)
+  root.style.setProperty('--chart-1', resolvedAccent)
+  root.style.setProperty('--sidebar-primary', resolvedAccent)
+  root.style.setProperty('--sidebar-primary-foreground', foreground)
+  root.style.setProperty('--accent', `color-mix(in srgb, ${resolvedAccent} 18%, ${isDark ? '#121212' : '#FFFFFF'})`)
+  root.style.setProperty('--accent-foreground', resolvedAccent)
 }
 
 // Hydrate from localStorage on client mount

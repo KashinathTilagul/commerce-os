@@ -24,7 +24,7 @@ export default function Desktop() {
   const { locked, lock } = useLockStore()
   const windows = useWindowStore(s => s.windows)
   const open = useWindowStore(s => s.open)
-  const { mode, accent } = useThemeStore()
+  const { mode, accent, setMode, setAccent } = useThemeStore()
   const [launchpadOpen, setLaunchpadOpen] = useState(false)
   const [spotlightOpen, setSpotlightOpen] = useState(false)
   const [jarvisTrigger, setJarvisTrigger] = useState(0)
@@ -52,6 +52,17 @@ export default function Desktop() {
         .catch(() => router.replace('/onboarding'))
     }
   }, [status, router])
+
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    fetch('/api/settings')
+      .then((response) => response.ok ? response.json() : Promise.reject())
+      .then((settings) => {
+        if (['dark', 'light', 'auto'].includes(settings.theme)) setMode(settings.theme)
+        if (typeof settings.accent === 'string') setAccent(settings.accent)
+      })
+      .catch(() => {})
+  }, [status, setMode, setAccent])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
