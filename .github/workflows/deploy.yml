@@ -153,6 +153,7 @@ jobs:
           N8N_EKVAAR_WEBHOOK_URL="${N8N_EKVAAR_WEBHOOK_URL:-$(existing_env N8N_EKVAAR_WEBHOOK_URL)}"
           N8N_EKVAAR_WORKFLOW_ID="${N8N_EKVAAR_WORKFLOW_ID:-$(existing_env N8N_EKVAAR_WORKFLOW_ID)}"
           N8N_EKVAAR_EDITOR_URL="${N8N_EKVAAR_EDITOR_URL:-$(existing_env N8N_EKVAAR_EDITOR_URL)}"
+          RELEASE_VERSION="$(git rev-parse --short HEAD)"
 
           printf '%s\n' \
             "DATABASE_URL=${DATABASE_URL}" \
@@ -162,6 +163,7 @@ jobs:
             "NEXT_PUBLIC_APP_URL=https://os.ekvaar.com" \
             "ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET}" \
             "CAMPAIGN_LAUNCHES_ENABLED=true" \
+            "RELEASE_VERSION=${RELEASE_VERSION}" \
             "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
             "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
             "JWT_SECRET=${JWT_SECRET}" \
@@ -255,7 +257,11 @@ jobs:
             exit 1
           fi
 
-          /usr/bin/sudo docker compose up -d
+          # Validate and apply schema changes before replacing the running app.
+          # A migration failure leaves the previous frontend container online.
+          /usr/bin/sudo docker compose run --rm --no-deps frontend sh /migration/migrate-production.sh
+
+          /usr/bin/sudo docker compose up -d --remove-orphans --wait --wait-timeout 180
 
           /usr/bin/sudo docker compose restart nginx
 

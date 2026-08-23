@@ -44,6 +44,19 @@ export function Settings() {
     },
   })
 
+  const { data: serviceHealth, isLoading: serviceHealthLoading } = useQuery({
+    queryKey: ['system-services'],
+    queryFn: async () => {
+      const response = await fetch('/api/system/services', { cache: 'no-store' })
+      if (!response.ok) throw new Error('Failed to check connected services')
+      return response.json() as Promise<{
+        services: Array<{ name: string; configured: boolean; healthy: boolean; status?: number; latencyMs?: number }>
+        checkedAt: string
+      }>
+    },
+    refetchInterval: 30_000,
+  })
+
   useEffect(() => {
     if (settings && !isLoading && settings.organizationName !== undefined) setOrgNameValue(settings.organizationName)
   }, [settings, isLoading])
@@ -278,34 +291,42 @@ export function Settings() {
           </CardContent>
         </Card>
 
-        {/* Backend engines */}
+        {/* Connected services */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
-              <Zap className="h-4 w-4" /> Backend Engines
+              <Zap className="h-4 w-4" /> Connected Services
             </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">Live checks from the deployed service endpoints.</p>
           </CardHeader>
           <CardContent className="space-y-3">
-            {[
-              { name: 'Workforce Engine', endpoint: '/api/workforce', status: 'ACTIVE' },
-              { name: 'CEO Engine', endpoint: '/api/ceo', status: 'ACTIVE' },
-              { name: 'Agent Runtime', endpoint: '/api/runtime', status: 'ACTIVE' },
-              { name: 'Approval Engine', endpoint: '/api/approvals', status: 'ACTIVE' },
-              { name: 'Graph API', endpoint: '/api/graph', status: 'ACTIVE' },
-              { name: 'Event Bus', endpoint: '/api/events', status: 'ACTIVE' },
-              { name: 'Intelligence Layer', endpoint: '/api/intelligence', status: 'ACTIVE' },
-            ].map((e) => (
-              <div key={e.name} className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
-                <div>
-                  <div className="text-sm font-medium">{e.name}</div>
-                  <div className="text-[10px] font-mono text-muted-foreground">{e.endpoint}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 bg-arav rounded-full animate-pulse-soft" />
-                  <span className="text-[10px] tracking-wider uppercase text-arav">{e.status}</span>
-                </div>
+            {serviceHealthLoading && (
+              <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Checking services…
               </div>
-            ))}
+            )}
+            {!serviceHealthLoading && (serviceHealth?.services || []).map((service) => {
+              const label = !service.configured ? 'NOT CONFIGURED' : service.healthy ? 'LIVE' : 'UNHEALTHY'
+              const color = !service.configured ? 'text-muted-foreground' : service.healthy ? 'text-arav' : 'text-agni'
+              const dot = !service.configured ? 'bg-muted-foreground' : service.healthy ? 'bg-arav' : 'bg-agni'
+              return (
+                <div key={service.name} className="flex items-center justify-between py-2 border-b border-border/60 last:border-0">
+                  <div>
+                    <div className="text-sm font-medium">{service.name}</div>
+                    <div className="text-[10px] font-mono text-muted-foreground">
+                      {service.configured && service.latencyMs !== undefined ? `${service.latencyMs} ms` : 'No endpoint configured'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-1.5 w-1.5 rounded-full ${dot} ${service.healthy ? 'animate-pulse-soft' : ''}`} />
+                    <span className={`text-[10px] tracking-wider uppercase ${color}`}>{label}</span>
+                  </div>
+                </div>
+              )
+            })}
+            {!serviceHealthLoading && !serviceHealth?.services?.length && (
+              <div className="py-3 text-xs text-muted-foreground">Service health is unavailable.</div>
+            )}
           </CardContent>
         </Card>
 

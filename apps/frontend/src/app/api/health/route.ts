@@ -23,7 +23,7 @@ interface HealthCheckResult {
 
 export async function GET() {
   const start = Date.now()
-  const releaseVersion = process.env.RELEASE_VERSION || 'v3.5.0-platform-ready'
+  const releaseVersion = process.env.RELEASE_VERSION || 'development'
 
   const results: HealthCheckResult = {
     status: 'healthy',

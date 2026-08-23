@@ -26,7 +26,7 @@ EXPOSE 3000
 
 # FFmpeg for video generation, Chromium deps for PDF generation (puppeteer + @sparticuz/chromium)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg espeak-ng \
+    ffmpeg \
     libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
     libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
     libgbm1 libasound2 libpango-1.0-0 libcairo2 libxshmfence1 \
@@ -44,9 +44,10 @@ COPY --from=builder /app/public ./public
 WORKDIR /migration
 COPY --from=builder /app/prisma.config.ts ./
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts/migrate-production.sh ./migrate-production.sh
 RUN npm_config_cache=/tmp/npm-cache npm init -y >/dev/null \
     && npm_config_cache=/tmp/npm-cache npm install --no-save --no-audit --no-fund \
-      prisma@7.9.0 @prisma/client@7.9.0 @prisma/adapter-pg@7.9.1 pg@8.22.0 \
+      prisma@7.9.1 @prisma/client@7.9.1 @prisma/adapter-pg@7.9.1 pg@8.22.0 \
     && rm -rf /tmp/npm-cache /root/.npm
 
 WORKDIR /app
@@ -55,4 +56,4 @@ WORKDIR /app
 RUN mkdir -p /app/storage/pdf /app/storage/images /app/storage/videos /app/storage/audio /app/storage/templates \
     && chmod -R 777 /app/storage
 
-CMD ["sh", "-c", "cd /migration && node node_modules/prisma/build/index.js db execute --file prisma/migrations/20260815103000_tenant_system_settings/migration.sql && node node_modules/prisma/build/index.js db push --accept-data-loss && cd /app && node server.js"]
+CMD ["sh", "-c", "sh /migration/migrate-production.sh && cd /app && exec node server.js"]
