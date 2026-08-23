@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 
@@ -8,11 +8,14 @@ export async function POST() {
   if (!auth.success) return auth.response
 
   try {
-    await db.systemSetting.update({
-      where: { id: 'global' },
-      data: {
+    await db.systemSetting.upsert({
+      where: { organizationId: auth.organizationId },
+      update: {
         primaryApiKey: '',
-        primaryBaseUrl: '',
+      },
+      create: {
+        organizationId: auth.organizationId,
+        primaryApiKey: '',
       },
     })
 

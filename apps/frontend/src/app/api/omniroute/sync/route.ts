@@ -1,22 +1,15 @@
 export const dynamic = 'force-dynamic'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
-import { db } from '@/lib/db'
+import { fetchOmniRouteModels, getOmniRouteConfig } from '@/lib/omniroute-config'
 
-export async function POST(req: NextRequest) {
+export async function POST() {
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
   try {
-    const settings = await db.systemSetting.findUnique({ where: { id: 'global' } })
-    const baseUrl = settings?.primaryBaseUrl || process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1'
-    const apiKey = settings?.primaryApiKey || process.env.OMNIROUTE_API_KEY || ''
-
-    // Fetch models from OmniRoute
-    const modelsRes = await fetch(`${baseUrl}/models`, {
-      headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-      signal: AbortSignal.timeout(10000),
-    })
+    const { baseUrl, apiKey } = await getOmniRouteConfig(auth.organizationId)
+    const modelsRes = await fetchOmniRouteModels(baseUrl, apiKey, 10_000)
 
     if (!modelsRes.ok) {
       return NextResponse.json({ error: 'Failed to fetch models from OmniRoute' }, { status: 502 })

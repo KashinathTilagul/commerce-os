@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 interface OmniRouteStatus {
   connected: boolean
   baseUrl: string
+  hasApiKey?: boolean
   providers: Array<{
     id: string
     name: string
@@ -24,18 +25,24 @@ interface OmniRouteStatus {
   }
 }
 
+async function readApiError(response: Response, fallback: string) {
+  const body = await response.json().catch(() => null)
+  return body?.error || fallback
+}
+
 export function OmniRouteSettings() {
   const queryClient = useQueryClient()
   const [baseUrl, setBaseUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [imageModel, setImageModel] = useState('google/gemini-2.0-flash-exp:image')
+  const [hasApiKey, setHasApiKey] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const { data: status, isLoading, refetch } = useQuery<OmniRouteStatus>({
     queryKey: ['omniroute-status'],
     queryFn: async () => {
-      const res = await fetch('/api/omniroute/status')
-      if (!res.ok) return { connected: false, providers: [] }
+      const res = await fetch('/api/omniroute')
+      if (!res.ok) throw new Error(await readApiError(res, 'Failed to read OmniRoute status'))
       return res.json()
     },
     refetchInterval: 30000,
@@ -43,9 +50,11 @@ export function OmniRouteSettings() {
 
   const testMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/omniroute/test', { method: 'POST' })
-      if (!res.ok) throw new Error('Connection test failed')
-      return res.json()
+      const res = await fetch('/api/omniroute')
+      if (!res.ok) throw new Error(await readApiError(res, 'Connection test failed'))
+      const result = await res.json()
+      if (!result.connected) throw new Error('OmniRoute is not reachable')
+      return result
     },
     onSuccess: () => toast.success('OmniRoute connection successful'),
     onError: () => toast.error('Cannot reach OmniRoute'),
@@ -58,7 +67,7 @@ export function OmniRouteSettings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ baseUrl, apiKey, imageModel }),
       })
-      if (!res.ok) throw new Error('Connection failed')
+      if (!res.ok) throw new Error(await readApiError(res, 'Connection failed'))
       return res.json()
     },
     onSuccess: () => {
@@ -66,7 +75,7 @@ export function OmniRouteSettings() {
       refetch()
       queryClient.invalidateQueries({ queryKey: ['omniroute-status'] })
     },
-    onError: () => toast.error('Failed to connect'),
+    onError: (error) => toast.error('Failed to connect', error.message),
   })
 
   const disconnectMutation = useMutation({
@@ -102,14 +111,14 @@ export function OmniRouteSettings() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       })
-      if (!res.ok) throw new Error('Failed to save config')
+      if (!res.ok) throw new Error(await readApiError(res, 'Failed to save config'))
       return res.json()
     },
     onSuccess: () => {
       toast.success('Configuration saved')
       queryClient.invalidateQueries({ queryKey: ['omniroute-status'] })
     },
-    onError: () => toast.error('Failed to save configuration'),
+    onError: (error) => toast.error('Failed to save configuration', error.message),
   })
 
   useEffect(() => {
@@ -118,6 +127,7 @@ export function OmniRouteSettings() {
       .then(cfg => {
         if (cfg?.baseUrl) setBaseUrl(cfg.baseUrl)
         if (cfg?.imageModel) setImageModel(cfg.imageModel)
+        setHasApiKey(Boolean(cfg?.hasApiKey))
       })
       .catch(() => {})
   }, [])
@@ -248,8 +258,8 @@ export function OmniRouteSettings() {
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              onBlur={() => saveConfigMutation.mutate({ apiKey })}
-              placeholder="Paste your OmniRoute API key..."
+              onBlur={() => apiKey.trim() && saveConfigMutation.mutate({ apiKey })}
+              placeholder={hasApiKey ? 'OmniRoute key saved' : 'Paste your OmniRoute API key...'}
               className="h-8 text-xs font-mono"
             />
             <p className="text-[10px] text-muted-foreground">Encrypted at rest, never exposed to frontend</p>
