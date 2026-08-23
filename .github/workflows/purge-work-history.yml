@@ -60,7 +60,7 @@ jobs:
               sh -c 'psql "$DATABASE_URL" "$@"' sh "$@"
           }
 
-          ORGANIZATION_ID="$(run_psql -At -v ON_ERROR_STOP=1 -v target="$TARGET_ORGANIZATION" -c 'SELECT id FROM "Organization" WHERE id = :'\''target'\'' OR lower(COALESCE(slug, '\'''\'')) = lower(:'\''target'\'') OR lower(name) = lower(:'\''target'\'');')"
+          ORGANIZATION_ID="$(run_psql -At -v target="$TARGET_ORGANIZATION" -f /sql/find-organization.sql)"
           MATCH_COUNT="$(printf '%s\n' "$ORGANIZATION_ID" | sed '/^$/d' | wc -l | tr -d ' ')"
           if [ "$MATCH_COUNT" -ne 1 ]; then
             echo "[x] Expected exactly one organization match; found $MATCH_COUNT."
