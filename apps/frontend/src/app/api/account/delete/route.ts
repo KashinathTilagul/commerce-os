@@ -40,7 +40,6 @@ export async function POST(req: NextRequest) {
         await tx.agent.deleteMany({ where: { organizationId } })
       }
       
-      await tx.userPreference.deleteMany({ where: { userId } })
       await tx.auditLog.deleteMany({ where: { userId } })
       await tx.session.deleteMany({ where: { userId } })
       await tx.account.deleteMany({ where: { userId } })

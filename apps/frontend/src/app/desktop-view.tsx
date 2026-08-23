@@ -13,8 +13,6 @@ import { Dock } from '@/components/ekvaar/desktop/dock'
 import { WindowFrame } from '@/components/ekvaar/desktop/window-frame'
 import { ToastContainer } from '@/components/ekvaar/desktop/toast'
 import { Launchpad } from '@/components/ekvaar/desktop/launchpad'
-import { Jarvis } from '@/components/ekvaar/desktop/jarvis'
-import { KrishnaWallpaper } from '@/components/ekvaar/desktop/krishna-wallpaper'
 import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
 import { DesktopWidgets } from '@/components/ekvaar/desktop/desktop-widgets'
 
@@ -27,7 +25,6 @@ export default function Desktop() {
   const { mode, accent, setMode, setAccent } = useThemeStore()
   const [launchpadOpen, setLaunchpadOpen] = useState(false)
   const [spotlightOpen, setSpotlightOpen] = useState(false)
-  const [jarvisTrigger, setJarvisTrigger] = useState(0)
   const [setupReady, setSetupReady] = useState(false)
 
   useEffect(() => {
@@ -75,10 +72,6 @@ export default function Desktop() {
         e.preventDefault()
         setSpotlightOpen((v) => !v)
       }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        setJarvisTrigger((v) => v + 1)
-      }
       if (e.key === 'F4' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'l')) {
         e.preventDefault()
         setLaunchpadOpen((v) => !v)
@@ -111,13 +104,11 @@ export default function Desktop() {
     <div className="relative h-screen w-screen overflow-hidden">
       <div data-desktop-bg="true" className="absolute inset-0">
         <DesktopWallpaper />
-        <KrishnaWallpaper onActivate={() => setJarvisTrigger(t => t + 1)} />
       </div>
       <DesktopWidgets />
       <BootScreen />
       <MenuBar
         onSpotlight={() => setSpotlightOpen(true)}
-        onKrishna={() => setJarvisTrigger(t => t + 1)}
         onLock={() => lock()}
         onSignOut={() => signOut({ callbackUrl: '/login' })}
         onRestart={() => window.location.reload()}
@@ -131,11 +122,10 @@ export default function Desktop() {
           ))}
         </div>
       </div>
-      <Dock onLaunchpad={() => setLaunchpadOpen(true)} onJarvisClick={() => setJarvisTrigger(t => t + 1)} />
+      <Dock onLaunchpad={() => setLaunchpadOpen(true)} />
       <ToastContainer />
       <Launchpad open={launchpadOpen} onClose={() => setLaunchpadOpen(false)} />
       <Spotlight open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
-      <Jarvis trigger={jarvisTrigger} hasOpenWindows={windows.length > 0} />
     </div>
   )
 }

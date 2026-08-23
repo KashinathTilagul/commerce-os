@@ -4,7 +4,7 @@ import { dequeueBrowseJob, completeBrowseJob, failBrowseJob } from '@/lib/browse
 import { db } from '@/lib/db'
 import { decryptSecret } from '@/lib/crypto'
 
-const BROWSER_SIDECAR_URL = process.env.BROWSER_SIDECAR_URL || process.env.JARVIS_SIDECAR_URL || 'http://localhost:8000'
+const BROWSER_SIDECAR_URL = process.env.BROWSER_SIDECAR_URL || 'http://localhost:8000'
 
 function checkWorkerAuth(req: NextRequest) {
   const key = req.headers.get('x-worker-key')

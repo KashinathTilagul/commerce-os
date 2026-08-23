@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { requireOrganization } from '@/lib/auth-guard'
 import { encryptSecret } from '@/lib/crypto'
 
-const API_KEY_FIELDS = ['primaryApiKey', 'fallback1ApiKey', 'fallback2ApiKey', 'composioApiKey', 'composioWebhookSecret', 'speechApiKey'] as const
+const API_KEY_FIELDS = ['primaryApiKey', 'fallback1ApiKey', 'fallback2ApiKey', 'composioApiKey', 'composioWebhookSecret'] as const
 
 // Organization-owned configuration. Credentials never cross tenant boundaries.
 const SYSTEM_FIELDS = new Set([
@@ -14,12 +14,7 @@ const SYSTEM_FIELDS = new Set([
   'fallback1Provider', 'fallback1Model', 'fallback1ApiKey', 'fallback1BaseUrl',
   'fallback2Provider', 'fallback2Model', 'fallback2ApiKey', 'fallback2BaseUrl',
   'composioApiKey', 'composioWebhookSecret',
-  'speechProvider', 'speechApiKey',
-  'krishnaLlmMode', 'krishnaN8nWebhookPath', 'krishnaN8nFallback',
 ])
-
-// Per-user Krishna voice/prompt preference
-const PREFERENCE_FIELDS = new Set(['ttsVoice', 'ttsSpeed', 'ttsStability', 'ttsVolume', 'krishnaPrompt'])
 
 export async function GET() {
   const auth = await requireOrganization()
@@ -30,26 +25,19 @@ export async function GET() {
     settings = await db.systemSetting.create({ data: { organizationId: auth.organizationId } })
   }
 
-  let preference = await db.userPreference.findUnique({ where: { userId: auth.user.id } })
-  if (!preference) {
-    preference = await db.userPreference.create({ data: { userId: auth.user.id } })
-  }
-
   const organization = await db.organization.findUnique({ where: { id: auth.organizationId }, select: { name: true } })
 
   // Never expose API keys in response
-  const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, composioWebhookSecret, speechApiKey, ...safeSettings } = settings as any
+  const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, composioWebhookSecret, ...safeSettings } = settings as any
 
   return NextResponse.json({
     ...safeSettings,
-    ...preference,
     organizationName: organization?.name || '',
     hasPrimaryApiKey: Boolean(primaryApiKey),
     hasFallback1ApiKey: Boolean(fallback1ApiKey),
     hasFallback2ApiKey: Boolean(fallback2ApiKey),
     hasComposioApiKey: Boolean(composioApiKey),
     hasComposioWebhookSecret: Boolean(composioWebhookSecret),
-    hasSpeechApiKey: Boolean(speechApiKey),
   })
 }
 
@@ -59,12 +47,6 @@ export async function PATCH(req: Request) {
 
   try {
     const raw = await req.json()
-    if (raw.krishnaLlmMode !== undefined && !['direct', 'n8n_nodes'].includes(raw.krishnaLlmMode)) {
-      return NextResponse.json({ error: 'Invalid Krishna LLM mode' }, { status: 400 })
-    }
-    if (raw.krishnaN8nWebhookPath !== undefined && !/^[A-Za-z0-9_-]{1,128}$/.test(raw.krishnaN8nWebhookPath)) {
-      return NextResponse.json({ error: 'The n8n webhook path may contain only letters, numbers, dashes, and underscores' }, { status: 400 })
-    }
     const systemBody = Object.fromEntries(
       Object.entries(raw).filter(([k]) => SYSTEM_FIELDS.has(k))
     )
@@ -75,22 +57,16 @@ export async function PATCH(req: Request) {
         delete systemBody[field]
       }
     }
-    const preferenceBody = Object.fromEntries(
-      Object.entries(raw).filter(([k]) => PREFERENCE_FIELDS.has(k))
-    )
     const organizationName = typeof raw.organizationName === 'string' ? raw.organizationName.trim() : undefined
 
-    if (Object.keys(systemBody).length === 0 && Object.keys(preferenceBody).length === 0 && organizationName === undefined) {
+    if (Object.keys(systemBody).length === 0 && organizationName === undefined) {
       return NextResponse.json({ error: 'No valid fields' }, { status: 400 })
     }
 
-    const [settings, preference] = await Promise.all([
+    const [settings] = await Promise.all([
       Object.keys(systemBody).length > 0
         ? db.systemSetting.upsert({ where: { organizationId: auth.organizationId }, update: systemBody, create: { organizationId: auth.organizationId, ...systemBody } })
         : db.systemSetting.findUnique({ where: { organizationId: auth.organizationId } }),
-      Object.keys(preferenceBody).length > 0
-        ? db.userPreference.upsert({ where: { userId: auth.user.id }, update: preferenceBody, create: { userId: auth.user.id, ...preferenceBody } })
-        : db.userPreference.findUnique({ where: { userId: auth.user.id } }),
       organizationName
         ? db.organization.update({ where: { id: auth.organizationId }, data: { name: organizationName } })
         : null,
@@ -109,19 +85,17 @@ export async function PATCH(req: Request) {
     }).catch(() => {})
 
     // Never expose API keys in response
-    const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, composioWebhookSecret, speechApiKey, ...safeSettings } = (settings || {}) as any
+    const { primaryApiKey, fallback1ApiKey, fallback2ApiKey, composioApiKey, composioWebhookSecret, ...safeSettings } = (settings || {}) as any
 
     const org = await db.organization.findUnique({ where: { id: auth.organizationId }, select: { name: true } })
     return NextResponse.json({
       ...safeSettings,
-      ...preference,
       organizationName: org?.name || '',
       hasPrimaryApiKey: Boolean(primaryApiKey),
       hasFallback1ApiKey: Boolean(fallback1ApiKey),
       hasFallback2ApiKey: Boolean(fallback2ApiKey),
       hasComposioApiKey: Boolean(composioApiKey),
       hasComposioWebhookSecret: Boolean(composioWebhookSecret),
-      hasSpeechApiKey: Boolean(speechApiKey),
     })
   } catch (e: any) {
     console.error('[Settings PATCH]', e.message)

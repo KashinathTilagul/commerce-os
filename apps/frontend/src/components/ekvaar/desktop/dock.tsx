@@ -14,10 +14,9 @@ const REQUIRED_DOCK_IDS = ['settings']
 
 interface DockProps {
   onLaunchpad?: () => void
-  onJarvisClick?: () => void
 }
 
-export function Dock({ onLaunchpad, onJarvisClick }: DockProps = {}) {
+export function Dock({ onLaunchpad }: DockProps = {}) {
   // Per-field selectors — a single useWindowStore() destructure would
   // subscribe to the entire store and re-render the always-mounted dock on
   // ANY state change anywhere (window move/resize, boot state, etc.), not

@@ -28,8 +28,8 @@ const { db } = await import('../src/lib/db')
 const org = await db.organization.findFirst({ select: { id: true } })
 if (!org) throw new Error('no organization in DB')
 
-const vo1 = await synthesizeSpeech('One time. Chosen with intent.', org.id)
-const vo2 = await synthesizeSpeech('All time. Worn forever. This is Ekvaar.', org.id)
+const vo1 = await synthesizeSpeech('One time. Chosen with intent.')
+const vo2 = await synthesizeSpeech('All time. Worn forever. This is Ekvaar.')
 console.log('voiceovers:', vo1?.provider, vo2?.provider)
 if (!vo1 || !vo2) throw new Error('TTS produced no audio — reel dialogue would be silent')
 

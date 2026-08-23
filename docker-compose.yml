@@ -179,7 +179,7 @@ services:
       - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
       - OMNIROUTE_API_KEY=${OMNIROUTE_API_KEY}
       - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}
-      - BROWSER_SIDECAR_URL=${BROWSER_SIDECAR_URL}
+      - BROWSER_SIDECAR_URL=${BROWSER_SIDECAR_URL:-http://fastapi:8000}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - META_CLIENT_ID=${META_CLIENT_ID}
@@ -213,7 +213,6 @@ services:
       - N8N_INTERNAL_URL=http://n8n:5678
       - N8N_INTERNAL_WEBHOOK_URL=http://n8n:5678/automation/webhook
       - FASTAPI_URL=http://fastapi:8000
-      - JARVIS_SIDECAR_URL=http://fastapi:8000
     restart: unless-stopped
     depends_on:
       redis:

@@ -348,7 +348,7 @@ Now produce YOUR deliverable:`
           if (!stored?.storageLocation) throw new Error('scene image was not stored')
           const scene: { imagePath: string; voicePath?: string; line?: string } = { imagePath: stored.storageLocation }
           if (spec.line) {
-            const speech = await synthesizeSpeech(String(spec.line), organizationId)
+            const speech = await synthesizeSpeech(String(spec.line))
             if (speech) { scene.voicePath = speech.path; scene.line = String(spec.line) }
           }
           reelScenes.push(scene)

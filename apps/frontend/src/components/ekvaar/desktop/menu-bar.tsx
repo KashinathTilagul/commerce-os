@@ -8,17 +8,15 @@ import { useMusicStore } from '@/lib/music-store'
 import { APP_MAP } from './app-registry'
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationsPanel } from './notifications-panel'
-import { KrishnaMenuBarIcon } from './jarvis'
 
 interface MenuBarProps {
   onSpotlight?: () => void
-  onKrishna?: () => void
   onLock?: () => void
   onSignOut?: () => void
   onRestart?: () => void
 }
 
-export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }: MenuBarProps) {
+export function MenuBar({ onSpotlight, onLock, onSignOut, onRestart }: MenuBarProps) {
   const activeId = useWindowStore(s => s.activeId)
   const windows = useWindowStore(s => s.windows)
   const open = useWindowStore(s => s.open)
@@ -177,9 +175,6 @@ export function MenuBar({ onSpotlight, onKrishna, onLock, onSignOut, onRestart }
 
       {/* Right cluster */}
       <div className="ml-auto flex items-center gap-0.5">
-        {/* Krishna trigger */}
-        <KrishnaMenuBarIcon onClick={() => onKrishna?.()} />
-
         {/* Volume */}
         <div className="relative">
           <button

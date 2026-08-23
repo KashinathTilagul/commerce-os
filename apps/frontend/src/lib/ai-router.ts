@@ -97,20 +97,11 @@ async function configuredTargets(organizationId?: string, preloaded?: SavedRouti
       ? await db.systemSetting.findUnique({ where: { organizationId } })
       : null)
     if (!settings) return []
-    const connections = organizationId
-      ? await db.llmConnection.findMany({ where: { organizationId } })
-      : []
-    const connectionByProvider = new Map(connections.map((connection) => [connection.provider, connection]))
     return [
       { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
       { provider: settings.fallback1Provider, model: settings.fallback1Model, apiKey: decryptSecret(settings.fallback1ApiKey), baseUrl: settings.fallback1BaseUrl },
       { provider: settings.fallback2Provider, model: settings.fallback2Model, apiKey: decryptSecret(settings.fallback2ApiKey), baseUrl: settings.fallback2BaseUrl },
-    ].map((target) => {
-      const connection = connectionByProvider.get(target.provider)
-      return connection
-        ? { ...target, apiKey: connection.status === 'LIVE' ? decryptSecret(connection.apiKey) : '', baseUrl: connection.baseUrl }
-        : target
-    }).filter((target) => target.provider && target.model && (target.apiKey || target.provider === 'omniroute'))
+    ].filter((target) => target.provider && target.model && (target.apiKey || target.provider === 'omniroute'))
   } catch (error: any) {
     console.warn('[AI Router] Could not load saved routing settings:', error?.message || error)
     return []

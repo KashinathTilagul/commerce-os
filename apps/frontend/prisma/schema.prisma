@@ -148,21 +148,20 @@ model Organization {
   knowledge        AgentKnowledge[]
   taskTemplates    TaskTemplate[]
   systemSetting    SystemSetting?
-  llmConnections   LlmConnection[]
   productLaunches  ProductLaunch[]
-campaignLaunches CampaignLaunch[]
+  campaignLaunches CampaignLaunch[]
   campaignPolicy   CampaignPolicy?
   marketingTasks   MarketingTask[]
   outboxMessages   OutboxMessage[]
 
-  context          OrganizationContext?
-  commerceLinks    CommerceObjectLink[]
-  syncStates       SyncState[]
-  knowledgeNodes   KnowledgeNode[]
-  knowledgeEdges   KnowledgeEdge[]
-  prompts          Prompt[]
-  aiExecutionLogs  AIExecutionLog[]
-  channels         Channel[]
+  context         OrganizationContext?
+  commerceLinks   CommerceObjectLink[]
+  syncStates      SyncState[]
+  knowledgeNodes  KnowledgeNode[]
+  knowledgeEdges  KnowledgeEdge[]
+  prompts         Prompt[]
+  aiExecutionLogs AIExecutionLog[]
+  channels        Channel[]
 }
 
 model User {
@@ -183,7 +182,6 @@ model User {
   sessions  Session[]
   auditLogs AuditLog[]
 
-  preference                UserPreference?
   approvedCampaignRevisions CampaignRevision[] @relation("CampaignRevisionApprover")
 }
 
@@ -618,7 +616,7 @@ model MarketingTask {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, code])
   @@index([organizationId, status])
@@ -1006,54 +1004,12 @@ model SystemSetting {
   fallback2ApiKey   String @default("")
   fallback2BaseUrl  String @default("https://openrouter.ai/api/v1")
 
-  omnirouteImageModel String @default("google/gemini-2.0-flash-exp:image")
-  composioApiKey String @default("")
-  composioWebhookSecret String @default("")
-  speechProvider String @default("deepgram")
-  speechApiKey   String @default("")
-
-  // Krishna can call the model cascade directly or delegate reasoning to a
-  // founder-editable n8n workflow whose Chat Model is connected in the UI.
-  krishnaLlmMode        String  @default("direct") // direct | n8n_nodes
-  krishnaN8nWebhookPath String  @default("krishna-llm-nodes")
-  krishnaN8nFallback    Boolean @default(true)
-
-  updatedAt DateTime @updatedAt
+  omnirouteImageModel   String   @default("google/gemini-2.0-flash-exp:image")
+  composioApiKey        String   @default("")
+  composioWebhookSecret String   @default("")
+  updatedAt             DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-}
-
-model LlmConnection {
-  id             String   @id @default(cuid())
-  organizationId String
-  provider       String
-  apiKey         String
-  baseUrl        String
-  status         String   @default("PENDING") // PENDING | LIVE | ERROR
-  models         String   @default("[]")
-  errorMessage   String?
-  lastTestedAt   DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([organizationId, provider])
-  @@index([organizationId, status])
-}
-
-// Per-user Krishna voice/prompt preferences — split out from SystemSetting
-// so each account has its own voice/prompt without needing its own AI engine config.
-model UserPreference {
-  userId        String   @id
-  ttsVoice      String   @default("deepgram:flux-naveen-en")
-  ttsSpeed      Float    @default(1.0) // 0.5–2.0, maps to SSML rate
-  ttsStability  Float    @default(0.75) // 0–1, maps to pitch offset
-  ttsVolume     Float    @default(1.0) // 0–1.5, maps to SSML volume
-  krishnaPrompt String   @default("")
-  updatedAt     DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ============ CAPABILITY REGISTRY ============

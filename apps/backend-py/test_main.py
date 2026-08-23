@@ -12,7 +12,7 @@ class TestPythonSidecar(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data.get("status"), "ok")
-        self.assertEqual(data.get("service"), "jarvis-sidecar")
+        self.assertEqual(data.get("service"), "browser-automation-sidecar")
 
     def test_cors_origins(self):
         response = self.client.options("/", headers={
