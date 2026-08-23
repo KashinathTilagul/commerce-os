@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Shield, Bell, Palette, Zap, Loader2, Trash2, AlertTriangle } from 'lucide-react'
+import { Moon, Sun, Monitor, Shield, Bell, Palette, Zap, Loader2, Trash2, AlertTriangle, Save } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -80,16 +80,18 @@ export function Settings() {
     },
   })
 
-  // Auto-save provider draft with debounce so changes don't require manual apply
-  useEffect(() => {
+  const handleSaveCredentials = () => {
     if (Object.keys(providerDraft).length === 0) return
-    const timer = setTimeout(() => {
-      mutation.mutate(providerDraft, {
-        onSuccess: () => setProviderDraft({}),
-      })
-    }, 700)
-    return () => clearTimeout(timer)
-  }, [providerDraft, mutation])
+    mutation.mutate(providerDraft, {
+      onSuccess: () => {
+        setProviderDraft({})
+        queryClient.invalidateQueries({ queryKey: ['settings'] })
+        queryClient.invalidateQueries({ queryKey: ['system-services'] })
+        toast.success('Settings saved')
+      },
+      onError: (error: any) => toast.error('Save failed', error?.message || 'Could not save settings'),
+    })
+  }
 
   const handleChange = (key: string, value: any) => {
     // Optimistic UI for theme immediately
@@ -139,6 +141,19 @@ export function Settings() {
       />
 
       <div className="px-6 lg:px-10 py-8 space-y-6">
+        <div className="sticky top-0 z-20 flex items-center justify-between rounded-xl border border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur">
+          <div>
+            <div className="text-sm font-medium">Settings</div>
+            <div className="text-[11px] text-muted-foreground">
+              {Object.keys(providerDraft).length > 0 ? 'You have unsaved credential changes.' : 'Saved. Appearance and preference controls apply immediately.'}
+            </div>
+          </div>
+          <Button onClick={handleSaveCredentials} disabled={Object.keys(providerDraft).length === 0 || mutation.isPending}>
+            {mutation.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-2 h-3.5 w-3.5" />}
+            {mutation.isPending ? 'Saving…' : 'Save changes'}
+          </Button>
+        </div>
+
         {/* Organization */}
         <Card>
           <CardHeader className="pb-3">
