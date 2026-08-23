@@ -21,6 +21,7 @@ interface WindowStore {
   activeId: string | null
   topZ: number
   bootDone: boolean
+  appState: Record<string, Record<string, string | number | boolean | null>>
   // persisted visibility / dock prefs
   hiddenApps: string[]
   customNames: Record<string, string>
@@ -42,6 +43,7 @@ interface WindowStore {
   moveAppLeft: (id: string, currentOrder: string[]) => void
   moveAppRight: (id: string, currentOrder: string[]) => void
   resetVisibility: () => void
+  setAppState: (appId: string, patch: Record<string, string | number | boolean | null>) => void
 }
 
 function offsetFor(idx: number): { x: number; y: number } {
@@ -57,16 +59,25 @@ const visibilityInitial = {
   dockOrder: null as string[] | null,
 }
 
+const desktopInitial = {
+  windows: [] as WindowState[],
+  activeId: null as string | null,
+  topZ: 10,
+  bootDone: false,
+  appState: {} as Record<string, Record<string, string | number | boolean | null>>,
+  ...visibilityInitial,
+}
+
+export function desktopStorageKey(scope: string) {
+  return `ekvaar-desktop:${encodeURIComponent(scope)}`
+}
+
 const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useWindowStore = create<WindowStore>()(
   persist(
   (set, get) => ({
-  windows: [],
-  activeId: null,
-  topZ: 10,
-  bootDone: false,
-  ...visibilityInitial,
+  ...desktopInitial,
 
   open: (appId, title = appId, defaultSize = { width: 1100, height: 700 }) => {
     const state = get()
@@ -211,11 +222,23 @@ export const useWindowStore = create<WindowStore>()(
     return { dockOrder: newOrder }
   }),
   resetVisibility: () => set(visibilityInitial),
+  setAppState: (appId, patch) => set((state) => ({
+    appState: {
+      ...state.appState,
+      [appId]: { ...(state.appState[appId] || {}), ...patch },
+    },
+  })),
   }),
   {
-    name: 'ekvaar-app-visibility',
+    name: 'ekvaar-desktop:unscoped',
     storage: createJSONStorage(() => localStorage),
+    skipHydration: true,
     partialize: (state) => ({
+      windows: state.windows,
+      activeId: state.activeId,
+      topZ: state.topZ,
+      bootDone: state.bootDone,
+      appState: state.appState,
       hiddenApps: state.hiddenApps,
       customNames: state.customNames,
       dockOrder: state.dockOrder,
@@ -225,8 +248,19 @@ export const useWindowStore = create<WindowStore>()(
         state.hiddenApps = state.hiddenApps || []
         state.customNames = state.customNames || {}
         state.dockOrder = state.dockOrder || null
+        state.appState = state.appState || {}
+        state.windows = Array.isArray(state.windows) ? state.windows : []
+        if (!state.windows.some((window) => window.id === state.activeId)) state.activeId = null
       }
     },
   }
   )
 )
+
+export async function hydrateWindowStore(scope: string) {
+  if (typeof window === 'undefined') return
+  const name = desktopStorageKey(scope)
+  useWindowStore.persist.setOptions({ name })
+  if (!window.localStorage.getItem(name)) useWindowStore.setState(desktopInitial)
+  await useWindowStore.persist.rehydrate()
+}

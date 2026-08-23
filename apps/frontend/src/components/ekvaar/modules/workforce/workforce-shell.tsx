@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { GlassPanel } from '@/components/ui/glass-system'
 import {
   LayoutDashboard, Users, Network, ListChecks,
   ShieldCheck, Activity, DollarSign, Settings as SettingsIcon,
 } from 'lucide-react'
+import { useWindowStore } from '@/lib/window-store'
 
 type Section =
   | 'overview'
@@ -92,7 +93,12 @@ export function useNavBadges() {
 }
 
 export function WorkforceShell({ children }: WorkforceShellProps) {
-  const [section, setSection] = useState<Section>('overview')
+  const storedSection = useWindowStore((state) => state.appState.agents?.section)
+  const setAppState = useWindowStore((state) => state.setAppState)
+  const section = NAV.flatMap((group) => group.items).some((item) => item.id === storedSection)
+    ? storedSection as Section
+    : 'overview'
+  const setSection = (next: Section) => setAppState('agents', { section: next })
   const badges = useNavBadges()
   const badgeFor = (id: Section) =>
     id === 'approvals' ? badges.approvals : id === 'issues' ? badges.issues : 0

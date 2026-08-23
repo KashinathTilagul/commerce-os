@@ -1,6 +1,4 @@
 'use client'
-
-import { useState } from 'react'
 import { WorkforceShell, type Section } from './workforce/workforce-shell'
 import { OverviewPage } from './workforce/overview/overview-page'
 import { AgentList } from './workforce/agents/agent-list'
@@ -14,9 +12,13 @@ import { CostsPage } from './workforce/costs/costs-page'
 import { OrgChartCanvas } from './workforce/org-chart/org-chart-canvas'
 import { WorkforceSettings } from './workforce/settings/workforce-settings'
 import { GlassPanel } from '@/components/ui/glass-system'
+import { useWindowStore } from '@/lib/window-store'
 
 export function DigitalEmployeesHub() {
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
+  const storedAgentId = useWindowStore((state) => state.appState.agents?.selectedAgentId)
+  const setAppState = useWindowStore((state) => state.setAppState)
+  const selectedAgentId = typeof storedAgentId === 'string' ? storedAgentId : null
+  const setSelectedAgentId = (agentId: string | null) => setAppState('agents', { selectedAgentId: agentId })
 
   return (
     <WorkforceShell>

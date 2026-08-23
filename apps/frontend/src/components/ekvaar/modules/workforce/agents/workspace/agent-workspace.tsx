@@ -15,6 +15,7 @@ import { ReferencesTab } from './references-tab'
 import { timeAgo } from '@/lib/ekvaar'
 import { toast } from '@/components/ekvaar/desktop/toast'
 import { invalidateWorkforceState } from '@/lib/query-invalidation'
+import { useWindowStore } from '@/lib/window-store'
 
 type Tab = 'dashboard' | 'instructions' | 'skills' | 'configuration' | 'runs' | 'budget' | 'marketing' | 'references'
 
@@ -51,7 +52,8 @@ export function AgentWorkspace({
   onBack: () => void
 }) {
   const queryClient = useQueryClient()
-  const [tab, setTab] = useState<Tab>('dashboard')
+  const storedTab = useWindowStore((state) => state.appState.agents?.agentTab)
+  const setAppState = useWindowStore((state) => state.setAppState)
   const [heartbeating, setHeartbeating] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
 
@@ -102,10 +104,21 @@ export function AgentWorkspace({
     }
   }, [agentId, queryClient])
 
-  if (isLoading || !agent) {
+  if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!agent) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <span>This agent is no longer available.</span>
+        <button onClick={onBack} className="rounded-md border border-border px-3 py-1.5 text-foreground hover:bg-white/[0.06]">
+          Back to Agents
+        </button>
       </div>
     )
   }
@@ -115,6 +128,8 @@ export function AgentWorkspace({
   const canPulse = !agent.isHuman && ['IDLE', 'RUNNING'].includes(agent.status)
   const isPaused = agent.status === 'PAUSED'
   const tabs = agent.department === 'MARKETING' ? [...TABS, { id: 'marketing' as const, label: 'Marketing Automation' }] : TABS
+  const tab = tabs.some((item) => item.id === storedTab) ? storedTab as Tab : 'dashboard'
+  const setTab = (next: Tab) => setAppState('agents', { agentTab: next })
 
   return (
     <div className="flex h-full flex-col">

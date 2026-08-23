@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useWindowStore } from '@/lib/window-store'
+import { hydrateWindowStore, useWindowStore } from '@/lib/window-store'
 import { applyTheme, useThemeStore } from '@/lib/theme-store'
 import { useLockStore } from '@/lib/lock-store'
 import { BootScreen, DesktopWallpaper } from '@/components/ekvaar/desktop/boot-and-wallpaper'
@@ -17,7 +17,7 @@ import { Spotlight } from '@/components/ekvaar/desktop/spotlight'
 import { DesktopWidgets } from '@/components/ekvaar/desktop/desktop-widgets'
 
 export default function Desktop() {
-  const { status } = useSession()
+  const { data: session, status } = useSession()
   const router = useRouter()
   const { locked, lock } = useLockStore()
   const windows = useWindowStore(s => s.windows)
@@ -26,6 +26,18 @@ export default function Desktop() {
   const [launchpadOpen, setLaunchpadOpen] = useState(false)
   const [spotlightOpen, setSpotlightOpen] = useState(false)
   const [setupReady, setSetupReady] = useState(false)
+  const [desktopReady, setDesktopReady] = useState(false)
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !session?.user?.id) return
+    let current = true
+    setDesktopReady(false)
+    const scope = `${session.user.organizationId || 'no-org'}:${session.user.id}`
+    hydrateWindowStore(scope).finally(() => {
+      if (current) setDesktopReady(true)
+    })
+    return () => { current = false }
+  }, [status, session?.user?.id, session?.user?.organizationId])
 
   useEffect(() => {
     const media = window.matchMedia('(prefers-color-scheme: dark)')
@@ -85,7 +97,7 @@ export default function Desktop() {
     return () => window.removeEventListener('keydown', handler)
   }, [launchpadOpen, spotlightOpen])
 
-  if (status === 'loading' || (status === 'authenticated' && !setupReady)) return <BootScreen />
+  if (status === 'loading' || (status === 'authenticated' && (!setupReady || !desktopReady))) return <BootScreen />
   
   if (status === 'unauthenticated') {
     return <BootScreen />
