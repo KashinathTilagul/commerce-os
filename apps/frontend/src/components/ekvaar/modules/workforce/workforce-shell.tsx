@@ -86,7 +86,7 @@ export function useNavBadges() {
     (i: any) => !['DONE', 'CANCELLED', 'COMPLETED', 'REJECTED'].includes(String(i.status || '').toUpperCase())
   ).length
   return {
-    approvals: (approvals.data || []).length,
+    approvals: (approvals.data || []).filter((approval: any) => approval.status === 'PENDING').length,
     issues: openIssues,
   }
 }

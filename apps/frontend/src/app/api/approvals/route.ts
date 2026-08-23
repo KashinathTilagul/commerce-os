@@ -11,6 +11,11 @@ export async function GET(request: NextRequest) {
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
+  const requestedStatus = request.nextUrl.searchParams.get('status')?.toUpperCase()
+  const status = requestedStatus && ['PENDING', 'APPROVED', 'REJECTED', 'REVISION_REQUESTED'].includes(requestedStatus)
+    ? requestedStatus
+    : undefined
+
   // Apply rate limiting for approvals endpoint
   const rateLimitResult = await applyRateLimit(
     `${auth.organizationId}:${auth.user.id}`,
@@ -34,7 +39,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const approvals = await db.approval.findMany({
-      where: { organizationId: auth.organizationId },
+      where: { organizationId: auth.organizationId, ...(status ? { status } : {}) },
       include: {
         requester: { select: { id: true, name: true, code: true, avatarColor: true, role: true } },
         campaignLaunch: { select: { id: true, code: true, status: true } },
