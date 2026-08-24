@@ -27,7 +27,10 @@ export async function GET() {
     const models = await fetchOmniRouteImageModels(config.baseUrl, config.apiKey)
     return NextResponse.json({ models, selectedModel: config.imageModel })
   } catch (error: any) {
-    return NextResponse.json({ models: [], selectedModel: '', error: error?.message || 'Could not load image models' }, { status: 502 })
+    // An empty provider catalog is an actionable configuration state, not an
+    // origin failure. Cloudflare replaces origin 502 bodies with HTML, which
+    // prevents the Settings client from reading and displaying the real error.
+    return NextResponse.json({ models: [], selectedModel: '', error: error?.message || 'Could not load image models' })
   }
 }
 
@@ -66,6 +69,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, modelId, artifactId: image.artifactId, imageUrl: image.imageUrl })
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Image model test failed' }, { status: 502 })
+    return NextResponse.json({ error: error?.message || 'Image model test failed' }, { status: 422 })
   }
 }
