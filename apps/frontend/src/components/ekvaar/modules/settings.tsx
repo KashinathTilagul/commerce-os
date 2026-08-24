@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Shield, Bell, Palette, Zap, Loader2, Trash2, AlertTriangle, Save } from 'lucide-react'
+import { Moon, Sun, Monitor, Shield, Bell, Palette, Zap, Loader2, Trash2, AlertTriangle, Save, Image as ImageIcon, CheckCircle2 } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -33,6 +33,8 @@ export function Settings() {
   const [deleting, setDeleting] = useState(false)
   const [orgNameValue, setOrgNameValue] = useState('')
   const [providerDraft, setProviderDraft] = useState<Record<string, any>>({})
+  const [selectedImageModel, setSelectedImageModel] = useState('')
+  const [imageTestUrl, setImageTestUrl] = useState('')
   const orgNameTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const { data: settings, isLoading } = useQuery({
@@ -57,9 +59,26 @@ export function Settings() {
     refetchInterval: 30_000,
   })
 
+  const { data: imageModels, isLoading: imageModelsLoading, error: imageModelsError } = useQuery({
+    queryKey: ['omniroute-image-models'],
+    queryFn: async () => {
+      const response = await fetch('/api/omniroute/images', { cache: 'no-store' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Could not load image models')
+      return data as { models: Array<{ id: string; name: string; sizes: string[] }>; selectedModel: string }
+    },
+    retry: false,
+  })
+
   useEffect(() => {
     if (settings && !isLoading && settings.organizationName !== undefined) setOrgNameValue(settings.organizationName)
   }, [settings, isLoading])
+
+  useEffect(() => {
+    if (!imageModels?.models?.length) return
+    const verified = imageModels.models.some((model) => model.id === imageModels.selectedModel)
+    setSelectedImageModel(verified ? imageModels.selectedModel : imageModels.models[0].id)
+  }, [imageModels])
 
   // Cleanup debounce timeout
   useEffect(() => {
@@ -78,6 +97,25 @@ export function Settings() {
       if (!r.ok) throw new Error((await r.text()) || 'Failed to save settings')
       return r.json()
     },
+  })
+
+  const imageModelMutation = useMutation({
+    mutationFn: async (modelId: string) => {
+      const response = await fetch('/api/omniroute/images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ modelId }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Image test failed')
+      return data as { modelId: string; imageUrl: string }
+    },
+    onSuccess: (data) => {
+      setImageTestUrl(data.imageUrl)
+      queryClient.invalidateQueries({ queryKey: ['omniroute-image-models'] })
+      toast.success('Image model verified', data.modelId)
+    },
+    onError: (error: Error) => toast.error('Image model failed', error.message),
   })
 
   const handleSaveCredentials = () => {
@@ -303,6 +341,67 @@ export function Settings() {
                 </SelectContent>
               </Select>
             </Row>
+          </CardContent>
+        </Card>
+
+        {/* Image generation */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" /> Image generation
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Only image models currently returned by OmniRoute are selectable. A real image must succeed before the model is saved.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {imageModelsLoading ? (
+              <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading connected image models…
+              </div>
+            ) : imageModelsError ? (
+              <div className="rounded-lg border border-agni/30 bg-agni/5 p-3 text-xs text-agni">
+                {(imageModelsError as Error).message}
+              </div>
+            ) : imageModels?.models?.length ? (
+              <>
+                <Row label="Image model" desc="Verified against OmniRoute's dedicated image catalog">
+                  <Select value={selectedImageModel} onValueChange={setSelectedImageModel}>
+                    <SelectTrigger className="w-80"><SelectValue placeholder="Select an image model" /></SelectTrigger>
+                    <SelectContent>
+                      {imageModels.models.map((model) => (
+                        <SelectItem key={model.id} value={model.id}>{model.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Row>
+                <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {imageTestUrl ? (
+                      <img src={imageTestUrl} alt="Verified image model output" className="h-16 w-16 rounded-md object-cover" />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-md bg-muted"><ImageIcon className="h-5 w-5 text-muted-foreground" /></div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        {imageModels.selectedModel && imageModels.models.some((model) => model.id === imageModels.selectedModel) ? <CheckCircle2 className="h-4 w-4 text-arav" /> : <AlertTriangle className="h-4 w-4 text-amber-400" />}
+                        {imageModels.selectedModel && imageModels.models.some((model) => model.id === imageModels.selectedModel) ? 'Verified model active' : 'Test required'}
+                      </div>
+                      <div className="truncate text-[11px] text-muted-foreground">{imageModels.selectedModel || 'No image model has passed a live test.'}</div>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => imageModelMutation.mutate(selectedImageModel)}
+                    disabled={!selectedImageModel || imageModelMutation.isPending}
+                  >
+                    {imageModelMutation.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
+                    {imageModelMutation.isPending ? 'Generating test…' : 'Test & use model'}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="rounded-lg border border-border p-3 text-xs text-muted-foreground">OmniRoute returned no connected image models.</div>
+            )}
           </CardContent>
         </Card>
 

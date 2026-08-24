@@ -1,7 +1,28 @@
 import { db } from '@/lib/db'
 import { decryptSecret, encryptSecret } from '@/lib/crypto'
 
-const DEFAULT_IMAGE_MODEL = 'google/gemini-2.0-flash-exp:image'
+const DEFAULT_IMAGE_MODEL = ''
+
+export type OmniRouteImageModel = {
+  id: string
+  name: string
+  sizes: string[]
+}
+
+export function readOmniRouteImageModels(payload: any): OmniRouteImageModel[] {
+  const rows = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.models) ? payload.models : []
+  return rows
+    .map((model: any) => {
+      const id = typeof model === 'string' ? model : model?.id
+      if (!id) return null
+      return {
+        id,
+        name: typeof model?.name === 'string' ? model.name : id,
+        sizes: Array.isArray(model?.sizes) ? model.sizes.filter((size: unknown) => typeof size === 'string') : [],
+      }
+    })
+    .filter((model: OmniRouteImageModel | null): model is OmniRouteImageModel => Boolean(model))
+}
 
 export function normalizeOmniRouteBaseUrl(value?: string) {
   const fallback = process.env.OMNIROUTE_BASE_URL || 'http://omniroute:20128/v1'
@@ -49,4 +70,30 @@ export async function fetchOmniRouteModels(baseUrl: string, apiKey: string, time
     signal: AbortSignal.timeout(timeout),
     cache: 'no-store',
   })
+}
+
+export async function fetchOmniRouteImageModels(baseUrl: string, apiKey: string, timeout = 10_000) {
+  const normalized = normalizeOmniRouteBaseUrl(baseUrl)
+  let lastError = 'OmniRoute image catalog is unavailable'
+
+  for (const path of ['/images/generations', '/models/image']) {
+    try {
+      const response = await fetch(`${normalized}${path}`, {
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+        signal: AbortSignal.timeout(timeout),
+        cache: 'no-store',
+      })
+      if (!response.ok) {
+        lastError = `OmniRoute image catalog returned ${response.status}`
+        continue
+      }
+      const models = readOmniRouteImageModels(await response.json())
+      if (models.length > 0) return models
+      lastError = 'OmniRoute returned no connected image models'
+    } catch (error: any) {
+      lastError = error?.message || lastError
+    }
+  }
+
+  throw new Error(lastError)
 }

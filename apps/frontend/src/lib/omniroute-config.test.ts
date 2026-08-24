@@ -19,3 +19,18 @@ test('OmniRoute URL normalization removes trailing slashes and blocks production
   if (previousBaseUrl === undefined) delete process.env.OMNIROUTE_BASE_URL
   else process.env.OMNIROUTE_BASE_URL = previousBaseUrl
 })
+
+test('OmniRoute image catalogs are normalized without inventing model IDs', async () => {
+  const { readOmniRouteImageModels } = await import('./omniroute-config')
+
+  assert.deepEqual(readOmniRouteImageModels({
+    data: [
+      { id: 'openai/gpt-image-2', sizes: ['1024x1024'] },
+      'together/black-forest-labs/FLUX.1-schnell-Free',
+      { name: 'missing-id' },
+    ],
+  }), [
+    { id: 'openai/gpt-image-2', name: 'openai/gpt-image-2', sizes: ['1024x1024'] },
+    { id: 'together/black-forest-labs/FLUX.1-schnell-Free', name: 'together/black-forest-labs/FLUX.1-schnell-Free', sizes: [] },
+  ])
+})

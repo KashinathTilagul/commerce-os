@@ -14,6 +14,7 @@ export interface ImageGenerationOptions {
   generatedBy?: string
   title?: string
   referenceImage?: string
+  modelId?: string
 }
 
 const IMAGE_PROMPT_TEMPLATES: Record<string, string> = {
@@ -29,7 +30,7 @@ const ASPECT_RATIO_DIMENSIONS: Record<string, { width: number; height: number }>
 }
 
 const OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1'
-const DEFAULT_IMAGE_MODEL = process.env.OMNIROUTE_IMAGE_MODEL_DEFAULT || 'antigravity/gemini-3.1-flash-image'
+const DEFAULT_IMAGE_MODEL = process.env.OMNIROUTE_IMAGE_MODEL_DEFAULT || ''
 
 async function getOmniRouteImageConfig(organizationId: string) {
   try {
@@ -66,9 +67,9 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     const omnirouteConfig = await getOmniRouteImageConfig(options.organizationId)
     const omnirouteApiKey = omnirouteConfig.apiKey
     const omnirouteBaseUrl = omnirouteConfig.baseUrl || OMNIROUTE_BASE_URL
-    const omnirouteImageModel = omnirouteConfig.imageModel || DEFAULT_IMAGE_MODEL
+    const omnirouteImageModel = options.modelId || omnirouteConfig.imageModel || DEFAULT_IMAGE_MODEL
 
-    if (omnirouteApiKey) {
+    if (omnirouteApiKey && omnirouteImageModel) {
       try {
         const omniroute = createOpenAI({
           baseURL: omnirouteBaseUrl,
@@ -97,9 +98,11 @@ export async function generateImage(options: ImageGenerationOptions): Promise<{ 
     }
 
     if (!imageBuffer) {
-      const reason = omnirouteApiKey
-        ? providerErrors.join(' | ') || 'OmniRoute returned no media'
-        : 'No organization-owned image provider is configured'
+      const reason = !omnirouteApiKey
+        ? 'No organization-owned image provider is configured'
+        : !omnirouteImageModel
+          ? 'No verified OmniRoute image model is selected'
+          : providerErrors.join(' | ') || 'OmniRoute returned no media'
       throw new Error(`BLOCKED: ${reason}`)
     }
     
