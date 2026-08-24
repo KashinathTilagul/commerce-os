@@ -72,11 +72,10 @@ export async function fetchOmniRouteModels(baseUrl: string, apiKey: string, time
   })
 }
 
-export async function fetchOmniRouteImageModels(baseUrl: string, apiKey: string, timeout = 10_000) {
+export async function fetchOmniRouteImageModels(baseUrl: string, apiKey: string, timeout = 4_000) {
   const normalized = normalizeOmniRouteBaseUrl(baseUrl)
-  let lastError = 'OmniRoute image catalog is unavailable'
-
-  for (const path of ['/images/generations', '/models/image']) {
+  const paths = ['/models/image', '/images/generations']
+  const results = await Promise.all(paths.map(async (path) => {
     try {
       const response = await fetch(`${normalized}${path}`, {
         headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
@@ -84,16 +83,24 @@ export async function fetchOmniRouteImageModels(baseUrl: string, apiKey: string,
         cache: 'no-store',
       })
       if (!response.ok) {
-        lastError = `OmniRoute image catalog returned ${response.status}`
-        continue
+        return { path, models: [] as OmniRouteImageModel[], error: `returned ${response.status}` }
       }
       const models = readOmniRouteImageModels(await response.json())
-      if (models.length > 0) return models
-      lastError = 'OmniRoute returned no connected image models'
+      return {
+        path,
+        models,
+        error: models.length ? '' : 'returned no connected image models',
+      }
     } catch (error: any) {
-      lastError = error?.message || lastError
+      return { path, models: [] as OmniRouteImageModel[], error: error?.message || 'unavailable' }
     }
+  }))
+
+  const models = results.flatMap((result) => result.models)
+  if (models.length > 0) {
+    return Array.from(new Map(models.map((model) => [model.id, model])).values())
   }
 
-  throw new Error(lastError)
+  const details = results.map((result) => `${result.path} ${result.error}`).join('; ')
+  throw new Error(`OmniRoute returned no connected image models (${details})`)
 }
