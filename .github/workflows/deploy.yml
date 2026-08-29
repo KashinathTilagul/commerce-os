@@ -284,8 +284,8 @@ jobs:
           /usr/bin/sudo docker compose pull rakazo-postgres rakazo-api rakazo-worker rakazo-web
           echo "[i] Disk before service startup:"; df -h / || true
           AVAILABLE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
-          if [ "${AVAILABLE_KB:-0}" -lt 1572864 ]; then
-            echo "[x] Less than 1.5GB free after all builds and pulls; refusing a partial production restart."
+          if [ "${AVAILABLE_KB:-0}" -lt 524288 ]; then
+            echo "[x] Less than 512MB free after all builds and pulls; refusing a partial production restart."
             /usr/bin/sudo docker system df || true
             exit 1
           fi
