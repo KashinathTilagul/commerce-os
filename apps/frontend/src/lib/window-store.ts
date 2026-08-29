@@ -263,4 +263,15 @@ export async function hydrateWindowStore(scope: string) {
   useWindowStore.persist.setOptions({ name })
   if (!window.localStorage.getItem(name)) useWindowStore.setState(desktopInitial)
   await useWindowStore.persist.rehydrate()
+
+  // External runtimes must be opened deliberately. Restoring one at boot can
+  // start reconnect loops before its service is ready and hijack the desktop.
+  const state = useWindowStore.getState()
+  const windows = state.windows.filter((window) => window.appId !== 'agents')
+  if (windows.length !== state.windows.length) {
+    const activeId = windows.some((window) => window.id === state.activeId)
+      ? state.activeId
+      : windows.filter((window) => !window.isMinimized).sort((a, b) => b.zIndex - a.zIndex)[0]?.id ?? null
+    useWindowStore.setState({ windows, activeId })
+  }
 }

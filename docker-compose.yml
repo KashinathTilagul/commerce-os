@@ -150,7 +150,7 @@ services:
       - API_HOST=0.0.0.0
       - DATABASE_URL=postgres://rakazo:${RAKAZO_POSTGRES_PASSWORD:?RAKAZO_POSTGRES_PASSWORD is required}@rakazo-postgres:5432/rakazo
       - DATA_DIR=/data
-      - BETTER_AUTH_URL=https://os.ekvaar.com/workforce/
+      - BETTER_AUTH_URL=https://os.ekvaar.com
       - WEB_ORIGIN=https://os.ekvaar.com
       - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:?RAKAZO_BETTER_AUTH_SECRET is required}
       - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:?RAKAZO_ENCRYPTION_KEY is required}

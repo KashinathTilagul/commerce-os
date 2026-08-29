@@ -8,8 +8,9 @@ class MemoryStorage {
   removeItem(key: string) { this.values.delete(key) }
 }
 
+const storage = new MemoryStorage()
+
 test('desktop state survives hydration and is isolated by organization and user', async () => {
-  const storage = new MemoryStorage()
   ;(globalThis as any).window = { localStorage: storage }
   ;(globalThis as any).localStorage = storage
   const { desktopStorageKey, hydrateWindowStore, useWindowStore } = await import('./window-store')
@@ -33,4 +34,24 @@ test('desktop state survives hydration and is isolated by organization and user'
   assert.equal(useWindowStore.getState().windows[0]?.appId, 'settings')
   assert.equal(useWindowStore.getState().appState.agents?.section, 'activity')
   assert.equal(useWindowStore.getState().appState.agents?.agentTab, 'runs')
+})
+
+test('Workforce never auto-restores at desktop startup', async () => {
+  ;(globalThis as any).window = { localStorage: storage }
+  ;(globalThis as any).localStorage = storage
+  const { desktopStorageKey, hydrateWindowStore, useWindowStore } = await import('./window-store')
+
+  const scope = 'org-ekvaar:user-founder-workforce'
+  await hydrateWindowStore(scope)
+  const settingsId = useWindowStore.getState().open('settings', 'Settings')
+  useWindowStore.getState().open('agents', 'Workforce')
+  const saved = storage.getItem(desktopStorageKey(scope))
+  assert.ok(saved)
+
+  useWindowStore.setState({ windows: [], activeId: null })
+  storage.setItem(desktopStorageKey(scope), saved)
+  await hydrateWindowStore(scope)
+
+  assert.deepEqual(useWindowStore.getState().windows.map((window) => window.appId), ['settings'])
+  assert.equal(useWindowStore.getState().activeId, settingsId)
 })
