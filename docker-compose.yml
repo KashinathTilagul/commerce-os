@@ -120,6 +120,109 @@ services:
       retries: 10
     restart: unless-stopped
 
+  rakazo-postgres:
+    image: postgres:16@sha256:e17e86066e5ef83e0952a9347f5c792b7ece00972e2aa787a6986f471b3dd3d5
+    environment:
+      POSTGRES_USER: rakazo
+      POSTGRES_PASSWORD: ${RAKAZO_POSTGRES_PASSWORD:?RAKAZO_POSTGRES_PASSWORD is required}
+      POSTGRES_DB: rakazo
+    volumes:
+      - rakazo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rakazo -d rakazo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  rakazo-api:
+    image: ghcr.io/elie222/rakazo/app@sha256:b1bef3731818a601d256be4359f9450401813329a3c9b1b813c70f2a1647f0ea
+    command:
+      - bash
+      - -lc
+      - pnpm --filter @rakazo/db exec prisma migrate deploy && pnpm --filter @rakazo/api start
+    expose:
+      - "3100"
+    environment:
+      - NODE_ENV=production
+      - API_HOST=0.0.0.0
+      - DATABASE_URL=postgres://rakazo:${RAKAZO_POSTGRES_PASSWORD:?RAKAZO_POSTGRES_PASSWORD is required}@rakazo-postgres:5432/rakazo
+      - DATA_DIR=/data
+      - BETTER_AUTH_URL=https://os.ekvaar.com/workforce/
+      - WEB_ORIGIN=https://os.ekvaar.com
+      - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:?RAKAZO_BETTER_AUTH_SECRET is required}
+      - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:?RAKAZO_ENCRYPTION_KEY is required}
+      - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
+      - SANDBOX_PROVIDER=${RAKAZO_SANDBOX_PROVIDER:-e2b}
+      - E2B_API_KEY=${E2B_API_KEY:-}
+      - DAYTONA_API_KEY=${DAYTONA_API_KEY:-}
+      - BOX_API_KEY=${BOX_API_KEY:-}
+      - WAKEUP_DRIVER=graphile
+      - AGENT_RUNTIME=pi
+    volumes:
+      - rakazo-app-data:/data
+    depends_on:
+      rakazo-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  rakazo-worker:
+    image: ghcr.io/elie222/rakazo/app@sha256:b1bef3731818a601d256be4359f9450401813329a3c9b1b813c70f2a1647f0ea
+    command: ["pnpm", "--filter", "@rakazo/worker", "start"]
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://rakazo:${RAKAZO_POSTGRES_PASSWORD:?RAKAZO_POSTGRES_PASSWORD is required}@rakazo-postgres:5432/rakazo
+      - DATA_DIR=/data
+      - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:?RAKAZO_BETTER_AUTH_SECRET is required}
+      - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:?RAKAZO_ENCRYPTION_KEY is required}
+      - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
+      - SANDBOX_PROVIDER=${RAKAZO_SANDBOX_PROVIDER:-e2b}
+      - E2B_API_KEY=${E2B_API_KEY:-}
+      - DAYTONA_API_KEY=${DAYTONA_API_KEY:-}
+      - BOX_API_KEY=${BOX_API_KEY:-}
+      - WAKEUP_DRIVER=graphile
+      - AGENT_RUNTIME=pi
+    volumes:
+      - rakazo-app-data:/data
+    depends_on:
+      rakazo-api:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  rakazo-web:
+    image: ghcr.io/elie222/rakazo/app@sha256:b1bef3731818a601d256be4359f9450401813329a3c9b1b813c70f2a1647f0ea
+    command: ["pnpm", "--filter", "@rakazo/web", "preview", "--host", "0.0.0.0", "--port", "5173"]
+    expose:
+      - "5173"
+    environment:
+      - NODE_ENV=production
+      - API_PROXY_TARGET=http://rakazo-api:3100
+      - RAKAZO_HOST=os.ekvaar.com
+      - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
+    depends_on:
+      rakazo-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     command: redis-server --appendonly yes
@@ -235,6 +338,7 @@ services:
     depends_on:
       - frontend
       - fastapi
+      - rakazo-web
     restart: unless-stopped
 
   fastapi:
@@ -269,3 +373,5 @@ volumes:
   cognee-data:
   open-design-data:
   google-workspace-config:
+  rakazo-postgres-data:
+  rakazo-app-data:
