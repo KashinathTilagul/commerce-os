@@ -253,6 +253,15 @@ jobs:
           fi
           /usr/bin/sudo docker buildx version
 
+          # The host cannot hold both generations of the large frontend image.
+          # These services are stateless and are rebuilt below; remove only
+          # their current containers so the superseded image layers can be
+          # reclaimed before the build starts. Persistent services stay live.
+          /usr/bin/sudo docker compose stop frontend upskill google-workspace || true
+          /usr/bin/sudo docker compose rm -f frontend upskill google-workspace || true
+          /usr/bin/sudo docker image prune -af || true
+          echo "[i] Disk after releasing superseded stateless images:"; df -h / || true
+
           # The frontend is the largest local image. Build it while free space
           # is at its maximum, then discard its BuildKit cache before building
           # the smaller sidecars. Building every service in one invocation left
