@@ -173,6 +173,8 @@ services:
       - CRON_SECRET=${CRON_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-https://os.ekvaar.com}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://os.ekvaar.com}
+      - NEXT_PUBLIC_OS_APP_URL=${NEXT_PUBLIC_OS_APP_URL:-https://os.ekvaar.com/app}
+      - NEXT_PUBLIC_MARKETING_URL=${NEXT_PUBLIC_MARKETING_URL:-https://os.ekvaar.com}
       - ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET}
       - CAMPAIGN_LAUNCHES_ENABLED=${CAMPAIGN_LAUNCHES_ENABLED:-true}
       - RELEASE_VERSION=${RELEASE_VERSION:-development}
@@ -207,6 +209,7 @@ services:
       - OPEN_DESIGN_URL=http://open-design:7456
       - OPEN_DESIGN_PUBLIC_URL=${OPEN_DESIGN_PUBLIC_URL:-}
       - OPEN_DESIGN_API_TOKEN=${OPEN_DESIGN_API_TOKEN}
+      - RAKAZO_PUBLIC_URL=${RAKAZO_PUBLIC_URL}
       - UPSKILL_API_URL=http://upskill:8090
       - GOOGLE_WORKSPACE_API_URL=http://google-workspace:8091
       - N8N_INTERNAL_URL=http://n8n:5678

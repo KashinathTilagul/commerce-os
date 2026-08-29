@@ -1,0 +1,3 @@
+[submodule "vendor/rakazo"]
+	path = vendor/rakazo
+	url = https://github.com/elie222/rakazo.git

@@ -21,7 +21,7 @@ const LoadingFallback = () => (
 
 const CommandCenter = dynamic(() => import('@/components/ekvaar/modules/command-center').then(m => m.CommandCenter), { loading: LoadingFallback })
 const Chat = dynamic(() => import('@/components/ekvaar/modules/chat').then(m => m.Chat), { loading: LoadingFallback })
-const DigitalEmployeesHub = dynamic(() => import('@/components/ekvaar/modules/digital-employees-hub').then(m => m.DigitalEmployeesHub), { loading: LoadingFallback })
+const Workforce = dynamic(() => import('@/components/ekvaar/modules/workforce').then(m => m.Workforce), { loading: LoadingFallback })
 const TerminalModule = dynamic(() => import('@/components/ekvaar/modules/terminal').then(m => m.TerminalModule), { loading: LoadingFallback })
 const Settings = dynamic(() => import('@/components/ekvaar/modules/settings').then(m => m.Settings), { loading: LoadingFallback })
 const Files = dynamic(() => import('@/components/ekvaar/modules/files').then(m => m.Files), { loading: LoadingFallback })
@@ -118,14 +118,14 @@ export const APPS: AppDef[] = [
   },
   {
     id: 'agents',
-    name: 'AI Workforce',
+    name: 'Workforce',
     shortName: 'Workforce',
     version: '1.0.0',
     icon: Users as any,
     iconVariant: 'agents',
     category: 'core',
     requiredCapabilities: [],
-    entryPoint: DigitalEmployeesHub,
+    entryPoint: Workforce,
     permissions: [],
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #0A0A0A 100%)',
     glyphColor: '#F5F1EA',
