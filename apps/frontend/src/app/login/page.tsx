@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,7 +10,6 @@ import { Label } from '@/components/ui/label'
 import { UserPlus, LogIn } from 'lucide-react'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -52,8 +49,12 @@ export default function LoginPage() {
       if (result?.error) {
         setError('Invalid email or password')
       } else {
-        router.replace('/')
-        router.refresh()
+        // hard navigation — the soft router.push() left the page on /login
+        // even though the session cookie was set
+        // A hard navigation ensures the newly-set session cookie is read before
+        // the desktop performs its authenticated onboarding check.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign(`${window.location.origin}/app`)
       }
     } catch {
       setError('An error occurred. Please try again.')
@@ -64,7 +65,7 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true)
-    await signIn('google', { callbackUrl: '/' })
+    await signIn('google', { callbackUrl: '/app' })
   }
 
   const logoSrc = isDark ? '/branding/logo-white.png' : '/branding/logo-black.png'

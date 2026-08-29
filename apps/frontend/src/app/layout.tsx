@@ -28,10 +28,22 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Business OS — Your company, connected",
-  description: "An AI-native operating system for company operations, finance, commerce, knowledge, and connected applications.",
-  keywords: ["business operating system", "AI agents", "commerce", "operations", "integrations"],
-  authors: [{ name: "Business OS" }],
+  metadataBase: new URL(process.env.NEXT_PUBLIC_MARKETING_URL || "https://os.ekvaar.com"),
+  title: "Ekvaar OS — Your company, finally in sync",
+  description: "An AI-native operating system where people, AI teammates, knowledge, workflows and connected apps work together.",
+  keywords: ["AI business operating system", "AI teammates", "workflow automation", "company knowledge", "founder workspace"],
+  authors: [{ name: "Ekvaar" }],
+  openGraph: {
+    title: "Ekvaar OS — Your company, finally in sync",
+    description: "People, AI teammates, knowledge, workflows and connected apps—operating together in one accountable workspace.",
+    type: "website",
+    siteName: "Ekvaar OS",
+  },
+  twitter: {
+    card: "summary",
+    title: "Ekvaar OS — Your company, finally in sync",
+    description: "An AI-native operating system for the company you are building.",
+  },
   icons: {
     icon: "/branding/monogram.png",
   },

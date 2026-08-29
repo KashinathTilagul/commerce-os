@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -69,7 +68,7 @@ export default function SignupPage() {
         return
       }
 
-      router.push('/')
+      router.push('/app')
       router.refresh()
     } catch {
       setError('An error occurred. Please try again.')
