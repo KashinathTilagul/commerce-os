@@ -138,7 +138,9 @@ services:
     restart: unless-stopped
 
   rakazo-api:
-    image: ghcr.io/elie222/rakazo/app@sha256:b1bef3731818a601d256be4359f9450401813329a3c9b1b813c70f2a1647f0ea
+    build:
+      context: ./infra/rakazo
+    image: ekvaar/rakazo-api:local
     command:
       - bash
       - -lc

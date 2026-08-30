@@ -290,7 +290,8 @@ jobs:
           /usr/bin/sudo docker compose rm -f frontend upskill google-workspace
           /usr/bin/sudo docker image prune -f || true
 
-          /usr/bin/sudo docker compose pull rakazo-postgres rakazo-api rakazo-worker rakazo-web
+          /usr/bin/sudo docker compose pull rakazo-postgres rakazo-worker rakazo-web
+          /usr/bin/sudo docker compose --progress=plain build rakazo-api
           echo "[i] Disk before service startup:"; df -h / || true
           AVAILABLE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
           if [ "${AVAILABLE_KB:-0}" -lt 524288 ]; then
@@ -321,6 +322,8 @@ jobs:
           WORKFORCE_STATUS=$(curl -sk -o /tmp/workforce.html -w "%{http_code}" --max-time 5 -H "Host: os.ekvaar.com" https://localhost/workforce/ || echo 000)
           /usr/bin/sudo docker compose exec -T rakazo-web node -e \
             "fetch('http://127.0.0.1:5173/').then(async r=>{const b=await r.text();process.exit(r.ok&&b.includes('<title>Rakazo</title>')?0:1)}).catch(()=>process.exit(1))"
+          /usr/bin/sudo docker compose exec -T rakazo-api sh -lc \
+            "grep -q 'await verifyModelCredential' /app/apps/api/src/router.ts"
           if [ "$WORKFORCE_STATUS" != "401" ]; then
             echo "[x] Workforce access boundary failed (anonymous HTTP $WORKFORCE_STATUS; expected 401)."
             /usr/bin/sudo docker compose logs --tail 150 rakazo-postgres rakazo-api rakazo-worker rakazo-web nginx
