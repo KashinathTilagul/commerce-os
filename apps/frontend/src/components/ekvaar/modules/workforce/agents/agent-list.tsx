@@ -32,7 +32,7 @@ export function AgentList({
       const data = await res.json()
       return (data.agents || data || []) as AgentSummary[]
     },
-    refetchInterval: 10000,
+    refetchInterval: 60_000,
   })
 
   const filtered = agents.filter((a) => {

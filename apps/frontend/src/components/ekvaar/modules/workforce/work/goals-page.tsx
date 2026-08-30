@@ -24,7 +24,7 @@ export function GoalsPage() {
       const data = await res.json()
       return data.goals || []
     },
-    refetchInterval: 10000,
+    refetchInterval: 60_000,
   })
 
   const createMutation = useMutation({

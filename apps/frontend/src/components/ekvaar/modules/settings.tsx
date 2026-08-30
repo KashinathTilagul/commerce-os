@@ -56,7 +56,7 @@ export function Settings() {
         checkedAt: string
       }>
     },
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   })
 
   const { data: imageModels, isLoading: imageModelsLoading, error: imageModelsError } = useQuery({

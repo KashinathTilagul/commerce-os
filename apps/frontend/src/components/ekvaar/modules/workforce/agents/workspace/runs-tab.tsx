@@ -17,7 +17,7 @@ export function RunsTab({ agentId }: { agentId: string }) {
       const data = await res.json()
       return data.runs || []
     },
-    refetchInterval: 5000,
+    refetchInterval: 60_000,
   })
 
   const { data: selectedRunDetail } = useQuery({

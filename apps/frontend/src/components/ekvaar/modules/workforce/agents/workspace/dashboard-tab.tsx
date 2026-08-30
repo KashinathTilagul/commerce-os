@@ -25,7 +25,7 @@ export function DashboardTab({ agent }: { agent: any }) {
         return null
       }
     },
-    refetchInterval: 15000,
+    refetchInterval: 60_000,
   })
 
   const budgetPct = agent.tokenBudget > 0 ? Math.round((agent.tokenSpend / agent.tokenBudget) * 100) : 0

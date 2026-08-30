@@ -24,7 +24,7 @@ export function OrgChartCanvas({ onSelectAgent }: { onSelectAgent: (id: string) 
       const data = await res.json()
       return data.agents || data || []
     },
-    refetchInterval: 8000,
+    refetchInterval: 60_000,
   })
 
   const nonHumans = agents.filter((a: any) => !a.isHuman)

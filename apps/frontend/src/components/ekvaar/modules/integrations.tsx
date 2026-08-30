@@ -50,7 +50,7 @@ export function Integrations() {
       if (!r.ok) throw new Error('Failed')
       return r.json()
     },
-    refetchInterval: 10000,
+    refetchInterval: 60_000,
   })
 
   const handleConnect = async (toolkit: string, name: string, action: 'connect' | 'disconnect') => {

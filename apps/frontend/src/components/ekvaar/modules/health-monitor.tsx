@@ -21,7 +21,7 @@ export function HealthMonitor() {
       if (!r.ok) throw new Error('Failed to fetch health metrics')
       return r.json()
     },
-    refetchInterval: 30000,
+    refetchInterval: 60_000,
   })
 
   const integrations = data?.integrations || []

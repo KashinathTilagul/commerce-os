@@ -29,7 +29,7 @@ export function ReferencesTab({ agent }: { agent: any }) {
       const data = await res.json()
       return data.artifacts || []
     },
-    refetchInterval: 30000,
+    refetchInterval: 60_000,
   })
 
   const uploadMutation = useMutation({

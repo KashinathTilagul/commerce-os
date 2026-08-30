@@ -51,7 +51,7 @@ export function RiskCenter() {
       if (!r.ok) throw new Error('Failed to fetch risks')
       return r.json().then(d => d.risks)
     },
-    refetchInterval: 30000
+    refetchInterval: 60_000
   })
 
   const { data: signals = [] } = useQuery<any[]>({
@@ -61,7 +61,7 @@ export function RiskCenter() {
       if (!r.ok) throw new Error('Failed to fetch signals')
       return r.json().then(d => d.signals)
     },
-    refetchInterval: 30000
+    refetchInterval: 60_000
   })
 
   const runAssessment = async () => {

@@ -90,7 +90,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
       if (!response.ok) throw new Error(data.error || 'Could not load campaigns')
       return data
     },
-    refetchInterval: 10000,
+    refetchInterval: 60_000,
   })
   const { data: providers = [] } = useQuery<ProviderReadiness[]>({
     queryKey: ['campaign-provider-readiness'],
@@ -109,7 +109,7 @@ export function OverviewPage({ onNavigate }: { onNavigate: (section: any) => voi
       const data = await response.json()
       return (data.agents || data || [])
     },
-    refetchInterval: 30000,
+    refetchInterval: 60_000,
   })
 
   const createCampaign = useMutation({

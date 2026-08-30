@@ -21,7 +21,7 @@ export function ApprovalsPage() {
       const data = await res.json()
       return data.approvals || []
     },
-    refetchInterval: 5000,
+    refetchInterval: 60_000,
   })
 
   const resolveMutation = useMutation({

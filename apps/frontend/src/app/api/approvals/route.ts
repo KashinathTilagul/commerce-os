@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { getMarketingApprovalReadiness } from '@/lib/marketing-approval'
-import { logGovernanceAction, AuditAction } from '@/lib/audit-logger'
 import { applyRateLimit } from '@/lib/rate-limiter'
 
 export async function GET(request: NextRequest) {
@@ -46,16 +45,6 @@ export async function GET(request: NextRequest) {
         campaignRevision: { select: { id: true, revisionNum: true, versionHash: true, publishStatus: true, evidenceJson: true } },
       },
       orderBy: { createdAt: 'desc' },
-    })
-
-    // Log audit event for approvals access
-    await logGovernanceAction({
-      organizationId: auth.organizationId,
-      action: AuditAction.APPROVAL_REQUESTED,
-      actorName: auth.user?.name || 'System',
-      actorRole: auth.user?.role,
-      details: { action: 'VIEW_APPROVALS', count: approvals.length },
-      request,
     })
 
     return NextResponse.json({ approvals: approvals.map((approval) => ({

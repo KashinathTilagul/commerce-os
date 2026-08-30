@@ -44,7 +44,7 @@ export function ActivityFeed() {
       if (!response.ok) throw new Error(payload.error || 'Could not load logs')
       return payload
     },
-    refetchInterval: 5000,
+    refetchInterval: 60_000,
   })
   const entries = data?.entries || []
   const actions = useMemo(() => [...new Set(entries.map((entry) => entry.action))].sort(), [entries])

@@ -64,7 +64,7 @@ export function AgentWorkspace({
       if (!res.ok) return null
       return res.json()
     },
-    refetchInterval: 8000,
+    refetchInterval: 60_000,
   })
 
   const pauseMutation = useMutation({

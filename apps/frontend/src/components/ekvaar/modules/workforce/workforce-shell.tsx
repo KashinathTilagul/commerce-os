@@ -71,7 +71,7 @@ export function useNavBadges() {
       const data = await res.json()
       return (data?.approvals || data || []) as any[]
     },
-    refetchInterval: 30000,
+    refetchInterval: 60_000,
   })
   const issues = useQuery({
     queryKey: ['nav-issues-open'],
@@ -81,7 +81,7 @@ export function useNavBadges() {
       const data = await res.json()
       return (Array.isArray(data) ? data : data?.issues || []) as any[]
     },
-    refetchInterval: 30000,
+    refetchInterval: 60_000,
   })
   const openIssues = (issues.data || []).filter(
     (i: any) => !['DONE', 'CANCELLED', 'COMPLETED', 'REJECTED'].includes(String(i.status || '').toUpperCase())

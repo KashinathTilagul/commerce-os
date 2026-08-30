@@ -136,7 +136,7 @@ export function NativeMarketingAutomation() {
       const data = await response.json()
       return data.tasks || []
     },
-    refetchInterval: 10000,
+    refetchInterval: 60_000,
   })
 
   const selectedTask = tasks.find((task) => task.id === storedTaskId) || tasks[0]
