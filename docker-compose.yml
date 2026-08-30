@@ -336,6 +336,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/workforce/bridge.js:/etc/nginx/workforce-bridge.js:ro
       - /etc/ssl/ekvaar:/etc/ssl/ekvaar:ro
     depends_on:
       - frontend

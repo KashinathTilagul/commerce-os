@@ -2,8 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Loader2, Users } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { useWindowStore } from '@/lib/window-store'
 
 type WorkforceConfig = {
   url: string
@@ -11,6 +13,8 @@ type WorkforceConfig = {
 }
 
 export function Workforce() {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const openWindow = useWindowStore((state) => state.open)
   const { data, isLoading, isError, refetch } = useQuery<WorkforceConfig>({
     queryKey: ['workforce-config'],
     queryFn: async () => {
@@ -20,10 +24,27 @@ export function Workforce() {
     },
   })
 
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== iframeRef.current?.contentWindow) return
+      if (
+        event.data?.source === 'ekvaar-workforce' &&
+        event.data?.type === 'ekvaar:open-app' &&
+        event.data?.appId === 'integrations'
+      ) {
+        openWindow('integrations', 'Integrations', { width: 1180, height: 760 })
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [openWindow])
+
   if (data?.configured) {
     return (
       <div className="relative h-full w-full overflow-hidden bg-[#09090b]">
         <iframe
+          ref={iframeRef}
           title="Workforce"
           src={data.url}
           className="h-full w-full border-0 bg-[#09090b]"
