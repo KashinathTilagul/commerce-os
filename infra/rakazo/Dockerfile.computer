@@ -41,9 +41,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && mkdir -p /usr/share/novnc \
   && cp -R /usr/local/lib/node_modules/@novnc/novnc/* /usr/share/novnc/ \
   && npm cache clean --force \
-  && groupadd --gid 1000 rakazo \
-  && useradd --uid 1000 --gid rakazo --create-home --shell /bin/bash rakazo \
-  && mkdir -p /etc/rakazo/fluxbox \
+  && mkdir -p /home/rakazo /etc/rakazo/fluxbox \
+  && chown 1000:1000 /home/rakazo \
   && printf '%s\n' '#!/bin/sh' 'exec xsetroot -solid "#111113" "$@"' > /usr/bin/fbsetbg \
   && chmod +x /usr/bin/fbsetbg \
   && ln -sfn /bin/true /usr/bin/xmessage
