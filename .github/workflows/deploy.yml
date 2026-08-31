@@ -91,6 +91,19 @@ jobs:
             fi
           }
 
+          persisted_or_generated_min_length() {
+            local name="$1"
+            local minimum="$2"
+            local value
+            value="$(persisted_or_generated "$name")"
+            if [ "${#value}" -lt "$minimum" ]; then
+              echo "[i] Rotating $name because it does not meet the $minimum-character runtime requirement." >&2
+              openssl rand -hex 32
+            else
+              printf '%s' "$value"
+            fi
+          }
+
           DATABASE_URL="${DATABASE_URL:-$(existing_env DATABASE_URL)}"
           DIRECT_URL="${DIRECT_URL:-$(existing_env DIRECT_URL)}"
           if [ -z "$DATABASE_URL" ] || [[ "$DATABASE_URL" != postgresql://* ]]; then
@@ -134,9 +147,10 @@ jobs:
           OPEN_DESIGN_API_TOKEN="$(persisted_or_generated OPEN_DESIGN_API_TOKEN)"
           COGNEE_LLM_API_KEY="$(persisted_or_generated COGNEE_LLM_API_KEY)"
           RAKAZO_POSTGRES_PASSWORD="$(persisted_or_generated RAKAZO_POSTGRES_PASSWORD)"
-          RAKAZO_BETTER_AUTH_SECRET="$(persisted_or_generated RAKAZO_BETTER_AUTH_SECRET)"
+          RAKAZO_BETTER_AUTH_SECRET="$(persisted_or_generated_min_length RAKAZO_BETTER_AUTH_SECRET 32)"
           RAKAZO_ENCRYPTION_KEY="$(persisted_or_generated RAKAZO_ENCRYPTION_KEY)"
-          RAKAZO_SCREEN_PROXY_SECRET="$(persisted_or_generated RAKAZO_SCREEN_PROXY_SECRET)"
+          RAKAZO_SCREEN_PROXY_SECRET="$(persisted_or_generated_min_length RAKAZO_SCREEN_PROXY_SECRET 32)"
+          RAKAZO_SANDBOX_SUPERVISOR_TOKEN="$(persisted_or_generated_min_length RAKAZO_SANDBOX_SUPERVISOR_TOKEN 32)"
 
           GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-$(existing_env GOOGLE_CLIENT_ID)}"
           GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-$(existing_env GOOGLE_CLIENT_SECRET)}"
@@ -216,10 +230,8 @@ jobs:
             "RAKAZO_BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET}" \
             "RAKAZO_ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY}" \
             "RAKAZO_SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET}" \
-            "RAKAZO_SANDBOX_PROVIDER=e2b" \
-            "E2B_API_KEY=${E2B_API_KEY}" \
-            "DAYTONA_API_KEY=${DAYTONA_API_KEY}" \
-            "BOX_API_KEY=${BOX_API_KEY}" \
+            "RAKAZO_SANDBOX_PROVIDER=docker" \
+            "RAKAZO_SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN}" \
             "BROWSER_HEADLESS=true" \
             > .env
           chmod 600 .env
@@ -257,8 +269,8 @@ jobs:
           # Remove only replaceable app containers so their image layers can be
           # reclaimed before the build. Rakazo's Postgres container and both
           # named data volumes remain live and untouched.
-          /usr/bin/sudo docker compose stop frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web || true
-          /usr/bin/sudo docker compose rm -f frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web || true
+          /usr/bin/sudo docker compose stop frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
+          /usr/bin/sudo docker compose rm -f frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
           /usr/bin/sudo docker image prune -af || true
           echo "[i] Disk after releasing superseded stateless images:"; df -h / || true
 
@@ -290,8 +302,8 @@ jobs:
           /usr/bin/sudo docker compose rm -f frontend upskill google-workspace
           /usr/bin/sudo docker image prune -f || true
 
-          /usr/bin/sudo docker compose pull rakazo-postgres rakazo-worker rakazo-web
-          /usr/bin/sudo docker compose --progress=plain build rakazo-api
+          /usr/bin/sudo docker compose pull rakazo-postgres rakazo-data-init
+          /usr/bin/sudo docker compose --progress=plain build rakazo-computer rakazo-supervisor rakazo-api
           echo "[i] Disk before service startup:"; df -h / || true
           AVAILABLE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
           if [ "${AVAILABLE_KB:-0}" -lt 524288 ]; then
@@ -324,6 +336,9 @@ jobs:
             "fetch('http://127.0.0.1:5173/').then(async r=>{const b=await r.text();process.exit(r.ok&&b.includes('<title>Rakazo</title>')?0:1)}).catch(()=>process.exit(1))"
           /usr/bin/sudo docker compose exec -T rakazo-api sh -lc \
             "grep -q 'await verifyModelCredential' /app/apps/api/src/router.ts"
+          /usr/bin/sudo docker compose exec -T rakazo-supervisor node -e \
+            "fetch('http://127.0.0.1:7091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+          /usr/bin/sudo docker compose logs --tail 40 rakazo-worker | grep -q "rakazo worker ready"
           if [ "$WORKFORCE_STATUS" != "401" ]; then
             echo "[x] Workforce access boundary failed (anonymous HTTP $WORKFORCE_STATUS; expected 401)."
             /usr/bin/sudo docker compose logs --tail 150 rakazo-postgres rakazo-api rakazo-worker rakazo-web nginx

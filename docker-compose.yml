@@ -137,9 +137,57 @@ services:
       - no-new-privileges:true
     restart: unless-stopped
 
+  rakazo-data-init:
+    image: busybox:1
+    command: ["chown", "-R", "1000:1000", "/data"]
+    volumes:
+      - rakazo-app-data:/data
+    restart: "no"
+
+  rakazo-computer:
+    image: ekvaar/rakazo-computer:local
+    build:
+      context: ./vendor/rakazo/infra/sandboxes/computer
+    command: ["true"]
+    restart: "no"
+
+  rakazo-supervisor:
+    image: ekvaar/rakazo-supervisor:local
+    build:
+      context: .
+      dockerfile: infra/rakazo/Dockerfile.supervisor
+    expose:
+      - "7091"
+    environment:
+      - DATA_DIR=/data
+      - SUPERVISOR_HOST=0.0.0.0
+      - SUPERVISOR_PORT=7091
+      - DOCKER_SOCKET=/var/run/docker.sock
+      - RAKAZO_COMPUTER_IMAGE=ekvaar/rakazo-computer:local
+      - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:?RAKAZO_SANDBOX_SUPERVISOR_TOKEN is required}
+      - SANDBOX_SCREEN_NETWORK=isolated
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - rakazo-app-data:/data
+    depends_on:
+      rakazo-computer:
+        condition: service_completed_successfully
+      rakazo-data-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
   rakazo-api:
     build:
-      context: ./infra/rakazo
+      context: .
+      dockerfile: infra/rakazo/Dockerfile
     image: ekvaar/rakazo-api:local
     command:
       - bash
@@ -157,16 +205,17 @@ services:
       - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:?RAKAZO_BETTER_AUTH_SECRET is required}
       - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:?RAKAZO_ENCRYPTION_KEY is required}
       - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
-      - SANDBOX_PROVIDER=${RAKAZO_SANDBOX_PROVIDER:-e2b}
-      - E2B_API_KEY=${E2B_API_KEY:-}
-      - DAYTONA_API_KEY=${DAYTONA_API_KEY:-}
-      - BOX_API_KEY=${BOX_API_KEY:-}
+      - SANDBOX_PROVIDER=docker
+      - SANDBOX_SUPERVISOR_URL=http://rakazo-supervisor:7091
+      - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:?RAKAZO_SANDBOX_SUPERVISOR_TOKEN is required}
       - WAKEUP_DRIVER=graphile
       - AGENT_RUNTIME=pi
     volumes:
       - rakazo-app-data:/data
     depends_on:
       rakazo-postgres:
+        condition: service_healthy
+      rakazo-supervisor:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3100/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
@@ -179,7 +228,7 @@ services:
     restart: unless-stopped
 
   rakazo-worker:
-    image: ghcr.io/elie222/rakazo/app@sha256:b1bef3731818a601d256be4359f9450401813329a3c9b1b813c70f2a1647f0ea
+    image: ekvaar/rakazo-api:local
     command: ["pnpm", "--filter", "@rakazo/worker", "start"]
     environment:
       - NODE_ENV=production
@@ -188,10 +237,9 @@ services:
       - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:?RAKAZO_BETTER_AUTH_SECRET is required}
       - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:?RAKAZO_ENCRYPTION_KEY is required}
       - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
-      - SANDBOX_PROVIDER=${RAKAZO_SANDBOX_PROVIDER:-e2b}
-      - E2B_API_KEY=${E2B_API_KEY:-}
-      - DAYTONA_API_KEY=${DAYTONA_API_KEY:-}
-      - BOX_API_KEY=${BOX_API_KEY:-}
+      - SANDBOX_PROVIDER=docker
+      - SANDBOX_SUPERVISOR_URL=http://rakazo-supervisor:7091
+      - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:?RAKAZO_SANDBOX_SUPERVISOR_TOKEN is required}
       - WAKEUP_DRIVER=graphile
       - AGENT_RUNTIME=pi
     volumes:
@@ -199,12 +247,14 @@ services:
     depends_on:
       rakazo-api:
         condition: service_healthy
+      rakazo-supervisor:
+        condition: service_healthy
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
 
   rakazo-web:
-    image: ghcr.io/elie222/rakazo/app@sha256:b1bef3731818a601d256be4359f9450401813329a3c9b1b813c70f2a1647f0ea
+    image: ekvaar/rakazo-api:local
     command: ["pnpm", "--filter", "@rakazo/web", "preview", "--host", "0.0.0.0", "--port", "5173"]
     expose:
       - "5173"
