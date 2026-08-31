@@ -97,6 +97,7 @@ export default defineConfig(() => {
   const secret = process.env.SCREEN_PROXY_SECRET;
   if (!secret || secret.length < 32) throw new Error("SCREEN_PROXY_SECRET must be at least 32 characters");
   return {
+    root: "/app/web-runtime",
     plugins: [
       {
         name: "ekvaar-novnc-proxy",

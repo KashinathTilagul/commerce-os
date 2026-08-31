@@ -42,6 +42,22 @@ jobs:
           docker push "$APP_IMAGE"
           docker run --rm "$APP_IMAGE" test -f /app/api/src/index.ts
           docker run --rm "$APP_IMAGE" test -f /app/web-runtime/dist/index.html
+          web_container=$(docker run -d \
+            -e SCREEN_PROXY_SECRET=0123456789abcdef0123456789abcdef \
+            -e RAKAZO_HOST=127.0.0.1 \
+            -p 127.0.0.1:5173:5173 \
+            "$APP_IMAGE" \
+            /app/web-runtime/node_modules/.bin/vite preview \
+            --config /app/web-runtime/vite.runtime.config.ts)
+          for attempt in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:5173/ >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5173/ >/dev/null || {
+            docker logs "$web_container"
+            exit 1
+          }
+          docker rm -f "$web_container"
 
   deploy:
     needs: build-workforce-images
@@ -369,7 +385,12 @@ jobs:
             exit 1
           fi
 
-          /usr/bin/sudo docker compose up -d --remove-orphans --wait --wait-timeout 180
+          /usr/bin/sudo docker compose up -d --remove-orphans --wait --wait-timeout 180 || {
+            echo "[x] A production container failed its health check."
+            /usr/bin/sudo docker compose ps
+            /usr/bin/sudo docker compose logs --tail 150 rakazo-api rakazo-worker rakazo-web rakazo-supervisor
+            exit 1
+          }
 
           /usr/bin/sudo docker compose restart nginx
 
