@@ -284,6 +284,13 @@ jobs:
           /usr/bin/sudo docker builder prune -af || true
           echo "[i] Disk after frontend build:"; df -h / || true
 
+          # Migrate and restore the public OS before optional sidecars or the
+          # large Workforce computer image are built. A later build failure
+          # must not leave the already-validated frontend offline.
+          /usr/bin/sudo docker compose run --rm --no-deps frontend sh /migration/migrate-production.sh
+          /usr/bin/sudo docker compose up -d --no-deps frontend
+          /usr/bin/sudo docker compose restart nginx
+
           /usr/bin/sudo docker compose --progress=plain build upskill google-workspace 2>&1 || {
             echo "[!] Sidecar build failed once; reclaiming unused build cache and retrying..."
             /usr/bin/sudo docker builder prune -af || true
@@ -295,17 +302,18 @@ jobs:
           # Reclaim it before pulling the external service images so the small
           # self-hosted runner does not hit its disk ceiling during extraction.
           /usr/bin/sudo docker builder prune -af || true
-
-          # Validate schema changes while the previous frontend is still live.
-          # Then remove only the superseded stateless containers so their old
-          # image layers can be reclaimed before the first Rakazo image pull.
-          /usr/bin/sudo docker compose run --rm --no-deps frontend sh /migration/migrate-production.sh
-          /usr/bin/sudo docker compose stop frontend upskill google-workspace
-          /usr/bin/sudo docker compose rm -f frontend upskill google-workspace
           /usr/bin/sudo docker image prune -f || true
 
           /usr/bin/sudo docker compose pull rakazo-postgres rakazo-data-init
-          /usr/bin/sudo docker compose --progress=plain build rakazo-computer rakazo-supervisor rakazo-api
+          # These images are individually large during extraction. Building
+          # them concurrently exhausted the runner even though the final
+          # images fit. Materialize and prune each one before starting the next.
+          /usr/bin/sudo docker compose --progress=plain build rakazo-api
+          /usr/bin/sudo docker builder prune -af || true
+          /usr/bin/sudo docker compose --progress=plain build rakazo-supervisor
+          /usr/bin/sudo docker builder prune -af || true
+          /usr/bin/sudo docker compose --progress=plain build rakazo-computer
+          /usr/bin/sudo docker builder prune -af || true
           echo "[i] Disk before service startup:"; df -h / || true
           AVAILABLE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
           if [ "${AVAILABLE_KB:-0}" -lt 524288 ]; then
