@@ -20,12 +20,22 @@ export async function computeRisks(organizationId: string): Promise<Risk[]> {
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
 
-  const [agents, issues, orders, products] = await Promise.all([
+  const [agents, issues, orders, products, activeRuns] = await Promise.all([
     db.agent.findMany({ where: { organizationId, isHuman: false } }),
     db.issue.findMany({ where: { organizationId, status: { not: 'DONE' } } }),
     db.order.findMany({ where: { organizationId, status: 'PROCESSING', createdAt: { lt: threeDaysAgo } } }),
     db.product.findMany({ where: { organizationId, status: 'ACTIVE' } }),
+    db.agentRun.findMany({
+      where: { organizationId, status: { in: ['QUEUED', 'STARTING', 'RUNNING'] } },
+      select: { id: true, agentId: true, status: true, createdAt: true, startedAt: true },
+    }),
   ])
+
+  const assignedActiveAgentIds = new Set(
+    issues
+      .filter(issue => issue.assigneeId && ['BACKLOG', 'IN_PROGRESS', 'MILESTONE_REVIEW'].includes(issue.status))
+      .map(issue => issue.assigneeId as string),
+  )
 
   for (const a of agents) {
     if (a.tasksTotal >= 5 && a.successRate < 70) {
@@ -40,7 +50,11 @@ export async function computeRisks(organizationId: string): Promise<Risk[]> {
         message: `${a.name} success rate is ${a.successRate.toFixed(0)}% over ${a.tasksTotal} tasks`,
       })
     }
-    if (a.status === 'ACTIVE' && a.lastHeartbeat < dayAgo) {
+    // ACTIVE is also used as a configured/available state. A dormant agent with
+    // no assigned work is not an outage, even when its last completed-work
+    // heartbeat is old. Only alert when the OS has concrete work to execute.
+    const hasExpectedWork = Boolean(a.currentTask) || assignedActiveAgentIds.has(a.id)
+    if (a.status === 'ACTIVE' && hasExpectedWork && a.lastHeartbeat < dayAgo) {
       risks.push({
         id: `agent-stale-${a.id}`,
         category: 'INFRASTRUCTURE',
@@ -49,6 +63,22 @@ export async function computeRisks(organizationId: string): Promise<Risk[]> {
         metric: 'agent_heartbeat_age_hours',
         current_value: (Date.now() - a.lastHeartbeat.getTime()) / 3600000,
         message: `${a.name} marked ACTIVE but hasn't reported in over 24h`,
+      })
+    }
+  }
+
+  for (const run of activeRuns) {
+    const activeSince = run.startedAt ?? run.createdAt
+    if (activeSince < dayAgo) {
+      const agent = agents.find(candidate => candidate.id === run.agentId)
+      risks.push({
+        id: `agent-run-stale-${run.id}`,
+        category: 'INFRASTRUCTURE',
+        risk_level: 'HIGH',
+        score: LEVEL_SCORE.HIGH,
+        metric: 'agent_run_age_hours',
+        current_value: (Date.now() - activeSince.getTime()) / 3600000,
+        message: `${agent?.name ?? 'Agent'} has a ${run.status.toLowerCase()} run older than 24h`,
       })
     }
   }
