@@ -145,7 +145,7 @@ services:
     restart: "no"
 
   rakazo-computer:
-    image: ekvaar/rakazo-computer:local
+    image: ${RAKAZO_COMPUTER_IMAGE:-ekvaar/rakazo-computer:local}
     build:
       context: ./vendor/rakazo/infra/sandboxes/computer
     command: ["true"]
@@ -163,7 +163,7 @@ services:
       - SUPERVISOR_HOST=0.0.0.0
       - SUPERVISOR_PORT=7091
       - DOCKER_SOCKET=/var/run/docker.sock
-      - RAKAZO_COMPUTER_IMAGE=ekvaar/rakazo-computer:local
+      - RAKAZO_COMPUTER_IMAGE=${RAKAZO_COMPUTER_IMAGE:-ekvaar/rakazo-computer:local}
       - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:?RAKAZO_SANDBOX_SUPERVISOR_TOKEN is required}
       - SANDBOX_SCREEN_NETWORK=isolated
     volumes:

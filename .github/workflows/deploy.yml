@@ -10,8 +10,32 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
+  build-workforce-computer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Build and publish Workforce computer
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          COMPUTER_IMAGE: ghcr.io/kashinathtilagul/ekvaar/rakazo-computer:${{ github.sha }}
+        run: |
+          set -e -o pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          docker build \
+            --tag "$COMPUTER_IMAGE" \
+            vendor/rakazo/infra/sandboxes/computer
+          docker push "$COMPUTER_IMAGE"
+
   deploy:
+    needs: build-workforce-computer
     runs-on: self-hosted
 
     steps:
@@ -52,6 +76,8 @@ jobs:
           E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
           DAYTONA_API_KEY: ${{ secrets.DAYTONA_API_KEY }}
           BOX_API_KEY: ${{ secrets.BOX_API_KEY }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
           DOCKER_BUILDKIT: 1
         run: |
           set -e -o pipefail
@@ -234,6 +260,7 @@ jobs:
             "RAKAZO_SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET}" \
             "RAKAZO_SANDBOX_PROVIDER=docker" \
             "RAKAZO_SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN}" \
+            "RAKAZO_COMPUTER_IMAGE=ghcr.io/kashinathtilagul/ekvaar/rakazo-computer:${{ github.sha }}" \
             "BROWSER_HEADLESS=true" \
             > .env
           chmod 600 .env
@@ -304,6 +331,7 @@ jobs:
           /usr/bin/sudo docker builder prune -af || true
           /usr/bin/sudo docker image prune -f || true
 
+          echo "$GHCR_TOKEN" | /usr/bin/sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
           /usr/bin/sudo docker compose pull rakazo-postgres rakazo-data-init
           # These images are individually large during extraction. Building
           # them concurrently exhausted the runner even though the final
@@ -312,21 +340,7 @@ jobs:
           /usr/bin/sudo docker builder prune -af || true
           /usr/bin/sudo docker compose --progress=plain build rakazo-supervisor
           /usr/bin/sudo docker builder prune -af || true
-          # BuildKit evaluates independent Dockerfile stages concurrently. The
-          # computer image has a native capture compiler stage and a Chromium
-          # runtime stage; unpacking both apt dependency sets at once exceeds
-          # this runner's small root volume. Materialize the compiler target
-          # first so the final build reuses it instead of running both stages
-          # in parallel.
-          /usr/bin/sudo docker buildx build \
-            --load \
-            --target capture-builder \
-            --tag rakazo-computer-capture-cache:deploy \
-            --file vendor/rakazo/infra/sandboxes/computer/Dockerfile \
-            vendor/rakazo/infra/sandboxes/computer
-          /usr/bin/sudo docker compose --progress=plain build rakazo-computer
-          /usr/bin/sudo docker image rm rakazo-computer-capture-cache:deploy || true
-          /usr/bin/sudo docker builder prune -af || true
+          /usr/bin/sudo docker compose pull rakazo-computer
           echo "[i] Disk before service startup:"; df -h / || true
           AVAILABLE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
           if [ "${AVAILABLE_KB:-0}" -lt 524288 ]; then
