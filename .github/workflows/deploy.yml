@@ -275,6 +275,13 @@ jobs:
           # deployment artifacts and can themselves prevent the runner from
           # reporting a disk-full failure.
           /usr/bin/sudo find /home/ubuntu/Ekvaar/actions-runner/actions-runner/_diag -type f -mtime +1 -delete 2>/dev/null || true
+          # Agent computer containers are disposable runtime shells; their
+          # durable homes live in rakazo-app-data. Remove old shells before an
+          # image upgrade so they do not pin the superseded computer image.
+          MANAGED_COMPUTERS=$(/usr/bin/sudo docker ps -aq --filter label=rakazo.managed=true)
+          if [ -n "$MANAGED_COMPUTERS" ]; then
+            /usr/bin/sudo docker rm -f $MANAGED_COMPUTERS
+          fi
           /usr/bin/sudo docker system prune -af || true
           /usr/bin/sudo apt-get clean || true
           /usr/bin/sudo journalctl --vacuum-size=100M || true
