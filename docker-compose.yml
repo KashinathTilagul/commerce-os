@@ -147,7 +147,8 @@ services:
   rakazo-computer:
     image: ${RAKAZO_COMPUTER_IMAGE:-ekvaar/rakazo-computer:local}
     build:
-      context: ./vendor/rakazo/infra/sandboxes/computer
+      context: .
+      dockerfile: infra/rakazo/Dockerfile.computer
     command: ["true"]
     restart: "no"
 

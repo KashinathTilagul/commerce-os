@@ -16,3 +16,5 @@
 !vendor/rakazo/infra/sandboxes/
 !vendor/rakazo/infra/sandboxes/supervisor/
 !vendor/rakazo/infra/sandboxes/supervisor/**
+!vendor/rakazo/infra/sandboxes/computer/
+!vendor/rakazo/infra/sandboxes/computer/**

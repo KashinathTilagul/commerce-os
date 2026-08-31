@@ -30,8 +30,9 @@ jobs:
           set -e -o pipefail
           echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
           docker build \
+            --file infra/rakazo/Dockerfile.computer \
             --tag "$COMPUTER_IMAGE" \
-            vendor/rakazo/infra/sandboxes/computer
+            .
           docker push "$COMPUTER_IMAGE"
 
   deploy:
