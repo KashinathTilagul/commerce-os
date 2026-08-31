@@ -318,6 +318,11 @@ jobs:
           /usr/bin/sudo docker compose up -d --no-deps frontend
           /usr/bin/sudo docker compose restart nginx
 
+          # A repository-scoped GHCR token cannot read unrelated public GHCR
+          # packages such as astral-sh/uv. Use anonymous access for public
+          # sidecar bases, then authenticate below only for Ekvaar's private
+          # computer image.
+          /usr/bin/sudo docker logout ghcr.io || true
           /usr/bin/sudo docker compose --progress=plain build upskill google-workspace 2>&1 || {
             echo "[!] Sidecar build failed once; reclaiming unused build cache and retrying..."
             /usr/bin/sudo docker builder prune -af || true
