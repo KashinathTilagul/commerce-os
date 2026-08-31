@@ -4,6 +4,7 @@
 !infra/rakazo/**
 !vendor/
 !vendor/rakazo/
+!vendor/rakazo/**
 !vendor/rakazo/pnpm-workspace.yaml
 !vendor/rakazo/pnpm-lock.yaml
 !vendor/rakazo/package.json
@@ -18,3 +19,5 @@
 !vendor/rakazo/infra/sandboxes/supervisor/**
 !vendor/rakazo/infra/sandboxes/computer/
 !vendor/rakazo/infra/sandboxes/computer/**
+vendor/rakazo/node_modules
+vendor/rakazo/**/node_modules

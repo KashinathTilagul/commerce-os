@@ -188,12 +188,12 @@ services:
   rakazo-api:
     build:
       context: .
-      dockerfile: infra/rakazo/Dockerfile
-    image: ekvaar/rakazo-api:local
+      dockerfile: infra/rakazo/Dockerfile.app
+    image: ${RAKAZO_APP_IMAGE:-ekvaar/rakazo-app:local}
     command:
       - bash
       - -lc
-      - pnpm --filter @rakazo/db exec prisma migrate deploy && pnpm --filter @rakazo/api start
+      - cd /app/api/node_modules/@rakazo/db && node /app/api/node_modules/prisma/build/index.js migrate deploy && exec tsx /app/api/src/index.ts
     expose:
       - "3100"
     environment:
@@ -229,8 +229,8 @@ services:
     restart: unless-stopped
 
   rakazo-worker:
-    image: ekvaar/rakazo-api:local
-    command: ["pnpm", "--filter", "@rakazo/worker", "start"]
+    image: ${RAKAZO_APP_IMAGE:-ekvaar/rakazo-app:local}
+    command: ["tsx", "/app/worker/src/index.ts"]
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgres://rakazo:${RAKAZO_POSTGRES_PASSWORD:?RAKAZO_POSTGRES_PASSWORD is required}@rakazo-postgres:5432/rakazo
@@ -255,8 +255,8 @@ services:
     restart: unless-stopped
 
   rakazo-web:
-    image: ekvaar/rakazo-api:local
-    command: ["pnpm", "--filter", "@rakazo/web", "preview", "--host", "0.0.0.0", "--port", "5173"]
+    image: ${RAKAZO_APP_IMAGE:-ekvaar/rakazo-app:local}
+    command: ["/app/web-runtime/node_modules/.bin/vite", "preview", "--config", "/app/web-runtime/vite.runtime.config.ts"]
     expose:
       - "5173"
     environment:
