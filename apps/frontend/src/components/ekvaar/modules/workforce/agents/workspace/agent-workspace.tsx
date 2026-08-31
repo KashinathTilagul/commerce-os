@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
 import { ArrowLeft, Circle, Play, Pause, Loader2, MoreHorizontal, RotateCcw, FileText } from 'lucide-react'
 import { GlassPanel } from '@/components/ui/glass-system'
+import { ErrorBoundary } from '@/components/ekvaar/error-boundary'
 import { DashboardTab } from './dashboard-tab'
 import { InstructionsTab } from './instructions-tab'
 import { SkillsTab } from './skills-tab'
@@ -273,14 +274,16 @@ export function AgentWorkspace({
 
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto p-6">
-        {tab === 'dashboard' && <DashboardTab agent={agent} />}
-        {tab === 'instructions' && <InstructionsTab agent={agent} />}
-        {tab === 'skills' && <SkillsTab agent={agent} />}
-        {tab === 'configuration' && <ConfigurationTab agent={agent} />}
-        {tab === 'runs' && <RunsTab agentId={agent.id} />}
-        {tab === 'budget' && <BudgetTab agent={agent} />}
-        {tab === 'marketing' && <MarketingAutomationTab agentId={agent.id} />}
-        {tab === 'references' && <ReferencesTab agent={agent} />}
+        <ErrorBoundary>
+          {tab === 'dashboard' && <DashboardTab agent={agent} />}
+          {tab === 'instructions' && <InstructionsTab agent={agent} />}
+          {tab === 'skills' && <SkillsTab agent={agent} />}
+          {tab === 'configuration' && <ConfigurationTab agent={agent} />}
+          {tab === 'runs' && <RunsTab agentId={agent.id} />}
+          {tab === 'budget' && <BudgetTab agent={agent} />}
+          {tab === 'marketing' && <MarketingAutomationTab agentId={agent.id} />}
+          {tab === 'references' && <ReferencesTab agent={agent} />}
+        </ErrorBoundary>
       </div>
     </div>
   )

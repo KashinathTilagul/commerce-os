@@ -249,4 +249,3 @@ const SPECIALISTS: RosterAgent[] = [
 ]
 
 export const ROSTER: RosterAgent[] = [...CHIEFS, ...SPECIALISTS]
-export const CHIEF_CODES = CHIEFS.map(c => c.code)

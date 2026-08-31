@@ -239,13 +239,7 @@ export function renderTemplate(templateName: string, data: Record<string, any>):
   return compiled(defaultData)
 }
 
-export function registerTemplate(name: string, html: string): void {
-  PDF_TEMPLATES[name] = html
-}
 
-export function getTemplateNames(): string[] {
-  return Object.keys(PDF_TEMPLATES)
-}
 
 // Brand Book §06 — enforced, not advisory: every hue in these templates must
 // be a signature color or a neutral gray. Runs at module load, so an

@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { getMarketingApprovalReadiness } from '@/lib/marketing-approval'
-import { applyRateLimit } from '@/lib/rate-limiter'
 
 export async function GET(request: NextRequest) {
   const auth = await requireOrganization()
@@ -14,27 +13,6 @@ export async function GET(request: NextRequest) {
   const status = requestedStatus && ['PENDING', 'APPROVED', 'REJECTED', 'REVISION_REQUESTED'].includes(requestedStatus)
     ? requestedStatus
     : undefined
-
-  // Apply rate limiting for approvals endpoint
-  const rateLimitResult = await applyRateLimit(
-    `${auth.organizationId}:${auth.user.id}`,
-    'APPROVAL',
-    request
-  )
-  
-  if (!rateLimitResult.success && rateLimitResult.errorResponse) {
-    const response = NextResponse.json(
-      rateLimitResult.errorResponse.body,
-      { status: rateLimitResult.errorResponse.status }
-    )
-    
-    // Add rate limit headers
-    Object.entries(rateLimitResult.errorResponse.headers).forEach(([key, value]) => {
-      response.headers.set(key, value)
-    })
-    
-    return response
-  }
 
   try {
     const approvals = await db.approval.findMany({

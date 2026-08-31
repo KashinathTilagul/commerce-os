@@ -86,7 +86,6 @@ export async function POST(
         storageLocation: filepath,
         status: 'READY',
         generatedBy: agent.code,
-        workspaceId: agent.workspaceId,
       },
     })
 
@@ -128,10 +127,7 @@ export async function GET(
   const artifacts = await db.artifact.findMany({
     where: {
       organizationId: auth.organizationId,
-      OR: [
-        { generatedBy: agent.code },
-        { workspaceId: agent.workspaceId },
-      ],
+      generatedBy: agent.code,
     },
     orderBy: { createdAt: 'desc' },
   })
