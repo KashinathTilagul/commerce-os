@@ -60,6 +60,8 @@ jobs:
           echo "[i] Deploying from: $(pwd)"
           git fetch --prune origin main
           git checkout -B main origin/main
+          git submodule sync --recursive
+          git submodule update --init --recursive --depth 1
           echo "[i] Now at commit: $(git rev-parse --short HEAD)"
 
           if [ $(/usr/sbin/swapon --show | wc -l) -eq 0 ]; then
