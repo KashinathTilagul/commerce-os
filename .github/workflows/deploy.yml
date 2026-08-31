@@ -312,7 +312,20 @@ jobs:
           /usr/bin/sudo docker builder prune -af || true
           /usr/bin/sudo docker compose --progress=plain build rakazo-supervisor
           /usr/bin/sudo docker builder prune -af || true
+          # BuildKit evaluates independent Dockerfile stages concurrently. The
+          # computer image has a native capture compiler stage and a Chromium
+          # runtime stage; unpacking both apt dependency sets at once exceeds
+          # this runner's small root volume. Materialize the compiler target
+          # first so the final build reuses it instead of running both stages
+          # in parallel.
+          /usr/bin/sudo docker buildx build \
+            --load \
+            --target capture-builder \
+            --tag rakazo-computer-capture-cache:deploy \
+            --file vendor/rakazo/infra/sandboxes/computer/Dockerfile \
+            vendor/rakazo/infra/sandboxes/computer
           /usr/bin/sudo docker compose --progress=plain build rakazo-computer
+          /usr/bin/sudo docker image rm rakazo-computer-capture-cache:deploy || true
           /usr/bin/sudo docker builder prune -af || true
           echo "[i] Disk before service startup:"; df -h / || true
           AVAILABLE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
