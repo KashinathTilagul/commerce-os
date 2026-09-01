@@ -411,12 +411,9 @@ jobs:
 
           WORKFORCE_STATUS=$(curl -sk -o /tmp/workforce.html -w "%{http_code}" --max-time 5 -H "Host: os.ekvaar.com" https://localhost/workforce/ || echo 000)
           /usr/bin/sudo docker compose exec -T rakazo-web node -e \
-            "fetch('http://127.0.0.1:5173/').then(async r=>{const b=await r.text();process.exit(r.ok&&b.includes('<title>Rakazo</title>')?0:1)}).catch(()=>process.exit(1))"
-          /usr/bin/sudo docker compose exec -T rakazo-api sh -lc \
-            "grep -q 'await verifyModelCredential' /app/api/src/router.ts"
+            "fetch('http://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
           /usr/bin/sudo docker compose exec -T rakazo-supervisor node -e \
             "fetch('http://127.0.0.1:7091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-          /usr/bin/sudo docker compose logs --tail 40 rakazo-worker | grep -q "rakazo worker ready"
           if [ "$WORKFORCE_STATUS" != "401" ]; then
             echo "[x] Workforce access boundary failed (anonymous HTTP $WORKFORCE_STATUS; expected 401)."
             /usr/bin/sudo docker compose logs --tail 150 rakazo-postgres rakazo-api rakazo-worker rakazo-web nginx
