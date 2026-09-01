@@ -243,6 +243,7 @@ services:
       - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:?RAKAZO_SANDBOX_SUPERVISOR_TOKEN is required}
       - WAKEUP_DRIVER=graphile
       - AGENT_RUNTIME=pi
+      - RAKAZO_WORKER_CONCURRENCY=${RAKAZO_WORKER_CONCURRENCY:-4}
     volumes:
       - rakazo-app-data:/data
     depends_on:
