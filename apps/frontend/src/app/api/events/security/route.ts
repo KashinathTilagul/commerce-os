@@ -17,11 +17,17 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   // Support both session auth OR webhook header token
   const token = req.headers.get('x-security-token')
-  const secret = process.env.SECURITY_WEBHOOK_SECRET || process.env.NEXTAUTH_SECRET || 'ekvaar-secret'
+  const secret = process.env.SECURITY_WEBHOOK_SECRET || process.env.NEXTAUTH_SECRET
 
   let organizationId: string | null = null
 
-  if (token && token === secret) {
+  if (token) {
+    if (!secret) {
+      return NextResponse.json({ error: 'Security webhook secret not configured on server' }, { status: 500 })
+    }
+    if (token !== secret) {
+      return NextResponse.json({ error: 'Invalid security token' }, { status: 401 })
+    }
     // Webhook caller — get founder user ID
     const founder = await db.user.findFirst({ orderBy: { createdAt: 'asc' } })
     organizationId = founder?.id || null

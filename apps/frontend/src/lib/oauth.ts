@@ -59,7 +59,8 @@ export function parseOAuthState(state: string) {
 }
 
 function getEncryptionKey(): Buffer {
-  const secret = process.env.NEXTAUTH_SECRET || 'default-ekvaar-secret-key-at-least-32-chars'
+  const secret = process.env.NEXTAUTH_SECRET
+  if (!secret) throw new Error('NEXTAUTH_SECRET is required for OAuth encryption')
   return crypto.createHash('sha256').update(secret).digest()
 }
 

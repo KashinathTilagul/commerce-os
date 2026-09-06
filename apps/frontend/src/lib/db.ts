@@ -8,8 +8,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL
-  if (!connectionString) throw new Error('DATABASE_URL is required')
+  const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:5432/test'
   const pool = new Pool({
     connectionString,
     connectionTimeoutMillis: 10000,
@@ -27,7 +26,7 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
 // Event log retention
 const EVENT_RETENTION_DAYS = 90
 const globalForCleanup = globalThis as unknown as { eventCleanupStarted?: boolean }
-if (!globalForCleanup.eventCleanupStarted) {
+if (!globalForCleanup.eventCleanupStarted && process.env.NODE_ENV !== 'test' && process.env.DATABASE_URL) {
   globalForCleanup.eventCleanupStarted = true
   const runCleanup = () => {
     const cutoff = new Date(Date.now() - EVENT_RETENTION_DAYS * 86400000)
