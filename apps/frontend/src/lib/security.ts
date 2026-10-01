@@ -18,6 +18,8 @@ export const RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
   // are polled constantly by next-auth just from having the lock screen open.
   authLogin: { windowMs: 900000, maxRequests: 10 },
   authSession: { windowMs: 60000, maxRequests: 60 },
+  // LLM and chat endpoints need specific throttling to prevent token budget exhaustion.
+  aiChat: { windowMs: 60000, maxRequests: 30 },
 }
 
 // ponytail: in-memory rate limits — single-container assumption, lost on restart. 
@@ -30,7 +32,8 @@ const rateLimitCleanup = setInterval(() => {
 rateLimitCleanup.unref?.()
 
 export function checkRateLimit(ip: string, path: string): { allowed: boolean; retryAfter: number } {
-  const bucket = path.includes("/api/auth/callback") ? "authLogin"
+  const bucket = path.includes("/chat") ? "aiChat"
+    : path.includes("/api/auth/callback") ? "authLogin"
     : path.includes("/api/auth") ? "authSession"
     : path.startsWith("/api/") ? "api"
     : "default"
