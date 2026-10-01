@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { requireOrganization, requireAuth } from '@/lib/auth-guard'
 import { z } from 'zod'
 import { routeObject } from '@/lib/ai-router'
-import { sanitizeInput } from '@/lib/security'
+import { sanitizeInput, checkRateLimit, getClientIP } from '@/lib/security'
 import { getLiveBusinessSnapshot } from '@/lib/business-snapshot'
 import { runAgentWork } from '@/lib/agent-worker'
 
@@ -23,6 +23,15 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ip = getClientIP(req)
+  const rateLimit = checkRateLimit(ip, req.nextUrl.pathname)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many chat requests. Please slow down.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+    )
+  }
+
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
 
@@ -105,7 +114,7 @@ Never claim you have already finished work in your reply — when intent is 'wor
     return NextResponse.json({ reply, issueCode })
   } catch (e: any) {
     console.error('[Agent Chat] Error:', e)
-    const detail = e?.message || String(e)
-    return NextResponse.json({ error: 'Failed to process chat', detail }, { status: 500 })
+    const detail = process.env.NODE_ENV === 'development' ? (e?.message || String(e)) : undefined
+    return NextResponse.json({ error: 'Failed to process chat', ...(detail ? { detail } : {}) }, { status: 500 })
   }
 }
