@@ -32,7 +32,7 @@ export async function generatePDF(options: PDFGenerationOptions): Promise<{ arti
     // Fallback to system Chrome if available
     browser = await puppeteer.launch({
       headless: true,
-      executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      executablePath: process.env.CHROME_BIN || process.env.PUPPETEER_EXECUTABLE_PATH || (process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' : '/usr/bin/chromium')
     })
   }
   

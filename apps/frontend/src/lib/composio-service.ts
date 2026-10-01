@@ -569,7 +569,8 @@ export async function initiateConnection(toolkitSlug: string, entityId?: string)
     const authConfigId = match.id
 
     // Step 3: Create the connection link (OAuth redirect)
-    const callbackUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/integrations/callback?toolkit=${toolkitSlug}`
+    const { createOAuthState } = await import('./oauth')
+    const callbackUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/integrations/callback?toolkit=${encodeURIComponent(toolkitSlug)}&state=${encodeURIComponent(createOAuthState(toolkitSlug, entity))}`
     const connection = await composio.connectedAccounts.link(
       entity,
       authConfigId,

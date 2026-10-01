@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireOrganization } from '@/lib/auth-guard'
 import { executeTool } from '@/lib/composio-service'
+import { db } from '@/lib/db'
 
 const schema = z.object({
   productId: z.string().optional(),
@@ -24,6 +25,8 @@ function getProducts(output: any): any[] {
 export async function POST(req: NextRequest) {
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
+  const user = await db.user.findUnique({ where: { id: auth.user.id }, select: { orgRole: true } })
+  if (!user || !['Founder', 'Admin'].includes(user.orgRole)) return NextResponse.json({ error: 'Administrator access required' }, { status: 403 })
 
   const parsed = schema.safeParse(await req.json().catch(() => ({})))
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Invalid request' }, { status: 400 })

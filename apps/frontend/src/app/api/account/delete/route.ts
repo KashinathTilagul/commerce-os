@@ -15,30 +15,14 @@ export async function POST(req: NextRequest) {
     const userId = session.user.id
 
 
-    const user = await db.user.findUnique({ where: { id: userId }, select: { organizationId: true } })
-    const organizationId = user?.organizationId
+    const user = await db.user.findUnique({ where: { id: userId }, select: { organizationId: true, orgRole: true } })
+    if (!user) return NextResponse.json({ error: 'Account not found' }, { status: 404 })
+    if (user.organizationId && user.orgRole === 'FOUNDER') {
+      return NextResponse.json({ error: 'Transfer organization ownership before deleting your account' }, { status: 409 })
+    }
 
     await db.$transaction(async (tx) => {
-      if (organizationId) {
-        await tx.toolExecution.deleteMany({ where: { integration: { organizationId } } })
-        await tx.event.deleteMany({ where: { organizationId } })
-        await tx.issueComment.deleteMany({ where: { issue: { organizationId } } })
-        await tx.issue.deleteMany({ where: { organizationId } })
-        await tx.approval.deleteMany({ where: { organizationId } })
-        await tx.orderItem.deleteMany({ where: { order: { organizationId } } })
-        await tx.order.deleteMany({ where: { organizationId } })
-        await tx.product.deleteMany({ where: { organizationId } })
-        await tx.customer.deleteMany({ where: { organizationId } })
-        await tx.transaction.deleteMany({ where: { organizationId } })
-        await tx.campaign.deleteMany({ where: { organizationId } })
-        await tx.founderNote.deleteMany({ where: { organizationId } })
-        await tx.restoration.deleteMany({ where: { organizationId } })
-        await tx.supplier.deleteMany({ where: { organizationId } })
-        await tx.aISystem.deleteMany({ where: { organizationId } })
-        await tx.brandCheck.deleteMany({ where: { organizationId } })
-        await tx.integration.deleteMany({ where: { organizationId } })
-        await tx.agent.deleteMany({ where: { organizationId } })
-      }
+      // Account removal never deletes organization-owned business records.
       
       await tx.auditLog.deleteMany({ where: { userId } })
       await tx.session.deleteMany({ where: { userId } })

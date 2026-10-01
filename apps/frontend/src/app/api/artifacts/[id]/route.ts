@@ -38,7 +38,8 @@ export async function GET(
     }
     
     // Read file from storage
-    const fileBuffer = await fs.readFile(artifact.storageLocation)
+    const { readStoredArtifact } = await import('@/lib/storage')
+    const fileBuffer = await readStoredArtifact(artifact.storageLocation)
     
     // Header values must stay ASCII — titles carry "·"/"—" from LLM output,
     // so the unicode name goes in filename* (RFC 5987) and an ASCII-safe one
@@ -47,7 +48,7 @@ export async function GET(
     const asciiName = filename.replace(/[^\x20-\x7E]/g, '').trim() || `${artifact.id}.${getFileExtension(artifact.mimeType, artifact.type)}`
     
     // Return file with appropriate headers
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {
         'Content-Type': artifact.mimeType,

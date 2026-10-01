@@ -5,6 +5,7 @@ Business data and application APIs live in the Next.js/Prisma app.
 """
 
 import os
+import hmac
 from dotenv import load_dotenv
 # Load environment variables from parent directory .env file
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
@@ -21,6 +22,16 @@ app = FastAPI(
     title="EKVAAR OS — Browser Automation Sidecar",
     version="1.0.0",
 )
+
+@app.middleware('http')
+async def worker_auth(request: Request, call_next):
+    if request.url.path.startswith('/api/browser'):
+        secret = os.getenv('BROWSE_WORKER_KEY')
+        if not secret or not hmac.compare_digest(request.headers.get('x-worker-key', ''), secret):
+            return JSONResponse(status_code=401, content={'error': 'Unauthorized'})
+        if os.getenv('BROWSER_AUTOMATION_ENABLED') != '1':
+            return JSONResponse(status_code=503, content={'error': 'Browser automation requires an isolated network deployment before enabling'})
+    return await call_next(request)
 
 # Enable CORS for the React Frontend - restrict to known origins
 ALLOWED_ORIGINS = [

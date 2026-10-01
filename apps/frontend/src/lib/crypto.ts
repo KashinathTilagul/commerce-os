@@ -4,11 +4,13 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypt
 // JWT_SECRET (already a required deploy secret) so no new env var is needed.
 const PREFIX = 'enc:v1:'
 const ALGO = 'aes-256-gcm'
+let cachedKey: { secret: string; key: Buffer } | undefined
 
 function getKey(): Buffer {
   const secret = process.env.JWT_SECRET
   if (!secret) throw new Error('JWT_SECRET is required to encrypt/decrypt stored secrets')
-  return scryptSync(secret, 'ekvaar-settings-encryption', 32)
+  if (cachedKey?.secret !== secret) cachedKey = { secret, key: scryptSync(secret, 'ekvaar-settings-encryption', 32) }
+  return cachedKey.key
 }
 
 export function encryptSecret(plain: string): string {

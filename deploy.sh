@@ -64,7 +64,7 @@ fi
 # 3. Create Required Storage Directories
 echo "[*] Ensuring storage directory structure exists..."
 mkdir -p apps/frontend/storage/{pdf,images,videos,templates}
-chmod -R 777 apps/frontend/storage 2>/dev/null || true
+chmod -R 750 apps/frontend/storage 2>/dev/null || true
 
 # 4. Firewall & Certificate Setup (Soft Fail / Non-blocking)
 if command -v iptables &> /dev/null; then

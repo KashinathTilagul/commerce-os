@@ -43,9 +43,12 @@ export class SyncEngine {
 
     try {
       let result;
+      let cursor: string | undefined;
+      const seenCursors = new Set<string>();
+      do {
       switch (entity) {
         case 'PRODUCT':
-          result = await this.provider.syncProducts({ limit, organizationId: this.organizationId })
+          result = await this.provider.syncProducts({ limit, cursor, organizationId: this.organizationId })
           for (const raw of result.items) {
             try {
               await CommerceHub.persistProduct(raw, this.organizationId, this.provider.providerName)
@@ -57,7 +60,7 @@ export class SyncEngine {
           }
           break;
         case 'ORDER':
-          result = await this.provider.syncOrders({ limit, organizationId: this.organizationId })
+          result = await this.provider.syncOrders({ limit, cursor, organizationId: this.organizationId })
           for (const raw of result.items) {
             try {
               await CommerceHub.persistOrder(raw, this.organizationId, this.provider.providerName)
@@ -69,7 +72,7 @@ export class SyncEngine {
           }
           break;
         case 'CUSTOMER':
-          result = await this.provider.syncCustomers({ limit, organizationId: this.organizationId })
+          result = await this.provider.syncCustomers({ limit, cursor, organizationId: this.organizationId })
           for (const raw of result.items) {
             try {
               await CommerceHub.persistCustomer(raw, this.organizationId, this.provider.providerName)
@@ -81,6 +84,11 @@ export class SyncEngine {
           }
           break;
       }
+      if (!result.hasMore) break;
+      if (!result.nextCursor || seenCursors.has(result.nextCursor)) throw new Error('Invalid commerce pagination cursor');
+      cursor = result.nextCursor;
+      seenCursors.add(result.nextCursor);
+      } while (true);
 
       const duration = Date.now() - startTime
       await this.updateState(entity, 'IDLE', { processed, failed, duration }, undefined)

@@ -26,13 +26,14 @@ export async function dequeueBrowseJob() {
 
   if (!job) return null
 
-  return db.browseJob.update({
-    where: { id: job.id },
+  const claim = await db.browseJob.updateMany({
+    where: { id: job.id, status: 'PENDING' },
     data: {
       status: 'RUNNING',
       startedAt: new Date()
     }
   })
+  return claim.count === 1 ? db.browseJob.findUnique({ where: { id: job.id } }) : null
 }
 
 export async function completeBrowseJob(jobId: string, result: string) {

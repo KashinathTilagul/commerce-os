@@ -1,10 +1,10 @@
 import { runAllBusyAgents } from './agent-worker'
+import { withSchedulerLock } from './scheduler-lock'
 
 // In-process auto-scheduler: digital employees work their open tickets on a
 // timer — no manual "Work" button, no external cron.
 //
-// ponytail: single long-lived container assumption. If ever horizontally scaled,
-// gate behind a leader lock so only one instance runs the interval.
+// Shared Redis lease prevents simultaneous sweeps across app instances.
 
 let started = false
 
@@ -19,10 +19,12 @@ export function startAgentScheduler() {
     if (running) return // never overlap runs
     running = true
     try {
+      await withSchedulerLock('agents', async () => {
       await runAllBusyAgents()
       // Evaluate periodic autonomous playbooks ("Hands")
       const { runPlaybookSweep } = await import('./agent-playbooks')
       await runPlaybookSweep()
+      })
     } catch (e: any) {
       console.error('[scheduler] error:', e?.message || e)
     } finally {

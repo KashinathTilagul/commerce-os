@@ -44,6 +44,8 @@ export async function GET() {
 export async function PATCH(req: Request) {
   const auth = await requireOrganization()
   if (!auth.success) return auth.response
+  const member = await db.user.findUnique({ where: { id: auth.user.id }, select: { orgRole: true } })
+  if (!member || !['FOUNDER', 'ADMIN'].includes(member.orgRole)) return NextResponse.json({ error: 'Organization administrator required' }, { status: 403 })
 
   try {
     const raw = await req.json()

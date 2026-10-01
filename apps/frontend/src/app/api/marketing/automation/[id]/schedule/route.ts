@@ -26,15 +26,14 @@ export async function POST(
     })
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
 
-    if (!['READY', 'APPROVED'].includes(task.status)) {
-      return NextResponse.json({ error: 'Content must be generated (READY) or approved before scheduling' }, { status: 400 })
+    if (task.status !== 'APPROVED' || !task.approvedAt) {
+      return NextResponse.json({ error: 'Approve content before scheduling' }, { status: 403 })
     }
 
     const updated = await db.marketingTask.update({
       where: { id },
       data: {
         status: 'SCHEDULED',
-        approvedAt: task.approvedAt ?? new Date(),
         scheduledAt: scheduledAt ? new Date(scheduledAt) : new Date(Date.now() + 24 * 60 * 60 * 1000),
         platforms: platforms || task.platforms,
       },

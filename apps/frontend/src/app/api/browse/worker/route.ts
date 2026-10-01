@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const aiSettings = await browserAiSettings(job.organizationId)
     const response = await fetch(`${BROWSER_SIDECAR_URL}/api/browser/run`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-worker-key': process.env.BROWSE_WORKER_KEY || '' },
       body: JSON.stringify({
         task,
         url: job.url,

@@ -29,10 +29,13 @@ export function normalizeOmniRouteBaseUrl(value?: string) {
   const candidate = value?.trim() || fallback
   const url = new URL(candidate)
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('OmniRoute URL must use http or https')
-  if (process.env.NODE_ENV === 'production' && ['localhost', '127.0.0.1', '::1'].includes(url.hostname)) {
-    return fallback.replace(/\/$/, '')
-  }
-  return candidate.replace(/\/$/, '')
+  if (url.username || url.password || url.search || url.hash) throw new Error('OmniRoute URL cannot contain credentials, query or fragment')
+  const normalized = url.href.replace(/\/$/, '')
+  // Only deployment-controlled endpoints may receive stored credentials.
+  const allowed = [fallback, ...(process.env.OMNIROUTE_ALLOWED_BASE_URLS || '').split(',').filter(Boolean)]
+    .map(entry => new URL(entry.trim()).href.replace(/\/$/, ''))
+  if (!allowed.includes(normalized)) throw new Error('OmniRoute URL is not allowed by this deployment')
+  return normalized
 }
 
 export async function getOmniRouteConfig(organizationId: string) {
@@ -69,6 +72,7 @@ export async function fetchOmniRouteModels(baseUrl: string, apiKey: string, time
     headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
     signal: AbortSignal.timeout(timeout),
     cache: 'no-store',
+    redirect: 'error',
   })
 }
 
@@ -81,6 +85,7 @@ export async function fetchOmniRouteImageModels(baseUrl: string, apiKey: string,
         headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
         signal: AbortSignal.timeout(timeout),
         cache: 'no-store',
+        redirect: 'error',
       })
       if (!response.ok) {
         return { path, models: [] as OmniRouteImageModel[], error: `returned ${response.status}` }
