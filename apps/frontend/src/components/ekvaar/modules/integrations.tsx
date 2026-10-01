@@ -120,14 +120,14 @@ export function Integrations() {
     }
   }
 
-  const handleShopifySync = async () => {
+  const handleWooCommerceSync = async () => {
     setSyncing(true)
     try {
-      const r = await fetch('/api/shopify/sync', { method: 'POST' })
+      const r = await fetch('/api/woocommerce/sync', { method: 'POST' })
       const result = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(result.error || 'Shopify sync failed')
+      if (!r.ok) throw new Error(result.error || 'WooCommerce sync failed')
       const count = Object.values(result.results || {}).reduce((sum: number, value: any) => sum + (value.processed || 0), 0)
-      toast.success('Shopify synced', `${count} products, customers, and orders imported`)
+      toast.success('WooCommerce synced', `${count} products, customers, and orders imported`)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
         queryClient.invalidateQueries({ queryKey: ['products'] }),
@@ -136,7 +136,7 @@ export function Integrations() {
         queryClient.invalidateQueries({ queryKey: ['events'] }),
       ])
     } catch (e: any) {
-      toast.error('Shopify sync failed', e.message)
+      toast.error('WooCommerce sync failed', e.message)
     } finally {
       setSyncing(false)
     }
@@ -166,7 +166,7 @@ export function Integrations() {
       <PageHeader
         eyebrow="Integrations · Composio"
         title="800+ App Connections"
-        description="Connect external services via Composio. The digital C-suite agents autonomously call tools — CMO syncs Shopify, CTO deploys via GitHub, CSM sends Gmail. All executions are logged in real-time."
+        description="Connect external services via Composio. The digital C-suite agents autonomously call tools — CMO syncs WooCommerce, CTO deploys via GitHub, CSM sends Gmail. All executions are logged in real-time."
         actions={
           <Badge variant="outline" className="gap-1.5">
             <Plug className="h-3 w-3" />
@@ -216,7 +216,7 @@ export function Integrations() {
                   onSelect={setSelected}
                   connecting={connecting}
                   syncing={syncing}
-                  onShopifySync={handleShopifySync}
+                  onWooCommerceSync={handleWooCommerceSync}
                 />
               ))}
             </div>
@@ -242,7 +242,7 @@ export function Integrations() {
                       onSelect={setSelected}
                       connecting={connecting}
                       syncing={syncing}
-                      onShopifySync={handleShopifySync}
+                      onWooCommerceSync={handleWooCommerceSync}
                     />
                   ))}
                 </div>
@@ -274,7 +274,7 @@ export function Integrations() {
                         onSelect={setSelected}
                         connecting={connecting}
                         syncing={syncing}
-                        onShopifySync={handleShopifySync}
+                        onWooCommerceSync={handleWooCommerceSync}
                       />
                     ))}
                   </div>
@@ -411,14 +411,14 @@ function IntegrationCard({
   onSelect,
   connecting,
   syncing,
-  onShopifySync,
+  onWooCommerceSync,
 }: {
   integration: any
   onConnect: (toolkit: string, name: string, action: 'connect' | 'disconnect') => void
   onSelect: (i: any) => void
   connecting: string | null
   syncing: boolean
-  onShopifySync: () => void
+  onWooCommerceSync: () => void
 }) {
   const meta = CATEGORY_META[i.category] || { icon: '📦' }
   return (
@@ -460,9 +460,9 @@ function IntegrationCard({
           <div className="mt-3 flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
             {i.isConnected ? (
               <>
-                {i.toolkitSlug === 'shopify' && (
+                {i.toolkitSlug === 'woocommerce' && (
                   <button
-                    onClick={onShopifySync}
+                    onClick={onWooCommerceSync}
                     disabled={syncing}
                     className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] tracking-wider uppercase rounded-md bg-neel/10 text-neel hover:bg-neel/20 transition-colors disabled:opacity-50"
                   >

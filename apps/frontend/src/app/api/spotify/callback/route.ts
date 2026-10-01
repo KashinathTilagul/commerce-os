@@ -1,11 +1,18 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { requireAuth } from '@/lib/auth-guard'
 
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || ''
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || ''
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
+  const stateCookies = await cookies()
+  const expected = stateCookies.get('spotify_oauth_state')?.value
+  stateCookies.delete('spotify_oauth_state')
+  if (!expected || expected !== `${auth.user.id}:${req.nextUrl.searchParams.get('state')}`) return NextResponse.json({ error: 'Invalid OAuth state' }, { status: 403 })
   const { searchParams } = new URL(req.url)
   const code = searchParams.get('code')
   
@@ -37,6 +44,7 @@ export async function GET(req: NextRequest) {
     }
 
     const cookieStore = await cookies()
+    cookieStore.set('spotify_owner', auth.user.id, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 30 * 24 * 60 * 60, path: '/' })
 
     cookieStore.set('spotify_refresh_token', data.refresh_token, {
       httpOnly: true,

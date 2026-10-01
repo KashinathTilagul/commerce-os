@@ -1,13 +1,17 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { requireAuth } from '@/lib/auth-guard'
 
 const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || ''
 const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || ''
 
 export async function GET() {
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
   try {
     const cookieStore = await cookies()
+    if (cookieStore.get('spotify_owner')?.value !== auth.user.id) return NextResponse.json({ error: 'Reconnect Spotify for this account' }, { status: 401 })
     const accessToken = cookieStore.get('spotify_access_token')?.value
     
     if (accessToken) {

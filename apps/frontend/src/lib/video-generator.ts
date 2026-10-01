@@ -5,7 +5,7 @@
 // generative video — footage quality is bounded by the image model. Upgrade
 // path: swap assembleReel for a cloud video model (Veo/Kling/Runway) behind
 // the same VideoGenerationOptions contract.
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import path from 'path'
 import { promises as fs } from 'fs'
@@ -15,7 +15,7 @@ import { db } from './db'
 import { createHash } from 'node:crypto'
 import { BRAND_COLORS, BRAND_FONT_DISPLAY_SVG, brandLogoBuffer } from './brand-guard'
 
-const execAsync = promisify(exec)
+const execAsync = promisify(execFile)
 
 const NOOR = BRAND_COLORS['Noor Black']
 const RUI = BRAND_COLORS['Rui White']
@@ -145,7 +145,7 @@ async function assembleReel(scenes: ReelScene[], options: VideoGenerationOptions
       imagePath = pngPath
     }
     // Single-image input: zoompan expands one frame into sceneFrames frames.
-    inputs.push(`-i "${imagePath}"`)
+    inputs.push('-i', imagePath)
     // Ken Burns: alternate slow zoom-in / zoom-out so cuts feel alive.
     const step = (0.15 / sceneFrames).toFixed(6)
     const zExpr = i % 2 === 0
@@ -159,7 +159,7 @@ async function assembleReel(scenes: ReelScene[], options: VideoGenerationOptions
 
   const endCardPath = path.join(tempDir, 'end-card.png')
   await fs.writeFile(endCardPath, await renderEndCard(templateConfig, options.data.tagline || options.title || 'EKVAAR'))
-  inputs.push(`-loop 1 -framerate ${fps} -t ${END_CARD_SECONDS} -i "${endCardPath}"`)
+  inputs.push('-loop', '1', '-framerate', String(fps), '-t', String(END_CARD_SECONDS), '-i', endCardPath)
   filters.push(`[${n}:v]scale=${width}:${height},setsar=1,format=yuv420p[end]`)
 
   // Crossfade chain: offset of each join = accumulated output length − fade.
@@ -183,7 +183,7 @@ async function assembleReel(scenes: ReelScene[], options: VideoGenerationOptions
   let nextInput = n + 1
   scenes.forEach((scene, i) => {
     if (!scene.voicePath) return
-    inputs.push(`-i "${scene.voicePath}"`)
+    inputs.push('-i', scene.voicePath)
     const startMs = Math.round((i * (sceneDur - fade) + 0.3) * 1000)
     filters.push(
       `[${nextInput}:a]aformat=sample_rates=44100:channel_layouts=stereo,atrim=0:${(sceneDur - 0.4).toFixed(3)},` +
@@ -196,9 +196,8 @@ async function assembleReel(scenes: ReelScene[], options: VideoGenerationOptions
 
   const outputPath = path.join(tempDir, `reel-${Date.now()}.mp4`)
   await execAsync(
-    `ffmpeg -hide_banner -loglevel error ${inputs.join(' ')} ` +
-    `-filter_complex "${filters.join(';')}" ` +
-    `-map "[vout]" -map "[aout]" -c:v libx264 -preset fast -pix_fmt yuv420p -c:a aac -b:a 192k -y "${outputPath}"`,
+    'ffmpeg', ['-hide_banner', '-loglevel', 'error', ...inputs, '-filter_complex', filters.join(';'),
+    '-map', '[vout]', '-map', '[aout]', '-c:v', 'libx264', '-preset', 'fast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '192k', '-y', outputPath],
     { timeout: 600000 }
   )
   await fs.unlink(endCardPath).catch(() => {})
@@ -231,8 +230,8 @@ export async function generateVideo(options: VideoGenerationOptions): Promise<{ 
       await fs.writeFile(cardPath, await renderTitleCard(text, templateConfig, options.template, duration))
       outputPath = path.join(tempDir, `${artifactId}.mp4`)
       await execAsync(
-        `ffmpeg -loop 1 -framerate ${templateConfig.fps} -i "${cardPath}" ` +
-        `-t ${duration} -c:v libx264 -pix_fmt yuv420p -y "${outputPath}"`,
+        'ffmpeg', ['-loop', '1', '-framerate', String(templateConfig.fps), '-i', cardPath,
+        '-t', String(duration), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-y', outputPath],
         { timeout: 120000 }
       )
       await fs.unlink(cardPath).catch(() => {})

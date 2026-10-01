@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { isCronAuthorized } from '@/lib/cron-auth'
 
 // Called by Render cron or any scheduler. Protect with CRON_SECRET env var.
 export async function POST(req: NextRequest) {
-  const secret = process.env.CRON_SECRET
-  if (secret && req.headers.get('x-cron-secret') !== secret) {
+  if (!isCronAuthorized(req.headers)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -77,7 +77,8 @@ export async function POST(req: NextRequest) {
 
   // ── 3. Agent Work Cycle ──────────────────────────────────────────────────
   const { runAllBusyAgents } = await import('@/lib/agent-worker')
-  const agentsWorked = await runAllBusyAgents()
+  const { withSchedulerLock } = await import('@/lib/scheduler-lock')
+  const agentsWorked = await withSchedulerLock('agents', runAllBusyAgents)
 
   return NextResponse.json({
     ok: true,

@@ -19,7 +19,7 @@ export async function POST(
       where: { id, organizationId: auth.organizationId },
     })
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
-    if (!['READY', 'APPROVED', 'SCHEDULED'].includes(task.status)) {
+    if (!task.approvedAt || !['APPROVED', 'SCHEDULED'].includes(task.status)) {
       return NextResponse.json({ error: `Cannot publish a task in status ${task.status}` }, { status: 400 })
     }
 

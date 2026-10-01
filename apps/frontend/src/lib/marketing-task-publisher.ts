@@ -4,6 +4,7 @@
 import { db } from './db'
 import { publishEntry } from './social-publisher'
 import { publicArtifactUrl } from './artifact-public'
+import { withSchedulerLock } from './scheduler-lock'
 
 type ContentEntry = Record<string, any>
 
@@ -26,6 +27,11 @@ export async function publishMarketingTask(task: {
   format: string | null
   mediaArtifactIds: string[]
 }) {
+  const approved = await db.marketingTask.findFirst({
+    where: { id: task.id, organizationId: task.organizationId, approvedAt: { not: null }, status: { in: ['APPROVED', 'SCHEDULED'] } },
+  })
+  if (!approved) throw new Error('Founder approval is required before publishing')
+  task = approved
   const caption = [task.content || '', (task.hashtags || []).join(' ')].filter(Boolean).join('\n\n')
   const mediaUrls = (task.mediaArtifactIds || []).map((id) => publicArtifactUrl(PUBLIC_BASE_URL, id))
   const format = task.format === 'reel' || task.format === 'video' ? 'reel' : 'image'
@@ -86,22 +92,23 @@ export type MarketingPublishOutcome = {
 }
 
 export async function publishDueMarketingTasks(): Promise<MarketingPublishOutcome[]> {
+  const outcomes: MarketingPublishOutcome[] = []
+  await withSchedulerLock('marketing', async () => {
   const due = await db.marketingTask.findMany({
     where: { status: 'SCHEDULED', scheduledAt: { lte: new Date() } },
     take: 10,
   })
-  const outcomes: MarketingPublishOutcome[] = []
   for (const task of due) outcomes.push(await publishMarketingTask(task))
+  })
   return outcomes
 }
 
 // In-process scheduler: publishes due SCHEDULED tasks every 60s so local/dev
 // deployments work without an external cron. External cron can also hit
-// /api/cron/publish-marketing. ponytail: single global interval; upgrade path
-// is a real queue (BullMQ) if publish volume grows.
+// /api/cron/publish-marketing. Both use the same shared Redis lease.
 const globalForScheduler = globalThis as unknown as { marketingPublishTimer?: NodeJS.Timeout }
 if (!globalForScheduler.marketingPublishTimer) {
   globalForScheduler.marketingPublishTimer = setInterval(() => {
-    publishDueMarketingTasks().catch(() => {})
+    publishDueMarketingTasks().catch(error => console.error('[marketing scheduler]', error))
   }, 60 * 1000)
 }

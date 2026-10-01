@@ -23,6 +23,11 @@ export const RATE_LIMIT_CONFIG: Record<string, RateLimitConfig> = {
 // ponytail: in-memory rate limits — single-container assumption, lost on restart. 
 // Use Redis + Upstash for multi-instance deployments.
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
+const rateLimitCleanup = setInterval(() => {
+  const now = Date.now()
+  for (const [key, record] of rateLimitStore) if (record.resetTime <= now) rateLimitStore.delete(key)
+}, 60_000)
+rateLimitCleanup.unref?.()
 
 export function checkRateLimit(ip: string, path: string): { allowed: boolean; retryAfter: number } {
   const bucket = path.includes("/api/auth/callback") ? "authLogin"
@@ -38,6 +43,7 @@ export function checkRateLimit(ip: string, path: string): { allowed: boolean; re
   const record = rateLimitStore.get(key)
 
   if (!record || now > record.resetTime) {
+    if (!record && rateLimitStore.size >= 50_000) return { allowed: false, retryAfter: 60 }
     rateLimitStore.set(key, { count: 1, resetTime: now + config.windowMs })
     return { allowed: true, retryAfter: 0 }
   }

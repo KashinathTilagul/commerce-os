@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { after, NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireOrganization } from '@/lib/auth-guard'
+import { parseOAuthState } from '@/lib/oauth'
 
 // GET /api/integrations/callback — OAuth callback from Composio
 export async function GET(req: NextRequest) {
@@ -15,6 +16,12 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status')
   const connectedAccountId = searchParams.get('connected_account_id')
   const toolkitSlug = searchParams.get('toolkit')
+  try {
+    const state = parseOAuthState(searchParams.get('state') || '')
+    if (state.organizationId !== auth.organizationId || state.provider !== toolkitSlug) throw new Error('OAuth account mismatch')
+  } catch {
+    return NextResponse.json({ error: 'Invalid integration OAuth state; reconnect the app' }, { status: 403 })
+  }
   
   const isSuccess = status?.toUpperCase() === 'SUCCESS' || status?.toLowerCase() === 'success'
   
@@ -54,16 +61,16 @@ export async function GET(req: NextRequest) {
         },
       })
 
-      if (toolkitSlug === 'shopify') {
+      if (toolkitSlug === 'woocommerce') {
         after(async () => {
           try {
-            const [{ ShopifyProvider }, { SyncEngine }] = await Promise.all([
-              import('@/lib/commerce/shopify-provider'),
+            const [{ WooCommerceProvider }, { SyncEngine }] = await Promise.all([
+              import('@/lib/commerce/woocommerce-provider'),
               import('@/lib/commerce/sync-engine'),
             ])
-            await new SyncEngine(new ShopifyProvider(), auth.organizationId).runFullSync()
+            await new SyncEngine(new WooCommerceProvider(), auth.organizationId).runFullSync()
           } catch (error) {
-            console.error('[Shopify] Initial sync failed:', error)
+            console.error('[WooCommerce] Initial sync failed:', error)
           }
         })
       }

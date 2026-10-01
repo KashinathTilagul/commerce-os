@@ -56,7 +56,7 @@ def _browser_profile(payload: BrowserRunRequest):
     if payload.browser_channel:
         profile_kwargs["channel"] = payload.browser_channel
     if payload.user_data_dir:
-        profile_kwargs["user_data_dir"] = payload.user_data_dir
+        raise HTTPException(status_code=400, detail='Custom browser profiles are not allowed')
 
     return BrowserProfile(**profile_kwargs)
 
@@ -76,13 +76,7 @@ def _browser_llm(payload: BrowserRunRequest):
     api_key = payload.ai_api_key
 
     if provider in {"bedrock", "amazon-bedrock"} and api_key:
-        os.environ["AWS_BEARER_TOKEN_BEDROCK"] = api_key
-        from langchain_aws import ChatBedrockConverse
-
-        return ChatBedrockConverse(
-            model=(model or os.getenv("BEDROCK_MODEL_ID", "zai.glm-5")).replace("amazon-bedrock/", ""),
-            region_name=os.getenv("AWS_REGION", "us-east-1"),
-        )
+        raise HTTPException(status_code=400, detail='Per-request Bedrock bearer keys are unsupported; configure isolated worker credentials')
 
     if api_key:
         from langchain_openai import ChatOpenAI
@@ -140,5 +134,7 @@ async def run_browser_task(payload: BrowserRunRequest):
             "device": payload.device,
             "result": _history_text(history),
         }
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

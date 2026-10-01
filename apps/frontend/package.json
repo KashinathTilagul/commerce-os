@@ -14,10 +14,12 @@
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build --webpack",
     "start": "next start",
-    "test": "node --import tsx --test --test-force-exit src/lib/account-password.test.ts src/lib/commerce/shopify-provider.test.ts src/lib/product-launches.test.ts src/lib/campaign-workforce.test.ts src/lib/agent-playbooks.test.ts src/lib/omniroute-config.test.ts src/lib/theme-store.test.ts src/lib/window-store.test.ts && node --import tsx --test --test-force-exit src/lib/security.test.ts",
-    "test:all": "npm run test",
+    "test": "node --import tsx --test --test-force-exit src/lib/account-password.test.ts src/lib/commerce/woocommerce-provider.test.ts src/lib/product-launches.test.ts src/lib/campaign-workforce.test.ts src/lib/agent-playbooks.test.ts src/lib/omniroute-config.test.ts src/lib/theme-store.test.ts src/lib/window-store.test.ts && node --import tsx --test --test-force-exit src/lib/security.test.ts",
+    "test:all": "npm run test && npm run test:hotfixes && npm run test:guards",
     "test:playbooks": "node --import tsx --test src/lib/agent-playbooks.test.ts",
-    "test:shopify": "node --import tsx --test src/lib/commerce/shopify-provider.test.ts",
+    "test:woocommerce": "node --import tsx --test src/lib/commerce/woocommerce-provider.test.ts",
+    "test:hotfixes": "node --import tsx --test --test-force-exit src/lib/cron-auth.test.ts src/lib/omniroute-config.test.ts src/lib/storage-security.test.ts && bun test src/lib/account-delete.test.js",
+    "test:guards": "bun test src/lib/publishing-guards.test.js && bun test src/lib/scheduler-lock.test.js && bun test src/lib/commerce/sync-engine.test.js && bun test src/lib/commerce/webhook.test.js",
     "test:product-launches": "node --import tsx --test src/lib/product-launches.test.ts",
     "test:campaign-workforce": "node --import tsx --test src/lib/campaign-workforce.test.ts",
     "test:security": "node --import tsx --test --test-force-exit src/lib/security.test.ts",
@@ -59,7 +61,7 @@
     "handlebars": "^4.7.9",
     "ioredis": "^5.6.1",
     "lucide-react": "^0.525.0",
-    "next": "^16.2.12",
+    "next": "^16.3.8",
     "next-auth": "^4.24.15",
     "pg": "^8.22.0",
     "postcss": "^8.5.10",
@@ -67,7 +69,10 @@
     "puppeteer-core": "^25.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.5",
+    "fast-uri": "^3.1.8",
+    "undici": "^7.29.1",
+    "js-yaml": "^4.3.2",
     "tailwind-merge": "^3.3.1",
     "zod": "^4.0.2",
     "zustand": "^5.0.6"
@@ -90,10 +95,13 @@
   },
   "overrides": {
     "postcss": "$postcss",
-    "sharp": "^0.35.3",
+    "sharp": "$sharp",
     "find-my-way": "^9.7.0",
+    "minimatch@3.1.5": {
+      "brace-expansion": "^1.1.21"
+    },
     "minimatch@10.2.5": {
-      "brace-expansion": "^5.0.8"
+      "brace-expansion": "^5.0.12"
     },
     "valibot": "^1.4.2",
     "nanoid": "^3.3.18",

@@ -5,47 +5,52 @@ export class CommerceMapper {
     return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex')
   }
 
+  // WooCommerce REST v3 date-time fields: prefer the _gmt variant (UTC, no offset suffix)
+  private static parseDate(gmt?: string, local?: string): Date {
+    if (gmt) return new Date(`${gmt}Z`)
+    if (local) return new Date(local)
+    return new Date()
+  }
+
   static toCanonicalProduct(raw: any, orgId: string) {
     return {
       organizationId: orgId,
-      name: raw.title || 'Untitled',
-      sku: raw.variants?.[0]?.sku || String(raw.id),
-      house: raw.product_type || 'Uncategorized',
+      name: raw.name || 'Untitled',
+      sku: raw.sku || String(raw.id),
+      house: raw.categories?.[0]?.name || 'Uncategorized',
       color: 'Unknown',
-      category: raw.product_type || 'uncategorized',
-      price: parseFloat(raw.variants?.[0]?.price || '0'),
+      category: raw.categories?.[0]?.name || 'uncategorized',
+      price: parseFloat(raw.price || '0'),
       cost: 0,
-      stock: raw.variants?.reduce((sum: number, v: any) => sum + (v.inventory_quantity || 0), 0) || 0,
-      status: raw.status === 'active' ? 'ACTIVE' : 'DRAFT',
+      stock: raw.stock_quantity ?? 0,
+      status: raw.status === 'publish' ? 'ACTIVE' : 'DRAFT',
       material: 'Unknown',
-      description: (raw.body_html || '').replace(/<[^>]*>?/gm, '').substring(0, 200),
-      imageUrl: raw.image?.src || raw.images?.[0]?.src || null,
+      description: (raw.short_description || raw.description || '').replace(/<[^>]*>?/gm, '').substring(0, 200),
+      imageUrl: raw.images?.[0]?.src || null,
     }
   }
 
   static toCanonicalOrder(raw: any, orgId: string) {
-    const customerName = raw.customer
-      ? `${raw.customer.first_name || ''} ${raw.customer.last_name || ''}`.trim()
-      : 'Unknown'
-      
+    const customerName = `${raw.billing?.first_name || ''} ${raw.billing?.last_name || ''}`.trim()
+
     return {
       organizationId: orgId,
-      orderNumber: String(raw.name || raw.id),
+      orderNumber: String(raw.number || raw.id),
       customerName: customerName || 'Unknown',
-      customerEmail: raw.customer?.email || '',
-      customerCity: raw.shipping_address?.city || '',
-      channel: raw.source_name || 'Shopify',
+      customerEmail: raw.billing?.email || '',
+      customerCity: raw.shipping?.city || raw.billing?.city || '',
+      channel: raw.created_via || 'WooCommerce',
       itemsCount: raw.line_items?.length || 0,
-      total: parseFloat(raw.total_price || '0'),
-      status: raw.cancelled_at ? 'CANCELLED'
-            : raw.financial_status === 'refunded' ? 'RETURNED'
-            : raw.fulfillment_status === 'fulfilled' ? 'SHIPPED'
-            : raw.fulfillment_status === 'partial' ? 'PROCESSING' 
+      total: parseFloat(raw.total || '0'),
+      status: raw.status === 'cancelled' || raw.status === 'failed' || raw.status === 'trash' ? 'CANCELLED'
+            : raw.status === 'refunded' ? 'RETURNED'
+            : raw.status === 'completed' ? 'SHIPPED'
+            : raw.status === 'processing' || raw.status === 'on-hold' ? 'PROCESSING'
             : 'NEW',
-      paymentStatus: raw.financial_status === 'paid' ? 'PAID' 
-                   : raw.financial_status === 'refunded' ? 'REFUNDED' 
+      paymentStatus: raw.status === 'refunded' ? 'REFUNDED'
+                   : raw.date_paid || raw.date_paid_gmt ? 'PAID'
                    : 'PENDING',
-      createdAt: raw.created_at ? new Date(raw.created_at) : new Date(),
+      createdAt: CommerceMapper.parseDate(raw.date_created_gmt, raw.date_created),
     }
   }
 
@@ -53,14 +58,16 @@ export class CommerceMapper {
     return {
       organizationId: orgId,
       name: `${raw.first_name || ''} ${raw.last_name || ''}`.trim() || 'Unknown',
-      email: raw.email || `shopify-${raw.id}@unknown.invalid`,
-      phone: raw.phone || '',
-      city: raw.default_address?.city || 'Unknown',
+      email: raw.email || `woocommerce-${raw.id}@unknown.invalid`,
+      phone: raw.billing?.phone || '',
+      city: raw.billing?.city || 'Unknown',
       tier: 'NEW',
-      totalOrders: raw.orders_count || 0,
-      totalSpent: parseFloat(raw.total_spent || '0'),
-      joinedAt: raw.created_at ? new Date(raw.created_at) : new Date(),
-      lastActive: raw.updated_at ? new Date(raw.updated_at) : new Date(),
+      // ponytail: wc/v3 customers carry no lifetime totals — needs a /reports or
+      // per-customer orders query to fill; left at 0 until someone needs it
+      totalOrders: 0,
+      totalSpent: 0,
+      joinedAt: CommerceMapper.parseDate(raw.date_created_gmt, raw.date_created),
+      lastActive: CommerceMapper.parseDate(raw.date_modified_gmt, raw.date_modified),
     }
   }
 }

@@ -3,6 +3,13 @@ import path from 'path'
 import { z } from 'zod'
 
 const STORAGE_ROOT = path.join(process.cwd(), 'storage')
+export async function readStoredArtifact(location: string): Promise<Buffer> {
+  const root = await fs.realpath(STORAGE_ROOT)
+  const resolved = await fs.realpath(location)
+  const relative = path.relative(root, resolved)
+  if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error('Artifact path outside storage')
+  return fs.readFile(resolved)
+}
 
 // ponytail: storage paths are deterministic — single mapping object
 const ARTIFACT_DIRS: Record<ArtifactType, string> = { PDF: 'pdf', PNG: 'images', VIDEO: 'videos', AUDIO: 'audio', EXCEL: 'templates' }

@@ -17,6 +17,9 @@ export async function POST(
       where: { id, organizationId: auth.organizationId },
     })
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    const member = await db.user.findUnique({ where: { id: auth.user.id }, select: { orgRole: true } })
+    if (member?.orgRole !== 'FOUNDER') return NextResponse.json({ error: 'Founder approval required' }, { status: 403 })
+    if (task.status !== 'READY') return NextResponse.json({ error: 'Only a ready draft can be approved' }, { status: 400 })
 
     const updated = await db.marketingTask.update({
       where: { id },
