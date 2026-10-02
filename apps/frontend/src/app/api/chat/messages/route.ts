@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { sanitizeInput, checkRateLimit, getClientIP } from '@/lib/security'
@@ -84,6 +84,8 @@ export async function POST(req: NextRequest) {
     // If talking to an agent bot channel or tagged agent, generate an agent response
     const agentCode = BOT_CODES.find(code => channel.name.toUpperCase() === code || channel.name.toUpperCase().includes(code))
     if (agentCode) {
+      // Respond after saving the user's message; model latency must not block sending.
+      after(async () => {
       const agent = await db.agent.findFirst({
         where: { organizationId: auth.organizationId, code: agentCode },
       })
@@ -119,8 +121,10 @@ You are in the company chat channel #${channel.name}. Reply directly, in charact
           }
         } catch (agentErr) {
           console.error('[Chat Agent Reply] Error generating bot reply:', agentErr)
+          await db.message.create({ data: { channelId: channel.id, parentMessageId: parent ? parent.id : message.id, authorType: 'AGENT', authorId: agent.id, content: 'I could not generate a reply. Please check the connected AI provider and try again.' } })
         }
       }
+      })
     }
 
     return NextResponse.json({ message })

@@ -40,11 +40,11 @@ export async function GET(
     }
 
     const messages = await db.message.findMany({
-      where: { channelId: channel.id, parentMessageId: null },
-      orderBy: { createdAt: 'asc' },
+      where: { channelId: channel.id },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: 100,
     })
-    return NextResponse.json({ messages })
+    return NextResponse.json({ messages: messages.reverse() })
   } catch (e: any) {
     console.error('[Chat Channel Messages] Error:', e)
     const detail = process.env.NODE_ENV === 'development' ? (e?.message || String(e)) : undefined

@@ -79,20 +79,22 @@ export function Chat() {
   const queryClient = useQueryClient()
   useAppSubscription('chat')
 
-  const { data: messages = [] } = useQuery({
+  const { data: messages = [], error: loadError } = useQuery({
     queryKey: ['chat', activeChannel, activeThread],
+    refetchInterval: 5000,
     queryFn: async () => {
       const url = activeThread
         ? `/api/chat/channels/${activeChannel}/messages?threadId=${activeThread}`
         : `/api/chat/channels/${activeChannel}/messages`
       const res = await fetch(url)
+      if (!res.ok) throw new Error('Could not load messages')
       return res.json().then((r) => r.messages || [])
     },
   })
 
   const send = useMutation({
     mutationFn: async () => {
-      await fetch('/api/chat/messages', {
+      const res = await fetch('/api/chat/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -101,6 +103,7 @@ export function Chat() {
           parentMessageId: activeThread,
         }),
       })
+      if (!res.ok) throw new Error((await res.json()).error || 'Could not send message')
       setMessage('')
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['chat'] }),
@@ -201,6 +204,7 @@ export function Chat() {
         </div>
 
         <GlassPanel level={2} className="flex-1 p-5 overflow-auto space-y-3 rounded-none">
+          {loadError && <p role="alert" className="text-red-400">{loadError.message}</p>}
           {messages.length === 0 ? (
             <div className="flex h-40 items-center justify-center text-xs text-muted-foreground">
               No messages in #{activeChannel} yet. Start a conversation!
@@ -228,6 +232,7 @@ export function Chat() {
         </GlassPanel>
 
         {/* Composer */}
+        {send.isError && <p role="alert" className="px-3 text-sm text-red-400">{send.error.message}</p>}
         <div className="p-3 border-t border-white/10 flex gap-2 bg-black/20">
           <input
             value={message}
