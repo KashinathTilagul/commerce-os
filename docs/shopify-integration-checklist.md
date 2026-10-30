@@ -79,7 +79,7 @@ Create or update `shopify.app.toml` with a required scope set and optional scope
 ```toml
 name = "EKVAAR OS"
 client_id = "REPLACE_ME"
-application_url = "https://os.ekvaar.com"
+application_url = "https://commerce.abata.tech"
 embedded = true
 
 [access_scopes]

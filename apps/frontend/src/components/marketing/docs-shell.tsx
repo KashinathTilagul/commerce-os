@@ -14,7 +14,7 @@ export function DocsShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto grid max-w-[1440px] lg:grid-cols-[17rem_1fr]">
       <aside className="border-b border-white/10 px-5 py-8 sm:px-8 lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:border-b-0 lg:border-r lg:px-8 lg:py-10">
-        <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/28">Ekvaar OS docs</div>
+        <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/28">Commerce OS docs</div>
         <nav className="mt-6 grid gap-1" aria-label="Documentation navigation">{docsNavigation.map((item) => <Link key={item.href} href={item.href} className="border-l border-white/10 px-4 py-2.5 text-xs text-white/46 transition-colors hover:border-white/50 hover:text-white">{item.label}</Link>)}</nav>
         <Link href="/app" className="mt-8 inline-flex items-center gap-2 text-xs font-semibold text-white/75">Open workspace <ArrowRight className="h-3.5 w-3.5" /></Link>
       </aside>

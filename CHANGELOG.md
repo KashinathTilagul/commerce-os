@@ -1,6 +1,6 @@
-# 📜 Changelog — Fashion OS
+# 📜 Changelog — Commerce OS
 
-All notable changes to **Fashion OS** are documented in this file.  
+All notable changes to **Commerce OS** are documented in this file.  
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Enterprise Security Policy & Zero-Trust Governance**: Added comprehensive `SECURITY.md`, input sanitization, and token budget hard-caps.
 
 ### 🧹 Refactored & Cleaned
-- **Package Governance**: Renamed package to `fashion-os` and updated metadata credited to **Kashinath Tilagul**.
+- **Package Governance**: Renamed package to `commerce-os` and updated metadata credited to **Kashinath Tilagul**.
 - **Branch & Repo Cleanup**: Pruned obsolete merged branches (`convoy/*`, `session/*`, `codex/*`, `fix/*`) and cleaned stale metadata folders.
 - **Database & Supabase Pooler Stability**: Fully configured Prisma database adapter and IPv4 pooler connection handling.
 
@@ -39,7 +39,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [v3.0.0-foundation] — 2026-07-26
 
 ### 🏛️ Core Platform
-- Initial release of Fashion OS desktop shell, modular applications (Board Room, Sales, Finance, Inventory), and PostgreSQL persistence layer.
+- Initial release of Commerce OS desktop shell, modular applications (Board Room, Sales, Finance, Inventory), and PostgreSQL persistence layer.
 
 ---
 

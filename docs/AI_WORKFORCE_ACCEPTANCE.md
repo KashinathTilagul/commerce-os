@@ -1,6 +1,6 @@
 # AI Workforce Live Acceptance
 
-Production tested on 2026-08-10 at `https://os.ekvaar.com` with a signed-in founder session.
+Production tested on 2026-08-10 at `https://commerce.abata.tech` with a signed-in founder session.
 
 ## Passed
 

@@ -9,11 +9,11 @@ services:
       - ./n8n/init.sh:/opt/ekvaar/init.sh:ro
       - ./n8n/workflows:/opt/ekvaar/workflows:ro
     environment:
-      - N8N_HOST=${N8N_HOST:-os.ekvaar.com}
+      - N8N_HOST=${N8N_HOST:-commerce.abata.tech}
       - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
       - N8N_PATH=/automation/
-      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-https://os.ekvaar.com/automation/}
-      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-https://os.ekvaar.com/automation/}
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-https://commerce.abata.tech/automation/}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-https://commerce.abata.tech/automation/}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
       - N8N_UNVERIFIED_PACKAGES_ENABLED=false
@@ -76,7 +76,7 @@ services:
       - OD_PORT=7456
       - OD_WEB_PORT=7456
       - OD_API_TOKEN=${OPEN_DESIGN_API_TOKEN:?OPEN_DESIGN_API_TOKEN is required}
-      - OD_ALLOWED_ORIGINS=${OPEN_DESIGN_ALLOWED_ORIGINS:-https://os.ekvaar.com}
+      - OD_ALLOWED_ORIGINS=${OPEN_DESIGN_ALLOWED_ORIGINS:-https://commerce.abata.tech}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7456/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -201,8 +201,8 @@ services:
       - API_HOST=0.0.0.0
       - DATABASE_URL=postgres://rakazo:${RAKAZO_POSTGRES_PASSWORD:?RAKAZO_POSTGRES_PASSWORD is required}@rakazo-postgres:5432/rakazo
       - DATA_DIR=/data
-      - BETTER_AUTH_URL=https://os.ekvaar.com
-      - WEB_ORIGIN=https://os.ekvaar.com
+      - BETTER_AUTH_URL=https://commerce.abata.tech
+      - WEB_ORIGIN=https://commerce.abata.tech
       - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:?RAKAZO_BETTER_AUTH_SECRET is required}
       - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:?RAKAZO_ENCRYPTION_KEY is required}
       - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
@@ -263,7 +263,7 @@ services:
     environment:
       - NODE_ENV=production
       - API_PROXY_TARGET=http://rakazo-api:3100
-      - RAKAZO_HOST=os.ekvaar.com
+      - RAKAZO_HOST=commerce.abata.tech
       - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
     depends_on:
       rakazo-api:
@@ -328,10 +328,10 @@ services:
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - JWT_SECRET=${JWT_SECRET}
       - CRON_SECRET=${CRON_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://os.ekvaar.com}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://os.ekvaar.com}
-      - NEXT_PUBLIC_OS_APP_URL=${NEXT_PUBLIC_OS_APP_URL:-https://os.ekvaar.com/app}
-      - NEXT_PUBLIC_MARKETING_URL=${NEXT_PUBLIC_MARKETING_URL:-https://os.ekvaar.com}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://commerce.abata.tech}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://commerce.abata.tech}
+      - NEXT_PUBLIC_OS_APP_URL=${NEXT_PUBLIC_OS_APP_URL:-https://commerce.abata.tech/app}
+      - NEXT_PUBLIC_MARKETING_URL=${NEXT_PUBLIC_MARKETING_URL:-https://commerce.abata.tech}
       - ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET}
       - CAMPAIGN_LAUNCHES_ENABLED=${CAMPAIGN_LAUNCHES_ENABLED:-true}
       - RELEASE_VERSION=${RELEASE_VERSION:-development}

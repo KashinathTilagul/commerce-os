@@ -1,5 +1,5 @@
-# 🌌 Fashion OS
-**Open-Core Retail & E-Commerce Desktop Operating System**
+# 🌌 Commerce OS
+**Open-Core Commerce Desktop Operating System**
 
 [![Creator](https://img.shields.io/badge/Creator-Kashinath%20Tilagul-8A2BE2?style=flat-square&logo=github)](https://github.com/KashinathTilagul)
 [![Release](https://img.shields.io/badge/Release-v3.5.0--platform--ready-00F5FF?style=flat-square)](https://github.com/KashinathTilagul/Ekvaar/releases)
@@ -12,12 +12,12 @@
 
 ## 💎 Overview
 
-**Fashion OS** is a self-hostable open-core desktop operating system engineered for fashion brands, retail operations, and e-commerce infrastructure. Wrapped in a Liquid Glass macOS Desktop Environment and driven by an autonomous AI Workforce Control Plane, Fashion OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
+**Commerce OS** is a self-hostable open-core desktop operating system engineered for commerce brands, retail, and e-commerce infrastructure. Wrapped in a Liquid Glass macOS Desktop Environment and driven by an autonomous AI Workforce Control Plane, Commerce OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
 
 Created, architected, and maintained by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (EKVAAR).
 
 <p align="center">
-  <img src="docs/assets/desktop-shell.png" alt="Fashion OS Liquid Glass Desktop Shell" width="100%" />
+  <img src="docs/assets/desktop-shell.png" alt="Commerce OS Liquid Glass Desktop Shell" width="100%" />
 </p>
 
 ---

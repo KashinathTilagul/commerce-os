@@ -15,7 +15,7 @@
 The top-level structure strictly separates runnable applications from business logic and shared utilities.
 
 ```text
-ekvaar-os/
+commerce-os/
 ├── apps/           # Runnable execution environments (Frontend, Backend Server)
 ├── core/           # The Modular Monolith (Domain logic)
 ├── packages/       # Shared libraries, UI components, and TypeScript definitions
@@ -137,7 +137,7 @@ Enforced via a strict `CODEOWNERS` file.
 ## 15. FINAL REPOSITORY BLUEPRINT
 
 ```text
-ekvaar-os/
+commerce-os/
 ├── apps/
 │   ├── frontend/           (Next.js / React)
 │   └── backend/            (Express / Node.js)

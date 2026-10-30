@@ -1,4 +1,4 @@
-# Ekvaar OS - Hybrid Learning & Multimodal Generation System
+# Commerce OS - Hybrid Learning & Multimodal Generation System
 
 ## ✅ Implementation Complete
 

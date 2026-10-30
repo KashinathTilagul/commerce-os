@@ -1,13 +1,13 @@
 (() => {
   if (location.pathname.startsWith('/workforce')) history.replaceState(null, '', '/')
-  document.title = 'Ekvaar OS'
+  document.title = 'Commerce OS'
 
   const applyBrand = () => {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
     while (walker.nextNode()) {
       const node = walker.currentNode
       if (node.nodeValue?.includes('Rakazo')) {
-        node.nodeValue = node.nodeValue.replaceAll('Rakazo', 'Ekvaar OS')
+        node.nodeValue = node.nodeValue.replaceAll('Rakazo', 'Commerce OS')
       }
     }
   }

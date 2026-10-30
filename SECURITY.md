@@ -1,6 +1,6 @@
-# 🛡️ Security Policy — Fashion OS
+# 🛡️ Security Policy — Commerce OS
 
-**Fashion OS** takes security, data privacy, and infrastructure resilience seriously. This document outlines our security architecture, supported versions, and vulnerability disclosure process.
+**Commerce OS** takes security, data privacy, and infrastructure resilience seriously. This document outlines our security architecture, supported versions, and vulnerability disclosure process.
 
 ---
 
@@ -52,7 +52,7 @@ Security updates and patches are actively maintained for the following releases:
 
 ## 🚨 Reporting a Vulnerability
 
-If you discover a potential security vulnerability in Fashion OS, please report it directly to **Kashinath Tilagul** via email:
+If you discover a potential security vulnerability in Commerce OS, please report it directly to **Kashinath Tilagul** via email:
 
 1. **Email**: Send detailed vulnerability steps to `kashinathtilagul8@gmail.com`.
 2. **Details**: Include steps to reproduce, affected endpoints/components, and potential impact.

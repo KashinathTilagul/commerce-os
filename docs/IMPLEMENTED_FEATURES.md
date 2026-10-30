@@ -1,4 +1,4 @@
-# Ekvaar OS implementation status
+# Commerce OS implementation status
 
 The application uses Next.js App Router and React. Frontend API routes use Prisma with PostgreSQL. FastAPI is a separate service in Docker Compose, not a replacement for the Next.js backend. Workforce is supplied by the `vendor/rakazo` Git submodule and runs as separate API, worker and web services.
 

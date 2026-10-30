@@ -7,7 +7,7 @@
 
 ## 1. Container Topology
 
-Ekvaar OS runs as 3 dockerized services defined in [docker-compose.yml](file:///Users/kashinathtilagul/Desktop/Ekvaar/docker-compose.yml):
+Commerce OS runs as 3 dockerized services defined in [docker-compose.yml](file:///Users/kashinathtilagul/Desktop/Ekvaar/docker-compose.yml):
 
 ```
                                   [ Internet / User ]

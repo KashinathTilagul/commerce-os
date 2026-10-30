@@ -1,4 +1,4 @@
-# Fashion OS — Inspection Issues (2026-08-21/22)
+# Commerce OS — Inspection Issues (2026-08-21/22)
 
 Full-system inspection + fix session. Items marked FIXED were fixed and verified in this session.
 

@@ -226,7 +226,7 @@ One column, one migration (`prisma migrate dev -m "feat(workforce): hidden resea
 
 ## 7. Test plan
 
-Environment: `https://os.ekvaar.com` (post-merge) with founder session; dummy ledger seeded for finance tests.
+Environment: `https://commerce.abata.tech` (post-merge) with founder session; dummy ledger seeded for finance tests.
 
 ### 7.1 Automatic execution
 | # | Case | Steps | Expected |
@@ -313,7 +313,7 @@ Merge & deploy:
 - [ ] Seed/import brand assets: `Branding/Black Logo.png` → knowledge base tagged `logo` (brand-guard fallback)
 - [ ] Verify production image provider key (acceptance item 7 — Bedrock/OpenRouter/OpenAI must decrypt under prod `JWT_SECRET`)
 - [ ] Verify Instagram token still valid (`/api/campaign-launches/readiness` shows Instagram connected)
-- [ ] Smoke: E1, E5(dummy), H2, I1 live on os.ekvaar.com
+- [ ] Smoke: E1, E5(dummy), H2, I1 live on commerce.abata.tech
 - [ ] Archive sweep of old terminal requests (X6)
 
 Rollback:

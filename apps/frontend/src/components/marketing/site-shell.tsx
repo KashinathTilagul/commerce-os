@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 
-export const SITE_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || 'https://os.ekvaar.com'
+export const SITE_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || 'https://commerce.abata.tech'
 export const OS_APP_URL = process.env.NEXT_PUBLIC_OS_APP_URL || `${SITE_ORIGIN}/app`
 export const LOGIN_URL = `${SITE_ORIGIN}/login`
 export const SIGNUP_URL = `${SITE_ORIGIN}/signup`
@@ -17,7 +17,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/88 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12" aria-label="Primary navigation">
-        <Link href="/" className="group flex items-center gap-3" aria-label="Ekvaar OS home">
+        <Link href="/" className="group flex items-center gap-3" aria-label="Commerce OS home">
           <span className="grid h-8 w-8 place-items-center border border-white/20 bg-white text-[11px] font-black tracking-[-0.08em] text-black transition-transform group-hover:rotate-3">E</span>
           <span className="text-[13px] font-semibold tracking-[0.24em]">EKVAAR <span className="text-white/45">OS</span></span>
         </Link>

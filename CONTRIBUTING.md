@@ -1,6 +1,6 @@
-# Developer Guidelines — Fashion OS
+# Developer Guidelines — Commerce OS
 
-This document covers setup, code style, testing, and contribution standards for **Fashion OS**.
+This document covers setup, code style, testing, and contribution standards for **Commerce OS**.
 
 ---
 

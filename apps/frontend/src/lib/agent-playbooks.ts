@@ -128,7 +128,7 @@ Generate a concise, actionable executive summary (max 3-4 bullet points) coverin
       if (founderEmail) {
         const emailRes = await sendAgentEmail(organizationId, {
           to: founderEmail,
-          subject: `[Fashion OS] ${playbook.name} - ${new Date().toLocaleDateString()}`,
+          subject: `[Commerce OS] ${playbook.name} - ${new Date().toLocaleDateString()}`,
           body: summary,
           html: `<div style="font-family: sans-serif; padding: 20px; color: #111;">
             <h2>${playbook.name}</h2>
@@ -136,7 +136,7 @@ Generate a concise, actionable executive summary (max 3-4 bullet points) coverin
             <hr style="border: none; border-top: 1px solid #eee;" />
             <div style="white-space: pre-wrap; line-height: 1.6;">${summary}</div>
             <hr style="border: none; border-top: 1px solid #eee; margin-top: 20px;" />
-            <p style="font-size: 12px; color: #888;">Generated autonomously by ${leadAgent?.name || 'Digital Employee'} via Fashion OS Playbook Engine.</p>
+            <p style="font-size: 12px; color: #888;">Generated autonomously by ${leadAgent?.name || 'Digital Employee'} via Commerce OS Playbook Engine.</p>
           </div>`,
         })
         emailSent = emailRes.sent
