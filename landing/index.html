@@ -1,0 +1,847 @@
+<title>Commerce OS</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #0D0C0A; --surface: #181610; --card: #1F1D1A; --card-hi: #272420;
+  --fg: #F0EDE5; --fg-2: #9E9A91; --fg-3: #5A5750;
+  --accent: #F95724; --accent-2: #FF7B47;
+  --accent-dim: rgba(249,87,36,0.10); --accent-glow: rgba(249,87,36,0.18);
+  --line: rgba(255,255,255,0.07); --line-hi: rgba(255,255,255,0.13);
+  --green: #3DBB7D; --blue: #5A9EF0;
+  color-scheme: dark;
+  --font-d: 'Barlow Condensed', system-ui, sans-serif;
+  --font-b: 'DM Sans', system-ui, sans-serif;
+  --font-m: 'DM Mono', 'Courier New', monospace;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #F3F0E9; --surface: #E9E5DC; --card: #DFDAD0; --card-hi: #D5CFC4;
+    --fg: #1A1816; --fg-2: #6B6760; --fg-3: #A09C94;
+    --line: rgba(0,0,0,0.08); --line-hi: rgba(0,0,0,0.14);
+    --accent-dim: rgba(249,87,36,0.08); --accent-glow: rgba(249,87,36,0.12);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #F3F0E9; --surface: #E9E5DC; --card: #DFDAD0; --card-hi: #D5CFC4;
+  --fg: #1A1816; --fg-2: #6B6760; --fg-3: #A09C94;
+  --line: rgba(0,0,0,0.08); --line-hi: rgba(0,0,0,0.14);
+  --accent-dim: rgba(249,87,36,0.08); --accent-glow: rgba(249,87,36,0.12);
+  color-scheme: light;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-b);line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:101}
+
+/* NAV */
+nav{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  height:58px;
+  padding-left:max(24px,env(safe-area-inset-left,0px));
+  padding-right:max(24px,env(safe-area-inset-right,0px));
+  background:rgba(13,12,10,0.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--line);
+}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]) nav{background:rgba(243,240,233,0.88)}}
+:root[data-theme="light"] nav{background:rgba(243,240,233,0.88)}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.nav-mark{width:28px;height:28px;border-radius:7px;background:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-mark svg{width:15px;height:15px;color:#fff}
+.nav-name{font-family:var(--font-d);font-weight:800;font-size:18px;letter-spacing:0.06em;text-transform:uppercase;color:var(--fg)}
+.nav-by{font-family:var(--font-m);font-size:11px;color:var(--fg-3);letter-spacing:0.1em;text-transform:uppercase;padding-left:2px}
+.nav-right{display:flex;align-items:center;gap:8px}
+.btn-nav-ghost{font-family:var(--font-b);font-size:13px;font-weight:500;color:var(--fg-2);background:none;border:none;cursor:pointer;padding:7px 12px;border-radius:6px;text-decoration:none;transition:color .15s,background .15s}
+.btn-nav-ghost:hover{color:var(--fg);background:var(--line)}
+.btn-nav-primary{font-family:var(--font-b);font-size:13px;font-weight:600;color:#fff;background:var(--accent);border:none;cursor:pointer;padding:7px 16px;border-radius:6px;text-decoration:none;transition:filter .15s,transform .15s}
+.btn-nav-primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
+
+/* HERO */
+.hero{max-width:1060px;margin:0 auto;padding-block:72px 52px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;align-items:center;text-align:center;gap:24px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 14px;border-radius:100px;background:var(--accent-dim);border:1px solid rgba(249,87,36,0.25)}
+.eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 2.2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.eyebrow-text{font-family:var(--font-m);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent)}
+h1{font-family:var(--font-d);font-size:clamp(60px,10vw,118px);font-weight:900;line-height:0.88;letter-spacing:-0.01em;text-wrap:balance;color:var(--fg)}
+h1 i{font-style:italic;color:var(--accent)}
+.hero-sub{font-size:17px;line-height:1.65;color:var(--fg-2);max-width:520px;text-wrap:balance}
+.hero-ctas{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.btn-xl{font-family:var(--font-b);font-size:15px;font-weight:600;padding:13px 28px;border-radius:8px;text-decoration:none;transition:all .15s;display:inline-flex;align-items:center;gap:8px}
+.btn-xl-primary{background:var(--accent);color:#fff;border:1px solid transparent}
+.btn-xl-primary:hover{filter:brightness(1.08);transform:translateY(-2px);box-shadow:0 8px 24px -6px var(--accent-glow)}
+.btn-xl-ghost{background:var(--card);color:var(--fg-2);border:1px solid var(--line-hi)}
+.btn-xl-ghost:hover{color:var(--fg);background:var(--card-hi)}
+.btn-xl svg{width:16px;height:16px}
+
+/* OS WINDOW MOCK */
+.os-wrap{width:100%;max-width:900px;filter:drop-shadow(0 40px 80px rgba(0,0,0,0.55)) drop-shadow(0 0 60px var(--accent-glow));margin-top:8px}
+.os-window{background:var(--surface);border:1px solid var(--line-hi);border-radius:12px;overflow:hidden}
+.os-bar{height:36px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 14px;gap:7px}
+.dot{width:11px;height:11px;border-radius:50%}
+.dot-r{background:#FF5F57}.dot-y{background:#FEBC2E}.dot-g{background:#28C840}
+.os-bar-title{flex:1;text-align:center;font-family:var(--font-m);font-size:11px;color:var(--fg-3);letter-spacing:.04em;transition:opacity .2s}
+.os-layout{display:grid;grid-template-columns:48px 1fr;height:320px}
+.os-dock{background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px}
+.dock-ico{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;border:none;background:none}
+.dock-ico:hover{background:var(--line)}
+.dock-ico.on{background:var(--accent-dim)}
+.dock-ico.on svg{color:var(--accent)}
+.dock-ico svg{width:14px;height:14px;color:var(--fg-3)}
+.dock-sep{width:18px;height:1px;background:var(--line);margin:3px 0}
+.os-views{position:relative;overflow:hidden}
+.os-view{display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr auto;gap:1px;background:var(--line);position:absolute;inset:0;opacity:0;transition:opacity .25s;pointer-events:none}
+.os-view.active{opacity:1;pointer-events:auto;position:relative}
+.os-pane{background:var(--surface);padding:12px;overflow:hidden}
+.pane-lbl{font-family:var(--font-m);font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--fg-3);margin-bottom:8px}
+
+/* KPI */
+.kpi-val{font-family:var(--font-d);font-size:30px;font-weight:800;color:var(--fg);line-height:1;font-variant-numeric:tabular-nums}
+.kpi-lbl{font-size:11px;color:var(--fg-2);margin-top:2px}
+.kpi-delta{font-family:var(--font-m);font-size:10px;color:var(--green);margin-top:3px;display:flex;align-items:center;gap:3px}
+.mini-bars{display:flex;align-items:flex-end;gap:3px;height:36px;margin-top:8px}
+.mb{flex:1;border-radius:2px 2px 0 0;background:var(--line-hi)}
+.mb.hi{background:var(--accent);opacity:.9}
+
+/* Agent */
+.ag-row{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid var(--line)}
+.ag-row:last-child{border-bottom:none}
+.ag-av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--font-m);font-size:8px;font-weight:700;flex-shrink:0}
+.ag-n{font-size:11px;font-weight:500;color:var(--fg)}
+.ag-t{font-size:10px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-left:auto}
+.st-run{background:var(--green)}.st-think{background:var(--accent);animation:blink 1.4s infinite}.st-idle{background:var(--fg-3)}
+
+/* Inv */
+.inv-row{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line);font-size:10px}
+.inv-row:last-child{border-bottom:none}
+.inv-sk{color:var(--fg);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inv-ct{font-family:var(--font-m);color:var(--fg-2);font-variant-numeric:tabular-nums}
+.badge{font-family:var(--font-m);font-size:9px;padding:1px 5px;border-radius:3px}
+.badge-ok{background:rgba(61,187,125,.15);color:var(--green)}
+.badge-lo{background:rgba(249,87,36,.15);color:var(--accent)}
+
+/* Finance */
+.fin-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:11px}
+.fin-row:last-child{border-bottom:none}
+.fin-k{color:var(--fg-2)}.fin-v{font-family:var(--font-m);font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
+.fin-v.pos{color:var(--green)}.fin-v.neg{color:var(--accent)}
+.fin-chart{display:flex;align-items:flex-end;gap:2px;height:28px;margin-top:6px}
+.fc{flex:1;border-radius:2px 2px 0 0}
+
+/* Campaigns */
+.camp-item{padding:5px 0;border-bottom:1px solid var(--line)}
+.camp-item:last-child{border-bottom:none}
+.camp-name{font-size:11px;font-weight:600;color:var(--fg);margin-bottom:2px}
+.camp-meta{display:flex;gap:6px;align-items:center}
+.camp-tag{font-family:var(--font-m);font-size:8px;padding:1px 5px;border-radius:3px}
+.ct-live{background:rgba(61,187,125,.15);color:var(--green)}
+.ct-sched{background:rgba(90,158,240,.15);color:var(--blue)}
+.ct-draft{background:var(--line-hi);color:var(--fg-3)}
+.camp-reach{font-size:10px;color:var(--fg-3)}
+
+/* Orders strip */
+.orders-strip{grid-column:1/-1;background:var(--card);padding:8px 12px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--line);overflow:hidden}
+.order-chip{display:flex;align-items:center;gap:6px;flex-shrink:0;padding:4px 8px;background:var(--surface);border:1px solid var(--line-hi);border-radius:5px}
+.order-src{font-family:var(--font-m);font-size:9px;letter-spacing:.04em}
+.src-sp{color:#95BF47}.src-rz{color:var(--blue)}.src-woo{color:#96588A}
+.order-desc{font-size:10px;color:var(--fg-2)}
+.order-amt{font-family:var(--font-m);font-size:11px;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
+
+/* STATS BAR */
+.stats-bar{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface);padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+.stats-inner{max-width:1060px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.stat{padding:28px 24px;border-right:1px solid var(--line)}
+.stat:last-child{border-right:none}
+.stat-n{font-family:var(--font-d);font-size:38px;font-weight:800;color:var(--fg);line-height:1;font-variant-numeric:tabular-nums}
+.stat-n em{color:var(--accent);font-style:normal}
+.stat-l{font-size:13px;color:var(--fg-2);margin-top:4px}
+
+/* SECTIONS */
+.section{max-width:1060px;margin:0 auto;padding-block:80px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+.sec-eye{font-family:var(--font-m);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+h2{font-family:var(--font-d);font-size:clamp(34px,5vw,56px);font-weight:800;line-height:1;letter-spacing:-.01em;text-wrap:balance;color:var(--fg);margin-bottom:14px}
+.sec-lead{font-size:16px;color:var(--fg-2);max-width:500px;text-wrap:balance;line-height:1.65}
+
+/* FEATURE GRID */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:48px}
+.feat-card{background:var(--surface);padding:28px 24px;transition:background .15s}
+.feat-card:hover{background:var(--card)}
+.feat-ico{width:40px;height:40px;border-radius:9px;background:var(--accent-dim);border:1px solid rgba(249,87,36,.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.feat-ico svg{width:20px;height:20px;color:var(--accent)}
+.feat-title{font-family:var(--font-d);font-size:20px;font-weight:700;color:var(--fg);margin-bottom:8px;letter-spacing:.02em}
+.feat-desc{font-size:14px;color:var(--fg-2);line-height:1.6}
+
+/* AGENTS SECTION */
+.agents-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:48px}
+.agent-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px 16px;text-align:center;transition:all .2s;cursor:default}
+.agent-card:hover{background:var(--card-hi);border-color:var(--line-hi);transform:translateY(-3px);box-shadow:0 12px 32px -8px rgba(0,0,0,.5)}
+.agent-av{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-family:var(--font-m);font-size:14px;font-weight:700}
+.agent-role{font-family:var(--font-d);font-size:16px;font-weight:700;letter-spacing:.04em;color:var(--fg);margin-bottom:4px}
+.agent-title{font-size:11px;color:var(--fg-3);margin-bottom:8px}
+.agent-task{font-size:11px;color:var(--fg-2);line-height:1.4}
+.agent-status{display:inline-flex;align-items:center;gap:4px;margin-top:10px;font-family:var(--font-m);font-size:9px;letter-spacing:.06em;text-transform:uppercase}
+.agent-dot{width:5px;height:5px;border-radius:50%}
+
+/* MODULES */
+.mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin-top:40px}
+.mod{display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 8px 14px;border-radius:10px;background:var(--card);border:1px solid var(--line);text-align:center;transition:all .15s;cursor:default}
+.mod:hover{background:var(--card-hi);border-color:var(--line-hi);transform:translateY(-2px);box-shadow:0 8px 20px -8px rgba(0,0,0,.4)}
+.mod-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.mod-n{font-size:11px;font-weight:600;color:var(--fg-2);letter-spacing:.01em;line-height:1.3}
+.mod-desc{font-size:10px;color:var(--fg-3);margin-top:2px;line-height:1.3}
+
+/* OPEN-CORE */
+.oc-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin-top:48px;align-items:start}
+.tech-list{display:flex;flex-direction:column;gap:10px}
+.tech-row{display:flex;align-items:center;gap:12px;padding:13px 16px;background:var(--card);border:1px solid var(--line);border-radius:8px}
+.tech-k{font-family:var(--font-m);font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--fg-3);width:90px;flex-shrink:0}
+.tech-v{font-size:13px;color:var(--fg);font-weight:500}
+.tag{margin-left:auto;font-family:var(--font-m);font-size:9px;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.tag-open{background:rgba(61,187,125,.15);color:var(--green)}
+.tag-ent{background:var(--accent-dim);color:var(--accent)}
+.oc-card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:24px}
+.oc-card h3{font-family:var(--font-d);font-size:22px;font-weight:700;color:var(--fg);margin-bottom:8px}
+.oc-card p{font-size:14px;color:var(--fg-2);line-height:1.65;margin-bottom:16px}
+.lic-rows{display:flex;flex-direction:column;gap:8px}
+.lic-row{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:var(--fg-2)}
+.lic-chk{width:18px;height:18px;border-radius:50%;background:rgba(61,187,125,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.lic-chk svg{width:10px;height:10px;color:var(--green)}
+
+/* CTA */
+.cta-band{border-top:1px solid var(--line);background:var(--surface);padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+.cta-inner{max-width:600px;margin:0 auto;padding-block:80px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:20px}
+.cta-inner h2{margin-bottom:0}
+.cta-inner .sec-lead{margin:0 auto}
+.cta-form{display:flex;gap:8px;width:100%;max-width:420px}
+.cta-inp{flex:1;background:var(--card);border:1px solid var(--line-hi);border-radius:8px;padding:12px 16px;font-size:14px;color:var(--fg);font-family:var(--font-b);outline:none;transition:border-color .15s}
+.cta-inp:focus{border-color:var(--accent)}
+.cta-inp::placeholder{color:var(--fg-3)}
+.cta-note{font-size:12px;color:var(--fg-3)}
+.cta-success{font-family:var(--font-m);font-size:13px;color:var(--green);letter-spacing:.04em;display:none}
+
+/* FOOTER */
+footer{border-top:1px solid var(--line);background:var(--surface)}
+.ft-inner{max-width:1060px;margin:0 auto;padding:28px max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.ft-brand{font-family:var(--font-d);font-size:15px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--fg-2)}
+.ft-brand span{color:var(--accent)}
+.ft-links{display:flex;gap:18px}
+.ft-links a{font-size:12px;color:var(--fg-3);text-decoration:none;transition:color .15s}
+.ft-links a:hover{color:var(--fg-2)}
+.ft-by{font-family:var(--font-m);font-size:11px;color:var(--fg-3);letter-spacing:.05em;text-transform:uppercase}
+
+/* DIVIDER */
+.full-line{border:none;border-top:1px solid var(--line)}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .agents-grid{grid-template-columns:repeat(3,1fr)}
+  .feat-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:768px){
+  .feat-grid{grid-template-columns:1fr}
+  .os-layout{height:260px;grid-template-columns:40px 1fr}
+  .os-view{grid-template-columns:1fr 1fr}
+  .os-pane:nth-child(3){display:none}
+  .mini-bars{display:none}
+  .stats-inner{grid-template-columns:1fr 1fr}
+  .stat{border-right:none;border-bottom:1px solid var(--line)}
+  .stat:last-child{border-bottom:none}
+  .oc-grid{grid-template-columns:1fr}
+  .cta-form{flex-direction:column;max-width:100%}
+  .agents-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:500px){
+  .os-layout{height:200px}
+  .os-view{grid-template-columns:1fr}
+  .os-pane:nth-child(2){display:none}
+  .orders-strip .order-chip:not(:first-child):not(:nth-child(2)){display:none}
+  .nav-by{display:none}
+  .agents-grid{grid-template-columns:1fr 1fr}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo" aria-label="Commerce OS by ABATA">
+    <div class="nav-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+    </div>
+    <div>
+      <div class="nav-name">Commerce OS <span class="nav-by">by ABATA</span></div>
+    </div>
+  </a>
+  <div class="nav-right">
+    <a href="https://github.com/KashinathTilagul/Retail-Operating-System" class="btn-nav-ghost" target="_blank" rel="noopener">GitHub</a>
+    <a href="#request" class="btn-nav-primary">Request Access</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="eyebrow">
+    <div class="eyebrow-dot"></div>
+    <span class="eyebrow-text">Open-Core · Self-Hostable · AI-Native</span>
+  </div>
+
+  <h1>The <i>Operating<br>System</i> for<br>Commerce</h1>
+
+  <p class="hero-sub">
+    A macOS-style desktop environment where your AI workforce, inventory, omnichannel orders, and finance stack operate from one screen. Built for D2C brands and B2B sellers alike.
+  </p>
+
+  <div class="hero-ctas">
+    <a href="#request" class="btn-xl btn-xl-primary">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Request Early Access
+    </a>
+    <a href="https://github.com/KashinathTilagul/Retail-Operating-System" class="btn-xl btn-xl-ghost" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+      View Source
+    </a>
+  </div>
+
+  <!-- INTERACTIVE OS WINDOW -->
+  <div class="os-wrap">
+    <div class="os-window" role="img" aria-label="Commerce OS desktop interface">
+      <div class="os-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <div class="os-bar-title" id="os-title">Commerce OS — Command Center</div>
+      </div>
+      <div class="os-layout">
+        <div class="os-dock">
+          <button class="dock-ico on" data-view="0" data-title="Commerce OS — Command Center" title="Command Center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </button>
+          <button class="dock-ico" data-view="1" data-title="Commerce OS — AI Workforce" title="AI Workforce">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
+          </button>
+          <button class="dock-ico" data-view="2" data-title="Commerce OS — Sales & Orders" title="Sales & Orders">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+          </button>
+          <div class="dock-sep"></div>
+          <button class="dock-ico" data-view="3" data-title="Commerce OS — Inventory & Ops" title="Inventory">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+          <button class="dock-ico" data-view="4" data-title="Commerce OS — Finance" title="Finance">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </button>
+          <button class="dock-ico" data-view="5" data-title="Commerce OS — Campaigns" title="Campaigns">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+          </button>
+        </div>
+        <div class="os-views" id="os-views">
+
+          <!-- VIEW 0: Command Center -->
+          <div class="os-view active">
+            <div class="os-pane">
+              <div class="pane-lbl">Revenue · Oct</div>
+              <div class="kpi-val">₹4.2L</div>
+              <div class="kpi-lbl">Monthly Revenue</div>
+              <div class="kpi-delta">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg>
+                +18.4% vs last month
+              </div>
+              <div class="mini-bars">
+                <div class="mb" style="height:30%"></div><div class="mb" style="height:45%"></div>
+                <div class="mb" style="height:55%"></div><div class="mb" style="height:40%"></div>
+                <div class="mb" style="height:65%"></div><div class="mb" style="height:70%"></div>
+                <div class="mb hi" style="height:88%"></div>
+              </div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Live Orders</div>
+              <div class="inv-row"><div class="inv-sk">Shopify — #4821</div><div class="inv-ct">₹3,490 <span class="badge badge-ok">PAID</span></div></div>
+              <div class="inv-row"><div class="inv-sk">Razorpay — #2047</div><div class="inv-ct">₹1,200 <span class="badge badge-ok">PAID</span></div></div>
+              <div class="inv-row"><div class="inv-sk">WooCommerce — #908</div><div class="inv-ct">₹5,800 <span class="badge" style="background:rgba(90,158,240,.15);color:var(--blue)">SHIP</span></div></div>
+              <div class="inv-row"><div class="inv-sk">Shopify — #4822</div><div class="inv-ct">₹890 <span class="badge badge-lo">HOLD</span></div></div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">KPIs Today</div>
+              <div class="fin-row"><span class="fin-k">Orders</span><span class="fin-v">47</span></div>
+              <div class="fin-row"><span class="fin-k">CAC</span><span class="fin-v">₹284</span></div>
+              <div class="fin-row"><span class="fin-k">Margin</span><span class="fin-v pos">38.2%</span></div>
+              <div class="fin-row"><span class="fin-k">Returns</span><span class="fin-v neg">3</span></div>
+            </div>
+            <div class="orders-strip">
+              <div class="order-chip"><span class="order-src src-sp">Shopify</span><span class="order-desc">Kurta Set × 2</span><span class="order-amt">₹3,490</span></div>
+              <div class="order-chip"><span class="order-src src-rz">Razorpay</span><span class="order-desc">Dupatta × 1</span><span class="order-amt">₹1,200</span></div>
+              <div class="order-chip" style="opacity:.55"><span class="order-src src-woo">Woo</span><span class="order-desc">Saree + Blouse</span><span class="order-amt">₹5,800</span></div>
+            </div>
+          </div>
+
+          <!-- VIEW 1: AI Workforce -->
+          <div class="os-view">
+            <div class="os-pane">
+              <div class="pane-lbl">CEO Agent</div>
+              <div class="ag-row">
+                <div class="ag-av" style="background:rgba(249,87,36,.15);color:#F95724">CEO</div>
+                <div style="flex:1;min-width:0"><div class="ag-n">Strategic Planning</div><div class="ag-t">Reviewing Q4 budget allocation</div></div>
+                <div class="st st-think"></div>
+              </div>
+              <div class="ag-row">
+                <div class="ag-av" style="background:rgba(249,87,36,.15);color:#F95724">CEO</div>
+                <div style="flex:1;min-width:0"><div class="ag-n">Approval Gate</div><div class="ag-t">2 decisions pending founder sign-off</div></div>
+                <div class="st st-idle"></div>
+              </div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Active Agents</div>
+              <div class="ag-row">
+                <div class="ag-av" style="background:rgba(249,87,36,.15);color:#F95724">CMO</div>
+                <div style="flex:1;min-width:0"><div class="ag-n">CMO Agent</div><div class="ag-t">Diwali campaign scheduling...</div></div>
+                <div class="st st-think"></div>
+              </div>
+              <div class="ag-row">
+                <div class="ag-av" style="background:rgba(90,158,240,.15);color:#5A9EF0">CFO</div>
+                <div style="flex:1;min-width:0"><div class="ag-n">CFO Agent</div><div class="ag-t">P&amp;L reconciliation done</div></div>
+                <div class="st st-idle"></div>
+              </div>
+              <div class="ag-row">
+                <div class="ag-av" style="background:rgba(61,187,125,.15);color:#3DBB7D">CTO</div>
+                <div style="flex:1;min-width:0"><div class="ag-n">CTO Agent</div><div class="ag-t">Shopify webhook monitoring</div></div>
+                <div class="st st-run"></div>
+              </div>
+              <div class="ag-row">
+                <div class="ag-av" style="background:rgba(249,87,36,.08);color:#F95724">COO</div>
+                <div style="flex:1;min-width:0"><div class="ag-n">COO Agent</div><div class="ag-t">Reorder triggered: 3 SKUs</div></div>
+                <div class="st st-run"></div>
+              </div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Token Usage · Oct</div>
+              <div class="fin-row"><span class="fin-k">Claude</span><span class="fin-v">1.2M</span></div>
+              <div class="fin-row"><span class="fin-k">OpenAI</span><span class="fin-v">340K</span></div>
+              <div class="fin-row"><span class="fin-k">Budget</span><span class="fin-v pos">₹640 left</span></div>
+              <div class="fin-chart">
+                <div class="fc" style="height:40%;background:rgba(249,87,36,.5)"></div>
+                <div class="fc" style="height:60%;background:rgba(249,87,36,.6)"></div>
+                <div class="fc" style="height:50%;background:rgba(249,87,36,.5)"></div>
+                <div class="fc" style="height:75%;background:rgba(249,87,36,.7)"></div>
+                <div class="fc" style="height:65%;background:rgba(249,87,36,.6)"></div>
+                <div class="fc" style="height:88%;background:var(--accent)"></div>
+              </div>
+            </div>
+            <div class="orders-strip">
+              <div class="order-chip"><span class="order-src" style="color:var(--green)">✓ CMO</span><span class="order-desc">Campaign approved</span><span class="order-amt">₹12K budget</span></div>
+              <div class="order-chip"><span class="order-src" style="color:var(--accent)">⏳ CEO</span><span class="order-desc">Awaiting approval</span><span class="order-amt">2 items</span></div>
+            </div>
+          </div>
+
+          <!-- VIEW 2: Sales & Orders -->
+          <div class="os-view">
+            <div class="os-pane">
+              <div class="pane-lbl">Today's Sales</div>
+              <div class="kpi-val">₹38.4K</div>
+              <div class="kpi-lbl">Gross Revenue</div>
+              <div class="kpi-delta">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg>
+                47 orders · 3 channels
+              </div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Channel Breakdown</div>
+              <div class="fin-row"><span class="fin-k src-sp">Shopify</span><span class="fin-v">₹22,100</span></div>
+              <div class="fin-row"><span class="fin-k src-rz">Razorpay</span><span class="fin-v">₹9,400</span></div>
+              <div class="fin-row"><span class="fin-k src-woo">WooCommerce</span><span class="fin-v">₹6,900</span></div>
+              <div class="fin-row"><span class="fin-k">Returns</span><span class="fin-v neg">-₹890</span></div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Top SKUs Today</div>
+              <div class="inv-row"><div class="inv-sk">Linen Kurta Set</div><div class="inv-ct">18 sold</div></div>
+              <div class="inv-row"><div class="inv-sk">Block Print Dupatta</div><div class="inv-ct">11 sold</div></div>
+              <div class="inv-row"><div class="inv-sk">Jamdani Shirt</div><div class="inv-ct">8 sold</div></div>
+            </div>
+            <div class="orders-strip">
+              <div class="order-chip"><span class="order-src src-sp">Shopify</span><span class="order-desc">Linen Kurta × 2</span><span class="order-amt">₹3,490</span></div>
+              <div class="order-chip"><span class="order-src src-rz">Razorpay</span><span class="order-desc">Dupatta × 1</span><span class="order-amt">₹1,200</span></div>
+              <div class="order-chip" style="opacity:.55"><span class="order-src src-woo">Woo</span><span class="order-desc">Saree + Blouse</span><span class="order-amt">₹5,800</span></div>
+            </div>
+          </div>
+
+          <!-- VIEW 3: Inventory -->
+          <div class="os-view">
+            <div class="os-pane">
+              <div class="pane-lbl">Stock Alerts</div>
+              <div class="inv-row"><div class="inv-sk">Block Print Dupatta — Navy</div><div class="inv-ct">18 <span class="badge badge-lo">LOW</span></div></div>
+              <div class="inv-row"><div class="inv-sk">Chanderi Saree — Blush</div><div class="inv-ct">6 <span class="badge badge-lo">LOW</span></div></div>
+              <div class="inv-row"><div class="inv-sk">Indigo Midi — S</div><div class="inv-ct">4 <span class="badge badge-lo">CRIT</span></div></div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Full Inventory</div>
+              <div class="inv-row"><div class="inv-sk">Linen Kurta Set — Ivory</div><div class="inv-ct">142 <span class="badge badge-ok">OK</span></div></div>
+              <div class="inv-row"><div class="inv-sk">Jamdani Shirt — Olive</div><div class="inv-ct">87 <span class="badge badge-ok">OK</span></div></div>
+              <div class="inv-row"><div class="inv-sk">Cotton Palazzo — White</div><div class="inv-ct">63 <span class="badge badge-ok">OK</span></div></div>
+              <div class="inv-row"><div class="inv-sk">Kalamkari Kurta</div><div class="inv-ct">31 <span class="badge badge-ok">OK</span></div></div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Reorder Queue</div>
+              <div class="fin-row"><span class="fin-k">Supplier A</span><span class="fin-v" style="color:var(--blue)">2 POs</span></div>
+              <div class="fin-row"><span class="fin-k">Supplier B</span><span class="fin-v" style="color:var(--blue)">1 PO</span></div>
+              <div class="fin-row"><span class="fin-k">Auto-trigger</span><span class="fin-v pos">ON</span></div>
+            </div>
+            <div class="orders-strip">
+              <div class="order-chip"><span class="order-src" style="color:var(--accent)">⚠ LOW</span><span class="order-desc">Dupatta reorder</span><span class="order-amt">50 units</span></div>
+              <div class="order-chip"><span class="order-src" style="color:var(--green)">✓ AUTO</span><span class="order-desc">Kurta restock sent</span><span class="order-amt">100 units</span></div>
+            </div>
+          </div>
+
+          <!-- VIEW 4: Finance -->
+          <div class="os-view">
+            <div class="os-pane">
+              <div class="pane-lbl">P&amp;L · Oct</div>
+              <div class="kpi-val" style="color:var(--green)">₹1.6L</div>
+              <div class="kpi-lbl">Net Profit</div>
+              <div class="kpi-delta">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="18 15 12 9 6 15"/></svg>
+                38.2% margin
+              </div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Breakdown</div>
+              <div class="fin-row"><span class="fin-k">Revenue</span><span class="fin-v">₹4.2L</span></div>
+              <div class="fin-row"><span class="fin-k">COGS</span><span class="fin-v neg">-₹2.0L</span></div>
+              <div class="fin-row"><span class="fin-k">Ads Spend</span><span class="fin-v neg">-₹38K</span></div>
+              <div class="fin-row"><span class="fin-k">Ops Cost</span><span class="fin-v neg">-₹22K</span></div>
+              <div class="fin-row"><span class="fin-k">Net</span><span class="fin-v pos">₹1.6L</span></div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Cash Position</div>
+              <div class="fin-row"><span class="fin-k">Bank</span><span class="fin-v">₹8.4L</span></div>
+              <div class="fin-row"><span class="fin-k">Razorpay</span><span class="fin-v">₹1.2L</span></div>
+              <div class="fin-row"><span class="fin-k">Stripe</span><span class="fin-v">₹44K</span></div>
+              <div class="fin-chart">
+                <div class="fc" style="height:50%;background:rgba(61,187,125,.5)"></div>
+                <div class="fc" style="height:65%;background:rgba(61,187,125,.6)"></div>
+                <div class="fc" style="height:58%;background:rgba(61,187,125,.5)"></div>
+                <div class="fc" style="height:80%;background:rgba(61,187,125,.7)"></div>
+                <div class="fc" style="height:72%;background:rgba(61,187,125,.6)"></div>
+                <div class="fc" style="height:95%;background:var(--green)"></div>
+              </div>
+            </div>
+            <div class="orders-strip">
+              <div class="order-chip"><span class="order-src" style="color:var(--green)">+38%</span><span class="order-desc">Margin this month</span></div>
+              <div class="order-chip"><span class="order-src" style="color:var(--blue)">GST</span><span class="order-desc">Returns filed</span><span class="order-amt">Oct</span></div>
+            </div>
+          </div>
+
+          <!-- VIEW 5: Campaigns -->
+          <div class="os-view">
+            <div class="os-pane">
+              <div class="pane-lbl">Live Campaigns</div>
+              <div class="camp-item">
+                <div class="camp-name">Diwali Collection Drop</div>
+                <div class="camp-meta"><span class="camp-tag ct-live">LIVE</span><span class="camp-reach">12.4K reach · ₹8K spent</span></div>
+              </div>
+              <div class="camp-item">
+                <div class="camp-name">End of Season Sale</div>
+                <div class="camp-meta"><span class="camp-tag ct-sched">SCHEDULED</span><span class="camp-reach">Nov 1 · ₹5K budget</span></div>
+              </div>
+              <div class="camp-item">
+                <div class="camp-name">New Arrivals — Linen</div>
+                <div class="camp-meta"><span class="camp-tag ct-draft">DRAFT</span><span class="camp-reach">CMO reviewing</span></div>
+              </div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">Performance</div>
+              <div class="fin-row"><span class="fin-k">Impressions</span><span class="fin-v">84K</span></div>
+              <div class="fin-row"><span class="fin-k">Clicks</span><span class="fin-v">3,280</span></div>
+              <div class="fin-row"><span class="fin-k">Conv. Rate</span><span class="fin-v pos">4.2%</span></div>
+              <div class="fin-row"><span class="fin-k">ROAS</span><span class="fin-v pos">4.8×</span></div>
+            </div>
+            <div class="os-pane">
+              <div class="pane-lbl">n8n Studio</div>
+              <div class="fin-row"><span class="fin-k">Flows</span><span class="fin-v">14 active</span></div>
+              <div class="fin-row"><span class="fin-k">Triggers</span><span class="fin-v">3 today</span></div>
+              <div class="fin-row"><span class="fin-k">Status</span><span class="fin-v pos">All OK</span></div>
+            </div>
+            <div class="orders-strip">
+              <div class="order-chip"><span class="order-src" style="color:var(--accent)">CMO</span><span class="order-desc">Diwali assets ready</span></div>
+              <div class="order-chip"><span class="order-src" style="color:var(--green)">✓ Auto</span><span class="order-desc">Instagram scheduled</span><span class="order-amt">3 posts</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat"><div class="stat-n">13<em>+</em></div><div class="stat-l">Built-in OS modules</div></div>
+    <div class="stat"><div class="stat-n">800<em>+</em></div><div class="stat-l">App integrations</div></div>
+    <div class="stat"><div class="stat-n">5</div><div class="stat-l">Autonomous AI agents</div></div>
+    <div class="stat"><div class="stat-n"><em>Open</em></div><div class="stat-l">Core · Self-hostable</div></div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section">
+  <div class="sec-eye">Why Commerce OS</div>
+  <h2>One desktop.<br>Your whole business.</h2>
+  <p class="sec-lead">Commerce OS replaces 12 different SaaS tools with a single macOS-style workspace — so your team and your AI agents operate in one shared context.</p>
+
+  <div class="feat-grid">
+    <div class="feat-card">
+      <div class="feat-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      </div>
+      <div class="feat-title">macOS Desktop UI</div>
+      <p class="feat-desc">Multi-window depth layering, a global Spotlight search (Cmd+K), Launchpad, frosted-glass sidebar, and a real-time top menu bar HUD — all inside your browser.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0112 0v2"/></svg>
+      </div>
+      <div class="feat-title">AI Workforce Control</div>
+      <p class="feat-desc">CEO, CMO, CTO, CFO, and COO agents work autonomously — planning, executing, and routing decisions through a governance approval queue before anything runs.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      </div>
+      <div class="feat-title">Omnichannel Commerce</div>
+      <p class="feat-desc">Shopify, Razorpay, Stripe, WooCommerce — all orders flow into one unified fulfillment view. Works for D2C drops, B2B bulk orders, and subscription models.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+      </div>
+      <div class="feat-title">Live Finance Stack</div>
+      <p class="feat-desc">Real-time P&L, cash position across bank and payment gateways, margin analytics, and expense tracking — no spreadsheets, no manual reconciliation.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>
+      </div>
+      <div class="feat-title">Campaign Studio + n8n</div>
+      <p class="feat-desc">End-to-end marketing ops: the CMO agent plans, creates, and schedules campaigns. Embedded n8n runtime handles automation flows — no external subscriptions.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div class="feat-title">Governance & Risk</div>
+      <p class="feat-desc">Every high-stakes AI decision — large purchases, campaign launches, supplier POs — routes through a founder approval queue with full audit trail before execution.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="full-line">
+
+<!-- AI WORKFORCE -->
+<section class="section">
+  <div class="sec-eye">AI Workforce</div>
+  <h2>Five agents.<br>One executive team.</h2>
+  <p class="sec-lead">Each agent owns a domain, runs autonomously, and escalates to you only when governance requires it. Real execution — not just chatbots.</p>
+
+  <div class="agents-grid">
+    <div class="agent-card">
+      <div class="agent-av" style="background:rgba(249,87,36,.15);color:#F95724;font-size:16px">👁</div>
+      <div class="agent-role">CEO</div>
+      <div class="agent-title">Chief Executive Officer</div>
+      <div class="agent-task">Org strategy, cross-agent coordination, approval gating for high-risk decisions</div>
+      <div class="agent-status">
+        <div class="agent-dot" style="background:var(--accent);animation:blink 1.4s infinite"></div>
+        <span style="color:var(--accent)">On Call</span>
+      </div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-av" style="background:rgba(249,87,36,.15);color:#F95724;font-size:16px">📣</div>
+      <div class="agent-role">CMO</div>
+      <div class="agent-title">Chief Marketing Officer</div>
+      <div class="agent-task">Campaign planning, social scheduling, content generation, performance review</div>
+      <div class="agent-status">
+        <div class="agent-dot" style="background:var(--accent);animation:blink 1.4s infinite"></div>
+        <span style="color:var(--accent)">Running</span>
+      </div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-av" style="background:rgba(61,187,125,.15);color:#3DBB7D;font-size:16px">⚙️</div>
+      <div class="agent-role">CTO</div>
+      <div class="agent-title">Chief Technology Officer</div>
+      <div class="agent-task">Integration health, webhook monitoring, API routing, system diagnostics</div>
+      <div class="agent-status">
+        <div class="agent-dot" style="background:var(--green)"></div>
+        <span style="color:var(--green)">Active</span>
+      </div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-av" style="background:rgba(90,158,240,.15);color:#5A9EF0;font-size:16px">💰</div>
+      <div class="agent-role">CFO</div>
+      <div class="agent-title">Chief Financial Officer</div>
+      <div class="agent-task">P&L, cash flow tracking, payment reconciliation, budget cap enforcement</div>
+      <div class="agent-status">
+        <div class="agent-dot" style="background:var(--fg-3)"></div>
+        <span style="color:var(--fg-3)">Idle</span>
+      </div>
+    </div>
+    <div class="agent-card">
+      <div class="agent-av" style="background:rgba(249,87,36,.1);color:#FF7B47;font-size:16px">🏭</div>
+      <div class="agent-role">COO</div>
+      <div class="agent-title">Chief Operating Officer</div>
+      <div class="agent-task">Inventory ops, supplier management, automated reorders, fulfillment routing</div>
+      <div class="agent-status">
+        <div class="agent-dot" style="background:var(--green)"></div>
+        <span style="color:var(--green)">Active</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="full-line">
+
+<!-- MODULES -->
+<section class="section">
+  <div class="sec-eye">OS Modules</div>
+  <h2>Every tool your<br>commerce team needs.</h2>
+  <p class="sec-lead">13 native modules. No subscriptions per feature. Each opens as a draggable window inside the desktop environment.</p>
+
+  <div class="mod-grid">
+    <div class="mod"><div class="mod-icon" style="background:rgba(249,87,36,.12)">🖥</div><div class="mod-n">Command<br>Center</div><div class="mod-desc">Executive KPIs</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(249,87,36,.08)">📥</div><div class="mod-n">Founder<br>Inbox</div><div class="mod-desc">Decision queue</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(61,187,125,.12)">🛍</div><div class="mod-n">Sales &<br>Orders</div><div class="mod-desc">Omnichannel</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(90,158,240,.12)">💰</div><div class="mod-n">Finance</div><div class="mod-desc">P&L · Cash</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(61,187,125,.10)">📦</div><div class="mod-n">Inventory<br>& Ops</div><div class="mod-desc">Supply chain</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(249,87,36,.12)">📣</div><div class="mod-n">Campaigns</div><div class="mod-desc">Marketing ops</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(90,158,240,.12)">🚀</div><div class="mod-n">Product<br>Launches</div><div class="mod-desc">End-to-end drops</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(249,87,36,.08)">🎨</div><div class="mod-n">Brand<br>Intelligence</div><div class="mod-desc">Visual compliance</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(61,187,125,.10)">👥</div><div class="mod-n">Customers</div><div class="mod-desc">CRM · VIP tiers</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(90,158,240,.10)">🤖</div><div class="mod-n">AI<br>Infrastructure</div><div class="mod-desc">Model health</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(249,87,36,.12)">🛡</div><div class="mod-n">Risk<br>Center</div><div class="mod-desc">Governance</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(61,187,125,.12)">⚡</div><div class="mod-n">n8n Studio</div><div class="mod-desc">Automation flows</div></div>
+    <div class="mod"><div class="mod-icon" style="background:rgba(90,158,240,.12)">🔗</div><div class="mod-n">Integrations</div><div class="mod-desc">800+ connectors</div></div>
+  </div>
+</section>
+
+<hr class="full-line">
+
+<!-- OPEN-CORE -->
+<section class="section">
+  <div class="sec-eye">Open-Core</div>
+  <h2>Self-host everything.<br>Enterprise when you scale.</h2>
+  <p class="sec-lead">The core OS is open-source. Enterprise features — SSO, audit logs, multi-team, white-label — are available on the commercial license.</p>
+
+  <div class="oc-grid">
+    <div class="tech-list">
+      <div class="tech-row"><span class="tech-k">Frontend</span><span class="tech-v">Next.js 16 · React 19 · TypeScript</span><span class="tag tag-open">Open</span></div>
+      <div class="tech-row"><span class="tech-k">Styling</span><span class="tech-v">Tailwind CSS v4</span><span class="tag tag-open">Open</span></div>
+      <div class="tech-row"><span class="tech-k">Backend</span><span class="tech-v">FastAPI (Python) · Prisma ORM</span><span class="tag tag-open">Open</span></div>
+      <div class="tech-row"><span class="tech-k">Database</span><span class="tech-v">PostgreSQL · Supabase</span><span class="tag tag-open">Open</span></div>
+      <div class="tech-row"><span class="tech-k">Auth</span><span class="tech-v">NextAuth v4</span><span class="tag tag-open">Open</span></div>
+      <div class="tech-row"><span class="tech-k">AI Models</span><span class="tech-v">Claude · OpenAI · Ollama</span><span class="tag tag-open">Open</span></div>
+      <div class="tech-row"><span class="tech-k">Deploy</span><span class="tech-v">Docker Compose · Nginx</span><span class="tag tag-open">Open</span></div>
+      <div class="tech-row"><span class="tech-k">Automation</span><span class="tech-v">n8n (embedded runtime)</span><span class="tag tag-open">Open</span></div>
+      <div class="tech-row"><span class="tech-k">Multi-team</span><span class="tech-v">Role-based access control</span><span class="tag tag-ent">Enterprise</span></div>
+      <div class="tech-row"><span class="tech-k">White-label</span><span class="tech-v">Custom domain + branding</span><span class="tag tag-ent">Enterprise</span></div>
+    </div>
+    <div>
+      <div class="oc-card">
+        <h3>Open-Core License</h3>
+        <p>Run the full OS on your own infrastructure — no per-seat fees, no data leaving your servers. The core will always be free and open.</p>
+        <div class="lic-rows">
+          <div class="lic-row"><div class="lic-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>All 13 OS modules included</div>
+          <div class="lic-row"><div class="lic-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>Self-hostable, Docker-ready</div>
+          <div class="lic-row"><div class="lic-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>Full AI workforce — bring your keys</div>
+          <div class="lic-row"><div class="lic-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>Works for D2C brands and B2B sellers</div>
+          <div class="lic-row"><div class="lic-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>Community + GitHub Issues support</div>
+        </div>
+      </div>
+      <div class="oc-card" style="margin-top:12px">
+        <h3>Enterprise License</h3>
+        <p>For teams, agencies, and brands who need SSO, dedicated support, multi-store management, and white-label deployment.</p>
+        <div class="lic-rows">
+          <div class="lic-row"><div class="lic-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>Everything in Open-Core</div>
+          <div class="lic-row"><div class="lic-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>SSO (SAML/OIDC) + audit logs</div>
+          <div class="lic-row"><div class="lic-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>Multi-store, multi-team support</div>
+          <div class="lic-row"><div class="lic-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>Dedicated Slack support</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-band" id="request">
+  <div class="cta-inner">
+    <div class="eyebrow">
+      <div class="eyebrow-dot"></div>
+      <span class="eyebrow-text">Early Access</span>
+    </div>
+    <h2>Get early access</h2>
+    <p class="sec-lead">Commerce OS is in private beta. Drop your email and we'll reach out as spots open up.</p>
+    <form class="cta-form" id="waitlist-form">
+      <input type="email" class="cta-inp" id="wl-email" placeholder="your@email.com" required autocomplete="email">
+      <button type="submit" class="btn-xl btn-xl-primary" style="white-space:nowrap">Join Waitlist</button>
+    </form>
+    <div class="cta-success" id="wl-success">✓ You're on the list. We'll be in touch.</div>
+    <p class="cta-note">No spam. Unsubscribe anytime.</p>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="ft-inner">
+    <div class="ft-brand">Commerce <span>OS</span></div>
+    <div class="ft-links">
+      <a href="https://github.com/KashinathTilagul/Retail-Operating-System" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://abata.tech" target="_blank" rel="noopener">ABATA</a>
+      <a href="mailto:kashinathtilagul@gmail.com">Contact</a>
+    </div>
+    <div class="ft-by">Built by ABATA · Kashinath Tilagul</div>
+  </div>
+</footer>
+
+<script>
+// Interactive OS dock
+const dockBtns = document.querySelectorAll('.dock-ico[data-view]');
+const views = document.querySelectorAll('.os-view');
+const titleEl = document.getElementById('os-title');
+
+dockBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    const idx = parseInt(btn.dataset.view, 10);
+    dockBtns.forEach(b => b.classList.remove('on'));
+    views.forEach(v => v.classList.remove('active'));
+    btn.classList.add('on');
+    views[idx].classList.add('active');
+    titleEl.style.opacity = '0';
+    setTimeout(() => {
+      titleEl.textContent = btn.dataset.title;
+      titleEl.style.opacity = '1';
+    }, 120);
+  });
+});
+
+// Auto-rotate views every 4 seconds
+let autoIdx = 0;
+let autoTimer = setInterval(rotate, 4000);
+function rotate() {
+  autoIdx = (autoIdx + 1) % dockBtns.length;
+  dockBtns[autoIdx].click();
+}
+// Pause rotation on user interaction
+document.querySelector('.os-window').addEventListener('mouseenter', () => clearInterval(autoTimer));
+document.querySelector('.os-window').addEventListener('mouseleave', () => {
+  autoTimer = setInterval(rotate, 4000);
+});
+
+// Waitlist form
+document.getElementById('waitlist-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const email = document.getElementById('wl-email').value;
+  if (!email) return;
+  this.style.display = 'none';
+  document.getElementById('wl-success').style.display = 'block';
+});
+</script>
