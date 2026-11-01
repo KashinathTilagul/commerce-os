@@ -18,8 +18,8 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/88 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12" aria-label="Primary navigation">
         <Link href="/" className="group flex items-center gap-3" aria-label="Commerce OS home">
-          <span className="grid h-8 w-8 place-items-center border border-white/20 bg-white text-[11px] font-black tracking-[-0.08em] text-black transition-transform group-hover:rotate-3">E</span>
-          <span className="text-[13px] font-semibold tracking-[0.24em]">EKVAAR <span className="text-white/45">OS</span></span>
+          <span className="grid h-8 w-8 place-items-center border border-white/20 bg-white text-[11px] font-black tracking-[-0.08em] text-black transition-transform group-hover:rotate-3">C</span>
+          <span className="text-[13px] font-semibold tracking-[0.24em]">COMMERCE <span className="text-white/45">OS</span></span>
         </Link>
         <div className="hidden items-center gap-7 text-[12px] text-white/55 md:flex">
           {links.map((link) => <Link key={link.href} className="transition-colors hover:text-white" href={link.href}>{link.label}</Link>)}
@@ -40,7 +40,7 @@ export function SiteFooter() {
     <footer className="border-t border-white/10 bg-black">
       <div className="mx-auto grid max-w-[1440px] gap-10 px-5 py-12 text-[12px] text-white/42 sm:px-8 md:grid-cols-[1fr_auto_auto] lg:px-12">
         <div>
-          <div className="font-semibold tracking-[0.2em] text-white">EKVAAR OS</div>
+          <div className="font-semibold tracking-[0.2em] text-white">COMMERCE OS</div>
           <p className="mt-3 max-w-sm leading-6">An accountable operating system for people, AI teammates, company memory and connected work.</p>
         </div>
         <div className="grid gap-3">
@@ -51,10 +51,10 @@ export function SiteFooter() {
           <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/25">Start</span>
           <Link className="hover:text-white" href={SIGNUP_URL}>Create workspace</Link>
           <Link className="hover:text-white" href={LOGIN_URL}>Sign in</Link>
-          <Link className="hover:text-white" href="https://ekvaar.com">Ekvaar Fashion House</Link>
+          <Link className="hover:text-white" href="https://abata.tech">ABATA</Link>
         </div>
       </div>
-      <div className="border-t border-white/10 px-5 py-5 text-center text-[10px] text-white/25">© {new Date().getFullYear()} Ekvaar · India · IST</div>
+      <div className="border-t border-white/10 px-5 py-5 text-center text-[10px] text-white/25">© {new Date().getFullYear()} ABATA · India · IST</div>
     </footer>
   )
 }

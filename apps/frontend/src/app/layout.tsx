@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   title: "Commerce OS — Your company, finally in sync",
   description: "An AI-native operating system where people, AI teammates, knowledge, workflows and connected apps work together.",
   keywords: ["AI business operating system", "AI teammates", "workflow automation", "company knowledge", "founder workspace"],
-  authors: [{ name: "Ekvaar" }],
+  authors: [{ name: "ABATA" }],
   openGraph: {
     title: "Commerce OS — Your company, finally in sync",
     description: "People, AI teammates, knowledge, workflows and connected apps—operating together in one accountable workspace.",

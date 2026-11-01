@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await hash(password, 10)
     const user = await db.$transaction(async tx => {
     if (await tx.user.count()) throw new Error('OS already initialized')
-    const organization = await tx.organization.create({ data: { name: name || 'Ekvaar', slug: `ekvaar-${randomUUID()}` } })
+    const organization = await tx.organization.create({ data: { name: name || 'Commerce OS', slug: `commerce-os-${randomUUID()}` } })
     return tx.user.create({
       data: {
         email: email.toLowerCase().trim(),
