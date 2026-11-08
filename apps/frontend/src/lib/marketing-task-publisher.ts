@@ -107,7 +107,8 @@ export async function publishDueMarketingTasks(): Promise<MarketingPublishOutcom
 // deployments work without an external cron. External cron can also hit
 // /api/cron/publish-marketing. Both use the same shared Redis lease.
 const globalForScheduler = globalThis as unknown as { marketingPublishTimer?: NodeJS.Timeout }
-if (!globalForScheduler.marketingPublishTimer) {
+// Skipped on Vercel: serverless timers don't persist; Vercel Cron calls the route.
+if (!process.env.VERCEL && !globalForScheduler.marketingPublishTimer) {
   globalForScheduler.marketingPublishTimer = setInterval(() => {
     publishDueMarketingTasks().catch(error => console.error('[marketing scheduler]', error))
   }, 60 * 1000)

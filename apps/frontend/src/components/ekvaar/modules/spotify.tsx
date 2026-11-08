@@ -39,7 +39,7 @@ function initSdkPlayer(fallbackToken: string) {
 
   const create = () => {
     const player = new window.Spotify.Player({
-      name: 'Business OS',
+      name: 'Commerce OS',
       getOAuthToken: (cb: (t: string) => void) => {
         fetch('/api/spotify/token')
           .then(r => r.json())
@@ -453,7 +453,7 @@ export function SpotifyApp() {
             {sdkReady && (
               <div className="flex items-center gap-1.5 mb-2 text-xs text-arav font-medium">
                 <span className="h-1.5 w-1.5 rounded-full bg-arav animate-pulse" />
-                Business OS (this browser)
+                Commerce OS (this browser)
               </div>
             )}
             {!sdkReady && sdkStatus && (

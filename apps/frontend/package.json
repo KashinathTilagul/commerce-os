@@ -14,7 +14,7 @@
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build --webpack",
     "start": "next start",
-    "test": "node --import tsx --test --test-force-exit src/lib/account-password.test.ts src/lib/commerce/woocommerce-provider.test.ts src/lib/product-launches.test.ts src/lib/campaign-workforce.test.ts src/lib/agent-playbooks.test.ts src/lib/omniroute-config.test.ts src/lib/theme-store.test.ts src/lib/window-store.test.ts && node --import tsx --test --test-force-exit src/lib/security.test.ts",
+    "test": "node --import tsx --test --test-force-exit src/lib/account-password.test.ts src/lib/commerce/woocommerce-provider.test.ts src/lib/product-launches.test.ts src/lib/campaign-workforce.test.ts src/lib/agent-playbooks.test.ts src/lib/omniroute-config.test.ts src/lib/direct-provider.test.ts src/lib/viewer-guard.test.ts src/lib/theme-store.test.ts src/lib/window-store.test.ts && node --import tsx --test --test-force-exit src/lib/security.test.ts",
     "test:all": "npm run test && npm run test:hotfixes && npm run test:guards",
     "test:playbooks": "node --import tsx --test src/lib/agent-playbooks.test.ts",
     "test:woocommerce": "node --import tsx --test src/lib/commerce/woocommerce-provider.test.ts",
@@ -31,7 +31,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "seed": "bun run scripts/seed.ts"
+    "seed": "bun run scripts/seed.ts",
+    "seed:demo": "tsx scripts/seed-demo.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.41",

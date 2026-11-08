@@ -164,7 +164,7 @@ export default function OnboardingPage() {
       <div className="relative min-h-screen grid lg:grid-cols-[320px_1fr]">
         <aside className="bg-[#17231d] text-[#f7f1e5] p-7 lg:p-10 flex lg:flex-col justify-between">
           <div>
-            <div className="text-xs tracking-[0.28em] uppercase text-[#d6c7a7]">Business OS</div>
+            <div className="text-xs tracking-[0.28em] uppercase text-[#d6c7a7]">Commerce OS</div>
             <h1 className="font-display text-3xl mt-3 leading-none">Make it yours.</h1>
             <p className="hidden lg:block text-sm text-[#acb8b1] mt-4 leading-relaxed">A clean operating system, configured around your company and connected only to data you authorize.</p>
           </div>

@@ -88,3 +88,6 @@ export async function POST(req: NextRequest) {
     agentsWorked,
   })
 }
+
+// Vercel Cron issues GET requests.
+export const GET = POST
