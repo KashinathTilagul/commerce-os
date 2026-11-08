@@ -13,6 +13,8 @@ test('cron authentication fails closed for absent, empty and incorrect secrets',
     assert.equal(isCronAuthorized(new Headers()), false)
     assert.equal(isCronAuthorized(new Headers({ 'x-cron-secret': 'wrong' })), false)
     assert.equal(isCronAuthorized(new Headers({ 'x-cron-secret': 'test-secret' })), true)
+    assert.equal(isCronAuthorized(new Headers({ authorization: 'Bearer test-secret' })), true)
+    assert.equal(isCronAuthorized(new Headers({ authorization: 'Bearer wrong' })), false)
   } finally {
     if (previous === undefined) delete process.env.CRON_SECRET
     else process.env.CRON_SECRET = previous

@@ -17,3 +17,6 @@ export async function POST(req: NextRequest) {
     outcomes: outcomes.map((o) => ({ taskId: o.task.id, results: o.results })),
   })
 }
+
+// Vercel Cron issues GET requests.
+export const GET = POST

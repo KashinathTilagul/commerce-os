@@ -3,6 +3,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
 import { db } from '@/lib/db'
 import { decryptSecret } from '@/lib/crypto'
+import { resolveDirectProvider } from '@/lib/direct-provider'
 
 export type Tier = 'fast' | 'default' | 'reasoning'
 
@@ -129,6 +130,18 @@ async function getModelChain(tier: Tier, needsVision?: boolean, organizationId?:
       ? DEFAULT_MODEL_VISION
       : tier === 'fast' ? DEFAULT_MODEL_FAST : DEFAULT_MODEL_REASONING
     try { chain.push({ provider: 'omniroute', model, instance: getOmniRouteModel(model, omnirouteConfig.apiKey, omnirouteConfig.baseUrl) }) } catch {}
+  }
+
+  // No gateway deployed: call one provider directly with a server env key.
+  if (chain.length === 0) {
+    const direct = resolveDirectProvider()
+    if (direct) {
+      const model = needsVision ? direct.models.vision : tier === 'fast' ? direct.models.fast : direct.models.reasoning
+      try {
+        const client = createOpenAI({ baseURL: direct.baseUrl, apiKey: direct.apiKey })
+        chain.push({ provider: direct.provider, model, instance: client.chat(model) })
+      } catch {}
+    }
   }
 
   if (chain.length === 0) {

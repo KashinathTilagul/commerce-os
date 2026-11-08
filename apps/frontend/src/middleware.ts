@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { getToken } from "next-auth/jwt"
 import { RATE_LIMIT_CONFIG, checkRateLimit, getClientIP } from "./lib/security"
+import { isViewerWriteBlocked } from "./lib/viewer-guard"
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const ip = getClientIP(req)
   const path = req.nextUrl.pathname
 
@@ -12,6 +14,14 @@ export function middleware(req: NextRequest) {
       { error: "Too many requests", retryAfter: rateLimitResult.retryAfter },
       { status: 429, headers: { "Retry-After": String(rateLimitResult.retryAfter) } }
     )
+  }
+
+  // Read-only reviewer accounts (orgRole VIEWER) may look but not change anything.
+  if (path.startsWith('/api/') && !path.startsWith('/api/auth/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    const token = await getToken({ req }).catch(() => null)
+    if (isViewerWriteBlocked(req.method, path, token?.orgRole as string | undefined)) {
+      return NextResponse.json({ error: 'This is a read-only demo account' }, { status: 403 })
+    }
   }
 
   const response = NextResponse.next()
