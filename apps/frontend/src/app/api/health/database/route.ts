@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 export async function GET() {
   const start = Date.now()
   try {
+    if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set')
     const orgCount = await db.organization.count()
     const latencyMs = Date.now() - start
     return NextResponse.json({

@@ -400,7 +400,6 @@ services:
     depends_on:
       - frontend
       - fastapi
-      - rakazo-web
     restart: unless-stopped
 
   fastapi:
