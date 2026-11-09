@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       
       await tx.capability.createMany({
         data: defaultCapabilities.map(cap => ({
-          name: cap.name, description: cap.description, category: cap.category, organizationId: org.id, ownerType: "SYSTEM"
+          name: cap.name, description: cap.description, category: cap.category, organizationId: org.id, ownerType: "SYSTEM", ownerId: null,
         }))
       })
 
