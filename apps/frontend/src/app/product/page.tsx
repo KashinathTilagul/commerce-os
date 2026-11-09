@@ -7,11 +7,11 @@ import { ProductShot } from '@/components/marketing/product-shot'
 export const metadata: Metadata = { title: 'Product — Commerce OS', description: 'Explore the real workspaces inside Commerce OS.' }
 
 const workspaces = [
-  { src: '/site/os/command-center.png', label: 'Command Center', alt: 'Commerce OS Command Center', note: 'A founder-level view of company health, work in progress and decisions that need attention.' },
-  { src: '/site/os/ai-workforce.png', label: 'AI Workforce', alt: 'Commerce OS AI Workforce', note: 'Organise agents by role, responsibility and reporting line; assign work and inspect progress.' },
-  { src: '/site/os/content-studio.png', label: 'Content Studio', alt: 'Commerce OS Content Studio', note: 'Create, review, approve and schedule marketing content without separating the output from its evidence.' },
-  { src: '/site/os/memory-explorer.png', label: 'Memory Explorer', alt: 'Commerce OS Memory Explorer', note: 'Inspect the entities, events and relationships retained from work across the organisation.' },
-  { src: '/site/os/integrations.png', label: 'Integrations', alt: 'Commerce OS Integrations', note: 'Connect organisation-owned accounts and make selected tools available to agents and workflows.' },
+  { src: '/site/os/command-center.webp', label: 'Command Center', alt: 'Commerce OS Command Center', note: 'A founder-level view of company health, work in progress and decisions that need attention.' },
+  { src: '/site/os/ai-workforce.webp', label: 'AI Workforce', alt: 'Commerce OS AI Workforce', note: 'Organise agents by role, responsibility and reporting line; assign work and inspect progress.' },
+  { src: '/site/os/content-studio.webp', label: 'Content Studio', alt: 'Commerce OS Content Studio', note: 'Create, review, approve and schedule marketing content without separating the output from its evidence.' },
+  { src: '/site/os/memory-explorer.webp', label: 'Memory Explorer', alt: 'Commerce OS Memory Explorer', note: 'Inspect the entities, events and relationships retained from work across the organisation.' },
+  { src: '/site/os/integrations.webp', label: 'Integrations', alt: 'Commerce OS Integrations', note: 'Connect organisation-owned accounts and make selected tools available to agents and workflows.' },
 ]
 
 export default function ProductPage() {

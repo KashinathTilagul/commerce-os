@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_MARKETING_URL || "https://commerce.abata.tech"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://app.commerce.abata.tech"),
   title: "Commerce OS — Your company, finally in sync",
   description: "An AI-native operating system where people, AI teammates, knowledge, workflows and connected apps work together.",
   keywords: ["AI business operating system", "AI teammates", "workflow automation", "company knowledge", "founder workspace"],
