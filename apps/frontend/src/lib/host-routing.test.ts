@@ -18,6 +18,7 @@ test('marketing host keeps pages and sends auth and API to the app host', () => 
     location: 'https://app.commerce.abata.tech/login?callbackUrl=%2Fapp',
     status: 308,
   })
+  assert.equal(hostDecision('marketing', '/api/auth/session', false), null)
   assert.deepEqual(hostDecision('marketing', '/api/auth/signin', false), {
     location: 'https://app.commerce.abata.tech/api/auth/signin',
     status: 308,

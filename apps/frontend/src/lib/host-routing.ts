@@ -5,6 +5,9 @@ export type HostRole = 'marketing' | 'app' | 'preview'
 
 const MARKETING_PAGES = ['/product', '/integrations', '/security', '/docs', '/demo', '/privacy', '/terms']
 const MARKETING_FILES = ['/sitemap.xml', '/robots.txt', '/opengraph-image', '/twitter-image']
+// NextAuth checks the session from every page. Those reads stay on the
+// marketing host and come back empty; the cookie only exists on the app host.
+const LOCAL_AUTH = ['/api/auth/session', '/api/auth/csrf', '/api/auth/_log']
 
 export function hostRole(hostname: string | null): HostRole {
   const host = (hostname || '').split(',')[0].trim().split(':')[0].toLowerCase()
@@ -36,7 +39,7 @@ export function hostDecision(
   if (role === 'app' && isMarketingPath(pathname)) {
     return { location: `${MARKETING_ORIGIN}${pathname}${search}`, status: 308 }
   }
-  if (role === 'marketing' && !isMarketingPath(pathname)) {
+  if (role === 'marketing' && !isMarketingPath(pathname) && !LOCAL_AUTH.includes(pathname)) {
     return { location: `${APP_ORIGIN}${pathname}${search}`, status: 308 }
   }
   return null
