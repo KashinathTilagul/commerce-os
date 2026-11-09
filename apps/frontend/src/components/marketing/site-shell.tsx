@@ -1,10 +1,11 @@
 import Link from 'next/link'
+import { APP_ORIGIN, MARKETING_ORIGIN } from '@/lib/host-routing'
 
-export const SITE_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || 'https://app.commerce.abata.tech'
-export const LOGIN_URL = '/login'
-export const SIGNUP_URL = '/signup'
+export const SITE_ORIGIN = MARKETING_ORIGIN
+export const LOGIN_URL = `${APP_ORIGIN}/login`
+export const SIGNUP_URL = `${APP_ORIGIN}/signup`
 export const DEMO_URL = '/demo'
-export const OS_APP_URL = '/app'
+export const OS_APP_URL = `${APP_ORIGIN}/app`
 
 const links = [
   { href: '/#modules', label: 'Product' },
