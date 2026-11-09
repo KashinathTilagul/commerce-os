@@ -1,10 +1,18 @@
 import { promises as fs } from 'fs'
+import os from 'os'
 import path from 'path'
 import { z } from 'zod'
 
-const STORAGE_ROOT = path.join(process.cwd(), 'storage')
+export function storageRoot(): string {
+  if (process.env.STORAGE_DIR) return process.env.STORAGE_DIR
+  // ponytail: Vercel lambdas can only write /tmp, and the directory dies with the instance.
+  // Durable artifacts need object storage (Supabase Storage or S3).
+  if (process.env.VERCEL === '1') return path.join(os.tmpdir(), 'commerce-os-storage')
+  return path.join(process.cwd(), 'storage')
+}
+
 export async function readStoredArtifact(location: string): Promise<Buffer> {
-  const root = await fs.realpath(STORAGE_ROOT)
+  const root = await fs.realpath(storageRoot())
   const resolved = await fs.realpath(location)
   const relative = path.relative(root, resolved)
   if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) throw new Error('Artifact path outside storage')
@@ -38,8 +46,8 @@ async function ensureDirectoryExists(dir: string): Promise<void> {
 }
 
 export async function initializeStorage(): Promise<void> {
-  await ensureDirectoryExists(STORAGE_ROOT)
-  await Promise.all(Object.values(ARTIFACT_DIRS).map(dir => ensureDirectoryExists(path.join(STORAGE_ROOT, dir))))
+  await ensureDirectoryExists(storageRoot())
+  await Promise.all(Object.values(ARTIFACT_DIRS).map(dir => ensureDirectoryExists(path.join(storageRoot(), dir))))
 }
 
 export async function storeArtifact(
@@ -50,7 +58,7 @@ export async function storeArtifact(
 ): Promise<StorageMetadata> {
   await initializeStorage()
   
-  const dir = path.join(STORAGE_ROOT, getStorageDir(type))
+  const dir = path.join(storageRoot(), getStorageDir(type))
   // Titles come from LLM output — strip path separators so a name like
   // "slide 2/3" cannot escape the artifact directory.
   const filename = (customFilename || `${id}${getArtifactExt(type)}`).replace(/[/\\]/g, ' ')
@@ -71,7 +79,7 @@ export async function storeArtifact(
 }
 
 export async function getArtifact(id: string, type: ArtifactType): Promise<Buffer | null> {
-  const filepath = path.join(STORAGE_ROOT, getStorageDir(type), `${id}${getArtifactExt(type)}`)
+  const filepath = path.join(storageRoot(), getStorageDir(type), `${id}${getArtifactExt(type)}`)
   
   try {
     return await fs.readFile(filepath)
@@ -82,7 +90,7 @@ export async function getArtifact(id: string, type: ArtifactType): Promise<Buffe
 }
 
 export async function deleteArtifact(id: string, type: ArtifactType): Promise<boolean> {
-  const filepath = path.join(STORAGE_ROOT, getStorageDir(type), `${id}${getArtifactExt(type)}`)
+  const filepath = path.join(storageRoot(), getStorageDir(type), `${id}${getArtifactExt(type)}`)
   
   try {
     await fs.unlink(filepath)
@@ -96,14 +104,14 @@ export async function listArtifacts(type?: ArtifactType): Promise<string[]> {
   await initializeStorage()
   
   if (type) {
-    const dir = path.join(STORAGE_ROOT, getStorageDir(type))
+    const dir = path.join(storageRoot(), getStorageDir(type))
     const files = await fs.readdir(dir)
     return files.map(f => f.replace(/\.[^.]+$/, ''))
   }
   
   const allFiles: string[] = []
   for (const subdir of Object.values(ARTIFACT_DIRS)) {
-    const dir = path.join(STORAGE_ROOT, subdir)
+    const dir = path.join(storageRoot(), subdir)
     const files = await fs.readdir(dir)
     allFiles.push(...files.map(f => f.replace(/\.[^.]+$/, '')))
   }
@@ -112,5 +120,5 @@ export async function listArtifacts(type?: ArtifactType): Promise<string[]> {
 }
 
 export function getStoragePath(type: ArtifactType, filename: string): string {
-  return path.join(STORAGE_ROOT, getStorageDir(type), filename)
+  return path.join(storageRoot(), getStorageDir(type), filename)
 }

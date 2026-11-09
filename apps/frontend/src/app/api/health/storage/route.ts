@@ -1,11 +1,12 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
+import { storageRoot } from '@/lib/storage'
 import fs from 'fs'
 import path from 'path'
 
 export async function GET() {
   const start = Date.now()
-  const storageDir = path.join(process.cwd(), 'storage')
+  const storageDir = storageRoot()
 
   try {
     if (!fs.existsSync(storageDir)) {

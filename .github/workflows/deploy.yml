@@ -17,11 +17,39 @@ permissions:
 jobs:
   build-workforce-images:
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.rakazo.outputs.published }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      # vendor/rakazo is a private repo. GITHUB_TOKEN can read this repo only,
+      # so `submodules: recursive` fails the whole deploy before the runner starts.
+      - name: Fetch private Workforce submodule
+        id: fetch
+        env:
+          RAKAZO_READ_TOKEN: ${{ secrets.RAKAZO_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          sha=$(git ls-tree HEAD vendor/rakazo | awk '{print $3}')
+          if [ -z "${RAKAZO_READ_TOKEN}" ] || [ -z "$sha" ]; then
+            echo "fetched=false" >> "$GITHUB_OUTPUT"
+            echo "RAKAZO_READ_TOKEN is unset or vendor/rakazo has no gitlink."
+            echo "Workforce images will not be rebuilt. OS deploy still runs."
+            echo "To publish Workforce images, add Actions secret RAKAZO_READ_TOKEN:"
+            echo "a GitHub PAT with contents:read on KashinathTilagul/rakazo."
+            exit 0
+          fi
+          rm -rf vendor/rakazo
+          git clone --no-checkout https://github.com/KashinathTilagul/rakazo.git vendor/rakazo
+          auth=$(printf 'x-access-token:%s' "$RAKAZO_READ_TOKEN" | base64 -w0)
+          git -C vendor/rakazo config http.https://github.com/.extraheader "AUTHORIZATION: basic ${auth}"
+          git -C vendor/rakazo fetch --depth 1 origin "$sha"
+          git -C vendor/rakazo checkout --detach FETCH_HEAD
+          git -C vendor/rakazo config --unset-all http.https://github.com/.extraheader
+          test -f vendor/rakazo/package.json
+          echo "fetched=true" >> "$GITHUB_OUTPUT"
       - name: Build and publish Workforce images
+        id: publish
+        if: steps.fetch.outputs.fetched == 'true'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
@@ -58,9 +86,19 @@ jobs:
             exit 1
           }
           docker rm -f "$web_container"
+      - name: Record Workforce publish result
+        id: rakazo
+        if: always()
+        run: |
+          if [ "${{ steps.publish.outcome }}" = "success" ] && [ "${{ steps.fetch.outputs.fetched }}" = "true" ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
 
   deploy:
     needs: build-workforce-images
+    if: ${{ always() && needs.build-workforce-images.result != 'cancelled' }}
     runs-on: self-hosted
 
     steps:
@@ -104,6 +142,7 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
           DOCKER_BUILDKIT: 1
+          WORKFORCE_IMAGES_PUBLISHED: ${{ needs.build-workforce-images.outputs.published }}
         run: |
           set -e -o pipefail
           export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -111,8 +150,19 @@ jobs:
           echo "[i] Deploying from: $(pwd)"
           git fetch --prune origin main
           git checkout -B main origin/main
-          git submodule sync --recursive
-          git submodule update --init --recursive --depth 1
+          git submodule sync --recursive || true
+          if git submodule update --init --recursive --depth 1; then
+            echo "[i] vendor/rakazo checked out"
+          else
+            echo "[!] vendor/rakazo is not readable with this runner's credentials."
+          fi
+          DEPLOY_WORKFORCE=0
+          if [ "$WORKFORCE_IMAGES_PUBLISHED" = "true" ] && [ -f vendor/rakazo/package.json ]; then
+            DEPLOY_WORKFORCE=1
+          else
+            echo "[!] Skipping Workforce image rollout. OS services still deploy."
+            echo "[!] Add Actions secret RAKAZO_READ_TOKEN (PAT, contents:read on KashinathTilagul/rakazo) to publish new Workforce images."
+          fi
           echo "[i] Now at commit: $(git rev-parse --short HEAD)"
 
           if [ $(/usr/sbin/swapon --show | wc -l) -eq 0 ]; then
@@ -232,6 +282,17 @@ jobs:
           BOX_API_KEY="${BOX_API_KEY:-$(existing_env BOX_API_KEY)}"
           RELEASE_VERSION="$(git rev-parse --short HEAD)"
 
+          if [ "$DEPLOY_WORKFORCE" = "1" ]; then
+            RAKAZO_COMPUTER_IMAGE="ghcr.io/kashinathtilagul/ekvaar/rakazo-computer:${{ github.sha }}"
+            RAKAZO_APP_IMAGE="ghcr.io/kashinathtilagul/ekvaar/rakazo-app:${{ github.sha }}"
+          else
+            # Keep the images already on the host. A new SHA tag was never published.
+            RAKAZO_COMPUTER_IMAGE="$(existing_env RAKAZO_COMPUTER_IMAGE)"
+            RAKAZO_APP_IMAGE="$(existing_env RAKAZO_APP_IMAGE)"
+            RAKAZO_COMPUTER_IMAGE="${RAKAZO_COMPUTER_IMAGE:-ekvaar/rakazo-computer:local}"
+            RAKAZO_APP_IMAGE="${RAKAZO_APP_IMAGE:-ekvaar/rakazo-app:local}"
+          fi
+
           printf '%s\n' \
             "DATABASE_URL=${DATABASE_URL}" \
             "DIRECT_URL=${DIRECT_URL}" \
@@ -285,8 +346,8 @@ jobs:
             "RAKAZO_SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET}" \
             "RAKAZO_SANDBOX_PROVIDER=docker" \
             "RAKAZO_SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN}" \
-            "RAKAZO_COMPUTER_IMAGE=ghcr.io/kashinathtilagul/ekvaar/rakazo-computer:${{ github.sha }}" \
-            "RAKAZO_APP_IMAGE=ghcr.io/kashinathtilagul/ekvaar/rakazo-app:${{ github.sha }}" \
+            "RAKAZO_COMPUTER_IMAGE=${RAKAZO_COMPUTER_IMAGE}" \
+            "RAKAZO_APP_IMAGE=${RAKAZO_APP_IMAGE}" \
             "BROWSER_HEADLESS=true" \
             > .env
           chmod 600 .env
@@ -331,8 +392,13 @@ jobs:
           # Remove only replaceable app containers so their image layers can be
           # reclaimed before the build. Rakazo's Postgres container and both
           # named data volumes remain live and untouched.
-          /usr/bin/sudo docker compose stop frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
-          /usr/bin/sudo docker compose rm -f frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
+          if [ "$DEPLOY_WORKFORCE" = "1" ]; then
+            /usr/bin/sudo docker compose stop frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
+            /usr/bin/sudo docker compose rm -f frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
+          else
+            /usr/bin/sudo docker compose stop frontend upskill google-workspace || true
+            /usr/bin/sudo docker compose rm -f frontend upskill google-workspace || true
+          fi
           /usr/bin/sudo docker image prune -af || true
           echo "[i] Disk after releasing superseded stateless images:"; df -h / || true
 
@@ -369,14 +435,18 @@ jobs:
           /usr/bin/sudo docker builder prune -af || true
           /usr/bin/sudo docker image prune -f || true
 
-          echo "$GHCR_TOKEN" | /usr/bin/sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
-          /usr/bin/sudo docker compose pull rakazo-postgres rakazo-data-init rakazo-api
-          # These images are individually large during extraction. Building
-          # them concurrently exhausted the runner even though the final
-          # images fit. Materialize and prune each one before starting the next.
-          /usr/bin/sudo docker compose --progress=plain build rakazo-supervisor
-          /usr/bin/sudo docker builder prune -af || true
-          /usr/bin/sudo docker compose pull rakazo-computer
+          if [ "$DEPLOY_WORKFORCE" = "1" ]; then
+            echo "$GHCR_TOKEN" | /usr/bin/sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            /usr/bin/sudo docker compose pull rakazo-postgres rakazo-data-init rakazo-api
+            # These images are individually large during extraction. Building
+            # them concurrently exhausted the runner even though the final
+            # images fit. Materialize and prune each one before starting the next.
+            /usr/bin/sudo docker compose --progress=plain build rakazo-supervisor
+            /usr/bin/sudo docker builder prune -af || true
+            /usr/bin/sudo docker compose pull rakazo-computer
+          else
+            echo "[i] Leaving the current Workforce containers in place."
+          fi
           echo "[i] Disk before service startup:"; df -h / || true
           AVAILABLE_KB=$(df -Pk / | awk 'NR==2 {print $4}')
           if [ "${AVAILABLE_KB:-0}" -lt 524288 ]; then
@@ -385,12 +455,24 @@ jobs:
             exit 1
           fi
 
-          /usr/bin/sudo docker compose up -d --remove-orphans --wait --wait-timeout 180 || {
-            echo "[x] A production container failed its health check."
-            /usr/bin/sudo docker compose ps
-            /usr/bin/sudo docker compose logs --tail 150 rakazo-api rakazo-worker rakazo-web rakazo-supervisor
-            exit 1
-          }
+          if [ "$DEPLOY_WORKFORCE" = "1" ]; then
+            /usr/bin/sudo docker compose up -d --remove-orphans --wait --wait-timeout 180 || {
+              echo "[x] A production container failed its health check."
+              /usr/bin/sudo docker compose ps
+              /usr/bin/sudo docker compose logs --tail 150 rakazo-api rakazo-worker rakazo-web rakazo-supervisor
+              exit 1
+            }
+          else
+            # Named services only. rakazo-* stays as it is; nginx no longer
+            # depends on rakazo-web, so this does not recreate Workforce.
+            /usr/bin/sudo docker compose up -d --wait --wait-timeout 180 \
+              redis omniroute fastapi frontend nginx n8n cognee open-design upskill google-workspace || {
+              echo "[x] A production container failed its health check."
+              /usr/bin/sudo docker compose ps
+              /usr/bin/sudo docker compose logs --tail 150 frontend fastapi nginx
+              exit 1
+            }
+          fi
 
           /usr/bin/sudo docker compose restart nginx
 
@@ -409,14 +491,18 @@ jobs:
             exit 1
           fi
 
-          WORKFORCE_STATUS=$(curl -sk -o /tmp/workforce.html -w "%{http_code}" --max-time 5 -H "Host: commerce.abata.tech" https://localhost/workforce/ || echo 000)
-          /usr/bin/sudo docker compose exec -T rakazo-web node -e \
-            "fetch('http://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-          /usr/bin/sudo docker compose exec -T rakazo-supervisor node -e \
-            "fetch('http://127.0.0.1:7091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-          if [ "$WORKFORCE_STATUS" != "401" ]; then
-            echo "[x] Workforce access boundary failed (anonymous HTTP $WORKFORCE_STATUS; expected 401)."
-            /usr/bin/sudo docker compose logs --tail 150 rakazo-postgres rakazo-api rakazo-worker rakazo-web nginx
-            exit 1
+          if [ "$DEPLOY_WORKFORCE" = "1" ]; then
+            WORKFORCE_STATUS=$(curl -sk -o /tmp/workforce.html -w "%{http_code}" --max-time 5 -H "Host: commerce.abata.tech" https://localhost/workforce/ || echo 000)
+            /usr/bin/sudo docker compose exec -T rakazo-web node -e \
+              "fetch('http://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+            /usr/bin/sudo docker compose exec -T rakazo-supervisor node -e \
+              "fetch('http://127.0.0.1:7091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+            if [ "$WORKFORCE_STATUS" != "401" ]; then
+              echo "[x] Workforce access boundary failed (anonymous HTTP $WORKFORCE_STATUS; expected 401)."
+              /usr/bin/sudo docker compose logs --tail 150 rakazo-postgres rakazo-api rakazo-worker rakazo-web nginx
+              exit 1
+            fi
+            echo "[ok] Deployed OS and Workforce (app HTTP $STATUS, anonymous Workforce correctly denied with HTTP $WORKFORCE_STATUS)"
+          else
+            echo "[ok] Deployed OS (app HTTP $STATUS). Workforce images were not rolled."
           fi
-          echo "[ok] Deployed OS and Workforce (app HTTP $STATUS, anonymous Workforce correctly denied with HTTP $WORKFORCE_STATUS)"

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { storageRoot } from '@/lib/storage'
 import fs from 'fs'
 import path from 'path'
 
@@ -23,7 +24,9 @@ interface HealthCheckResult {
 
 export async function GET() {
   const start = Date.now()
-  const releaseVersion = process.env.RELEASE_VERSION || 'development'
+  const releaseVersion = process.env.RELEASE_VERSION
+    || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7)
+    || 'development'
 
   const results: HealthCheckResult = {
     status: 'healthy',
@@ -47,6 +50,7 @@ export async function GET() {
   // 1. Check Database with detailed metrics
   const dbStart = Date.now()
   try {
+    if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set')
     const orgCount = await db.organization.count()
     results.services.database.status = 'healthy'
     results.services.database.latency = Date.now() - dbStart
@@ -67,7 +71,7 @@ export async function GET() {
   // 2. Check Storage with disk usage
   const storageStart = Date.now()
   try {
-    const storageDir = path.join(process.cwd(), 'storage')
+    const storageDir = storageRoot()
     if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true })
     
     const testFile = path.join(storageDir, `.health_check_${Date.now()}.tmp`)
