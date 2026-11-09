@@ -72,7 +72,7 @@ export function HomePage() {
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
     description: 'A desktop where commerce operations and an AI workforce share one organisation, with human approval for consequential actions.',
-    url: 'https://app.commerce.abata.tech/',
+    url: 'https://commerce.abata.tech/',
     publisher: { '@type': 'Organization', name: 'ABATA', url: 'https://abata.tech' },
     offers: {
       '@type': 'Offer',

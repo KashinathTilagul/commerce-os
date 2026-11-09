@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getToken } from "next-auth/jwt"
+import { hostDecision, hostRole } from "./lib/host-routing"
 import { RATE_LIMIT_CONFIG, checkRateLimit, getClientIP } from "./lib/security"
 import { isViewerWriteBlocked } from "./lib/viewer-guard"
 
 export async function middleware(req: NextRequest) {
   const ip = getClientIP(req)
   const path = req.nextUrl.pathname
+  const role = hostRole(req.headers.get('host') || req.nextUrl.hostname)
+  const signedIn = role === 'app' && path === '/'
+    ? Boolean(await getToken({ req }).catch(() => null))
+    : false
+  const decision = hostDecision(role, path, signedIn, req.nextUrl.search)
+  if (decision) return NextResponse.redirect(decision.location, decision.status)
 
   const rateLimitResult = checkRateLimit(ip, path)
   if (!rateLimitResult.allowed) {
@@ -25,6 +32,7 @@ export async function middleware(req: NextRequest) {
   }
 
   const response = NextResponse.next()
+  if (role === 'app') response.headers.set('X-Robots-Tag', 'noindex')
   response.headers.set("X-Content-Type-Options", "nosniff")
   const embeddedOpenDesign = path.startsWith('/api/open-design/proxy')
   response.headers.set("X-Frame-Options", embeddedOpenDesign ? "SAMEORIGIN" : "DENY")

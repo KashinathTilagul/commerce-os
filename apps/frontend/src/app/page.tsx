@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export const metadata: Metadata = {
   title: 'Commerce OS — The operating system for commerce',
   description: 'A desktop where orders, inventory, finance, campaigns and an AI workforce share one organisation. Consequential actions wait for a person.',
-  alternates: { canonical: '/' },
+  alternates: { canonical: 'https://commerce.abata.tech/' },
   openGraph: {
     title: 'Commerce OS — The operating system for commerce',
     description: 'Orders, inventory, finance, campaigns and an AI workforce on one desktop, with human approval for consequential actions.',
