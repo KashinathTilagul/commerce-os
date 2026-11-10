@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { probeKernelHealth } from '@/lib/kernel-health'
 import { storageRoot } from '@/lib/storage'
 import fs from 'fs'
 import path from 'path'
@@ -94,22 +95,11 @@ export async function GET() {
     overallUnhealthy = true
   }
 
-  // 3. Check Kernel with latency tracking
-  const kernelStart = Date.now()
-  const kernelUrl = process.env.FASTAPI_URL || process.env.BROWSER_SIDECAR_URL || 'http://localhost:8000'
-  try {
-    const res = await fetch(`${kernelUrl}/`, { signal: AbortSignal.timeout(5000) })
-    results.services.kernel.latency = Date.now() - kernelStart
-    
-    if (res.ok) {
-      results.services.kernel.status = 'healthy'
-    } else {
-      results.services.kernel.status = 'degraded'
-      overallDegraded = true
-    }
-  } catch (error) {
-    results.services.kernel.status = 'unreachable'
-    results.services.kernel.latency = Date.now() - kernelStart
+  // 3. Check optional external Kernel if configured (FASTAPI_URL / BROWSER_SIDECAR_URL)
+  const kernelHealth = await probeKernelHealth()
+  results.services.kernel.status = kernelHealth.status
+  results.services.kernel.latency = kernelHealth.latencyMs
+  if (kernelHealth.configured && kernelHealth.status !== 'healthy') {
     overallDegraded = true
   }
 

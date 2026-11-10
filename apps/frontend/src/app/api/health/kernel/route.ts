@@ -1,52 +1,60 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
+import { probeKernelHealth } from '@/lib/kernel-health'
 
 export async function GET() {
-  const start = Date.now()
-  const kernelUrl = process.env.FASTAPI_URL || process.env.BROWSER_SIDECAR_URL || 'http://localhost:8000'
+  const result = await probeKernelHealth()
+  const timestamp = new Date().toISOString()
 
-  try {
-    const response = await fetch(`${kernelUrl}/`, {
-      method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' },
-      signal: AbortSignal.timeout(5000),
+  if (!result.configured) {
+    return NextResponse.json({
+      status: 'not_configured',
+      kernel: 'not_configured',
+      configured: false,
+      optional: true,
+      message: 'Optional Python kernel / browser sidecar is not configured for this serverless deployment.',
+      latencyMs: result.latencyMs,
+      timestamp,
     })
+  }
 
-    const latencyMs = Date.now() - start
+  if (result.status === 'healthy') {
+    return NextResponse.json({
+      status: 'healthy',
+      kernel: 'connected',
+      configured: true,
+      url: result.url,
+      response: result.response ?? {},
+      latencyMs: result.latencyMs,
+      timestamp,
+    })
+  }
 
-    if (response.ok) {
-      const data = await response.json().catch(() => ({}))
-      return NextResponse.json({
-        status: 'healthy',
-        kernel: 'connected',
-        url: kernelUrl,
-        response: data,
-        latencyMs,
-        timestamp: new Date().toISOString(),
-      })
-    } else {
-      return NextResponse.json(
-        {
-          status: 'unhealthy',
-          kernel: 'error',
-          url: kernelUrl,
-          statusCode: response.status,
-          latencyMs,
-          timestamp: new Date().toISOString(),
-        },
-        { status: 503 }
-      )
-    }
-  } catch (error: any) {
+  if (result.status === 'degraded') {
     return NextResponse.json(
       {
         status: 'unhealthy',
-        kernel: 'unreachable',
-        url: kernelUrl,
-        error: error.message || 'Kernel connection failed',
-        timestamp: new Date().toISOString(),
+        kernel: 'error',
+        configured: true,
+        url: result.url,
+        statusCode: result.statusCode,
+        latencyMs: result.latencyMs,
+        timestamp,
       },
       { status: 503 }
     )
   }
+
+  return NextResponse.json(
+    {
+      status: 'unhealthy',
+      kernel: 'unreachable',
+      configured: true,
+      url: result.url,
+      error: result.error || 'Kernel connection failed',
+      latencyMs: result.latencyMs,
+      timestamp,
+    },
+    { status: 503 }
+  )
 }

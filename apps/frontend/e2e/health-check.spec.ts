@@ -40,6 +40,6 @@ test.describe('System Health Check', () => {
     const data = await response.json()
     
     // Kernel might be unreachable in test environment
-    expect(['healthy', 'degraded', 'unreachable']).toContain(data.services.kernel.status)
+    expect(['healthy', 'degraded', 'unreachable', 'not_configured']).toContain(data.services.kernel.status)
   })
 })
