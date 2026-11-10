@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { GoogleAuthButton } from '@/components/auth/google-auth-button'
 import { UserPlus, LogIn, Loader2 } from 'lucide-react'
 
 export default function SignupPage() {
@@ -94,6 +95,9 @@ export default function SignupPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
+          <div className="mb-4">
+            <GoogleAuthButton disabled={loading} dividerLabel="Or sign up with email" />
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
