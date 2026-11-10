@@ -67,13 +67,23 @@ export function RiskCenter() {
   const runAssessment = async () => {
     setRefreshing(true)
     try {
-      await fetch('/api/telemetry/ingest/from-live-metrics', { method: 'POST' })
-      await fetch('/api/telemetry/signals/detect', { method: 'POST' })
-      await fetch('/api/telemetry/risks/assess', { method: 'POST' })
-      queryClient.invalidateQueries({ queryKey: ['risk-dashboard', 'risks', 'signals'] })
+      const steps = await Promise.all([
+        fetch('/api/telemetry/ingest/from-live-metrics', { method: 'POST' }),
+        fetch('/api/telemetry/signals/detect', { method: 'POST' }),
+        fetch('/api/telemetry/risks/assess', { method: 'POST' }),
+      ])
+      const failed = steps.find((res) => !res.ok)
+      if (failed) {
+        throw new Error(`Assessment step failed (${failed.status})`)
+      }
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['risk-dashboard'] }),
+        queryClient.invalidateQueries({ queryKey: ['risks'] }),
+        queryClient.invalidateQueries({ queryKey: ['signals'] }),
+      ])
       toast.success('Risk Assessment Complete', 'All telemetry data has been analyzed')
     } catch (e) {
-      toast.error('Assessment Failed', 'Could not complete risk assessment')
+      toast.error('Assessment Failed', e instanceof Error ? e.message : 'Could not complete risk assessment')
     } finally {
       setRefreshing(false)
     }

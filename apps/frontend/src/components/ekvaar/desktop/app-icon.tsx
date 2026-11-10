@@ -53,6 +53,7 @@ function IconVariant({ variant, size }: { variant: string; size: number }) {
     case 'drive':         return <BrowserIcon size={size} />
     case 'board-room':    return <BoardRoomIcon size={size} />
     case 'inbox':         return <MailIcon size={size} />
+    case 'chat':          return <MailIcon size={size} />
     case 'agents':        return <ContactsIcon size={size} />
     case 'issues':        return <RemindersIcon size={size} />
     case 'terminal':      return <TerminalIcon size={size} />

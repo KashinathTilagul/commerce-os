@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { isCronAuthorized } from '@/lib/cron-auth'
 
 function dateKey() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replaceAll('-', '')
@@ -55,9 +56,8 @@ async function publishReport(organizationId: string, day: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 })
-  if (req.headers.get('x-cron-secret') !== secret) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!process.env.CRON_SECRET) return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 })
+  if (!isCronAuthorized(req.headers)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const phase = req.nextUrl.searchParams.get('phase') || 'start'
   const day = dateKey()
   const organizations = await db.organization.findMany({ select: { id: true } })

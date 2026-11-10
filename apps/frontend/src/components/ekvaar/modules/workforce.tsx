@@ -1,11 +1,12 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { ExternalLink, Loader2, Users } from 'lucide-react'
+import { ExternalLink, Loader2 } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { useWindowStore } from '@/lib/window-store'
+import { DigitalEmployeesHub } from './digital-employees-hub'
 
 type WorkforceConfig = {
   url: string
@@ -15,11 +16,11 @@ type WorkforceConfig = {
 export function Workforce() {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const openWindow = useWindowStore((state) => state.open)
-  const { data, isLoading, isError, refetch } = useQuery<WorkforceConfig>({
+  const { data, isLoading } = useQuery<WorkforceConfig>({
     queryKey: ['workforce-config'],
     queryFn: async () => {
       const response = await fetch('/api/workforce/config')
-      if (!response.ok) throw new Error('Workforce configuration unavailable')
+      if (!response.ok) return { url: '', configured: false }
       return response.json()
     },
   })
@@ -64,28 +65,17 @@ export function Workforce() {
     )
   }
 
-  return (
-    <div className="flex h-full w-full items-center justify-center bg-background p-8">
-      <div className="max-w-md rounded-xl border border-white/[0.08] p-8 text-center">
-        {isLoading ? (
+  if (isLoading) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-background p-8">
+        <div className="max-w-md rounded-xl border border-white/[0.08] p-8 text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
-        ) : (
-          <Users className="mx-auto h-8 w-8 text-muted-foreground" />
-        )}
-        <h2 className="mt-3 font-display text-lg">
-          {isLoading ? 'Starting Workforce…' : 'Workforce is unavailable'}
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {isError
-            ? 'The OS could not read the Workforce configuration.'
-            : 'The Workforce service is not configured for this environment.'}
-        </p>
-        {!isLoading && (
-          <Button type="button" variant="outline" className="mt-5" onClick={() => refetch()}>
-            Check again
-          </Button>
-        )}
+          <h2 className="mt-3 font-display text-lg">Starting Workforce…</h2>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  // Native Workforce hub works out-of-the-box without external Rakazo sidecar.
+  return <DigitalEmployeesHub />
 }

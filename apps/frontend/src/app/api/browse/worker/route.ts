@@ -3,12 +3,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { dequeueBrowseJob, completeBrowseJob, failBrowseJob } from '@/lib/browse-queue'
 import { db } from '@/lib/db'
 import { decryptSecret } from '@/lib/crypto'
+import { secretsMatch } from '@/lib/cron-auth'
 
 const BROWSER_SIDECAR_URL = process.env.BROWSER_SIDECAR_URL || 'http://localhost:8000'
 
 function checkWorkerAuth(req: NextRequest) {
+  const expected = process.env.BROWSER_WORKER_KEY || process.env.CAMOFOX_WORKER_KEY
+  if (!expected) {
+    return NextResponse.json({ error: 'Browser worker key is not configured' }, { status: 503 })
+  }
   const key = req.headers.get('x-worker-key')
-  if (key !== (process.env.BROWSER_WORKER_KEY || process.env.CAMOFOX_WORKER_KEY)) {
+  if (!secretsMatch(key, expected)) {
     return NextResponse.json({ error: 'Unauthorized worker' }, { status: 401 })
   }
   return null
@@ -82,7 +87,10 @@ export async function POST(req: NextRequest) {
     const aiSettings = await browserAiSettings(job.organizationId)
     const response = await fetch(`${BROWSER_SIDECAR_URL}/api/browser/run`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-worker-key': process.env.BROWSE_WORKER_KEY || '' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-worker-key': process.env.BROWSE_WORKER_KEY || process.env.BROWSER_WORKER_KEY || '',
+      },
       body: JSON.stringify({
         task,
         url: job.url,

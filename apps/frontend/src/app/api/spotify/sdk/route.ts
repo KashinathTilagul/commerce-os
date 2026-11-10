@@ -1,9 +1,12 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
+import { requireAuth } from '@/lib/auth-guard'
 
 // Proxy the Spotify Web Playback SDK through our domain so ad/privacy
 // blockers that blacklist sdk.scdn.co don't prevent it from loading.
 export async function GET() {
+  const auth = await requireAuth()
+  if (!auth.success) return auth.response
   try {
     const res = await fetch('https://sdk.scdn.co/spotify-player.js', {
       // Cache on the server for an hour; the SDK script rarely changes

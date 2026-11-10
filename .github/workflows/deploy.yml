@@ -303,6 +303,7 @@ jobs:
             "NEXT_PUBLIC_MARKETING_URL=https://commerce.abata.tech" \
             "ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET}" \
             "CAMPAIGN_LAUNCHES_ENABLED=true" \
+            "OMNIROUTE_BASE_URL=http://omniroute:20128/v1" \
             "RELEASE_VERSION=${RELEASE_VERSION}" \
             "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
             "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \

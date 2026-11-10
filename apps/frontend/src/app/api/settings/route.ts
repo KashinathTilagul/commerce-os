@@ -1,8 +1,9 @@
 export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireOrganization } from '@/lib/auth-guard'
+import { requireOrgAdmin, requireOrganization } from '@/lib/auth-guard'
 import { encryptSecret } from '@/lib/crypto'
+import { validateProviderBaseUrl } from '@/lib/ai-router'
 
 const API_KEY_FIELDS = ['primaryApiKey', 'fallback1ApiKey', 'fallback2ApiKey', 'composioApiKey', 'composioWebhookSecret'] as const
 
@@ -42,16 +43,30 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  const auth = await requireOrganization()
+  const auth = await requireOrgAdmin()
   if (!auth.success) return auth.response
-  const member = await db.user.findUnique({ where: { id: auth.user.id }, select: { orgRole: true } })
-  if (!member || !['FOUNDER', 'ADMIN'].includes(member.orgRole)) return NextResponse.json({ error: 'Organization administrator required' }, { status: 403 })
 
   try {
     const raw = await req.json()
     const systemBody = Object.fromEntries(
       Object.entries(raw).filter(([k]) => SYSTEM_FIELDS.has(k))
     )
+
+    const existingSettings = await db.systemSetting.findUnique({ where: { organizationId: auth.organizationId } })
+    const effectiveProvider = (slot: 'primary' | 'fallback1' | 'fallback2') =>
+      String(systemBody[`${slot}Provider`] ?? existingSettings?.[`${slot}Provider`] ?? '')
+
+    for (const slot of ['primary', 'fallback1', 'fallback2'] as const) {
+      const baseKey = `${slot}BaseUrl`
+      if (typeof systemBody[baseKey] === 'string') {
+        try {
+          systemBody[baseKey] = validateProviderBaseUrl(effectiveProvider(slot), systemBody[baseKey] as string)
+        } catch (err: any) {
+          return NextResponse.json({ error: err?.message || `Invalid ${baseKey}` }, { status: 400 })
+        }
+      }
+    }
+
     for (const field of API_KEY_FIELDS) {
       if (typeof systemBody[field] === 'string' && systemBody[field]) {
         systemBody[field] = encryptSecret(systemBody[field] as string)

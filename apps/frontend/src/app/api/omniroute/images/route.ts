@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { requireOrganization } from '@/lib/auth-guard'
+import { requireOrgAdmin, requireOrganization } from '@/lib/auth-guard'
 import { db } from '@/lib/db'
 import { generateImage } from '@/lib/image-generator'
 import {
@@ -35,7 +35,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireOrganization()
+  const auth = await requireOrgAdmin()
   if (!auth.success) return auth.response
 
   try {
