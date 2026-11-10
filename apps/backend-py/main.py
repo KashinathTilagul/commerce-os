@@ -26,7 +26,7 @@ app = FastAPI(
 @app.middleware('http')
 async def worker_auth(request: Request, call_next):
     if request.url.path.startswith('/api/browser'):
-        secret = os.getenv('BROWSE_WORKER_KEY')
+        secret = os.getenv('BROWSE_WORKER_KEY') or os.getenv('BROWSER_WORKER_KEY')
         if not secret or not hmac.compare_digest(request.headers.get('x-worker-key', ''), secret):
             return JSONResponse(status_code=401, content={'error': 'Unauthorized'})
         if os.getenv('BROWSER_AUTOMATION_ENABLED') != '1':
