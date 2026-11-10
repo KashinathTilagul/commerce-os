@@ -1,5 +1,5 @@
-# Environment Variable Validation Script
-# Run this before deployment to ensure all required secrets are set
+// Environment Variable Validation Script
+// Run this before deployment to ensure all required secrets are set
 
 import { readFileSync, existsSync } from 'fs'
 
@@ -39,8 +39,8 @@ function validateEnv() {
   }
 
   const envContent = readFileSync(envPath, 'utf-8')
-  const missing: string[] = []
-  const warnings: string[] = []
+  const missing = []
+  const warnings = []
 
   for (const varName of REQUIRED_VARS) {
     const regex = new RegExp(`^${varName}=(.+)$`, 'm')

@@ -26,6 +26,17 @@ export function isSharedAsset(pathname: string): boolean {
   return /\.(?:png|webp|svg|ico|jpg|jpeg|gif|woff2?)$/i.test(pathname)
 }
 
+/**
+ * Only emit absolute app-host URLs when running under the split-host Vercel
+ * deployment; self-hosted instances keep navigation on their own origin.
+ */
+export function appHref(
+  pathname: string,
+  useSplitOrigin = process.env.VERCEL === '1' || process.env.NEXT_PUBLIC_APP_URL === APP_ORIGIN,
+): string {
+  return useSplitOrigin ? `${APP_ORIGIN}${pathname}` : pathname
+}
+
 export function hostDecision(
   role: HostRole,
   pathname: string,

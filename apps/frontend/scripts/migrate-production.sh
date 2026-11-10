@@ -39,8 +39,11 @@ async function main() {
   await client.connect()
   const result = await client.query("SELECT to_regclass('public._prisma_migrations') IS NOT NULL AS exists")
   if (!result.rows[0]?.exists) {
+    const tables = await client.query(
+      "SELECT count(*)::int AS count FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'"
+    )
     await client.end()
-    process.stdout.write('__NO_TABLE__')
+    process.stdout.write(tables.rows[0]?.count === 0 ? '__EMPTY_DB__' : '__NO_TABLE__')
     return
   }
   const migrations = await client.query(
@@ -60,7 +63,15 @@ NODE
   exit 1
 }
 
-if schema_matches_database; then
+if [ "$migration_state" = "__EMPTY_DB__" ]; then
+  echo "[migration] Fresh PostgreSQL database detected; pushing schema and initializing migration history."
+  prisma db push
+  for directory in prisma/migrations/[0-9]*; do
+    [ -d "$directory" ] || continue
+    migration_name="$(basename "$directory")"
+    prisma migrate resolve --applied "$migration_name"
+  done
+elif schema_matches_database; then
   echo "[migration] Schema already matches; reconciling migration history."
   for directory in prisma/migrations/[0-9]*; do
     [ -d "$directory" ] || continue

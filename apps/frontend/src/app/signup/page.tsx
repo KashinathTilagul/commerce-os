@@ -45,6 +45,11 @@ export default function SignupPage() {
       return
     }
 
+    if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+      setError('Password must include uppercase, lowercase, a number, and a symbol')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -134,7 +139,7 @@ export default function SignupPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="At least 8 characters"
+                placeholder="8+ chars, upper/lower, number & symbol"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -142,6 +147,9 @@ export default function SignupPage() {
                 disabled={loading}
                 className="h-11"
               />
+              <p className="text-xs text-muted-foreground">
+                Must include uppercase, lowercase, a number, and a symbol.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>

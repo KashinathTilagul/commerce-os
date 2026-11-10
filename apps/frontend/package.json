@@ -3,10 +3,10 @@
   "version": "3.5.0",
   "description": "Commerce OS — Open-Core Commerce Desktop Operating System by Kashinath Tilagul / ABATA",
   "author": "Kashinath Tilagul <kashinathtilagul8@gmail.com>",
-  "homepage": "https://github.com/KashinathTilagul/Ekvaar#readme",
+  "homepage": "https://github.com/KashinathTilagul/commerce-os#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/KashinathTilagul/Ekvaar.git"
+    "url": "https://github.com/KashinathTilagul/commerce-os.git"
   },
   "license": "MIT",
   "private": true,

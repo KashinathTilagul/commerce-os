@@ -114,7 +114,9 @@ export async function POST(req: NextRequest) {
 
     return createApiResponse({ id: result.id, email: result.email }, 201)
   } catch (e: any) {
-    if (e instanceof z.ZodError) return createApiError('Invalid signup details', 400)
+    if (e instanceof z.ZodError) {
+      return createApiError(e.issues[0]?.message || 'Invalid signup details', 400)
+    }
     console.error("Signup error:", e)
     return createApiError('Could not create account', 500)
   }

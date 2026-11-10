@@ -60,7 +60,7 @@ const faqs = [
   ['Does signing up need a database?', 'Yes. Creating an account writes the organisation to PostgreSQL. The marketing pages do not. If signup fails, the production database is still being connected.'],
   ['Can an agent publish or spend on its own?', 'Not by default. External and sensitive actions can be held for a named approver. Missing credentials, media, or evidence keeps the operation blocked.'],
   ['Which tools can I connect?', 'The product includes adapters and toolkit entries for commerce, mail, chat, ads, and automation, including Shopify, WooCommerce, Razorpay, n8n, and Composio. A listed service is connected only after your organisation configures it.'],
-  ['Is the source public?', 'No. Commerce OS is in private beta. Use the product from this site. There is no public source link.'],
+  ['Is the source public?', 'Yes. Commerce OS is open source under the MIT License at https://github.com/KashinathTilagul/commerce-os and can be self-hosted via Docker Compose.'],
   ['Are the prices live?', 'No. The tiers describe packaging. The app does not charge a card. Private beta signup is the only self-serve path.'],
 ]
 
@@ -102,7 +102,7 @@ export function HomePage() {
               <Link href="#desktop" className={`inline-flex h-12 items-center justify-center rounded-full border border-white/20 px-6 text-sm font-semibold text-[#F3EDE4] hover:bg-white/6 ${focus}`}>See it in action</Link>
               <Link href={DEMO_URL} className={`inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold text-[#D5CFC6] hover:text-white ${focus}`}>Book a demo</Link>
             </div>
-            <p className="mt-4 text-sm text-[#C9C3B8]">No card. Signup creates your organisation. A new database is being connected for accounts.</p>
+            <p className="mt-4 text-sm text-[#C9C3B8]">No card required. Signup creates your organisation workspace.</p>
           </div>
         </section>
 

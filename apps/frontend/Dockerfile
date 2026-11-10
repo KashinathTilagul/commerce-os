@@ -47,13 +47,14 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/scripts/migrate-production.sh ./migrate-production.sh
 RUN npm_config_cache=/tmp/npm-cache npm init -y >/dev/null \
     && npm_config_cache=/tmp/npm-cache npm install --no-save --no-audit --no-fund \
-      prisma@7.9.1 @prisma/client@7.9.1 @prisma/adapter-pg@7.9.1 pg@8.22.0 \
+      prisma@7.9.1 @prisma/client@7.9.1 @prisma/adapter-pg@7.9.1 pg@8.22.0 dotenv@17.4.2 \
     && rm -rf /tmp/npm-cache /root/.npm
 
 WORKDIR /app
+COPY --chmod=755 docker-entrypoint.sh /app/docker-entrypoint.sh
 
 # Storage dirs for generated artifacts (images, PDFs, videos)
 RUN mkdir -p /app/storage/pdf /app/storage/images /app/storage/videos /app/storage/audio /app/storage/templates \
     && chmod -R 750 /app/storage
 
-CMD ["sh", "-c", "sh /migration/migrate-production.sh && cd /app && exec node server.js"]
+CMD ["/app/docker-entrypoint.sh"]

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { hostDecision, hostRole } from './host-routing'
+import { appHref, hostDecision, hostRole } from './host-routing'
 
 test('known hosts split marketing and app; everything else is a preview', () => {
   assert.equal(hostRole('commerce.abata.tech'), 'marketing')
@@ -54,4 +54,11 @@ test('preview hosts do not redirect', () => {
   assert.equal(hostDecision('preview', '/login', false), null)
   assert.equal(hostDecision('preview', '/demo', true), null)
   assert.equal(hostDecision('preview', '/', false), null)
+})
+
+test('appHref keeps self-hosted links relative unless split-host origin is active', () => {
+  assert.equal(appHref('/login', false), '/login')
+  assert.equal(appHref('/signup', false), '/signup')
+  assert.equal(appHref('/app', false), '/app')
+  assert.equal(appHref('/login', true), 'https://app.commerce.abata.tech/login')
 })

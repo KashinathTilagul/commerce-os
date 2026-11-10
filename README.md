@@ -1,18 +1,18 @@
 # 🌌 Commerce OS
-**Open-Core Commerce Desktop Operating System**
+**Open-Source Commerce Desktop Operating System**
 
 [![Creator](https://img.shields.io/badge/Creator-Kashinath%20Tilagul-8A2BE2?style=flat-square&logo=github)](https://github.com/KashinathTilagul)
-[![Release](https://img.shields.io/badge/Release-v3.5.0--platform--ready-00F5FF?style=flat-square)](https://github.com/KashinathTilagul/Ekvaar/releases)
-[![License](https://img.shields.io/badge/License-MIT%20%2F%20Open--Core-brightgreen?style=flat-square)](https://github.com/KashinathTilagul/Ekvaar/blob/main/LICENSE)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%2F%20Supabase-336791?style=flat-square&logo=postgresql)](https://supabase.com/)
-[![Node.js](https://img.shields.io/badge/Runtime-Node.js%20%3E%3D18-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
+[![Release](https://img.shields.io/badge/Release-v3.5.0--platform--ready-00F5FF?style=flat-square)](https://github.com/KashinathTilagul/commerce-os/releases)
+[![License](https://img.shields.io/badge/License-MIT-brightgreen?style=flat-square)](https://github.com/KashinathTilagul/commerce-os/blob/main/LICENSE)
+[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%20%2F%20Supabase-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
+[![Node.js](https://img.shields.io/badge/Runtime-Node.js%20%3E%3D22-339933?style=flat-square&logo=node.js)](https://nodejs.org/)
 [![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED?style=flat-square&logo=docker)](https://www.docker.com/)
 
 ---
 
 ## 💎 Overview
 
-**Commerce OS** is a self-hostable open-core desktop operating system engineered for commerce brands, retail, and e-commerce infrastructure. Wrapped in a Liquid Glass macOS Desktop Environment and driven by an autonomous AI Workforce Control Plane, Commerce OS provides founders and operational teams with an integrated command center to manage sales, inventory, supply chain, automated workforce execution, and direct customer drops.
+**Commerce OS** is a self-hostable open-source desktop operating system engineered for commerce brands, retail teams, and e-commerce operations. Wrapped in a Liquid Glass macOS-style desktop shell and backed by an approval-gated AI Workforce Control Plane, Commerce OS gives founders and operational teams a single workspace to manage orders, inventory, finance, campaigns, product launches, brand intelligence, and organization-scoped integrations.
 
 Created, architected, and maintained by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (EKVAAR).
 
@@ -144,45 +144,58 @@ Deployment  : Docker Compose + Nginx
 
 ## 🚀 Quick Start
 
+### Option 1: Docker Compose (Recommended for Self-Hosting / Hostinger VPS)
+
 ```bash
 # 1. Clone repository
-git clone https://github.com/KashinathTilagul/Ekvaar.git
-cd Ekvaar/apps/frontend
+git clone https://github.com/KashinathTilagul/commerce-os.git
+cd commerce-os
 
-# 2. Install dependencies (the repository is Bun-locked)
-bun install --frozen-lockfile
+# 2. (Optional) Customize domain and database credentials
+cp .env.example .env
 
-# 3. Generate Prisma Client and apply the schema
-bun run db:generate
-bun run db:push
+# 3. Start Commerce OS (PostgreSQL + Redis + Next.js app)
+docker compose up -d --build
+```
 
-# 4. Start local development server
-bun run dev
+Open [http://localhost:3000](http://localhost:3000) (or your configured `NEXTAUTH_URL` / reverse-proxied domain) in your browser. On first boot, the container automatically runs database migrations and generates persistent runtime secrets in `apps/frontend/storage/.runtime-secrets` if you did not supply them in `.env`.
+
+Optional Compose profiles are included for extended self-hosted services:
+- `--profile ai`: adds OmniRoute, Python browser sidecar (`fastapi`), n8n, Cognee, Open-Design, Upskill, and Google Workspace CLI sidecars.
+- `--profile proxy`: adds the Nginx reverse proxy (requires SSL certificates under `/etc/ssl/ekvaar`).
+- `--profile workforce`: adds the private enterprise `vendor/rakazo` sandbox runtime (requires access to the private submodule).
+
+### Option 2: Local Node.js Development
+
+Requires Node.js `>=22.12`, PostgreSQL, and Redis.
+
+```bash
+# 1. Clone and install frontend dependencies
+git clone https://github.com/KashinathTilagul/commerce-os.git
+cd commerce-os/apps/frontend
+npm ci --legacy-peer-deps
+
+# 2. Generate Prisma Client and apply the schema
+npx prisma generate
+npm run db:push
+
+# 3. Start local development server
+npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Redis-backed workers also require Redis. Docker users already get it through
-Compose; for a host-only development server, start it separately and set
-`REDIS_URL=redis://localhost:6379`.
+### Database & Origin Configuration
 
-### Supabase database URLs
-
-Use the Supabase Transaction Pooler URL on port `6543` for `DATABASE_URL`, with
-`pgbouncer=true`, and the Session Pooler URL on port `5432` for `DIRECT_URL`.
-URL-encode special characters in the database password. `prisma.config.ts`
-automatically prefers `DIRECT_URL` for CLI schema operations.
-
-`NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` must both exactly match the public OS
-origin, including `https://` and without an extra path. AI, speech, and Composio
-keys are intentionally configured per organization in Settings, never as shared
-server environment variables.
+- **Self-hosted PostgreSQL:** Works directly with the bundled Docker `postgres` service or any PostgreSQL 16+ instance via `DATABASE_URL` and `DIRECT_URL`.
+- **Supabase (optional):** Use the Supabase Transaction Pooler URL on port `6543` with `pgbouncer=true` for `DATABASE_URL`, and the Session Pooler URL on port `5432` for `DIRECT_URL`. `prisma.config.ts` automatically prefers `DIRECT_URL` for CLI schema operations.
+- **Public URLs:** Set `NEXTAUTH_URL` and `NEXT_PUBLIC_APP_URL` to your exact public origin (e.g. `https://os.yourdomain.com`). AI, speech, and Composio keys are intentionally configured per organization in Settings rather than as shared server environment variables.
 
 ---
 
 ## 🌐 Production Deployment
 
-Deploy using the deployment script:
+For custom production domains with full sidecars, copy `.env.template` to `.env` and run:
 
 ```bash
 DOMAIN="os.yourdomain.com" ./deploy.sh
@@ -190,10 +203,8 @@ DOMAIN="os.yourdomain.com" ./deploy.sh
 
 ---
 
-## 📄 License & Dual-Licensing Model
+## 📄 License
 
 Created and maintained by **[Kashinath Tilagul](https://github.com/KashinathTilagul)** (`kashinathtilagul8@gmail.com`).
 
-Distributed under an **Open Core License**:
-- **Open Core Framework & UI**: Distributed under the permissive [MIT License](LICENSE).
-- **Enterprise Autonomous Engine**: Dual-licensed under commercial terms for enterprise deployments.
+Distributed under the permissive [MIT License](LICENSE). Optional private enterprise extensions referenced by the `--profile workforce` Compose profile (`vendor/rakazo`) are maintained separately and are not required to run Commerce OS.

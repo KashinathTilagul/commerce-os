@@ -297,8 +297,10 @@ jobs:
             "DATABASE_URL=${DATABASE_URL}" \
             "DIRECT_URL=${DIRECT_URL}" \
             "NEXTAUTH_SECRET=${NEXTAUTH_SECRET}" \
-            "NEXTAUTH_URL=https://commerce.abata.tech" \
-            "NEXT_PUBLIC_APP_URL=https://commerce.abata.tech" \
+            "NEXTAUTH_URL=https://app.commerce.abata.tech" \
+            "NEXT_PUBLIC_APP_URL=https://app.commerce.abata.tech" \
+            "NEXT_PUBLIC_OS_APP_URL=https://app.commerce.abata.tech/app" \
+            "NEXT_PUBLIC_MARKETING_URL=https://commerce.abata.tech" \
             "ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET}" \
             "CAMPAIGN_LAUNCHES_ENABLED=true" \
             "RELEASE_VERSION=${RELEASE_VERSION}" \
@@ -393,11 +395,11 @@ jobs:
           # reclaimed before the build. Rakazo's Postgres container and both
           # named data volumes remain live and untouched.
           if [ "$DEPLOY_WORKFORCE" = "1" ]; then
-            /usr/bin/sudo docker compose stop frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
-            /usr/bin/sudo docker compose rm -f frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
+            /usr/bin/sudo docker compose --profile ai --profile proxy --profile workforce stop frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
+            /usr/bin/sudo docker compose --profile ai --profile proxy --profile workforce rm -f frontend upskill google-workspace rakazo-api rakazo-worker rakazo-web rakazo-supervisor || true
           else
-            /usr/bin/sudo docker compose stop frontend upskill google-workspace || true
-            /usr/bin/sudo docker compose rm -f frontend upskill google-workspace || true
+            /usr/bin/sudo docker compose --profile ai --profile proxy stop frontend upskill google-workspace || true
+            /usr/bin/sudo docker compose --profile ai --profile proxy rm -f frontend upskill google-workspace || true
           fi
           /usr/bin/sudo docker image prune -af || true
           echo "[i] Disk after releasing superseded stateless images:"; df -h / || true
@@ -415,18 +417,18 @@ jobs:
           # must not leave the already-validated frontend offline.
           /usr/bin/sudo docker compose run --rm --no-deps frontend sh /migration/migrate-production.sh
           /usr/bin/sudo docker compose up -d --no-deps frontend
-          /usr/bin/sudo docker compose restart nginx
+          /usr/bin/sudo docker compose --profile proxy restart nginx || true
 
           # A repository-scoped GHCR token cannot read unrelated public GHCR
           # packages such as astral-sh/uv. Use anonymous access for public
           # sidecar bases, then authenticate below only for Ekvaar's private
           # computer image.
           /usr/bin/sudo docker logout ghcr.io || true
-          /usr/bin/sudo docker compose --progress=plain build upskill google-workspace 2>&1 || {
+          /usr/bin/sudo docker compose --profile ai --progress=plain build upskill google-workspace 2>&1 || {
             echo "[!] Sidecar build failed once; reclaiming unused build cache and retrying..."
             /usr/bin/sudo docker builder prune -af || true
             echo "[i] Disk before sidecar retry:"; df -h / || true
-            /usr/bin/sudo docker compose --progress=plain build upskill google-workspace 2>&1
+            /usr/bin/sudo docker compose --profile ai --progress=plain build upskill google-workspace 2>&1
           }
 
           # BuildKit cache is no longer needed once images are materialized.
@@ -437,13 +439,13 @@ jobs:
 
           if [ "$DEPLOY_WORKFORCE" = "1" ]; then
             echo "$GHCR_TOKEN" | /usr/bin/sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            /usr/bin/sudo docker compose pull rakazo-postgres rakazo-data-init rakazo-api
+            /usr/bin/sudo docker compose --profile workforce pull rakazo-postgres rakazo-data-init rakazo-api
             # These images are individually large during extraction. Building
             # them concurrently exhausted the runner even though the final
             # images fit. Materialize and prune each one before starting the next.
-            /usr/bin/sudo docker compose --progress=plain build rakazo-supervisor
+            /usr/bin/sudo docker compose --profile workforce --progress=plain build rakazo-supervisor
             /usr/bin/sudo docker builder prune -af || true
-            /usr/bin/sudo docker compose pull rakazo-computer
+            /usr/bin/sudo docker compose --profile workforce pull rakazo-computer
           else
             echo "[i] Leaving the current Workforce containers in place."
           fi
@@ -456,30 +458,30 @@ jobs:
           fi
 
           if [ "$DEPLOY_WORKFORCE" = "1" ]; then
-            /usr/bin/sudo docker compose up -d --remove-orphans --wait --wait-timeout 180 || {
+            /usr/bin/sudo docker compose --profile ai --profile proxy --profile workforce up -d --remove-orphans --wait --wait-timeout 180 || {
               echo "[x] A production container failed its health check."
-              /usr/bin/sudo docker compose ps
-              /usr/bin/sudo docker compose logs --tail 150 rakazo-api rakazo-worker rakazo-web rakazo-supervisor
+              /usr/bin/sudo docker compose --profile ai --profile proxy --profile workforce ps
+              /usr/bin/sudo docker compose --profile workforce logs --tail 150 rakazo-api rakazo-worker rakazo-web rakazo-supervisor
               exit 1
             }
           else
             # Named services only. rakazo-* stays as it is; nginx no longer
             # depends on rakazo-web, so this does not recreate Workforce.
-            /usr/bin/sudo docker compose up -d --wait --wait-timeout 180 \
+            /usr/bin/sudo docker compose --profile ai --profile proxy up -d --wait --wait-timeout 180 \
               redis omniroute fastapi frontend nginx n8n cognee open-design upskill google-workspace || {
               echo "[x] A production container failed its health check."
-              /usr/bin/sudo docker compose ps
-              /usr/bin/sudo docker compose logs --tail 150 frontend fastapi nginx
+              /usr/bin/sudo docker compose --profile ai --profile proxy ps
+              /usr/bin/sudo docker compose --profile ai --profile proxy logs --tail 150 frontend fastapi nginx
               exit 1
             }
           fi
 
-          /usr/bin/sudo docker compose restart nginx
+          /usr/bin/sudo docker compose --profile proxy restart nginx
 
           /usr/bin/sudo docker image prune -af || true
 
           for i in $(seq 1 30); do
-            STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 3 -H "Host: commerce.abata.tech" https://localhost/api/health || echo 000)
+            STATUS=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 3 -H "Host: app.commerce.abata.tech" https://localhost/api/health || echo 000)
             [ "$STATUS" = "200" ] && break
             echo "[i] Waiting for app... attempt $i/30 (HTTP $STATUS)"
             sleep 3
