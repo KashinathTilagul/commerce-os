@@ -1,0 +1,12 @@
+.git
+.next
+node_modules
+e2e
+playwright-report
+test-results
+playwright.config.ts
+playwright.crm.config.ts
+**/*.test.ts
+**/*.test.js
+storage
+uploads

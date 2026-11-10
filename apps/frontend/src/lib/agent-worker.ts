@@ -4,10 +4,6 @@ import { routeObject, routeText } from './ai-router'
 import { getLiveBusinessSnapshot, getFinanceReportData } from './business-snapshot'
 import { prepareAgentWithLearning, storeAgentPattern } from './agent-learning'
 import { decomposeTask } from './task-templates'
-import { generatePDF } from './pdf-generator'
-import { generateImage } from './image-generator'
-import { generateVideo } from './video-generator'
-import { generateAudio, synthesizeSpeech } from './audio-generator'
 import { syncCampaignItemAfterWork } from './campaign-execution'
 import { extractExactReply, parseGeneratedMediaJSON, shouldExecuteMedia } from './work-request-planner'
 import { BRAND_PROMPT_SECTION, brandLogoReference } from './brand-guard'
@@ -260,31 +256,35 @@ Now produce YOUR deliverable:`
   const extractJSON = (text: string, marker: string) => extractAllJSON(text, marker, 1)[0] ?? null
 
   const imageMatches = shouldExecuteMedia(effectiveMediaType, 'IMAGE') ? extractAllJSON(cleanedDeliverable, 'GENERATE_IMAGE', 5) : []
-  for (let slideIndex = 0; slideIndex < imageMatches.length; slideIndex++) {
-    const imageMatch = imageMatches[slideIndex]
-    try {
-      const params = parseGeneratedMediaJSON<any>(imageMatch.json)
-      // Brand guard: logo requests always reference the house logo asset.
-      const wantsLogo = !params.referenceImage && /logo|brand/i.test(issue.description || '')
-      const result = await generateImage({
-        prompt: params.prompt,
-        aspectRatio: params.aspectRatio || (verticalFormat ? '9:16' : '1:1'),
-        style: params.style || 'product',
-        organizationId,
-        generatedBy: agentId,
-        title: imageMatches.length > 1 ? `${params.title || issue.title} — slide ${slideIndex + 1} of ${imageMatches.length}` : params.title,
-        referenceImage: params.referenceImage || (wantsLogo ? await brandLogoReference(organizationId) : undefined),
-      })
-      multimodalResults.push(`✅ Generated Image: ${result.imageUrl}`)
-      deliverable = deliverable.replace(imageMatch.fullMatch, '').trim()
-    } catch (e: any) {
-      multimodalFailures.push(`Image generation failed: ${e.message}`)
+  if (imageMatches.length > 0) {
+    const { generateImage } = await import('./image-generator')
+    for (let slideIndex = 0; slideIndex < imageMatches.length; slideIndex++) {
+      const imageMatch = imageMatches[slideIndex]
+      try {
+        const params = parseGeneratedMediaJSON<any>(imageMatch.json)
+        // Brand guard: logo requests always reference the house logo asset.
+        const wantsLogo = !params.referenceImage && /logo|brand/i.test(issue.description || '')
+        const result = await generateImage({
+          prompt: params.prompt,
+          aspectRatio: params.aspectRatio || (verticalFormat ? '9:16' : '1:1'),
+          style: params.style || 'product',
+          organizationId,
+          generatedBy: agentId,
+          title: imageMatches.length > 1 ? `${params.title || issue.title} — slide ${slideIndex + 1} of ${imageMatches.length}` : params.title,
+          referenceImage: params.referenceImage || (wantsLogo ? await brandLogoReference(organizationId) : undefined),
+        })
+        multimodalResults.push(`✅ Generated Image: ${result.imageUrl}`)
+        deliverable = deliverable.replace(imageMatch.fullMatch, '').trim()
+      } catch (e: any) {
+        multimodalFailures.push(`Image generation failed: ${e.message}`)
+      }
     }
   }
 
   const pdfMatch = shouldExecuteMedia(effectiveMediaType, 'PDF') ? extractJSON(cleanedDeliverable, 'GENERATE_PDF') : null
   if (pdfMatch) {
     try {
+      const { generatePDF } = await import('./pdf-generator')
       const params = parseGeneratedMediaJSON<any>(pdfMatch.json)
       // Finance reports must show real numbers: build summary + table rows
       // from live DB aggregates instead of trusting the LLM's JSON (which
@@ -317,6 +317,11 @@ Now produce YOUR deliverable:`
   const videoMatch = shouldExecuteMedia(effectiveMediaType, 'VIDEO') ? extractJSON(cleanedDeliverable, 'GENERATE_VIDEO') : null
   if (videoMatch) {
     try {
+      const [{ generateVideo }, { generateImage }, { synthesizeSpeech }] = await Promise.all([
+        import('./video-generator'),
+        import('./image-generator'),
+        import('./audio-generator'),
+      ])
       const params = parseGeneratedMediaJSON<any>(videoMatch.json)
       // UGC reel: each scene is a 9:16 still (motion comes from the renderer)
       // plus a spoken line. Scene stills are stored as image artifacts too,
@@ -378,6 +383,7 @@ Now produce YOUR deliverable:`
   const audioMatch = shouldExecuteMedia(effectiveMediaType, 'AUDIO') ? extractJSON(cleanedDeliverable, 'GENERATE_AUDIO') : null
   if (audioMatch) {
     try {
+      const { generateAudio } = await import('./audio-generator')
       const params = parseGeneratedMediaJSON<any>(audioMatch.json)
       const result = await generateAudio({
         text: params.text || params.prompt,

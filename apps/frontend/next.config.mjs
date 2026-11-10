@@ -1,6 +1,45 @@
 /** @type {import('next').NextConfig} */
+const isVercel = Boolean(process.env.VERCEL);
+
+const heavyPdfExcludes = [
+  './node_modules/@sparticuz/**',
+  './node_modules/puppeteer-core/**',
+];
+
+const sharpExcludes = [
+  './node_modules/sharp/**',
+  './node_modules/@img/**',
+];
+
 const nextConfig = {
-  output: 'standalone',
+  // Keep standalone for Docker/VPS builds; omit on Vercel so serverless traces stay lean.
+  ...(isVercel ? {} : { output: 'standalone' }),
+  outputFileTracingExcludes: {
+    '*': [
+      './node_modules/playwright/**',
+      './node_modules/playwright-core/**',
+      './node_modules/@playwright/**',
+      './node_modules/typescript/**',
+      './node_modules/eslint/**',
+      './node_modules/@eslint/**',
+      './node_modules/tsx/**',
+      './e2e/**',
+      './scripts/**',
+      './public/site/**',
+      ...(isVercel ? ['./node_modules/@img/sharp-libvips-darwin-arm64/**'] : []),
+    ],
+    ...(isVercel
+      ? {
+          'instrumentation': [...heavyPdfExcludes, ...sharpExcludes],
+          '/instrumentation': [...heavyPdfExcludes, ...sharpExcludes],
+          '/api/cron/**': [...heavyPdfExcludes, ...sharpExcludes],
+          '/api/agents/**': [...heavyPdfExcludes, ...sharpExcludes],
+          '/api/campaign-launches/**': [...heavyPdfExcludes, ...sharpExcludes],
+          '/api/marketing/**': sharpExcludes,
+          '/api/internal/**': sharpExcludes,
+        }
+      : {}),
+  },
   typescript: {
     ignoreBuildErrors: false,
   },
