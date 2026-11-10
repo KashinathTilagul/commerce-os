@@ -1,7 +1,6 @@
 -- ==============================================================================
 -- SUPABASE SECURITY & WARNINGS FIX SCRIPT
--- Resolves all 5 Warnings & 1 Info item in Supabase Security Advisor
--- Project: dxxmbnswbtvufuuntypm (EKVAAR)
+-- Resolves RLS and Search Path warnings in Supabase Security Advisor
 -- ==============================================================================
 
 -- 1. Enable RLS on every table in the public schema

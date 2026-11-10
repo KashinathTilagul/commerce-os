@@ -44,9 +44,15 @@ ALLOWED_ORIGINS = [
 ]
 if os.getenv("ENV") == "production":
     ALLOWED_ORIGINS.extend([
+        "https://commerce.abata.tech",
+        "https://app.commerce.abata.tech",
         "https://os.ekvaar.com",
         "https://www.ekvaar.com",
     ])
+    for env_key in ("NEXTAUTH_URL", "NEXT_PUBLIC_APP_URL"):
+        extra_origin = os.getenv(env_key, "").strip().rstrip("/")
+        if extra_origin and extra_origin not in ALLOWED_ORIGINS:
+            ALLOWED_ORIGINS.append(extra_origin)
 
 app.add_middleware(
     CORSMiddleware,

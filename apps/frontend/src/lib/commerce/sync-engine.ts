@@ -43,9 +43,10 @@ export class SyncEngine {
 
     try {
       let result;
+      let hasMore = true;
       let cursor: string | undefined;
       const seenCursors = new Set<string>();
-      do {
+      while (hasMore) {
       switch (entity) {
         case 'PRODUCT':
           result = await this.provider.syncProducts({ limit, cursor, organizationId: this.organizationId })
@@ -84,11 +85,13 @@ export class SyncEngine {
           }
           break;
       }
-      if (!result.hasMore) break;
-      if (!result.nextCursor || seenCursors.has(result.nextCursor)) throw new Error('Invalid commerce pagination cursor');
-      cursor = result.nextCursor;
-      seenCursors.add(result.nextCursor);
-      } while (true);
+      hasMore = Boolean(result.hasMore);
+      if (hasMore) {
+        if (!result.nextCursor || seenCursors.has(result.nextCursor)) throw new Error('Invalid commerce pagination cursor');
+        cursor = result.nextCursor;
+        seenCursors.add(result.nextCursor);
+      }
+      }
 
       const duration = Date.now() - startTime
       await this.updateState(entity, 'IDLE', { processed, failed, duration }, undefined)

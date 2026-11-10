@@ -1,5 +1,116 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-commerce}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-commerce}
+      POSTGRES_DB: ${POSTGRES_DB:-commerce}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-commerce} -d ${POSTGRES_DB:-commerce}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${APP_BIND:-0.0.0.0}:${APP_PORT:-3000}:3000"
+    volumes:
+      - ./apps/frontend/storage:/app/storage
+      - ./db:/app/certs:ro
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-commerce}:${POSTGRES_PASSWORD:-commerce}@postgres:5432/${POSTGRES_DB:-commerce}}
+      - DIRECT_URL=${DIRECT_URL:-postgresql://${POSTGRES_USER:-commerce}:${POSTGRES_PASSWORD:-commerce}@postgres:5432/${POSTGRES_DB:-commerce}}
+      - NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/app/certs/supabase-ca.crt}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-}
+      - JWT_SECRET=${JWT_SECRET:-}
+      - CRON_SECRET=${CRON_SECRET:-}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NEXT_PUBLIC_OS_APP_URL=${NEXT_PUBLIC_OS_APP_URL:-/app}
+      - NEXT_PUBLIC_MARKETING_URL=${NEXT_PUBLIC_MARKETING_URL:-}
+      - ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET:-}
+      - CAMPAIGN_LAUNCHES_ENABLED=${CAMPAIGN_LAUNCHES_ENABLED:-true}
+      - RELEASE_VERSION=${RELEASE_VERSION:-development}
+      - OMNIROUTE_BASE_URL=${OMNIROUTE_BASE_URL:-http://omniroute:20128/v1}
+      - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY:-}
+      - BROWSER_SIDECAR_URL=${BROWSER_SIDECAR_URL:-http://fastapi:8000}
+      - BROWSE_WORKER_KEY=${BROWSE_WORKER_KEY:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - META_CLIENT_ID=${META_CLIENT_ID:-}
+      - META_CLIENT_SECRET=${META_CLIENT_SECRET:-}
+      - META_GRAPH_VERSION=${META_GRAPH_VERSION:-v25.0}
+      - THREADS_CLIENT_ID=${THREADS_CLIENT_ID:-}
+      - THREADS_CLIENT_SECRET=${THREADS_CLIENT_SECRET:-}
+      - LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID:-}
+      - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET:-}
+      - LINKEDIN_API_VERSION=${LINKEDIN_API_VERSION:-202606}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-zai.glm-5}
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
+      - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI:-}
+      - QIKINK_MODE=${QIKINK_MODE:-sandbox}
+      - QIKINK_CLIENT_ID=${QIKINK_CLIENT_ID:-}
+      - QIKINK_CLIENT_SECRET=${QIKINK_CLIENT_SECRET:-}
+      - N8N_EKVAAR_WEBHOOK_URL=${N8N_EKVAAR_WEBHOOK_URL:-}
+      - N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET:-}
+      - N8N_EKVAAR_WORKFLOW_ID=${N8N_EKVAAR_WORKFLOW_ID:-}
+      - N8N_EKVAAR_EDITOR_URL=${N8N_EKVAAR_EDITOR_URL:-}
+      - COGNEE_API_URL=${COGNEE_API_URL:-http://cognee:8000}
+      - DOGRAH_API_URL=${DOGRAH_API_URL:-}
+      - GOOGLE_WORKSPACE_CLI_PATH=${GOOGLE_WORKSPACE_CLI_PATH:-gws}
+      - OPEN_DESIGN_URL=${OPEN_DESIGN_URL:-http://open-design:7456}
+      - OPEN_DESIGN_PUBLIC_URL=${OPEN_DESIGN_PUBLIC_URL:-}
+      - OPEN_DESIGN_API_TOKEN=${OPEN_DESIGN_API_TOKEN:-}
+      - RAKAZO_PUBLIC_URL=${RAKAZO_PUBLIC_URL:-}
+      - WOOCOMMERCE_URL=${WOOCOMMERCE_URL:-}
+      - WOOCOMMERCE_CONSUMER_KEY=${WOOCOMMERCE_CONSUMER_KEY:-}
+      - WOOCOMMERCE_CONSUMER_SECRET=${WOOCOMMERCE_CONSUMER_SECRET:-}
+      - WOOCOMMERCE_WEBHOOK_SECRET=${WOOCOMMERCE_WEBHOOK_SECRET:-}
+      - WOOCOMMERCE_ORGANIZATION_ID=${WOOCOMMERCE_ORGANIZATION_ID:-}
+      - OMNIROUTE_ALLOWED_BASE_URLS=${OMNIROUTE_ALLOWED_BASE_URLS:-}
+      - UPSKILL_API_URL=${UPSKILL_API_URL:-http://upskill:8090}
+      - GOOGLE_WORKSPACE_API_URL=${GOOGLE_WORKSPACE_API_URL:-http://google-workspace:8091}
+      - N8N_INTERNAL_URL=${N8N_INTERNAL_URL:-http://n8n:5678}
+      - N8N_INTERNAL_WEBHOOK_URL=${N8N_INTERNAL_WEBHOOK_URL:-http://n8n:5678/automation/webhook}
+      - FASTAPI_URL=${FASTAPI_URL:-http://fastapi:8000}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health/database').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   n8n:
+    profiles: ["ai"]
     image: docker.n8n.io/n8nio/n8n:latest
     entrypoint: ["/bin/sh", "/opt/ekvaar/init.sh"]
     expose:
@@ -9,19 +120,19 @@ services:
       - ./n8n/init.sh:/opt/ekvaar/init.sh:ro
       - ./n8n/workflows:/opt/ekvaar/workflows:ro
     environment:
-      - N8N_HOST=${N8N_HOST:-commerce.abata.tech}
-      - N8N_PROTOCOL=${N8N_PROTOCOL:-https}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
       - N8N_PATH=/automation/
-      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-https://commerce.abata.tech/automation/}
-      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-https://commerce.abata.tech/automation/}
-      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?N8N_ENCRYPTION_KEY is required}
+      - N8N_EDITOR_BASE_URL=${N8N_EDITOR_BASE_URL:-http://localhost:3000/automation/}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:3000/automation/}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-commerce-os-local-n8n-key}
       - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
       - N8N_UNVERIFIED_PACKAGES_ENABLED=false
-      - GENERIC_TIMEZONE=Asia/Kolkata
-      - TZ=Asia/Kolkata
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}
+      - TZ=${TZ:-UTC}
       - EKVAAR_OS_INTERNAL_URL=http://frontend:3000
-      - CRON_SECRET=${CRON_SECRET}
-      - N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET:?N8N_EKVAAR_WEBHOOK_SECRET is required}
+      - CRON_SECRET=${CRON_SECRET:-}
+      - N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET:-}
       - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5678/healthz"]
@@ -30,7 +141,29 @@ services:
       retries: 12
     restart: unless-stopped
 
+  omniroute:
+    profiles: ["ai"]
+    image: diegosouzapw/omniroute:latest
+    ports:
+      - "127.0.0.1:20128:20128"
+    environment:
+      - DATA_DIR=/app/data
+      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
+      - PORT=20128
+      - DASHBOARD_PORT=20128
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - omniroutedata:/app/data
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
   cognee:
+    profiles: ["ai"]
     image: cognee/cognee:main
     expose:
       - "8000"
@@ -59,6 +192,7 @@ services:
     restart: unless-stopped
 
   open-design:
+    profiles: ["ai"]
     image: ghcr.io/nexu-io/od:latest
     expose:
       - "7456"
@@ -75,8 +209,8 @@ services:
       - OD_BIND_HOST=0.0.0.0
       - OD_PORT=7456
       - OD_WEB_PORT=7456
-      - OD_API_TOKEN=${OPEN_DESIGN_API_TOKEN:?OPEN_DESIGN_API_TOKEN is required}
-      - OD_ALLOWED_ORIGINS=${OPEN_DESIGN_ALLOWED_ORIGINS:-https://commerce.abata.tech}
+      - OD_API_TOKEN=${OPEN_DESIGN_API_TOKEN:-}
+      - OD_ALLOWED_ORIGINS=${OPEN_DESIGN_ALLOWED_ORIGINS:-http://localhost:3000}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:7456/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -86,6 +220,7 @@ services:
     restart: unless-stopped
 
   upskill:
+    profiles: ["ai"]
     build:
       context: ./infra/upskill
     expose:
@@ -105,6 +240,7 @@ services:
     restart: unless-stopped
 
   google-workspace:
+    profiles: ["ai"]
     build:
       context: ./infra/google-workspace
     expose:
@@ -112,7 +248,7 @@ services:
     volumes:
       - google-workspace-config:/root/.config/gws
     environment:
-      - CRON_SECRET=${CRON_SECRET}
+      - CRON_SECRET=${CRON_SECRET:-}
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:8091/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -120,11 +256,52 @@ services:
       retries: 10
     restart: unless-stopped
 
+  fastapi:
+    profiles: ["ai"]
+    build:
+      context: ./apps/backend-py
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-commerce}:${POSTGRES_PASSWORD:-commerce}@postgres:5432/${POSTGRES_DB:-commerce}}
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-amazon.nova-pro-v1:0}
+      - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY:-}
+      - BROWSE_WORKER_KEY=${BROWSE_WORKER_KEY:-}
+      - BROWSER_AUTOMATION_ENABLED=${BROWSER_AUTOMATION_ENABLED:-0}
+      - BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY:-}
+      - BROWSER_USE_MODEL=${BROWSER_USE_MODEL:-}
+      - OPENAI_BROWSER_MODEL=${OPENAI_BROWSER_MODEL:-}
+      - BROWSER_HEADLESS=${BROWSER_HEADLESS:-true}
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      omniroute:
+        condition: service_started
+
+  nginx:
+    profiles: ["proxy"]
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/workforce/bridge.js:/etc/nginx/workforce-bridge.js:ro
+      - /etc/ssl/ekvaar:/etc/ssl/ekvaar:ro
+    depends_on:
+      - frontend
+    restart: unless-stopped
+
   rakazo-postgres:
+    profiles: ["workforce"]
     image: postgres:16@sha256:e17e86066e5ef83e0952a9347f5c792b7ece00972e2aa787a6986f471b3dd3d5
     environment:
       POSTGRES_USER: rakazo
-      POSTGRES_PASSWORD: ${RAKAZO_POSTGRES_PASSWORD:?RAKAZO_POSTGRES_PASSWORD is required}
+      POSTGRES_PASSWORD: ${RAKAZO_POSTGRES_PASSWORD:-}
       POSTGRES_DB: rakazo
     volumes:
       - rakazo-postgres-data:/var/lib/postgresql/data
@@ -138,6 +315,7 @@ services:
     restart: unless-stopped
 
   rakazo-data-init:
+    profiles: ["workforce"]
     image: busybox:1
     command: ["chown", "-R", "1000:1000", "/data"]
     volumes:
@@ -145,6 +323,7 @@ services:
     restart: "no"
 
   rakazo-computer:
+    profiles: ["workforce"]
     image: ${RAKAZO_COMPUTER_IMAGE:-ekvaar/rakazo-computer:local}
     build:
       context: .
@@ -153,6 +332,7 @@ services:
     restart: "no"
 
   rakazo-supervisor:
+    profiles: ["workforce"]
     image: ekvaar/rakazo-supervisor:local
     build:
       context: .
@@ -165,7 +345,7 @@ services:
       - SUPERVISOR_PORT=7091
       - DOCKER_SOCKET=/var/run/docker.sock
       - RAKAZO_COMPUTER_IMAGE=${RAKAZO_COMPUTER_IMAGE:-ekvaar/rakazo-computer:local}
-      - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:?RAKAZO_SANDBOX_SUPERVISOR_TOKEN is required}
+      - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:-}
       - SANDBOX_SCREEN_NETWORK=isolated
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -186,6 +366,7 @@ services:
     restart: unless-stopped
 
   rakazo-api:
+    profiles: ["workforce"]
     build:
       context: .
       dockerfile: infra/rakazo/Dockerfile.app
@@ -199,16 +380,16 @@ services:
     environment:
       - NODE_ENV=production
       - API_HOST=0.0.0.0
-      - DATABASE_URL=postgres://rakazo:${RAKAZO_POSTGRES_PASSWORD:?RAKAZO_POSTGRES_PASSWORD is required}@rakazo-postgres:5432/rakazo
+      - DATABASE_URL=postgres://rakazo:${RAKAZO_POSTGRES_PASSWORD:-}@rakazo-postgres:5432/rakazo
       - DATA_DIR=/data
-      - BETTER_AUTH_URL=https://commerce.abata.tech
-      - WEB_ORIGIN=https://commerce.abata.tech
-      - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:?RAKAZO_BETTER_AUTH_SECRET is required}
-      - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:?RAKAZO_ENCRYPTION_KEY is required}
-      - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
+      - BETTER_AUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - WEB_ORIGIN=${NEXTAUTH_URL:-http://localhost:3000}
+      - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:-}
+      - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:-}
+      - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:-}
       - SANDBOX_PROVIDER=docker
       - SANDBOX_SUPERVISOR_URL=http://rakazo-supervisor:7091
-      - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:?RAKAZO_SANDBOX_SUPERVISOR_TOKEN is required}
+      - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:-}
       - WAKEUP_DRIVER=graphile
       - AGENT_RUNTIME=pi
     volumes:
@@ -229,18 +410,19 @@ services:
     restart: unless-stopped
 
   rakazo-worker:
+    profiles: ["workforce"]
     image: ${RAKAZO_APP_IMAGE:-ekvaar/rakazo-app:local}
     command: ["tsx", "/app/worker/src/index.ts"]
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgres://rakazo:${RAKAZO_POSTGRES_PASSWORD:?RAKAZO_POSTGRES_PASSWORD is required}@rakazo-postgres:5432/rakazo
+      - DATABASE_URL=postgres://rakazo:${RAKAZO_POSTGRES_PASSWORD:-}@rakazo-postgres:5432/rakazo
       - DATA_DIR=/data
-      - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:?RAKAZO_BETTER_AUTH_SECRET is required}
-      - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:?RAKAZO_ENCRYPTION_KEY is required}
-      - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
+      - BETTER_AUTH_SECRET=${RAKAZO_BETTER_AUTH_SECRET:-}
+      - ENCRYPTION_KEY=${RAKAZO_ENCRYPTION_KEY:-}
+      - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:-}
       - SANDBOX_PROVIDER=docker
       - SANDBOX_SUPERVISOR_URL=http://rakazo-supervisor:7091
-      - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:?RAKAZO_SANDBOX_SUPERVISOR_TOKEN is required}
+      - SANDBOX_SUPERVISOR_TOKEN=${RAKAZO_SANDBOX_SUPERVISOR_TOKEN:-}
       - WAKEUP_DRIVER=graphile
       - AGENT_RUNTIME=pi
       - RAKAZO_WORKER_CONCURRENCY=${RAKAZO_WORKER_CONCURRENCY:-6}
@@ -256,6 +438,7 @@ services:
     restart: unless-stopped
 
   rakazo-web:
+    profiles: ["workforce"]
     image: ${RAKAZO_APP_IMAGE:-ekvaar/rakazo-app:local}
     command: ["/app/web-runtime/node_modules/.bin/vite", "preview", "--config", "/app/web-runtime/vite.runtime.config.ts"]
     expose:
@@ -263,8 +446,8 @@ services:
     environment:
       - NODE_ENV=production
       - API_PROXY_TARGET=http://rakazo-api:3100
-      - RAKAZO_HOST=commerce.abata.tech
-      - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:?RAKAZO_SCREEN_PROXY_SECRET is required}
+      - RAKAZO_HOST=${N8N_HOST:-localhost}
+      - SCREEN_PROXY_SECRET=${RAKAZO_SCREEN_PROXY_SECRET:-}
     depends_on:
       rakazo-api:
         condition: service_healthy
@@ -277,157 +460,8 @@ services:
       - no-new-privileges:true
     restart: unless-stopped
 
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
-    volumes:
-      - redisdata:/data
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    restart: unless-stopped
-
-  omniroute:
-    image: diegosouzapw/omniroute:latest
-    ports:
-      - "20128:20128"
-    environment:
-      - DATA_DIR=/app/data
-      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
-      - PORT=20128
-      - DASHBOARD_PORT=20128
-      - REDIS_URL=redis://redis:6379
-    volumes:
-      - omniroutedata:/app/data
-    healthcheck:
-      test: ["CMD", "node", "healthcheck.mjs"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./apps/frontend
-      dockerfile: Dockerfile
-    expose:
-      - "3000"
-    volumes:
-      - ./apps/frontend/storage:/app/storage
-      - ./db/supabase-ca.crt:/app/certs/supabase-ca.crt:ro
-    environment:
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must point to Supabase}
-      - DIRECT_URL=${DIRECT_URL:?DIRECT_URL must point to the Supabase session pooler}
-      - NODE_EXTRA_CA_CERTS=/app/certs/supabase-ca.crt
-      - REDIS_URL=redis://redis:6379
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-      - JWT_SECRET=${JWT_SECRET}
-      - CRON_SECRET=${CRON_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://commerce.abata.tech}
-      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://commerce.abata.tech}
-      - NEXT_PUBLIC_OS_APP_URL=${NEXT_PUBLIC_OS_APP_URL:-https://commerce.abata.tech/app}
-      - NEXT_PUBLIC_MARKETING_URL=${NEXT_PUBLIC_MARKETING_URL:-https://commerce.abata.tech}
-      - ARTIFACT_SIGNING_SECRET=${ARTIFACT_SIGNING_SECRET}
-      - CAMPAIGN_LAUNCHES_ENABLED=${CAMPAIGN_LAUNCHES_ENABLED:-true}
-      - RELEASE_VERSION=${RELEASE_VERSION:-development}
-      - OMNIROUTE_BASE_URL=http://omniroute:20128/v1
-      - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}
-      - BROWSER_SIDECAR_URL=${BROWSER_SIDECAR_URL:-http://fastapi:8000}
-      - BROWSE_WORKER_KEY=${BROWSE_WORKER_KEY}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - META_CLIENT_ID=${META_CLIENT_ID}
-      - META_CLIENT_SECRET=${META_CLIENT_SECRET}
-      - META_GRAPH_VERSION=${META_GRAPH_VERSION:-v25.0}
-      - THREADS_CLIENT_ID=${THREADS_CLIENT_ID}
-      - THREADS_CLIENT_SECRET=${THREADS_CLIENT_SECRET}
-      - LINKEDIN_CLIENT_ID=${LINKEDIN_CLIENT_ID}
-      - LINKEDIN_CLIENT_SECRET=${LINKEDIN_CLIENT_SECRET}
-      - LINKEDIN_API_VERSION=${LINKEDIN_API_VERSION:-202606}
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-zai.glm-5}
-      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID}
-      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET}
-      - SPOTIFY_REDIRECT_URI=${SPOTIFY_REDIRECT_URI}
-      - QIKINK_MODE=${QIKINK_MODE:-sandbox}
-      - QIKINK_CLIENT_ID=${QIKINK_CLIENT_ID}
-      - QIKINK_CLIENT_SECRET=${QIKINK_CLIENT_SECRET}
-      - N8N_EKVAAR_WEBHOOK_URL=${N8N_EKVAAR_WEBHOOK_URL}
-      - N8N_EKVAAR_WEBHOOK_SECRET=${N8N_EKVAAR_WEBHOOK_SECRET}
-      - N8N_EKVAAR_WORKFLOW_ID=${N8N_EKVAAR_WORKFLOW_ID}
-      - N8N_EKVAAR_EDITOR_URL=${N8N_EKVAAR_EDITOR_URL}
-      - COGNEE_API_URL=http://cognee:8000
-      - DOGRAH_API_URL=${DOGRAH_API_URL:-}
-      - GOOGLE_WORKSPACE_CLI_PATH=${GOOGLE_WORKSPACE_CLI_PATH:-gws}
-      - OPEN_DESIGN_URL=http://open-design:7456
-      - OPEN_DESIGN_PUBLIC_URL=${OPEN_DESIGN_PUBLIC_URL:-}
-      - OPEN_DESIGN_API_TOKEN=${OPEN_DESIGN_API_TOKEN}
-      - RAKAZO_PUBLIC_URL=${RAKAZO_PUBLIC_URL}
-      - WOOCOMMERCE_URL=${WOOCOMMERCE_URL:-}
-      - WOOCOMMERCE_CONSUMER_KEY=${WOOCOMMERCE_CONSUMER_KEY:-}
-      - WOOCOMMERCE_CONSUMER_SECRET=${WOOCOMMERCE_CONSUMER_SECRET:-}
-      - WOOCOMMERCE_WEBHOOK_SECRET=${WOOCOMMERCE_WEBHOOK_SECRET:-}
-      - WOOCOMMERCE_ORGANIZATION_ID=${WOOCOMMERCE_ORGANIZATION_ID:-}
-      - OMNIROUTE_ALLOWED_BASE_URLS=${OMNIROUTE_ALLOWED_BASE_URLS:-}
-      - UPSKILL_API_URL=http://upskill:8090
-      - GOOGLE_WORKSPACE_API_URL=http://google-workspace:8091
-      - N8N_INTERNAL_URL=http://n8n:5678
-      - N8N_INTERNAL_WEBHOOK_URL=http://n8n:5678/automation/webhook
-      - FASTAPI_URL=http://fastapi:8000
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-      omniroute:
-        condition: service_started
-      fastapi:
-        condition: service_started
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./infra/workforce/bridge.js:/etc/nginx/workforce-bridge.js:ro
-      - /etc/ssl/ekvaar:/etc/ssl/ekvaar:ro
-    depends_on:
-      - frontend
-      - fastapi
-    restart: unless-stopped
-
-  fastapi:
-    build:
-      context: ./apps/backend-py
-      dockerfile: Dockerfile
-    expose:
-      - "8000"
-    environment:
-      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must point to Supabase}
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-amazon.nova-pro-v1:0}
-      - BROWSER_WORKER_KEY=${BROWSER_WORKER_KEY}
-      - BROWSE_WORKER_KEY=${BROWSE_WORKER_KEY}
-      - BROWSER_AUTOMATION_ENABLED=${BROWSER_AUTOMATION_ENABLED:-0}
-      - BROWSER_USE_API_KEY=${BROWSER_USE_API_KEY}
-      - BROWSER_USE_MODEL=${BROWSER_USE_MODEL}
-      - OPENAI_BROWSER_MODEL=${OPENAI_BROWSER_MODEL}
-      - BROWSER_HEADLESS=${BROWSER_HEADLESS:-true}
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-      omniroute:
-        condition: service_started
-
 volumes:
+  pgdata:
   redisdata:
   omniroutedata:
   omniroute-data:

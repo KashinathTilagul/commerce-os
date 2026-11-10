@@ -1,12 +1,12 @@
 #!/bin/bash
 set -eo pipefail
 
-DOMAIN="${DOMAIN:-os.ekvaar.com}"
+DOMAIN="${DOMAIN:-commerce.abata.tech}"
 RELEASE_TAG="v3.5.0-platform-ready"
 MAINTAINER="Kashinath Tilagul"
 
 echo "===================================================="
-echo "  FASHION OS — Production Deployment Pipeline       "
+echo "  COMMERCE OS — Production Deployment Pipeline      "
 echo "  Created & Maintained by: $MAINTAINER               "
 echo "  Release Tag: $RELEASE_TAG                         "
 echo "===================================================="
@@ -79,10 +79,10 @@ fi
 
 # 5. Build and Deploy Containers with Rollback Guard
 echo "[*] Building container images..."
-docker compose build --parallel
+docker compose --profile ai --profile proxy build --parallel
 
 echo "[*] Starting containers..."
-docker compose up -d
+docker compose --profile ai --profile proxy up -d
 
 # 6. Health Check Polling Loop (Zero-downtime / Validation)
 echo "[*] Polling service health status (waiting up to 30s)..."

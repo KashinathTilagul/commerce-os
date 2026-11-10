@@ -26,7 +26,7 @@ export default function IntegrationsPage() {
   return (
     <MarketingPage>
       <main>
-        <PageIntro eyebrow="Integrations" title="Connect the systems your company already runs on." body="Ekvaar combines native service adapters with organisation-scoped Composio connections. Availability depends on provider setup and the permissions granted to your workspace." />
+        <PageIntro eyebrow="Integrations" title="Connect the systems your company already runs on." body="Commerce OS combines native service adapters with organisation-scoped Composio connections. Availability depends on provider setup and the permissions granted to your workspace." />
         <section className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:px-12 lg:py-28"><ProductShot priority src="/site/os/integrations.webp" alt="Commerce OS integrations workspace" label="Integration workspace" note="The real connection surface inside Commerce OS. Connected status is read from the organisation, not hard-coded." /></section>
         <section className="border-y border-white/10 bg-[#080808]"><div className="mx-auto grid max-w-[1440px] gap-px bg-white/10 md:grid-cols-2 lg:grid-cols-4">{connectionModes.map(({ icon: Icon, title, body }) => <article key={title} className="bg-[#080808] p-8 lg:min-h-64"><Icon className="h-5 w-5 text-[#63D7E8]" /><h2 className="mt-12 font-medium">{title}</h2><p className="mt-3 text-sm leading-6 text-white/40">{body}</p></article>)}</div></section>
         <section className="mx-auto max-w-[1440px] px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
