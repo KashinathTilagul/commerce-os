@@ -5,6 +5,7 @@ import { routeText } from '@/lib/ai-router'
 import { generateImage } from '@/lib/image-generator'
 import { generateVideo } from '@/lib/video-generator'
 import { publicArtifactUrl } from '@/lib/artifact-public'
+import { isCronAuthorized } from '@/lib/cron-auth'
 
 const DraftSchema = z.object({
   cycle_name: z.string().min(3),
@@ -27,7 +28,7 @@ function parseDraft(text: string) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!process.env.CRON_SECRET || req.headers.get('x-cron-secret') !== process.env.CRON_SECRET) {
+  if (!isCronAuthorized(req.headers)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   try {

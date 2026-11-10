@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireOrganization } from '@/lib/auth-guard'
+import { requireOrgAdmin, requireOrganization } from '@/lib/auth-guard'
 import { getOmniRouteConfig, saveOmniRouteConfig } from '@/lib/omniroute-config'
 
 export async function GET() {
@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const auth = await requireOrganization()
+  const auth = await requireOrgAdmin()
   if (!auth.success) return auth.response
 
   try {

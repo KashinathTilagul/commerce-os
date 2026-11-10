@@ -6,7 +6,8 @@ import {
   Settings as SettingsIcon, FolderOpen, Plug,
   Calculator as CalcIcon, StickyNote, Calendar as CalIcon,
   ShoppingBag, Wallet, Package, Megaphone, ShieldCheck, Cpu,
-  AlertTriangle, Music, Activity, Brain, Rocket, Loader2, Sparkles
+  AlertTriangle, Music, Activity, Brain, Rocket, Loader2, Sparkles,
+  MessageSquare
 } from 'lucide-react'
 
 import dynamic from 'next/dynamic'
@@ -128,6 +129,21 @@ export const APPS: AppDef[] = [
     entryPoint: Workforce,
     permissions: [],
     gradient: 'linear-gradient(135deg, #1F3A5F 0%, #0A0A0A 100%)',
+    glyphColor: '#F5F1EA',
+    menuItems: [{ label: 'File', items: ['Close Window'] }]
+  },
+  {
+    id: 'chat',
+    name: 'Chat',
+    shortName: 'Chat',
+    version: '1.0.0',
+    icon: MessageSquare as any,
+    iconVariant: 'chat',
+    category: 'core',
+    requiredCapabilities: [],
+    entryPoint: Chat,
+    permissions: [],
+    gradient: 'linear-gradient(135deg, #2563EB 0%, #0F172A 100%)',
     glyphColor: '#F5F1EA',
     menuItems: [{ label: 'File', items: ['Close Window'] }]
   },

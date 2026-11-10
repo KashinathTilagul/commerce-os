@@ -65,3 +65,18 @@ export async function requireOrganization(): Promise<OrgAuthResult> {
     session
   }
 }
+
+export async function requireOrgAdmin(): Promise<OrgAuthResult> {
+  const auth = await requireOrganization()
+  if (!auth.success) return auth
+
+  const member = await db.user.findUnique({
+    where: { id: auth.user.id },
+    select: { orgRole: true },
+  })
+  if (!member || !['FOUNDER', 'ADMIN'].includes(member.orgRole)) {
+    return { success: false, response: createApiError('Organization administrator required', 403) }
+  }
+
+  return auth
+}

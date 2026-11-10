@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireOrganization } from '@/lib/auth-guard'
 import { runEngineeredSecurityScan } from '@/lib/security-scanner'
 import { processSecurityAlert } from '@/lib/security-escalator'
+import { secretsMatch } from '@/lib/cron-auth'
 import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
@@ -15,22 +16,25 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // Support both session auth OR webhook header token
+  // Support both session auth OR dedicated webhook header token
   const token = req.headers.get('x-security-token')
-  const secret = process.env.SECURITY_WEBHOOK_SECRET || process.env.NEXTAUTH_SECRET
+  const secret = process.env.SECURITY_WEBHOOK_SECRET
 
   let organizationId: string | null = null
 
   if (token) {
     if (!secret) {
-      return NextResponse.json({ error: 'Security webhook secret not configured on server' }, { status: 500 })
+      return NextResponse.json({ error: 'Security webhook secret not configured on server' }, { status: 503 })
     }
-    if (token !== secret) {
+    if (!secretsMatch(token, secret)) {
       return NextResponse.json({ error: 'Invalid security token' }, { status: 401 })
     }
-    // Webhook caller — get founder user ID
-    const founder = await db.user.findFirst({ orderBy: { createdAt: 'asc' } })
-    organizationId = founder?.id || null
+    const founder = await db.user.findFirst({
+      where: { organizationId: { not: null } },
+      orderBy: { createdAt: 'asc' },
+      select: { organizationId: true },
+    })
+    organizationId = founder?.organizationId || null
   } else {
     const auth = await requireOrganization()
     if (!auth.success) return auth.response

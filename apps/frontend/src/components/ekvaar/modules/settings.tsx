@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Moon, Sun, Monitor, Shield, Bell, Palette, Zap, Loader2, Trash2, AlertTriangle, Save, Image as ImageIcon, CheckCircle2 } from 'lucide-react'
+import { Moon, Sun, Monitor, Shield, Bell, Palette, Zap, Loader2, Trash2, AlertTriangle, Save, Image as ImageIcon, CheckCircle2, Cpu } from 'lucide-react'
 import { PageHeader } from '../shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -35,6 +35,7 @@ export function Settings() {
   const [providerDraft, setProviderDraft] = useState<Record<string, any>>({})
   const [selectedImageModel, setSelectedImageModel] = useState('')
   const [imageTestUrl, setImageTestUrl] = useState('')
+  const [aiTestResult, setAiTestResult] = useState<{ ok: boolean; text: string } | null>(null)
   const orgNameTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const { data: settings, isLoading } = useQuery({
@@ -116,6 +117,23 @@ export function Settings() {
       toast.success('Image model verified', data.modelId)
     },
     onError: (error: Error) => toast.error('Image model failed', error.message),
+  })
+
+  const aiTestMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/settings/test-ai', { method: 'POST' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'AI provider test failed')
+      return data as { ok: boolean; provider: string; model: string; reply: string }
+    },
+    onSuccess: (data) => {
+      setAiTestResult({ ok: true, text: `${data.provider} · ${data.model}` })
+      toast.success('AI model connected', `${data.provider} · ${data.model}`)
+    },
+    onError: (error: Error) => {
+      setAiTestResult({ ok: false, text: error.message })
+      toast.error('AI model failed', error.message)
+    },
   })
 
   const handleSaveCredentials = () => {
@@ -250,6 +268,125 @@ export function Settings() {
                 ))}
               </div>
             </Row>
+          </CardContent>
+        </Card>
+
+        {/* AI Models & Providers */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display tracking-tight text-base flex items-center gap-2">
+              <Cpu className="h-4 w-4" /> AI Models & Providers
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Configure organization-owned LLM credentials used by Chat, Workforce agents, Content Studio, and Analyst.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Row label="Primary provider" desc="Model provider used first across AI workflows">
+              <Select
+                value={providerDraft.primaryProvider ?? (s.primaryProvider || 'openai')}
+                onValueChange={(value) => setProviderDraft((draft) => ({ ...draft, primaryProvider: value }))}
+              >
+                <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="openai">OpenAI</SelectItem>
+                  <SelectItem value="anthropic">Anthropic Claude</SelectItem>
+                  <SelectItem value="gemini">Google Gemini</SelectItem>
+                  <SelectItem value="groq">Groq</SelectItem>
+                  <SelectItem value="openrouter">OpenRouter</SelectItem>
+                  <SelectItem value="omniroute">OmniRoute Gateway</SelectItem>
+                  <SelectItem value="ollama">Ollama (Local)</SelectItem>
+                </SelectContent>
+              </Select>
+            </Row>
+            <Row label="Primary model ID" desc="Exact model identifier (e.g. gpt-4o-mini, claude-3-5-sonnet-latest, gemini-2.5-flash)">
+              <Input
+                value={providerDraft.primaryModel ?? (s.primaryModel || '')}
+                onChange={(event) => setProviderDraft((draft) => ({ ...draft, primaryModel: event.target.value }))}
+                placeholder="gpt-4o-mini"
+                className="w-80 font-mono text-xs"
+              />
+            </Row>
+            <Row label="Primary API key" desc="Encrypted at rest; optional for local Ollama">
+              <Input
+                type="password"
+                value={providerDraft.primaryApiKey ?? ''}
+                onChange={(event) => setProviderDraft((draft) => ({ ...draft, primaryApiKey: event.target.value }))}
+                placeholder={s.hasPrimaryApiKey ? 'API key saved (enter new key to replace)' : 'Paste provider API key'}
+                autoComplete="off"
+                className="w-80 font-mono text-xs"
+              />
+            </Row>
+            <Row label="Primary base URL (optional)" desc="Leave blank to use the selected provider's official endpoint">
+              <Input
+                value={providerDraft.primaryBaseUrl ?? (s.primaryBaseUrl || '')}
+                onChange={(event) => setProviderDraft((draft) => ({ ...draft, primaryBaseUrl: event.target.value }))}
+                placeholder="https://api.openai.com/v1"
+                className="w-80 font-mono text-xs"
+              />
+            </Row>
+            <div className="border-t border-border/60 pt-4 space-y-4">
+              <Row label="Fallback provider (optional)" desc="Tried automatically if the primary provider errors">
+                <Select
+                  value={providerDraft.fallback1Provider ?? (s.fallback1Provider || 'none')}
+                  onValueChange={(value) => setProviderDraft((draft) => ({ ...draft, fallback1Provider: value === 'none' ? '' : value }))}
+                >
+                  <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    <SelectItem value="openai">OpenAI</SelectItem>
+                    <SelectItem value="anthropic">Anthropic Claude</SelectItem>
+                    <SelectItem value="gemini">Google Gemini</SelectItem>
+                    <SelectItem value="groq">Groq</SelectItem>
+                    <SelectItem value="openrouter">OpenRouter</SelectItem>
+                    <SelectItem value="omniroute">OmniRoute Gateway</SelectItem>
+                    <SelectItem value="ollama">Ollama (Local)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Row>
+              {(providerDraft.fallback1Provider ?? s.fallback1Provider) ? (
+                <>
+                  <Row label="Fallback model ID" desc="Model used when primary fails">
+                    <Input
+                      value={providerDraft.fallback1Model ?? (s.fallback1Model || '')}
+                      onChange={(event) => setProviderDraft((draft) => ({ ...draft, fallback1Model: event.target.value }))}
+                      placeholder="llama-3.3-70b-versatile"
+                      className="w-80 font-mono text-xs"
+                    />
+                  </Row>
+                  <Row label="Fallback API key" desc="Encrypted at rest">
+                    <Input
+                      type="password"
+                      value={providerDraft.fallback1ApiKey ?? ''}
+                      onChange={(event) => setProviderDraft((draft) => ({ ...draft, fallback1ApiKey: event.target.value }))}
+                      placeholder={s.hasFallback1ApiKey ? 'Fallback API key saved' : 'Paste fallback API key'}
+                      autoComplete="off"
+                      className="w-80 font-mono text-xs"
+                    />
+                  </Row>
+                </>
+              ) : null}
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+              <div className="min-w-0 text-xs">
+                {aiTestResult ? (
+                  <span className={aiTestResult.ok ? 'text-arav font-medium' : 'text-agni font-medium'}>
+                    {aiTestResult.ok ? `Connected: ${aiTestResult.text}` : aiTestResult.text}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">Save changes first, then verify live completion.</span>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => aiTestMutation.mutate()}
+                disabled={aiTestMutation.isPending || Object.keys(providerDraft).length > 0}
+              >
+                {aiTestMutation.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-2 h-3.5 w-3.5" />}
+                {aiTestMutation.isPending ? 'Testing…' : 'Test AI connection'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

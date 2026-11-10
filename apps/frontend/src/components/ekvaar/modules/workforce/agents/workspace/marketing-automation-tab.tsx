@@ -11,13 +11,13 @@ import { toast } from '@/components/ekvaar/desktop/toast'
 async function readApiJson(response: Response) {
   const text = await response.text()
   try { return text ? JSON.parse(text) : {} } catch {
-    throw new Error(`Ekvaar server returned ${response.status} ${response.statusText || 'an invalid response'}`)
+    throw new Error(`Commerce OS server returned ${response.status} ${response.statusText || 'an invalid response'}`)
   }
 }
 
 export function MarketingAutomationTab({ agentId }: { agentId: string }) {
   const queryClient = useQueryClient()
-  const [instruction, setInstruction] = useState('Generate the next Ekvaar marketing content cycle')
+  const [instruction, setInstruction] = useState('Generate the next marketing content cycle')
   const { data } = useQuery({
     queryKey: ['agent-marketing-automation', agentId],
     queryFn: async () => {
@@ -37,7 +37,7 @@ export function MarketingAutomationTab({ agentId }: { agentId: string }) {
       return result
     },
     onSuccess: () => {
-      toast.success('Marketing output ready', 'Saved to the shared Ekvaar marketing ledger')
+      toast.success('Marketing output ready', 'Saved to the shared marketing ledger')
       queryClient.invalidateQueries({ queryKey: ['agent-marketing-automation', agentId] })
     },
     onError: (error: Error) => toast.error('Marketing workflow failed', error.message),
@@ -45,7 +45,7 @@ export function MarketingAutomationTab({ agentId }: { agentId: string }) {
 
   return <div className="space-y-4">
     <GlassPanel level={2} className="rounded-xl p-5">
-      <h3 className="font-display text-sm">Execute Ekvaar marketing workflow</h3>
+      <h3 className="font-display text-sm">Execute marketing workflow</h3>
       <p className="mt-1 text-[11px] text-muted-foreground">Creates India-first multilingual content for Instagram, Facebook, Threads and LinkedIn. Publishing remains Founder approval-gated.</p>
       <div className="mt-4 flex gap-2">
         <Input value={instruction} onChange={(event) => setInstruction(event.target.value)} maxLength={1000} />

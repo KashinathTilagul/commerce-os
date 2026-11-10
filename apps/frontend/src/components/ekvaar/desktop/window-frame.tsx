@@ -207,7 +207,7 @@ export function WindowFrame({ win }: { win: WindowState }) {
 
           {/* Content */}
           <div className="flex-1 min-h-0 overflow-y-auto bg-background text-foreground">
-            <AppComponent {...(win.id === 'command' ? { onNavigate: (id: any) => { const t = APP_MAP[id as keyof typeof APP_MAP]; if (t) useWindowStore.getState().open(id, t.name) } } : {})} />
+            <AppComponent {...(win.id === 'command' ? { onNavigate: (id: any) => { if (id === 'inbox') { const store = useWindowStore.getState(); store.setAppState('agents', { section: 'approvals' }); const agentsApp = APP_MAP.agents; if (agentsApp) store.open('agents', agentsApp.name); return } const t = APP_MAP[id as keyof typeof APP_MAP]; if (t) useWindowStore.getState().open(id, t.name) } } : {})} />
           </div>
 
           {/* Resize handles */}

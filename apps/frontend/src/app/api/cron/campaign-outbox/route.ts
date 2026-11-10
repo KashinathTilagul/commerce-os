@@ -3,15 +3,15 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { campaignLaunchesEnabled } from '@/lib/campaign-feature'
 import { dispatchOutboxBatch } from '@/lib/campaign-outbox'
+import { isCronAuthorized } from '@/lib/cron-auth'
 
 export async function POST(req: NextRequest) {
   if (!campaignLaunchesEnabled()) {
     return NextResponse.json({ error: 'Campaign launches are not enabled' }, { status: 404 })
   }
 
-  const secret = process.env.CRON_SECRET
-  if (!secret) return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 })
-  if (req.headers.get('x-cron-secret') !== secret) {
+  if (!process.env.CRON_SECRET) return NextResponse.json({ error: 'CRON_SECRET is not configured' }, { status: 503 })
+  if (!isCronAuthorized(req.headers)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

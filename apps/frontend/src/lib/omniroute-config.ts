@@ -40,10 +40,18 @@ export function normalizeOmniRouteBaseUrl(value?: string) {
 
 export async function getOmniRouteConfig(organizationId: string) {
   const settings = await db.systemSetting.findUnique({ where: { organizationId } })
-  const storedKey = settings?.primaryApiKey || ''
-  const apiKey = decryptSecret(storedKey) || ''
+  const slots = settings
+    ? [
+        { provider: settings.primaryProvider, apiKey: settings.primaryApiKey, baseUrl: settings.primaryBaseUrl },
+        { provider: settings.fallback1Provider, apiKey: settings.fallback1ApiKey, baseUrl: settings.fallback1BaseUrl },
+        { provider: settings.fallback2Provider, apiKey: settings.fallback2ApiKey, baseUrl: settings.fallback2BaseUrl },
+      ]
+    : []
+  const slot = slots.find((s) => s.provider.toLowerCase() === 'omniroute' && s.apiKey)
+    || (!settings?.primaryProvider && settings?.primaryApiKey ? slots[0] : undefined)
+  const apiKey = decryptSecret(slot?.apiKey || '') || ''
   return {
-    baseUrl: normalizeOmniRouteBaseUrl(settings?.primaryBaseUrl),
+    baseUrl: normalizeOmniRouteBaseUrl(slot?.baseUrl),
     apiKey,
     hasApiKey: Boolean(apiKey),
     imageModel: settings?.omnirouteImageModel || DEFAULT_IMAGE_MODEL,

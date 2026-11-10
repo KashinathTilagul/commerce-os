@@ -1,6 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { isCronAuthorized } from './cron-auth'
+import { isCronAuthorized, secretsMatch } from './cron-auth'
+
+test('secretsMatch compares secrets in constant time and rejects empty values', () => {
+  assert.equal(secretsMatch('', ''), false)
+  assert.equal(secretsMatch('abc', ''), false)
+  assert.equal(secretsMatch('', 'abc'), false)
+  assert.equal(secretsMatch('short', 'much-longer-secret'), false)
+  assert.equal(secretsMatch('test-secret-1', 'test-secret-2'), false)
+  assert.equal(secretsMatch('test-secret-1', 'test-secret-1'), true)
+})
 
 test('cron authentication fails closed for absent, empty and incorrect secrets', () => {
   const previous = process.env.CRON_SECRET

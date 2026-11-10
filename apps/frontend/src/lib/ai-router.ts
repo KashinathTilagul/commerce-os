@@ -1,13 +1,15 @@
 import { generateText } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createAnthropic } from '@ai-sdk/anthropic'
+import { z } from 'zod'
 import { db } from '@/lib/db'
 import { decryptSecret } from '@/lib/crypto'
 import { resolveDirectProvider } from '@/lib/direct-provider'
+import { normalizeOmniRouteBaseUrl } from '@/lib/omniroute-config'
 
 export type Tier = 'fast' | 'default' | 'reasoning'
 
-// Vision-capable model identifiers (OmniRoute model IDs)
+// Vision-capable model identifiers (OmniRoute & direct model IDs)
 const VISION_MODELS = new Set([
   'anthropic/claude-3.5-sonnet',
   'anthropic/claude-3-haiku',
@@ -22,7 +24,6 @@ const VISION_MODELS = new Set([
 
 function supportsVision(modelId: string): boolean {
   const normalized = modelId.toLowerCase()
-  // gateway "auto/*" combos route to whatever model can handle the input
   return normalized.startsWith('auto/') ||
     VISION_MODELS.has(normalized) ||
     normalized.includes('vision') ||
@@ -33,25 +34,58 @@ function supportsVision(modelId: string): boolean {
     normalized.includes('claude-3-opus')
 }
 
-// ── OmniRoute Only ─────────────────────────────────────────────────────────────
+export const PROVIDER_DEFAULT_BASE_URLS: Record<string, string> = {
+  openai: 'https://api.openai.com/v1',
+  groq: 'https://api.groq.com/openai/v1',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+  openrouter: 'https://openrouter.ai/api/v1',
+  ollama: 'http://localhost:11434/v1',
+  omniroute: process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1',
+}
+
+export function validateProviderBaseUrl(provider: string, rawUrl?: string | null): string {
+  const trimmed = (rawUrl || '').trim()
+  if (!trimmed) return ''
+  const normalizedProvider = (provider || '').trim().toLowerCase()
+  if (normalizedProvider === 'omniroute') {
+    return normalizeOmniRouteBaseUrl(trimmed)
+  }
+  const url = new URL(trimmed)
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new Error('Provider base URL must use http or https')
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    throw new Error('Provider base URL cannot contain credentials, query or fragment')
+  }
+  const host = url.hostname.toLowerCase()
+  if (host === '169.254.169.254' || host === 'metadata.google.internal' || host.startsWith('169.254.')) {
+    throw new Error('Provider base URL cannot target metadata endpoints')
+  }
+  return url.href.replace(/\/$/, '')
+}
 
 async function getOmniRouteConfig(organizationId?: string) {
   try {
     const settings = organizationId
       ? await db.systemSetting.findUnique({ where: { organizationId } })
       : null
+    if (!settings) return { apiKey: '', baseUrl: '' }
+    const slots = [
+      { provider: settings.primaryProvider, apiKey: settings.primaryApiKey, baseUrl: settings.primaryBaseUrl },
+      { provider: settings.fallback1Provider, apiKey: settings.fallback1ApiKey, baseUrl: settings.fallback1BaseUrl },
+      { provider: settings.fallback2Provider, apiKey: settings.fallback2ApiKey, baseUrl: settings.fallback2BaseUrl },
+    ]
+    const slot = slots.find((s) => s.provider.toLowerCase() === 'omniroute' && s.apiKey)
+      || (!settings.primaryProvider && settings.primaryApiKey ? slots[0] : undefined)
     return {
-      apiKey: settings?.primaryApiKey ? await decryptSecret(settings.primaryApiKey) : '',
-      baseUrl: settings?.primaryBaseUrl || '',
+      apiKey: slot?.apiKey ? decryptSecret(slot.apiKey) : '',
+      baseUrl: slot?.baseUrl || '',
     }
   } catch {
     return { apiKey: '', baseUrl: '' }
   }
 }
 
-// docker-compose sets OMNIROUTE_BASE_URL to the service hostname; the code
-// default only applies outside docker (local dev), where the gateway port is
-// published to the host
 const DEFAULT_OMNIROUTE_BASE_URL = process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1'
 const DEFAULT_MODEL_FAST = process.env.OMNIROUTE_MODEL_FAST || 'auto/best-fast'
 const DEFAULT_MODEL_REASONING = process.env.OMNIROUTE_MODEL_REASONING || 'auto/best-reasoning'
@@ -64,11 +98,10 @@ function getOmniRouteModel(modelId: string, apiKey = '', baseURL = '', headers?:
     apiKey,
     headers,
   })
-  return omniroute(modelId)
+  return omniroute.chat(modelId)
 }
 
-// Model targets from DB settings
-type ModelTarget = { provider: string; model: string; apiKey?: string; baseUrl?: string }
+export type ModelTarget = { provider: string; model: string; apiKey?: string; baseUrl?: string }
 export type SavedRoutingSettings = {
   primaryProvider: string
   primaryModel: string
@@ -84,11 +117,31 @@ export type SavedRoutingSettings = {
   fallback2BaseUrl: string
 }
 
-function modelForTarget(target: ModelTarget) {
-  if (target.provider === 'anthropic' && target.apiKey) {
-    return createAnthropic({ apiKey: target.apiKey, baseURL: target.baseUrl })(target.model)
+export function resolveTargetConfig(target: ModelTarget) {
+  const provider = (target.provider || '').trim().toLowerCase()
+  const baseUrl = target.baseUrl?.trim() || PROVIDER_DEFAULT_BASE_URLS[provider] || DEFAULT_OMNIROUTE_BASE_URL
+  return { provider, model: target.model.trim(), baseUrl }
+}
+
+export function modelForTarget(target: ModelTarget) {
+  const { provider, model, baseUrl } = resolveTargetConfig(target)
+  if (provider === 'anthropic' && target.apiKey) {
+    return createAnthropic({
+      apiKey: target.apiKey,
+      ...(target.baseUrl?.trim() ? { baseURL: target.baseUrl.trim() } : {}),
+    })(model)
   }
-  return getOmniRouteModel(target.model, target.apiKey, target.baseUrl)
+  if (provider === 'openai') {
+    return createOpenAI({
+      apiKey: target.apiKey,
+      baseURL: baseUrl,
+    })(model)
+  }
+  // OpenAI-compatible gateways (OmniRoute, Groq, Gemini OpenAI compat, OpenRouter, Ollama)
+  return createOpenAI({
+    apiKey: target.apiKey || (provider === 'ollama' ? 'ollama' : ''),
+    baseURL: baseUrl,
+  }).chat(model)
 }
 
 async function configuredTargets(organizationId?: string, preloaded?: SavedRoutingSettings | null): Promise<ModelTarget[]> {
@@ -101,7 +154,10 @@ async function configuredTargets(organizationId?: string, preloaded?: SavedRouti
       { provider: settings.primaryProvider, model: settings.primaryModel, apiKey: decryptSecret(settings.primaryApiKey), baseUrl: settings.primaryBaseUrl },
       { provider: settings.fallback1Provider, model: settings.fallback1Model, apiKey: decryptSecret(settings.fallback1ApiKey), baseUrl: settings.fallback1BaseUrl },
       { provider: settings.fallback2Provider, model: settings.fallback2Model, apiKey: decryptSecret(settings.fallback2ApiKey), baseUrl: settings.fallback2BaseUrl },
-    ].filter((target) => target.provider && target.model && target.apiKey)
+    ].filter((target) => {
+      if (!target.provider || !target.model) return false
+      return target.provider.toLowerCase() === 'ollama' || Boolean(target.apiKey)
+    })
   } catch (error: any) {
     console.warn('[AI Router] Could not load saved routing settings:', error?.message || error)
     return []
@@ -151,8 +207,6 @@ async function getModelChain(tier: Tier, needsVision?: boolean, organizationId?:
   return chain
 }
 
-// ── Run with Fallback Chain ──────────────────────────────────────────────────
-
 async function runChain<T>(
   tier: Tier,
   fn: (model: any) => Promise<T>,
@@ -184,31 +238,10 @@ export async function runVisionChain<T>(
   return runChain(tier, fn, true, organizationId)
 }
 
-// Simple JSON Schema generator helper
-function toJSONSchema(schema: any): any {
-  if (schema._def?.typeName === 'ZodObject') {
-    const shape = schema._def.shape()
-    const properties: any = {}
-    const required: string[] = []
-
-    for (const [key, value] of Object.entries(shape)) {
-      properties[key] = toJSONSchema(value)
-      if ((value as any)._def?.typeName !== 'ZodOptional') {
-        required.push(key)
-      }
-    }
-
-    return { type: 'object', properties, required }
-  }
-
-  if (schema._def?.typeName === 'ZodString') return { type: 'string' }
-  if (schema._def?.typeName === 'ZodNumber') return { type: 'number' }
-  if (schema._def?.typeName === 'ZodBoolean') return { type: 'boolean' }
-  if (schema._def?.typeName === 'ZodArray') return { type: 'array', items: toJSONSchema(schema._def.type) }
-  if (schema._def?.typeName === 'ZodEnum') return { type: 'string', enum: schema._def.values }
-  if (schema._def?.typeName === 'ZodDiscriminatedUnion') return { type: 'object' }
-
-  return { type: 'string' }
+export function toJSONSchema(schema: z.ZodTypeAny): Record<string, unknown> {
+  const generated = z.toJSONSchema(schema, { unrepresentable: 'any' }) as Record<string, unknown>
+  const { $schema: _ignored, ...rest } = generated
+  return rest
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -216,7 +249,7 @@ function toJSONSchema(schema: any): any {
 export async function routeObject<T>(
   tier: Tier,
   organizationId: string,
-  opts: { schema: any; system: string; prompt: string; temperature?: number; maxOutputTokens?: number; routingSettings?: SavedRoutingSettings | null },
+  opts: { schema: z.ZodTypeAny; system: string; prompt: string; temperature?: number; maxOutputTokens?: number; routingSettings?: SavedRoutingSettings | null },
 ): Promise<{ object: T; provider: string; model: string }> {
   const jsonSchema = JSON.stringify(toJSONSchema(opts.schema))
   const { result, provider, model } = await runChain(tier, async (m) => {
