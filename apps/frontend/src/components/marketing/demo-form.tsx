@@ -1,6 +1,7 @@
 'use client'
 
 import type { FormEvent } from 'react'
+import { attribution, reportLead } from './ad-tags'
 
 const focus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F3EDE4]'
 
@@ -14,7 +15,10 @@ export function DemoForm() {
       `Company: ${String(data.get('company') || '')}`,
       '',
       String(data.get('note') || ''),
+      // Which ad or campaign brought them, when known.
+      ...Object.entries(attribution()).map(([k, v]) => `${k}: ${v}`),
     ]
+    reportLead('commerce_demo')
     const href = `mailto:kashinathtilagul@gmail.com?subject=${encodeURIComponent('Commerce OS demo')}&body=${encodeURIComponent(lines.join('\n'))}`
     window.location.href = href
   }

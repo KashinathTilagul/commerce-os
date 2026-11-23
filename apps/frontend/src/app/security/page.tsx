@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { Database, Eye, KeyRound, LockKeyhole, ShieldCheck, UserCheck } from 'lucide-react'
 import { MarketingPage, PageIntro } from '@/components/marketing/site-shell'
 
-export const metadata: Metadata = { title: 'Security and control — Commerce OS', description: 'How Commerce OS handles organisation boundaries, credentials, approvals and evidence.' }
+export const metadata: Metadata = { title: 'Security and Control for AI Agents | Commerce OS', description: 'How Commerce OS keeps each organisation separate, stores credentials, requires approval for sensitive actions and records evidence of every step.', alternates: { canonical: '/security' } }
 
 export default function SecurityPage() {
   const principles = [

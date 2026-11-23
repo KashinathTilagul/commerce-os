@@ -5,6 +5,7 @@ import { QueryProvider } from "@/components/ekvaar/query-provider";
 import { AuthProvider } from "@/components/ekvaar/auth-provider";
 import { ErrorBoundary } from "@/components/ekvaar/error-boundary";
 import { Suspense } from "react";
+import { AdTags } from "@/components/marketing/ad-tags";
 
 const geistSans = Inter({
   variable: "--font-geist-sans",
@@ -79,6 +80,7 @@ export default function RootLayout({
             </ErrorBoundary>
           </QueryProvider>
         </AuthProvider>
+        <AdTags />
       </body>
     </html>
   );

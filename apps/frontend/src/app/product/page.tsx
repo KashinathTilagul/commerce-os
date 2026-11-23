@@ -4,7 +4,7 @@ import { ArrowRight, Check, Eye, GitBranch, ShieldCheck, Users } from 'lucide-re
 import { MarketingPage, PageIntro, SIGNUP_URL } from '@/components/marketing/site-shell'
 import { ProductShot } from '@/components/marketing/product-shot'
 
-export const metadata: Metadata = { title: 'Product — Commerce OS', description: 'Explore the real workspaces inside Commerce OS.' }
+export const metadata: Metadata = { title: 'AI Operations Platform for Commerce Teams | Commerce OS', description: 'See the workspaces inside Commerce OS: AI agents that run commerce operations with approvals, connected apps and a full log of every action.', alternates: { canonical: '/product' } }
 
 const workspaces = [
   { src: '/site/os/command-center.webp', label: 'Command Center', alt: 'Commerce OS Command Center', note: 'A founder-level view of company health, work in progress and decisions that need attention.' },

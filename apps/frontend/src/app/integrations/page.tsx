@@ -4,7 +4,7 @@ import { ArrowRight, KeyRound, Network, ShieldCheck, Workflow } from 'lucide-rea
 import { MarketingPage, PageIntro } from '@/components/marketing/site-shell'
 import { ProductShot } from '@/components/marketing/product-shot'
 
-export const metadata: Metadata = { title: 'Integrations — Commerce OS', description: 'Connect models, apps, data and workflow services to Commerce OS.' }
+export const metadata: Metadata = { title: 'Integrations: Shopify, WhatsApp, Razorpay & More | Commerce OS', description: 'Connect Commerce OS to Shopify, WooCommerce, Razorpay, Stripe, WhatsApp Business, Gmail, Google Ads, Meta Ads and your data and workflow tools.', alternates: { canonical: '/integrations' } }
 
 const groups = [
   { title: 'Communication', apps: ['Gmail', 'Outlook', 'Slack', 'Discord', 'WhatsApp Business', 'Twilio'] },
