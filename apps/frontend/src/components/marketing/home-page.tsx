@@ -90,7 +90,7 @@ export function HomePage() {
           <div className="os-drift pointer-events-none absolute -left-24 top-0 h-80 w-80 rounded-full bg-[#C8302A]/25 blur-3xl" aria-hidden="true" />
           <div className="pointer-events-none absolute right-0 top-24 h-72 w-72 rounded-full bg-[#1F3A5F]/50 blur-3xl" aria-hidden="true" />
           <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-16 sm:px-6 sm:pt-24">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Private beta · ABATA</p>
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Private beta · ABATA</p>
             <h1 className="mt-5 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] tracking-[-0.05em] sm:text-6xl lg:text-7xl">
               The operating system for a commerce company.
             </h1>
@@ -115,7 +115,7 @@ export function HomePage() {
 
         <section id="modules" className="scroll-mt-20 border-t border-white/10" aria-labelledby="modules-title">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Modules</p>
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Modules</p>
             <h2 id="modules-title" className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">The windows the desktop actually opens.</h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-[#D5CFC6]">Names below match the apps registered in the product. Utilities such as the calculator and Spotify are in the desktop too; they are not the product story.</p>
             <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -131,7 +131,7 @@ export function HomePage() {
 
         <section id="how" className="scroll-mt-20 border-t border-white/10" aria-labelledby="how-title">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">How it works</p>
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">How it works</p>
             <h2 id="how-title" className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">Organisation first. Autonomy last.</h2>
             <ol className="mt-10 grid gap-4 lg:grid-cols-4">
               {steps.map(([n, title, body]) => (
@@ -148,7 +148,7 @@ export function HomePage() {
         <section className="border-t border-white/10" aria-labelledby="screens-title">
           <div className="mx-auto max-w-6xl space-y-16 px-4 py-16 sm:px-6 lg:py-24">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Inside the product</p>
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Inside the product</p>
               <h2 id="screens-title" className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">Screens from the running app.</h2>
             </div>
             <ProductShot src="/site/os/content-studio.webp" alt="Commerce OS Content Studio with a post ready to approve" label="Content Studio" note="Draft, review, approve, and schedule without splitting the output from its evidence." />
@@ -159,7 +159,7 @@ export function HomePage() {
 
         <section id="integrations" className="scroll-mt-20 border-t border-white/10" aria-labelledby="integrations-title">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Integrations</p>
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Integrations</p>
             <h2 id="integrations-title" className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">Connect what your company already runs.</h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-[#D5CFC6]">These names are adapters or toolkit entries in the codebase. Listing one does not mean it is connected. Each organisation configures and verifies its own.</p>
             <ul className="mt-8 flex flex-wrap gap-2">
@@ -173,7 +173,7 @@ export function HomePage() {
 
         <section id="pricing" className="scroll-mt-20 border-t border-white/10" aria-labelledby="pricing-title">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Pricing</p>
+            <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Pricing</p>
             <h2 id="pricing-title" className="mt-3 max-w-2xl text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">Indicative packaging. Not a checkout.</h2>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-[#D5CFC6]">Nothing here is a bill. Private beta signup is free and opens the real account form. Team and Enterprise describe how a workspace can grow. They are not charged in the app.</p>
             <div className="mt-10 grid gap-4 lg:grid-cols-3">
@@ -197,7 +197,7 @@ export function HomePage() {
         <section id="security" className="scroll-mt-20 border-t border-white/10" aria-labelledby="security-title">
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_1fr] lg:py-24">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Security</p>
+              <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Security</p>
               <h2 id="security-title" className="mt-3 text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">Autonomy with a boundary.</h2>
               <p className="mt-4 text-sm leading-7 text-[#D5CFC6]">The product is built around organisation scope, credentials that belong to that organisation, and a trail of what an agent did.</p>
             </div>

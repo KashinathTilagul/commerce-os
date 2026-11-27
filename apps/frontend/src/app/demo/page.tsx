@@ -12,7 +12,7 @@ export default function DemoPage() {
   return (
     <MarketingPage>
       <main className="mx-auto max-w-xl px-4 py-16 sm:px-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Demo</p>
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">Demo</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em]">Book a demo</h1>
         <p className="mt-4 text-sm leading-7 text-[#D5CFC6]">Your request goes to the ABATA AI team, who will email you to set up the demo. It is not stored inside Commerce OS.</p>
         <DemoForm />

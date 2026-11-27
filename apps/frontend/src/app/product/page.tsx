@@ -34,7 +34,7 @@ export default function ProductPage() {
             {index % 2 === 0 && <ProductShot {...workspace} />}
           </div>)}
         </section>
-        <section className="border-t border-white/10 bg-[#F2EEE6] text-black"><div className="mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-8 px-5 py-16 sm:px-8 lg:flex-row lg:items-end lg:px-12"><div><div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-black/40">Start with one team</div><h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">Connect what you use. Govern what agents can do.</h2></div><Link href={SIGNUP_URL} className="inline-flex h-12 shrink-0 items-center gap-3 bg-black px-6 text-sm font-semibold text-white">Create workspace <ArrowRight className="h-4 w-4" /></Link></div></section>
+        <section className="border-t border-white/10 bg-[#F2EEE6] text-black"><div className="mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-8 px-5 py-16 sm:px-8 lg:flex-row lg:items-end lg:px-12"><div><div className="font-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-black/40">Start with one team</div><h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">Connect what you use. Govern what agents can do.</h2></div><Link href={SIGNUP_URL} className="inline-flex h-12 shrink-0 items-center gap-3 bg-black px-6 text-sm font-semibold text-white">Create workspace <ArrowRight className="h-4 w-4" /></Link></div></section>
       </main>
     </MarketingPage>
   )

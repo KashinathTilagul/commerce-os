@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Geist, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/ekvaar/query-provider";
 import { AuthProvider } from "@/components/ekvaar/auth-provider";
@@ -7,11 +7,20 @@ import { ErrorBoundary } from "@/components/ekvaar/error-boundary";
 import { Suspense } from "react";
 import { AdTags } from "@/components/marketing/ad-tags";
 
-const geistSans = Inter({
+const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
   display: "swap",
   preload: true,
+});
+
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  subsets: ["latin"],
+  weight: "400",
+  style: "italic",
+  display: "swap",
+  preload: false,
 });
 
 const geistMono = JetBrains_Mono({
@@ -69,7 +78,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
+        className={`${geistSans.variable} ${instrumentSerif.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <AuthProvider>
           <QueryProvider>
