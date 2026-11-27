@@ -59,11 +59,11 @@ export function SiteFooter() {
           <p className="mt-3 max-w-sm text-sm leading-6 text-[#C9C3B8]">A desktop for commerce teams. Orders, inventory, finance, campaigns and an AI workforce share one organisation.</p>
         </div>
         <nav className="grid content-start gap-2 text-sm" aria-label="Explore">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#A89F93]">Explore</span>
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[#A89F93]">Explore</span>
           {links.map((link) => <Link key={link.href} className={`text-[#D5CFC6] hover:text-white ${focus}`} href={link.href}>{link.label}</Link>)}
         </nav>
         <nav className="grid content-start gap-2 text-sm" aria-label="Account and legal">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#A89F93]">Account</span>
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[#A89F93]">Account</span>
           <Link className={`text-[#D5CFC6] hover:text-white ${focus}`} href={SIGNUP_URL}>Start free</Link>
           <Link className={`text-[#D5CFC6] hover:text-white ${focus}`} href={LOGIN_URL}>Sign in</Link>
           <Link className={`text-[#D5CFC6] hover:text-white ${focus}`} href={DEMO_URL}>Book a demo</Link>
@@ -92,7 +92,7 @@ export function PageIntro({ eyebrow, title, body }: { eyebrow: string; title: st
   return (
     <div className="border-b border-white/10">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">{eyebrow}</p>
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E7B2A4]">{eyebrow}</p>
         <h1 className="mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] tracking-[-0.045em] sm:text-6xl">{title}</h1>
         <p className="mt-6 max-w-2xl text-base leading-7 text-[#D5CFC6] sm:text-lg">{body}</p>
       </div>

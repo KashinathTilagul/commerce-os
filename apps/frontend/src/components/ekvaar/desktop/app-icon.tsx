@@ -283,7 +283,7 @@ function NewsIcon({ size }: { size: number }) {
         <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))' }}>
           {/* Red top header */}
           <rect x="2" y="3" width="20" height="5" fill="#FC2C38" />
-          <text x="12" y="7" textAnchor="middle" fontSize="3.2" fontWeight="900" fill="#FFFFFF" fontFamily="Georgia, serif" letterSpacing="0.2">NEWS</text>
+          <text x="12" y="7" textAnchor="middle" fontSize="3.2" fontWeight="900" fill="#FFFFFF" fontFamily="var(--font-geist-sans)" letterSpacing="0.2">NEWS</text>
           {/* Headlines */}
           <rect x="3" y="10" width="18" height="1.3" rx="0.4" fill="#1C1C1E" />
           <rect x="3" y="12.5" width="14" height="1" rx="0.4" fill="#86868B" />
@@ -499,9 +499,9 @@ function CalendarIcon({ size }: { size: number }) {
         <svg width={s} height={s} viewBox="0 0 24 24" fill="none" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.12))' }}>
           {/* Red top header */}
           <rect x="2" y="2" width="20" height="5" fill="#FF3B30" />
-          <text x="12" y="5.8" textAnchor="middle" fontSize="2.8" fontWeight="700" fill="#FFFFFF" fontFamily="-apple-system, sans-serif">JULY</text>
+          <text x="12" y="5.8" textAnchor="middle" fontSize="2.8" fontWeight="700" fill="#FFFFFF" fontFamily="var(--font-geist-sans)">JULY</text>
           {/* Big date number */}
-          <text x="12" y="17" textAnchor="middle" fontSize="9" fontWeight="300" fill="#1C1C1E" fontFamily="-apple-system, sans-serif">18</text>
+          <text x="12" y="17" textAnchor="middle" fontSize="9" fontWeight="300" fill="#1C1C1E" fontFamily="var(--font-geist-sans)">18</text>
         </svg>
       </Glyph>
     </>
